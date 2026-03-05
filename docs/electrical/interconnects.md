@@ -60,34 +60,39 @@ Every wire connection in both systems. Use this as the wiring reference when bui
 
 | From | Terminal | To | Terminal | Wire Gauge | Fuse |
 |------|----------|----|----------|-----------|------|
-| 12V PSU | +12V | Main DC fuse (50A) | In | 12 AWG | - |
-| Main DC fuse | Out | 12V bus (Wago) | In | 12 AWG | - |
-| 12V bus | Out | 12V servo fuse (40A) | In | 14 AWG | - |
-| 12V servo fuse | Out | 12V Wago block | In | 14 AWG | - |
-| 12V Wago | Out | Base servo L | Power + | 16 AWG | - |
-| 12V Wago | Out | Base servo R | Power + | 16 AWG | - |
-| 12V Wago | Out | Shoulder servo L | Power + | 16 AWG | - |
-| 12V Wago | Out | Shoulder servo R | Power + | 16 AWG | - |
-| 12V Wago | Out | Wrist servos (TBD) | Power + | 16 AWG | - |
-| 12V Wago | Out | 12V fan | +12V | 22 AWG | 1A inline |
+| 12V PSU | +12V | Main DC fuse (40A) | In | **8 AWG** | - |
+| Main DC fuse | Out | 12V bus (Wago) | In | **8 AWG** | - |
+| 12V bus | Out | Base fuse (20A) | In | **12 AWG** | - |
+| Base fuse | Out | Base Wago block | In | **12 AWG** | - |
+| Base Wago | Out | Base servo L | Power + | 14 AWG | - |
+| Base Wago | Out | Base servo R | Power + | 14 AWG | - |
+| 12V bus | Out | Shoulder fuse (20A) | In | **12 AWG** | - |
+| Shoulder fuse | Out | Shoulder Wago block | In | **12 AWG** | - |
+| Shoulder Wago | Out | Shoulder servo L | Power + | 14 AWG | - |
+| Shoulder Wago | Out | Shoulder servo R | Power + | 14 AWG | - |
+| 12V bus | Out | 12V fan | +12V | 22 AWG | 1A inline |
 | 12V bus | Out | Buck 1 fuse (8A) | In | 16 AWG | - |
 | Buck 1 fuse | Out | Buck conv 1 | VIN+ | 16 AWG | - |
 | Buck conv 1 (7.4V) | VOUT+ | 7.4V Wago block | In | 16 AWG | - |
 | 7.4V Wago | Out | Elbow servo L | Power + | 18 AWG | - |
 | 7.4V Wago | Out | Elbow servo R | Power + | 18 AWG | - |
-| 12V bus | Out | Buck 2 fuse (3A) | In | 18 AWG | - |
-| Buck 2 fuse | Out | Buck conv 2 | VIN+ | 18 AWG | - |
-| Buck conv 2 (5V) | VOUT+ | 5V Wago block | In | 18 AWG | - |
+| 12V bus | Out | Buck 2 fuse (8A) | In | 16 AWG | - |
+| Buck 2 fuse | Out | Buck conv 2 | VIN+ | 16 AWG | - |
+| Buck conv 2 (5V) | VOUT+ | 5V Wago block | In | 16 AWG | - |
 | 5V Wago | Out | Raspberry Pi | 5V GPIO pin | 20 AWG | - |
 | 5V Wago | Out | PCA9685 | VCC | 22 AWG | - |
+| 5V Wago | Out | Wrist rotate L (RDS3218) | Power + | 18 AWG | - |
+| 5V Wago | Out | Wrist rotate R (RDS3218) | Power + | 18 AWG | - |
+| 5V Wago | Out | Wrist pan L (RDS3218) | Power + | 18 AWG | - |
+| 5V Wago | Out | Wrist pan R (RDS3218) | Power + | 18 AWG | - |
 | 5V Wago | Out | MG90S #1 | Power + | 22 AWG | - |
 | 5V Wago | Out | MG90S #2 | Power + | 22 AWG | - |
 | 5V Wago | Out | MG90S #3 | Power + | 22 AWG | - |
 | 5V Wago | Out | MG90S #4 | Power + | 22 AWG | - |
-| 12V PSU | GND | GND bus (Wago) | In | 12 AWG | - |
+| 12V PSU | GND | GND bus (Wago) | In | **8 AWG** | - |
 | GND bus | Out | All servo GND | GND | Various | Common ground |
 | GND bus | Out | Buck conv 1 | GND | 16 AWG | |
-| GND bus | Out | Buck conv 2 | GND | 18 AWG | |
+| GND bus | Out | Buck conv 2 | GND | 16 AWG | |
 | GND bus | Out | Pi | GND GPIO | 20 AWG | |
 | GND bus | Out | PCA9685 | GND | 22 AWG | |
 

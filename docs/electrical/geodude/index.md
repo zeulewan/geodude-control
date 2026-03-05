@@ -36,8 +36,8 @@ The PCA9685 drives all 14 servo signal lines over I2C (2 Pi pins). Limit switche
 | Base | [HOOYIJ 150kg](https://www.amazon.ca/HOOYIJ-Digital-Waterproof-Stainless-Steering/dp/B0CX92QNJY) | 150 kg-cm | 2 | **12V** | 8.0A | [Datasheet](https://www.amazon.com/HOOYIJ-RDS51150-Steering-U-Shaped-Brackets/dp/B0CP126F77) |
 | Shoulder | [ANNIMOS 150kg](https://www.amazon.ca/ANNIMOS-Voltage-Digital-Steering-Brackets/dp/B0C69W2QP7) | 150 kg-cm | 2 | **12V** | ~8.0A (confirm) | |
 | Elbow | [ANNIMOS 80kg](https://www.amazon.ca/ANNIMOS-Waterproof-Digital-Steering-Brackets/dp/B0C69WWLWQ) | 80 kg-cm | 2 | **7.4V** | 5.0A | [Specs](https://www.amazon.com/ANNIMOS-Waterproof-Digital-Steering-Brackets/dp/B0C69WWLWQ) |
-| Wrist (rotate) | TBD ~20kg dumb PWM | ~20 kg-cm | 2 | **TBD** | TBD | Amazon generic, to be selected |
-| Wrist (pan) | TBD ~20kg dumb PWM | ~20 kg-cm | 2 | **TBD** | TBD | Amazon generic, to be selected |
+| Wrist (rotate) | [Wishiot RDS3218](https://www.amazon.ca/Wishiot-RDS3218-Waterproof-Mounting-Bracket/dp/B0CCXRCFK4) | 20 kg-cm | 2 | **5V** | 1.6A | 270 deg, with U-bracket |
+| Wrist (pan) | [Wishiot RDS3218](https://www.amazon.ca/Wishiot-RDS3218-Waterproof-Mounting-Bracket/dp/B0CCXRCFK4) | 20 kg-cm | 2 | **5V** | 1.6A | 270 deg, with U-bracket |
 | End-effector | [Miuzei MG90S](https://www.amazon.ca/Miuzei-MG90S-Servo-Helicopter-Arduino/dp/B0CP98TZJ2) | 2 kg-cm | 4 | **5V** | ~0.5A | Standard MG90S |
 
 **Total: 14 dumb PWM servos**, all driven by PCA9685 I2C PWM driver.
@@ -62,31 +62,37 @@ The PCA9685 drives all 14 servo signal lines over I2C (2 Pi pins). Limit switche
 All DC power distribution uses **Wago lever connectors** (from Mach). Each voltage rail gets its own Wago block. The PCA9685 only carries signal wires - servo power is wired directly from the correct voltage rail.
 
 ```
-12V PSU output
+12V PSU output (8 AWG trunk)
     │
-    ├── Fuse (50A) ──→ Wago block (12V rail)
-    │                    ├──→ Base servo L power (+)
-    │                    ├──→ Base servo R power (+)
-    │                    ├──→ Shoulder servo L power (+)
-    │                    ├──→ Shoulder servo R power (+)
-    │                    ├──→ Wrist servos (if 12V, TBD)
-    │                    └──→ 12V Fan
+    ├── Main Fuse (40A) ──→ 12V Bus (Wago)
+    │                          │
+    │                          ├── Fuse (20A) ──→ Base Wago (12 AWG)
+    │                          │                    ├──→ Base servo L (14 AWG)
+    │                          │                    └──→ Base servo R (14 AWG)
+    │                          │
+    │                          ├── Fuse (20A) ──→ Shoulder Wago (12 AWG)
+    │                          │                    ├──→ Shoulder servo L (14 AWG)
+    │                          │                    └──→ Shoulder servo R (14 AWG)
+    │                          │
+    │                          │
+    │                          └──→ 12V Fan (22 AWG, 1A fuse)
     │
-    ├── Fuse (8A) ──→ Buck converter 1 (set to 7.4V)
+    ├── Fuse (8A) ──→ Buck converter 1 (set to 7.4V, 16 AWG)
     │                    └──→ Wago block (7.4V rail)
-    │                          ├──→ Elbow servo L power (+)
-    │                          └──→ Elbow servo R power (+)
+    │                          ├──→ Elbow servo L (18 AWG)
+    │                          └──→ Elbow servo R (18 AWG)
     │
-    ├── Fuse (3A) ──→ Buck converter 2 (set to 5V)
+    ├── Fuse (8A) ──→ Buck converter 2 (set to 5V, 16 AWG)
     │                    └──→ Wago block (5V rail)
-    │                          ├──→ Raspberry Pi (5V GPIO pin)
-    │                          ├──→ PCA9685 VCC (logic power)
-    │                          ├──→ MG90S #1 power (+)
-    │                          ├──→ MG90S #2 power (+)
-    │                          ├──→ MG90S #3 power (+)
-    │                          └──→ MG90S #4 power (+)
+    │                          ├──→ Raspberry Pi (20 AWG)
+    │                          ├──→ PCA9685 VCC (22 AWG)
+    │                          ├──→ RDS3218 wrist rotate L (18 AWG)
+    │                          ├──→ RDS3218 wrist rotate R (18 AWG)
+    │                          ├──→ RDS3218 wrist pan L (18 AWG)
+    │                          ├──→ RDS3218 wrist pan R (18 AWG)
+    │                          ├──→ MG90S #1-4 (22 AWG each)
     │
-    └── Wago block (GND rail) ──→ Everything (common ground)
+    └── GND Bus (8 AWG) ──→ Everything (common ground)
 ```
 
 **Base and shoulder servos run directly off 12V** - no buck converter needed. They're rated 10-12.6V and the PSU outputs 12V.
@@ -100,7 +106,7 @@ Only **2 of 4** [20A 300W buck converters](https://www.amazon.ca/XLX-High-Power-
 | Buck # | Output V | Feeds | Max Current | Status |
 |--------|----------|-------|-------------|--------|
 | 1 | **7.4V** | 2x elbow servos (80kg) | 10A stall | OK (20A converter) |
-| 2 | **5V** | Pi + 4x MG90S + PCA9685 | ~5A | OK (20A converter) |
+| 2 | **5V** | Pi + 4x RDS3218 wrist + 4x MG90S + PCA9685 | ~11A stall | OK (20A converter) |
 | 3 | - | Spare | - | |
 | 4 | - | Spare | - | |
 
@@ -112,14 +118,15 @@ Only **2 of 4** [20A 300W buck converters](https://www.amazon.ca/XLX-High-Power-
 
 Fuses from Mach. Sized at 125-150% of expected max draw.
 
-| Fuse | Branch | Max Draw | Rating | Notes |
-|------|--------|----------|--------|-------|
-| AC inline | Mains hot line before slip ring | ~5A at 120V | **6A slow-blow** | Protects AC path |
-| Main DC | 12V bus after PSU | ~40A worst case | **50A** | |
-| 12V servo branch | Base + shoulder direct | ~32A stall | **40A** | 4x 150kg servos |
-| Buck 1 input | Elbow servos | ~6.2A at 12V in | **8A** | |
-| Buck 2 input | Pi + MG90S | ~2A at 12V in | **3A** | |
-| Fan line | 12V fan | 0.15A | **1A** | |
+| Fuse | Branch | Max Draw | Rating | Wire Gauge | Notes |
+|------|--------|----------|--------|-----------|-------|
+| AC inline | Mains hot line before slip ring | ~5A at 120V | **6A slow-blow** | Mains cable | Protects AC path |
+| Main DC | 12V bus after PSU | ~40A worst case | **40A** | **8 AWG** | |
+| Base servo branch | 2x base 150kg servos | 16A stall | **20A** | **12 AWG** | Fault isolation |
+| Shoulder servo branch | 2x shoulder 150kg servos | 16A stall | **20A** | **12 AWG** | Fault isolation |
+| Buck 1 input | Elbow servos | ~6.2A at 12V in | **8A** | 16 AWG | |
+| Buck 2 input | Pi + wrist + MG90S | ~5.4A at 12V in | **8A** | 16 AWG | Wrist servos now on 5V rail |
+| Fan line | 12V fan | 0.15A | **1A** | 22 AWG | |
 
 ---
 
@@ -174,7 +181,7 @@ These items from the original BOM are **no longer needed** for GEO-DUDe electron
 | Item | Reason |
 |------|--------|
 | ~~Waveshare smart servo driver board~~ | All servos are dumb PWM, using PCA9685 instead |
-| ~~Feetech STS3215 smart servos~~ | Replaced with TBD dumb ~20kg PWM servos for wrist |
+| ~~Feetech STS3215 smart servos~~ | Replaced with Wishiot RDS3218 20kg dumb PWM servos for wrist |
 | ~~PCF8575 I2C GPIO expander~~ | Only 6 limit switches, Pi GPIO handles it directly |
 | ~~Buck converters 3 and 4~~ | Only 2 needed (7.4V for elbow, 5V for Pi), 2 are spares |
 
@@ -184,8 +191,7 @@ These items from the original BOM are **no longer needed** for GEO-DUDe electron
 
 | Item | Purpose | Est. Cost |
 |------|---------|-----------|
-| **PCA9685 16-ch PWM driver** | Drive all 14 servo signal lines via I2C | ~$5-8 |
-| **TBD ~20kg dumb PWM servos (x4)** | Wrist rotate (2) + wrist pan (2) | TBD |
+| ~~PCA9685 16-ch PWM driver~~ | ~~Drive all 14 servo signal lines via I2C~~ | Added to BOM (row 5, $19.99) |
 
 ---
 
@@ -198,23 +204,26 @@ graph TD
     SLIP_IN --> SLIP_OUT["Slip Ring<br/>(rotating side)"]
     SLIP_OUT --> PSU["12V 600W PSU<br/>(inside GEO-DUDe)"]
 
-    PSU --> F_MAIN["Main DC Fuse (50A)"]
+    PSU --> F_MAIN["Main DC Fuse (40A)<br/>8 AWG"]
     F_MAIN --> BUS["12V DC Bus<br/>(Wago block)"]
 
-    BUS --> F_SERVO["Fuse (40A)"] --> WAGO12["12V Wago Block"]
-    WAGO12 --> BASE["Base Servos<br/>2x 150kg @ 12V"]
-    WAGO12 --> SHOULDER["Shoulder Servos<br/>2x 150kg @ 12V"]
-    WAGO12 --> WRIST["Wrist Servos<br/>4x TBD @ TBD V"]
-    WAGO12 --> FAN["12V Fan"]
+    BUS --> F_BASE["Fuse (20A)<br/>12 AWG"] --> WAGO_BASE["Base Wago"]
+    WAGO_BASE --> BASE["Base Servos<br/>2x 150kg @ 12V"]
+
+    BUS --> F_SHLD["Fuse (20A)<br/>12 AWG"] --> WAGO_SHLD["Shoulder Wago"]
+    WAGO_SHLD --> SHOULDER["Shoulder Servos<br/>2x 150kg @ 12V"]
+
+    BUS --> FAN["12V Fan<br/>1A fuse"]
 
     BUS --> F_ELBOW["Fuse (8A)"] --> BUCK1["Buck Conv 1<br/>7.4V"]
     BUCK1 --> WAGO74["7.4V Wago Block"]
     WAGO74 --> ELBOW["Elbow Servos<br/>2x 80kg @ 7.4V"]
 
-    BUS --> F_5V["Fuse (3A)"] --> BUCK2["Buck Conv 2<br/>5V"]
+    BUS --> F_5V["Fuse (8A)"] --> BUCK2["Buck Conv 2<br/>5V"]
     BUCK2 --> WAGO5["5V Wago Block"]
     WAGO5 --> PI["Raspberry Pi"]
     WAGO5 --> PCA["PCA9685 Logic"]
+    WAGO5 --> WRIST["Wrist Servos<br/>4x RDS3218 @ 5V"]
     WAGO5 --> MG90["MG90S x4<br/>End-Effector @ 5V"]
 
     style WALL fill:#ff6b6b,color:#fff
@@ -222,7 +231,8 @@ graph TD
     style SLIP_OUT fill:#ff6b6b,color:#fff
     style IEC fill:#ff6b6b,color:#fff
     style PSU fill:#ffa500,color:#fff
-    style WAGO12 fill:#4a9eff,color:#fff
+    style WAGO_BASE fill:#4a9eff,color:#fff
+    style WAGO_SHLD fill:#4a9eff,color:#fff
     style WAGO74 fill:#4a9eff,color:#fff
     style WAGO5 fill:#4a9eff,color:#fff
 ```
