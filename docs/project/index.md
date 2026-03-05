@@ -1,14 +1,22 @@
 # Project
 
-Build status and procurement tracking for the subscale test setup.
+Build status and procurement tracking.
 
 <div class="grid cards" markdown>
+
+-   :material-format-list-bulleted:{ .lg .middle } **Bill of Materials**
+
+    ---
+
+    Combined BOM for both systems with links to every component
+
+    [:octicons-arrow-right-24: BOM](bom.md)
 
 -   :material-truck-delivery:{ .lg .middle } **Procurement**
 
     ---
 
-    Order status for all components across both BOMs
+    Order status tracking
 
     [:octicons-arrow-right-24: Procurement](procurement.md)
 
@@ -33,4 +41,3 @@ Build status and procurement tracking for the subscale test setup.
 - [ ] Verify slip ring wire count is sufficient
 - [ ] Size all fuses
 - [ ] Assign GPIO pin mapping for Pi and ESP32
-- [ ] Create draw.io wiring diagram (if needed beyond interconnect tables)

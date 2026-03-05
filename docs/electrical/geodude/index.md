@@ -1,6 +1,6 @@
-# Subscale Electronics
+# GEO-DUDe Electronics
 
-The subscale satellite has its own independent electrical system. A Raspberry Pi controls the robotic arm servos through a mix of PWM, I2C, and serial interfaces, all powered by a 12V PSU through buck converters.
+The GEO-DUDe servicer subscale model runs on a 12V system with a Raspberry Pi controlling a 6-DOF robotic arm through a mix of PWM, I2C, and serial interfaces.
 
 ---
 
@@ -11,8 +11,26 @@ The subscale satellite has its own independent electrical system. A Raspberry Pi
 | **Main controller** | Raspberry Pi (already have, Zeul) |
 | **Smart servo driver** | [Waveshare servo driver board](https://www.amazon.com/Waveshare-Integrates-Control-Circuit-Supports/dp/B0CTMM4LWK) |
 | **I2C expander** | [PCF8575 I2C GPIO expander](https://www.amazon.ca/ACEIRMC-PCF8575-Expander-Extension-Arduino/dp/B09DFWS722) (pack of 3) |
+| **Camera** | Raspberry Pi Camera (AI vision, already have, Zeul) |
 
 The Waveshare driver board handles the smart servos (wrist joints) via serial/UART. The I2C expander provides additional GPIO pins for limit switches and standard servo PWM signals.
+
+---
+
+## Robotic Arm
+
+6-DOF servo-driven arm for approach and capture via the defunct satellite's kick-engine nozzle.
+
+| Joint | Servo Type | Torque | Qty | Signal | Notes |
+|-------|-----------|--------|-----|--------|-------|
+| Base | [HOOYIJ 150kg](https://www.amazon.ca/HOOYIJ-Digital-Waterproof-Stainless-Steering/dp/B0CX92QNJY) | 150 kg-cm | 2 | PWM | Standard hobby servo |
+| Shoulder | [ANNIMOS 150kg](https://www.amazon.ca/ANNIMOS-Voltage-Digital-Steering-Brackets/dp/B0C69W2QP7) | 150 kg-cm | 2 | PWM | Robot version with brackets |
+| Elbow | [ANNIMOS 80kg](https://www.amazon.ca/ANNIMOS-Waterproof-Digital-Steering-Brackets/dp/B0C69WWLWQ) | 80 kg-cm | 2 | PWM | Robot version with brackets |
+| Wrist (rotate) | [RCmall Smart 20kg](https://www.amazon.com/RCmall-Continuous-Programmable-SO-ARM100-Controller/dp/B0F87Z9M3P) | 20 kg-cm | 2 | Serial (UART) | Smart servo, pack of 2 |
+| Wrist (pan) | [RCmall Smart 20kg](https://www.amazon.com/RCmall-Continuous-Programmable-SO-ARM100-Controller/dp/B0F87Z9M3P) | 20 kg-cm | 2 | Serial (UART) | Smart servo, pack of 2 |
+| End-effector | [Miuzei MG90S](https://www.amazon.ca/Miuzei-MG90S-Servo-Helicopter-Arduino/dp/B0CP98TZJ2) | 2 kg-cm | 4 | PWM | Micro servo, pack of 4 |
+
+**Total: 14 servos** (6 standard PWM + 4 smart serial + 4 micro PWM)
 
 ---
 
@@ -45,7 +63,7 @@ The Waveshare driver board handles the smart servos (wrist joints) via serial/UA
 
 ## Fuses
 
-Fuses available from Mach (machine shop). Placement plan:
+Fuses available from Mach. Placement:
 
 | Location | Rating | Protects |
 |----------|--------|----------|
@@ -57,13 +75,28 @@ Fuses available from Mach (machine shop). Placement plan:
 | Fan line | TBD | 12V cooling fan |
 
 !!! note "Fuse sizing blocked on servo datasheets"
-    Size each fuse at 125-150% of the expected max draw for that branch. Need actual stall current specs from servo datasheets.
+    Size each fuse at 125-150% of expected max draw for that branch.
 
 ---
 
-## Wago Connectors
+## Slip Ring
 
-Available from Mach. Used for branch connections off the 12V bus - clean, tool-free wire splicing.
+A [3-wire slip ring](https://www.amazon.ca/Conductive-Current-Collecting-Electric-Connector/dp/B09NBLY16J) passes power and signal through the rotating base joint.
+
+| Wire | Carries | Notes |
+|------|---------|-------|
+| Wire 1 | Servo power (+) | From buck conv 1 to base servos |
+| Wire 2 | GND | Common ground |
+| Wire 3 | Signal | PWM for base servos |
+
+!!! warning "3 wires may not be enough"
+    Two base servos need individual PWM signal lines. Options: multiplex the signal, use a Y-splitter above the slip ring, or get a slip ring with more conductors.
+
+---
+
+## Limit Switches
+
+[Momentary limit switches](https://www.amazon.ca/MKBKLLJY-Momentary-Terminal-Electronic-Appliance/dp/B0DK693J79) (pack of 12, qty 2 = 24 switches) for zeroing/homing each joint.
 
 ---
 
@@ -72,7 +105,6 @@ Available from Mach. Used for branch connections off the 12V bus - clean, tool-f
 | | |
 |---|---|
 | **Fan** | [12V 80mm fan](https://www.amazon.ca/KingWin-CF-08LB-80mm-Long-Bearing/dp/B002YFSHPY) |
-| **Purpose** | Cooling internals of subscale enclosure |
 
 ---
 

@@ -1,6 +1,6 @@
-# Apparatus Electronics
+# Gimbal Electronics
 
-The testing apparatus runs on a separate electrical system from the subscale satellite. An ESP32 controls stepper motors through TMC2209 drivers, all powered by a 24V PSU.
+The 3-axis gimbal and linear rail system runs on a 24V system with an ESP32 controlling stepper motors through TMC2209 drivers.
 
 ---
 
@@ -8,20 +8,8 @@ The testing apparatus runs on a separate electrical system from the subscale sat
 
 | | |
 |---|---|
-| **MCU** | ESP32 |
-| **Owner** | Aidan M (already have) |
-| **Role** | Gimbal axis control + belt drive motor |
-
----
-
-## Power Supply
-
-| | |
-|---|---|
-| **Voltage** | 24V |
-| **Power** | 480W (20A) |
-| **Connector** | Mains input (needs IEC socket or direct wire) |
-| **Link** | [Amazon.ca](https://www.amazon.ca/BOSYTRO-Switching-Universal-Transformers-Upgraded/dp/B0F7XCLJVM) |
+| **MCU** | ESP32 (already have, Aidan M) |
+| **Role** | Gimbal axis control (3 axes) + belt drive motor |
 
 ---
 
@@ -31,10 +19,10 @@ The testing apparatus runs on a separate electrical system from the subscale sat
 
 | Motor | Function | Notes |
 |-------|----------|-------|
-| Stepper 1 | Gimbal yaw axis | |
-| Stepper 2 | Gimbal pitch axis | |
-| Stepper 3 | Gimbal roll axis | |
-| Stepper 4 | Belt drive (linear approach) | Housed in gimbal base |
+| Stepper 1 | Gimbal yaw axis | Base rotation on roller bearing |
+| Stepper 2 | Gimbal pitch axis | Through 80mm thrust bearing |
+| Stepper 3 | Gimbal roll axis | Through 80mm thrust bearing |
+| Stepper 4 | Belt drive | Linear approach, housed in gimbal base |
 
 ### TMC2209 Drivers
 
@@ -54,12 +42,32 @@ The testing apparatus runs on a separate electrical system from the subscale sat
 
 ---
 
+## Power Supply
+
+| | |
+|---|---|
+| **Voltage** | 24V |
+| **Power** | 480W (20A) |
+| **Link** | [Amazon.ca](https://www.amazon.ca/BOSYTRO-Switching-Universal-Transformers-Upgraded/dp/B0F7XCLJVM) |
+
+---
+
+## Linear Rail System
+
+| | |
+|---|---|
+| **Rails** | HGR15, 1000mm, 2 rails + 4 HGH15CA carriages |
+| **Belt** | 5M GT2 timing belt with pulleys and tensioners |
+| **Drive** | Stepper #4 in gimbal base drives belt, translates servicer along rails |
+
+---
+
 ## Cooling
 
 | | |
 |---|---|
-| **Fans** | 24V 80mm brushless (pack of 2, qty 2 packs) |
-| **Purpose** | Cooling internals of gimbal base enclosure |
+| **Fans** | 24V 80mm brushless (pack of 2, qty 2 packs = 4 fans) |
+| **Purpose** | Cooling gimbal base enclosure internals |
 | **Link** | [Amazon.ca](https://www.amazon.ca/GDSTIME-Brushless-Ventilateur-Computer-Applications/dp/B0F1FHQKZD) |
 
 ---
@@ -74,8 +82,8 @@ graph TD
     BUS --> DRV2["TMC2209 #2<br/>Pitch Stepper"]
     BUS --> DRV3["TMC2209 #3<br/>Roll Stepper"]
     BUS --> DRV4["TMC2209 #4<br/>Belt Stepper"]
-    BUS --> FAN1["24V Fan x4"]
-    BUS --> ESP_REG["ESP32<br/>(onboard 3.3V reg)"]
+    BUS --> FAN["24V Fans x4"]
+    BUS --> ESP["ESP32<br/>(onboard 3.3V reg)"]
 ```
 
 !!! note "Fuse sizing TBD"
