@@ -79,18 +79,37 @@ Fuses available from Mach. Placement:
 
 ---
 
-## Slip Ring
+## Slip Ring (AC Mains Passthrough)
 
-A [3-wire slip ring](https://www.amazon.ca/Conductive-Current-Collecting-Electric-Connector/dp/B09NBLY16J) passes power and signal through the rotating base joint.
+A [3-wire 15A slip ring](https://www.amazon.ca/Conductive-Current-Collecting-Electric-Connector/dp/B09NBLY16J) passes 120V AC mains through the rotation point between the stationary rail base and the rotating GEO-DUDe body. The PSU sits inside GEO-DUDe, so all DC distribution is internal.
 
-| Wire | Carries | Notes |
-|------|---------|-------|
-| Wire 1 | Servo power (+) | From buck conv 1 to base servos |
-| Wire 2 | GND | Common ground |
-| Wire 3 | Signal | PWM for base servos |
+| | |
+|---|---|
+| **Model** | 3-wire, 15A per wire, 150 RPM |
+| **Carries** | 120V AC mains (live, neutral, ground) |
+| **Location** | Between stationary rail base and rotating servicer body (thrust bearing) |
 
-!!! warning "3 wires may not be enough"
-    Two base servos need individual PWM signal lines. Options: multiplex the signal, use a Y-splitter above the slip ring, or get a slip ring with more conductors.
+| Wire | Carries | Connector |
+|------|---------|-----------|
+| Wire 1 | AC Live (hot) | Crimp spade terminal to IEC C16 |
+| Wire 2 | AC Neutral | Crimp spade terminal to IEC C16 |
+| Wire 3 | AC Ground | Crimp spade terminal to IEC C16 |
+
+### AC Wiring Path
+
+```
+Wall outlet --> IEC C16 panel socket (spade terminals, crimped)
+           --> Slip ring input (stationary side)
+           --> Slip ring output (rotating side)
+           --> 12V 600W PSU AC input (inside GEO-DUDe)
+```
+
+!!! danger "AC mains safety"
+    - Slip ring is rated 15A per wire at 120V - sufficient for 600W PSU (~5A at 120V)
+    - All AC connections must use proper crimp spade terminals on the IEC C16
+    - Ground wire MUST be connected through the slip ring for safety
+    - AC wiring should be physically separated from DC wiring inside GEO-DUDe
+    - Consider adding an inline fuse on the AC hot line before the slip ring
 
 ---
 
@@ -112,10 +131,13 @@ A [3-wire slip ring](https://www.amazon.ca/Conductive-Current-Collecting-Electri
 
 ```mermaid
 graph TD
-    MAINS["Mains Power"] --> IEC["IEC C16 Socket"]
-    IEC --> PSU["12V 600W PSU"]
-    PSU --> F_MAIN["Main Fuse (TBD)"]
-    F_MAIN --> BUS["12V Bus"]
+    WALL["Wall Outlet<br/>120V AC"] --> IEC["IEC C16 Panel Socket<br/>(spade terminals, crimped)"]
+    IEC --> SLIP_IN["Slip Ring<br/>(stationary side)"]
+    SLIP_IN --> SLIP_OUT["Slip Ring<br/>(rotating side)"]
+    SLIP_OUT --> PSU["12V 600W PSU<br/>(inside GEO-DUDe)"]
+
+    PSU --> F_MAIN["Main DC Fuse (TBD)"]
+    F_MAIN --> BUS["12V DC Bus<br/>(Wago connectors)"]
 
     BUS --> F1["Fuse 1"] --> BUCK1["Buck Conv 1<br/>~7.4V"] --> BASE["Base Servos<br/>2x 150kg"]
     BUS --> F2["Fuse 2"] --> BUCK2["Buck Conv 2<br/>~7.4V"] --> SHOULDER["Shoulder Servos<br/>2x 150kg"]
@@ -125,6 +147,12 @@ graph TD
 
     BUCK4 --> SMART_DRV["Waveshare Smart<br/>Servo Driver"]
     SMART_DRV --> WRIST["Wrist Servos<br/>4x Smart 20kg"]
+
+    style WALL fill:#ff6b6b,color:#fff
+    style SLIP_IN fill:#ff6b6b,color:#fff
+    style SLIP_OUT fill:#ff6b6b,color:#fff
+    style IEC fill:#ff6b6b,color:#fff
+    style PSU fill:#ffa500,color:#fff
 ```
 
 ## Signal Architecture
