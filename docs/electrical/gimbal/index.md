@@ -1,6 +1,6 @@
 # Gimbal Electronics
 
-The 3-axis gimbal and linear rail system runs on a 24V system with an ESP32 controlling stepper motors through TMC2209 drivers.
+The 3-axis gimbal and linear rail system runs on a 24V system with an ESP32 controlling stepper motors through TMC2209 drivers. Separate mains connection from GEO-DUDe.
 
 ---
 
@@ -9,7 +9,9 @@ The 3-axis gimbal and linear rail system runs on a 24V system with an ESP32 cont
 | | |
 |---|---|
 | **MCU** | ESP32 (already have, Aidan M) |
+| **Power** | 5V USB adapter (separate from 24V system) |
 | **Role** | Gimbal axis control (3 axes) + belt drive motor |
+| **Comms to Pi** | WiFi (coordinated operation with GEO-DUDe) |
 
 ---
 
@@ -30,6 +32,7 @@ The 3-axis gimbal and linear rail system runs on a 24V system with an ESP32 cont
 |---|---|
 | **Driver IC** | TMC2209 (BIGTREETECH) |
 | **Quantity** | Pack of 5 (4 needed, 1 spare) |
+| **Current limit** | 2A RMS per driver |
 | **Features** | Silent stepping, UART config, sensorless homing |
 | **Link** | [Amazon.ca](https://www.amazon.ca/BIGTREETECH-TMC2209-Stepper-Stepstick-Heatsink/dp/B0CQC7QMS2) |
 
@@ -48,7 +51,10 @@ The 3-axis gimbal and linear rail system runs on a 24V system with an ESP32 cont
 |---|---|
 | **Voltage** | 24V |
 | **Power** | 480W (20A) |
+| **Input** | Separate mains connection (not through slip ring) |
 | **Link** | [Amazon.ca](https://www.amazon.ca/BOSYTRO-Switching-Universal-Transformers-Upgraded/dp/B0F7XCLJVM) |
+
+ESP32 is powered separately via a 5V USB adapter, NOT from the 24V bus.
 
 ---
 
@@ -76,15 +82,15 @@ The 3-axis gimbal and linear rail system runs on a 24V system with an ESP32 cont
 
 ```mermaid
 graph TD
-    PSU["24V 480W PSU"] --> F_MAIN["Main Fuse"]
+    MAINS["Separate Mains<br/>Connection"] --> PSU["24V 480W PSU"]
+    PSU --> F_MAIN["Main Fuse (12A)"]
     F_MAIN --> BUS["24V Bus"]
     BUS --> DRV1["TMC2209 #1<br/>Yaw Stepper"]
     BUS --> DRV2["TMC2209 #2<br/>Pitch Stepper"]
     BUS --> DRV3["TMC2209 #3<br/>Roll Stepper"]
     BUS --> DRV4["TMC2209 #4<br/>Belt Stepper"]
     BUS --> FAN["24V Fans x4"]
-    BUS --> ESP["ESP32<br/>(onboard 3.3V reg)"]
-```
 
-!!! note "Fuse sizing TBD"
-    Need stepper motor datasheets to determine per-driver current draw and fuse ratings.
+    USB["5V USB Adapter<br/>(separate)"] --> ESP["ESP32"]
+    ESP --> WIFI["WiFi to Pi"]
+```
