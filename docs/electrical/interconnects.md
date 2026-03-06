@@ -69,8 +69,8 @@ Every wire connection in both systems. Use this as the wiring reference when bui
 
 | From | Terminal | To | Terminal | Wire Gauge | Notes |
 |------|----------|----|----------|-----------|-------|
-| 12V PSU | +12V | Main DC fuse (40A) | In | **8 AWG** | |
-| Main DC fuse | Out | 12V bus (Wago) | In | **8 AWG** | |
+| 12V PSU | +12V | Main DC fuse (25A) | In | **10 AWG** | |
+| Main DC fuse | Out | 12V bus (Wago) | In | **10 AWG** | |
 | 12V bus | Out | Buck 2 fuse (3A inline) | In | 18 AWG | **Always on** (before relay) |
 | Buck 2 fuse | Out | Buck conv 2 | VIN+ | 18 AWG | |
 | Buck conv 2 (5V) | VOUT+ | 5V Pi Wago | In | 18 AWG | Pi + PCA9685 only |
@@ -81,12 +81,12 @@ Every wire connection in both systems. Use this as the wiring reference when bui
 
 | From | Terminal | To | Terminal | Wire Gauge | Notes |
 |------|----------|----|----------|-----------|-------|
-| 12V bus | Out | 40A Relay | Input | **8 AWG** | Normally open, Pi GPIO controlled |
-| 40A Relay | Output | Cyrico fuse block | +12V in | **8 AWG** | All servo power through here |
-| Fuse block | 20A circuit | Base servo L | Power + | 14 AWG | |
-| Fuse block | 20A circuit | Base servo R | Power + | 14 AWG | |
-| Fuse block | 20A circuit | Shoulder servo L | Power + | 14 AWG | |
-| Fuse block | 20A circuit | Shoulder servo R | Power + | 14 AWG | |
+| 12V bus | Out | 40A Relay | Input | **10 AWG** | Normally open, Pi GPIO controlled |
+| 40A Relay | Output | Cyrico fuse block | +12V in | **10 AWG** | All servo power through here |
+| Fuse block | 15A circuit | Base servo L | Power + | 14 AWG | |
+| Fuse block | 15A circuit | Base servo R | Power + | 14 AWG | |
+| Fuse block | 15A circuit | Shoulder servo L | Power + | 14 AWG | |
+| Fuse block | 15A circuit | Shoulder servo R | Power + | 14 AWG | |
 | Fuse block | 8A circuit | Buck conv 1 | VIN+ | 16 AWG | |
 | Buck conv 1 (7.4V) | VOUT+ | 7.4V Wago | In | 16 AWG | |
 | 7.4V Wago | Out | Elbow servo L | Power + | 18 AWG | |
@@ -107,8 +107,8 @@ Every wire connection in both systems. Use this as the wiring reference when bui
 
 | From | Terminal | To | Terminal | Wire Gauge | Notes |
 |------|----------|----|----------|-----------|-------|
-| 12V PSU | GND | GND bus (Wago) | In | **8 AWG** | Star ground point |
-| GND bus | Out | Fuse block | Negative bus | **8 AWG** | Fuse block has built-in GND bus |
+| 12V PSU | GND | GND bus (Wago) | In | **10 AWG** | Star ground point |
+| GND bus | Out | Fuse block | Negative bus | **10 AWG** | Fuse block has built-in GND bus |
 | Fuse block neg bus | Out | Base servo L | GND | 14 AWG | Star topology |
 | Fuse block neg bus | Out | Base servo R | GND | 14 AWG | Star topology |
 | Fuse block neg bus | Out | Shoulder servo L | GND | 14 AWG | Star topology |

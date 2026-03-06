@@ -29,7 +29,7 @@ Source: [Subscale Satellite BOM](https://docs.google.com/spreadsheets/d/1E1N-070
 | 20 | Wago connectors | General purpose | - | - | - | Have (Mach) |
 | 21 | IEC C16 socket | Mains input | 1 | $10.89 | [Amazon.ca](https://www.amazon.ca/Baomain-Panel-Power-Sockets-Connectors/dp/B00WFZH042) | Not ordered |
 | 22 | 12-circuit fuse block | Cyrico, w/ negative bus, LED indicators, 24 blade fuses | 1 | - | [Amazon.ca](https://www.amazon.ca/Indicator-Waterproof-Circuits-Negative-Automotive/dp/B0C6Z49434) | Have (Mach) |
-| 23 | 120A 12V relay | irhapsody, SPST 4-pin, continuous duty, power-on sequencing | 1 | ~$15.00 | [Amazon.ca](https://www.amazon.ca/irhapsody-Continuous-Automotive-Current-Starter/dp/B07T35K8S2) | Not ordered |
+| 23 | 40A 12V relay | SPST, continuous duty, power-on sequencing | 1 | ~$15.00 | [Amazon.ca](https://www.amazon.ca/irhapsody-Continuous-Automotive-Current-Starter/dp/B07T35K8S2) | Not ordered |
 | 24 | GPIO breakout HAT | GeeekPi, 40-pin screw terminal, no soldering | 1 | $12.99 | [Amazon.ca](https://www.amazon.ca/GeeekPi-Raspberry-Terminal-Breakout-Expansion/dp/B08GKQMC72) | Not ordered |
 
 **GEO-DUDe Total: ~$800.57**
@@ -61,3 +61,45 @@ Source: [Testing Apparatus BOM](https://docs.google.com/spreadsheets/d/1E1N-070x
 ---
 
 **Combined Total: ~$1,335.10**
+
+---
+
+## Potentially Missing from BOM
+
+Components referenced in the [electrical diagrams](../electrical/diagrams/index.md) and [interconnects documentation](../electrical/interconnects.md) that are not yet listed in the BOM spreadsheet. These are needed for the build but haven't been added to procurement tracking.
+
+### GEO-DUDe System
+
+| Component | Qty | Why Needed | Source |
+|-----------|-----|------------|--------|
+| 6A slow-blow AC fuse + inline holder | 1 | Protects AC hot line before slip ring | L1-geodude diagram |
+| 25A DC fuse + holder | 1 | Main DC protection after 12V PSU | L2-geodude-power diagram |
+| 2N2222 NPN transistor | 1 | Relay coil driver (Pi GPIO can't source enough current) | L2-geodude-power diagram |
+| 1N4007 flyback diode | 1 | Protects transistor from relay coil back-EMF | L2-geodude-power diagram |
+| 1k ohm resistor | 1 | Transistor base current limiter for relay driver | L2-geodude-power diagram |
+| Crimp spade terminals (6.3mm insulated) | ~20 | Fuse block, relay, PSU connections | Interconnects doc |
+| Crimp butt connectors + heat shrink | ~10 | Inline wire splices | Interconnects doc |
+| Wire, 10 AWG (red + black) | ~2m | PSU to fuse block trunk, relay contacts | L2-geodude-power diagram |
+| Wire, 14 AWG | ~3m | Fuse block to base/shoulder servos | L2-geodude-power diagram |
+| Wire, 16 AWG | ~2m | Fuse block to buck converters | L2-geodude-power diagram |
+| Wire, 18 AWG | ~3m | Buck converter outputs, always-on path | L2-geodude-power diagram |
+| Wire, 22 AWG | ~2m | Signal, low-current (PCA9685, MG90S, fan) | L2-geodude-power diagram |
+| Dupont jumper wires | ~20 | I2C, GPIO, PCA9685 signal connections | L2-geodude-signal diagram |
+
+### Gimbal System
+
+| Component | Qty | Why Needed | Source |
+|-----------|-----|------------|--------|
+| 5V USB adapter | 1 | Separate power for ESP32 (not from 24V bus) | L1-gimbal diagram |
+| 12A DC fuse + holder | 1 | Main DC protection after 24V PSU | L1-gimbal diagram |
+| 1k ohm resistor | 1 | UART TX/RX bridge for TMC2209 single-wire bus | L2-gimbal-wiring diagram |
+| Breadboard | 1 | Mounting TMC2209 drivers, ESP32 wiring | L1-gimbal diagram |
+| Wire, 18 AWG | ~2m | 24V bus to TMC2209 VMOT inputs | L2-gimbal-wiring diagram |
+| Dupont jumper wires | ~30 | STEP/DIR/UART/VIO/MS1/MS2 connections | L2-gimbal-wiring diagram |
+
+### Notes
+
+- **Blade fuses** (15A, 8A, 3A, 1A) for the Cyrico fuse block are already included with the fuse block (24 blade fuses come in the box).
+- **VMOT decoupling caps** (100uF 50V + 100nF per driver) are already in the Gimbal BOM (row 17) but marked as not ordered.
+- **Wago connectors** are covered by Mach's existing supply.
+- Most of these are cheap discrete components (~$5-15 total for resistors, transistor, diode, fuses). Wire and terminals are the main cost items.

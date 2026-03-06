@@ -1,0 +1,244 @@
+title: |md
+  # GEO-DUDe Detailed Power Distribution
+  Every fuse, wire gauge, and connection point
+| {
+  near: top-center
+  shape: text
+  style.font-size: 20
+}
+
+direction: right
+# === PSU OUTPUT ===
+psu: 12V 600W PSU {
+  shape: rectangle
+  style.fill: "#BBDEFB"
+  style.stroke: "#1565C0"
+  style.stroke-width: 2
+}
+fuse_main: 25A Fuse {
+  shape: diamond
+  style.fill: "#BBDEFB"
+  style.stroke: "#1565C0"
+}
+bus: 12V DC Bus\n(Wago lever connectors) {
+  shape: rectangle
+  style.fill: "#BBDEFB"
+  style.stroke: "#1565C0"
+  style.stroke-width: 2
+}
+gnd_bus: GND Bus\n(Wago, star topology) {
+  shape: rectangle
+  style.fill: "#ECEFF1"
+  style.stroke: "#546E7A"
+  style.stroke-width: 2
+}
+
+psu -> fuse_main: "+12V, 10 AWG" {style.stroke: "#1565C0"; style.stroke-width: 3}
+fuse_main -> bus: "10 AWG" {style.stroke: "#1565C0"; style.stroke-width: 3}
+psu -> gnd_bus: "GND, 10 AWG" {style.stroke: "#546E7A"; style.stroke-width: 3}
+
+# === ALWAYS-ON PATH ===
+always_on: ALWAYS ON (before relay) {
+  style.fill: "#E8F5E9"
+  style.stroke: "#2E7D32"
+  style.stroke-width: 2
+  style.border-radius: 10
+
+  fuse_b2: 3A Fuse\n18 AWG {
+    shape: diamond
+    style.fill: "#C8E6C9"
+    style.stroke: "#2E7D32"
+  }
+  buck2: Buck Conv 2\n12V -> 5V\n20A/15A cont {
+    shape: rectangle
+    style.fill: "#C8E6C9"
+    style.stroke: "#2E7D32"
+    style.stroke-width: 2
+  }
+  wago_5v_pi: 5V Pi Wago {
+    shape: rectangle
+    style.fill: "#E8F5E9"
+    style.stroke: "#43A047"
+  }
+  pi: Raspberry Pi\n2.5A max {
+    shape: rectangle
+    style.fill: "#F3E5F5"
+    style.stroke: "#7B1FA2"
+    style.stroke-width: 2
+  }
+  pca: PCA9685\n~50mA {
+    shape: rectangle
+    style.fill: "#F3E5F5"
+    style.stroke: "#7B1FA2"
+  }
+
+  fuse_b2 -> buck2: "18 AWG" {style.stroke: "#2E7D32"}
+  buck2 -> wago_5v_pi: "18 AWG" {style.stroke: "#43A047"}
+  wago_5v_pi -> pi: "20 AWG" {style.stroke: "#43A047"}
+  wago_5v_pi -> pca: "22 AWG" {style.stroke: "#43A047"}
+}
+bus -> always_on.fuse_b2: "taps before relay" {style.stroke: "#1565C0"}
+
+# === RELAY ===
+relay: 40A Relay {
+  style.fill: "#FFF9C4"
+  style.stroke: "#F9A825"
+  style.border-radius: 8
+
+  coil: Relay Coil\n12V, 80 ohm\n0.15A {
+    shape: rectangle
+    style.fill: "#FFF9C4"
+    style.stroke: "#F9A825"
+  }
+  driver: Transistor Driver {
+    style.fill: "#FFF9C4"
+    style.stroke: "#F9A825"
+    style.border-radius: 6
+
+    r1: 1k Resistor {shape: rectangle; style.fill: "#FFF9C4"; style.stroke: "#F9A825"}
+    q1: 2N2222 NPN {shape: rectangle; style.fill: "#FFF9C4"; style.stroke: "#F9A825"}
+    d1: 1N4007\nFlyback {shape: rectangle; style.fill: "#FFF9C4"; style.stroke: "#F9A825"}
+
+    r1 -> q1: base {style.stroke: "#F9A825"}
+  }
+  contacts: NO Contacts\n40A rated {
+    shape: rectangle
+    style.fill: "#FFF9C4"
+    style.stroke: "#F9A825"
+    style.stroke-width: 2
+  }
+}
+bus -> relay.contacts: "10 AWG" {style.stroke: "#1565C0"; style.stroke-width: 3}
+always_on.pi -> relay.driver.r1: "GPIO (3.3V)" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+relay.driver.d1 -> relay.coil: "flyback protection" {style.stroke: "#F9A825"}
+
+# === FUSE BLOCK ===
+fb: Cyrico 12-Circuit Fuse Block\n(with negative bus) {
+  style.fill: "#E3F2FD"
+  style.stroke: "#1565C0"
+  style.stroke-width: 2
+  style.border-radius: 10
+
+  ckt1: Circuit 1\n15A blade fuse {
+    shape: rectangle
+    style.fill: "#BBDEFB"
+    style.stroke: "#1565C0"
+  }
+  base_L: Base Servo L\n150kg, 8A stall {
+    shape: rectangle
+    style.fill: "#BBDEFB"
+    style.stroke: "#1565C0"
+  }
+  base_R: Base Servo R\n150kg, 8A stall {
+    shape: rectangle
+    style.fill: "#BBDEFB"
+    style.stroke: "#1565C0"
+  }
+
+  ckt2: Circuit 2\n15A blade fuse {
+    shape: rectangle
+    style.fill: "#BBDEFB"
+    style.stroke: "#1565C0"
+  }
+  shld_L: Shoulder Servo L\n150kg, 8A stall {
+    shape: rectangle
+    style.fill: "#BBDEFB"
+    style.stroke: "#1565C0"
+  }
+  shld_R: Shoulder Servo R\n150kg, 8A stall {
+    shape: rectangle
+    style.fill: "#BBDEFB"
+    style.stroke: "#1565C0"
+  }
+
+  ckt3: Circuit 3\n8A blade fuse {
+    shape: rectangle
+    style.fill: "#C8E6C9"
+    style.stroke: "#2E7D32"
+  }
+  buck1: Buck Conv 1\n12V -> 7.4V {
+    shape: rectangle
+    style.fill: "#C8E6C9"
+    style.stroke: "#2E7D32"
+    style.stroke-width: 2
+  }
+  elbow_L: Elbow Servo L\n80kg, 5A stall {
+    shape: rectangle
+    style.fill: "#C8E6C9"
+    style.stroke: "#2E7D32"
+  }
+  elbow_R: Elbow Servo R\n80kg, 5A stall {
+    shape: rectangle
+    style.fill: "#C8E6C9"
+    style.stroke: "#2E7D32"
+  }
+
+  ckt4: Circuit 4\n8A blade fuse {
+    shape: rectangle
+    style.fill: "#E8F5E9"
+    style.stroke: "#43A047"
+  }
+  buck3: Buck Conv 3\n12V -> 5V {
+    shape: rectangle
+    style.fill: "#E8F5E9"
+    style.stroke: "#43A047"
+    style.stroke-width: 2
+  }
+  wago_5v_servo: 5V Servo Wago {
+    shape: rectangle
+    style.fill: "#E8F5E9"
+    style.stroke: "#43A047"
+  }
+  wrist_rot: Wrist Rotate L + R\n2x RDS3218, 1.6A each {
+    shape: rectangle
+    style.fill: "#E8F5E9"
+    style.stroke: "#43A047"
+  }
+  wrist_pan: Wrist Pan L + R\n2x RDS3218, 1.6A each {
+    shape: rectangle
+    style.fill: "#E8F5E9"
+    style.stroke: "#43A047"
+  }
+  mg90s: MG90S x4\nEnd-Effector\n~0.5A each {
+    shape: rectangle
+    style.fill: "#E8F5E9"
+    style.stroke: "#43A047"
+  }
+
+  ckt5: Circuit 5\n1A blade fuse {
+    shape: rectangle
+    style.fill: "#ECEFF1"
+    style.stroke: "#78909C"
+  }
+  fan: 12V Fan\n0.15A {
+    shape: rectangle
+    style.fill: "#ECEFF1"
+    style.stroke: "#78909C"
+  }
+
+  neg_bus: Negative Bus\n(built-in GND bus) {
+    shape: rectangle
+    style.fill: "#ECEFF1"
+    style.stroke: "#546E7A"
+    style.stroke-width: 2
+  }
+
+  # Power flow
+  ckt1 -> base_L: "14 AWG" {style.stroke: "#1565C0"}
+  ckt1 -> base_R: "14 AWG" {style.stroke: "#1565C0"}
+  ckt2 -> shld_L: "14 AWG" {style.stroke: "#1565C0"}
+  ckt2 -> shld_R: "14 AWG" {style.stroke: "#1565C0"}
+  ckt3 -> buck1: "16 AWG" {style.stroke: "#2E7D32"}
+  buck1 -> elbow_L: "18 AWG, 7.4V" {style.stroke: "#2E7D32"}
+  buck1 -> elbow_R: "18 AWG, 7.4V" {style.stroke: "#2E7D32"}
+  ckt4 -> buck3: "16 AWG" {style.stroke: "#43A047"}
+  buck3 -> wago_5v_servo: "16 AWG" {style.stroke: "#43A047"}
+  wago_5v_servo -> wrist_rot: "18 AWG" {style.stroke: "#43A047"}
+  wago_5v_servo -> wrist_pan: "18 AWG" {style.stroke: "#43A047"}
+  wago_5v_servo -> mg90s: "22 AWG" {style.stroke: "#43A047"}
+  ckt5 -> fan: "22 AWG" {style.stroke: "#78909C"}
+}
+relay.contacts -> fb: "10 AWG" {style.stroke: "#1565C0"; style.stroke-width: 3}
+
+# GND connections
+gnd_bus -> fb.neg_bus: "10 AWG" {style.stroke: "#546E7A"; style.stroke-width: 2}

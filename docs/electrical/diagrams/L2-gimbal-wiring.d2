@@ -1,0 +1,119 @@
+title: |md
+  # Gimbal TMC2209 Wiring Detail
+  ESP32 pin assignments, UART bus, driver configuration
+| {
+  near: top-center
+  shape: text
+  style.font-size: 20
+}
+
+direction: right
+
+# === ESP32 ===
+esp32: ESP32 DOIT DevKit V1 {
+  style.fill: "#F3E5F5"
+  style.stroke: "#7B1FA2"
+  style.stroke-width: 2
+  style.border-radius: 8
+
+  step_dir: STEP/DIR Pin Pairs {
+    style.fill: "#E1BEE7"
+    style.stroke: "#7B1FA2"
+    style.border-radius: 6
+    yaw: "GPIO 13/14\nYaw" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
+    pitch: "GPIO 16/17\nPitch" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
+    roll: "GPIO 18/19\nRoll" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
+    belt: "GPIO 25/26\nBelt" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
+  }
+  uart: "UART Pin TBD\nTX/RX bridged with 1k resistor" {
+    shape: rectangle
+    style.fill: "#E1BEE7"
+    style.stroke: "#7B1FA2"
+  }
+  vio: 3.3V Output {
+    shape: rectangle
+    style.fill: "#E8F5E9"
+    style.stroke: "#43A047"
+  }
+}
+
+# === 24V BUS ===
+bus: "24V Bus - Wago" {
+  shape: rectangle
+  style.fill: "#FFE0B2"
+  style.stroke: "#EF6C00"
+  style.stroke-width: 2
+}
+
+# === TMC2209 DRIVER BANK ===
+drivers: TMC2209 Driver Bank - Breadboard {
+  style.fill: "#FFF3E0"
+  style.stroke: "#EF6C00"
+  style.stroke-width: 2
+  style.border-radius: 8
+
+  d1: "TMC2209 #1 - Yaw\nAddr 0 (MS1=L MS2=L)\nCLK=GND" {
+    shape: rectangle
+    style.fill: "#FFE0B2"
+    style.stroke: "#EF6C00"
+  }
+  d2_drv: "TMC2209 #2 - Pitch\nAddr 1 (MS1=H MS2=L)\nCLK=GND" {
+    shape: rectangle
+    style.fill: "#FFE0B2"
+    style.stroke: "#EF6C00"
+  }
+  d3: "TMC2209 #3 - Roll\nAddr 2 (MS1=L MS2=H)\nCLK=GND" {
+    shape: rectangle
+    style.fill: "#FFE0B2"
+    style.stroke: "#EF6C00"
+  }
+  d4: "TMC2209 #4 - Belt\nAddr 3 (MS1=H MS2=H)\nCLK=GND" {
+    shape: rectangle
+    style.fill: "#FFE0B2"
+    style.stroke: "#EF6C00"
+  }
+}
+
+# === DECOUPLING CAPS ===
+caps: "Decoupling Caps (per driver)\n100uF 50V + 100nF ceramic" {
+  shape: rectangle
+  style.fill: "#FFCDD2"
+  style.stroke: "#C62828"
+  style.font-size: 12
+}
+
+# === MOTORS ===
+motors: NEMA 17 Stepper Motors {
+  style.fill: "#FFF3E0"
+  style.stroke: "#EF6C00"
+  style.border-radius: 8
+
+  m1: Yaw Motor\nbase rotation {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
+  m2: Pitch Motor\nthrust bearing {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
+  m3: Roll Motor\nthrust bearing {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
+  m4: Belt Motor\nlinear drive {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
+}
+
+# === STEP/DIR CONNECTIONS ===
+esp32.step_dir.yaw -> drivers.d1: "STEP/DIR" {style.stroke: "#7B1FA2"}
+esp32.step_dir.pitch -> drivers.d2_drv: "STEP/DIR" {style.stroke: "#7B1FA2"}
+esp32.step_dir.roll -> drivers.d3: "STEP/DIR" {style.stroke: "#7B1FA2"}
+esp32.step_dir.belt -> drivers.d4: "STEP/DIR" {style.stroke: "#7B1FA2"}
+
+# === UART BUS (shared) ===
+esp32.uart -> drivers: "UART shared bus" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+
+# === VIO (logic power) ===
+esp32.vio -> drivers: "3.3V to all VIO" {style.stroke: "#43A047"}
+
+# === VMOT (24V) ===
+bus -> drivers: "18 AWG to each VMOT" {style.stroke: "#EF6C00"; style.stroke-width: 2}
+
+# === CAPS ===
+bus -> caps: "across VMOT/GND" {style.stroke: "#C62828"; style.stroke-dash: 3}
+
+# === MOTOR COILS ===
+drivers.d1 -> motors.m1: "6-to-4 pin, 1M" {style.stroke: "#EF6C00"}
+drivers.d2_drv -> motors.m2: "6-to-4 pin, 1M" {style.stroke: "#EF6C00"}
+drivers.d3 -> motors.m3: "6-to-4 pin, 1M" {style.stroke: "#EF6C00"}
+drivers.d4 -> motors.m4: "6-to-4 pin, 1M" {style.stroke: "#EF6C00"}

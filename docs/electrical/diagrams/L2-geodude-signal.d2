@@ -1,0 +1,117 @@
+title: |md
+  # GEO-DUDe Signal Routing
+  All signal connections - I2C, PWM, GPIO
+| {
+  near: top-center
+  shape: text
+  style.font-size: 20
+}
+
+direction: right
+
+# === RASPBERRY PI ===
+pi: Raspberry Pi {
+  style.fill: "#F3E5F5"
+  style.stroke: "#7B1FA2"
+  style.stroke-width: 2
+  style.border-radius: 8
+
+  i2c: I2C Bus\nGPIO 2 (SDA) / GPIO 3 (SCL) {
+    shape: rectangle
+    style.fill: "#E1BEE7"
+    style.stroke: "#7B1FA2"
+  }
+  gpio_ls: Limit Switch GPIOs\nGPIO 4, 5, 6, 17, 27, 22 {
+    shape: rectangle
+    style.fill: "#E1BEE7"
+    style.stroke: "#7B1FA2"
+  }
+  gpio_relay: GPIO TBD\n(relay control) {
+    shape: rectangle
+    style.fill: "#FFF9C4"
+    style.stroke: "#F9A825"
+  }
+  csi: CSI Connector {
+    shape: rectangle
+    style.fill: "#ECEFF1"
+    style.stroke: "#78909C"
+  }
+  wifi: WiFi (built-in) {
+    shape: rectangle
+    style.fill: "#E1BEE7"
+    style.stroke: "#7B1FA2"
+  }
+}
+
+# === PCA9685 ===
+pca: PCA9685 16-Ch PWM Driver {
+  style.fill: "#F3E5F5"
+  style.stroke: "#7B1FA2"
+  style.stroke-width: 2
+  style.border-radius: 8
+
+  ch01: Ch 0-1\nBase {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+  ch23: Ch 2-3\nShoulder {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+  ch45: Ch 4-5\nElbow {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"}
+  ch69: Ch 6-9\nWrist {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
+  ch1013: Ch 10-13\nEnd-Effector {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
+}
+
+# === SERVO GROUPS ===
+servos: Servo Arm - 6-DOF {
+  style.fill: "#E3F2FD"
+  style.stroke: "#1565C0"
+  style.border-radius: 8
+
+  base: Base L + R\n2x 150kg @ 12V {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+  shld: Shoulder L + R\n2x 150kg @ 12V {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+  elbow: Elbow L + R\n2x 80kg @ 7.4V {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"}
+  wrist: Wrist Rot + Pan (x4)\n4x RDS3218 @ 5V {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
+  ee: End-Effector (x4)\n4x MG90S @ 5V {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
+}
+
+# === LIMIT SWITCHES ===
+limits: Limit Switches - Homing {
+  style.fill: "#FFF3E0"
+  style.stroke: "#EF6C00"
+  style.border-radius: 8
+
+  ls_top: LS1 Base | LS2 Shoulder | LS3 Elbow {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
+  ls_bot: LS4 Wrist Rot | LS5 Wrist Pan | LS6 End-Eff {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
+}
+
+# === OTHER ===
+camera: Pi Camera\n(AI vision) {
+  shape: rectangle
+  style.fill: "#ECEFF1"
+  style.stroke: "#78909C"
+}
+relay: 40A Relay\nCoil Circuit {
+  shape: rectangle
+  style.fill: "#FFF9C4"
+  style.stroke: "#F9A825"
+}
+esp32: ESP32 (Gimbal) {
+  shape: cloud
+  style.fill: "#FFF3E0"
+  style.stroke: "#EF6C00"
+}
+
+# === I2C ===
+pi.i2c -> pca: "I2C (SDA/SCL)" {style.stroke: "#7B1FA2"; style.stroke-width: 2}
+
+# === PWM CHANNELS ===
+pca.ch01 -> servos.base: "Ch 0-1 PWM" {style.stroke: "#1565C0"}
+pca.ch23 -> servos.shld: "Ch 2-3 PWM" {style.stroke: "#1565C0"}
+pca.ch45 -> servos.elbow: "Ch 4-5 PWM" {style.stroke: "#2E7D32"}
+pca.ch69 -> servos.wrist: "Ch 6-9 PWM" {style.stroke: "#43A047"}
+pca.ch1013 -> servos.ee: "Ch 10-13 PWM" {style.stroke: "#43A047"}
+
+# === LIMIT SWITCHES ===
+pi.gpio_ls -> limits.ls_top: "GPIO 4, 5, 6\npull-up" {style.stroke: "#EF6C00"; style.stroke-dash: 3}
+pi.gpio_ls -> limits.ls_bot: "GPIO 17, 27, 22\npull-up" {style.stroke: "#EF6C00"; style.stroke-dash: 3}
+
+# === OTHER CONNECTIONS ===
+pi.gpio_relay -> relay: "via 2N2222 + 1k" {style.stroke: "#F9A825"; style.stroke-dash: 3}
+pi.csi -> camera: "ribbon cable" {style.stroke: "#78909C"}
+pi.wifi -> esp32: "WiFi" {style.stroke: "#7B1FA2"; style.stroke-dash: 5}
