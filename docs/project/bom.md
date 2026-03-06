@@ -33,7 +33,7 @@ Source: [Subscale Satellite BOM](https://docs.google.com/spreadsheets/d/1E1N-070
 | 24 | GPIO breakout HAT | GeeekPi, 40-pin screw terminal, no soldering | 1 | $12.99 | [Amazon.ca](https://www.amazon.ca/GeeekPi-Raspberry-Terminal-Breakout-Expansion/dp/B08GKQMC72) | Not ordered |
 | | **--- Additional (from wiring diagrams) ---** | | | | | |
 | 25 | 6A slow-blow AC fuse + inline holder | Protects AC hot line before slip ring | 1 | ~$5 | - | Not ordered |
-| 26 | 30A DC fuse + holder | Main DC protection after 12V PSU | 1 | ~$5 | - | Not ordered |
+| 26 | 30A blade fuse + inline holder | Main DC protection after 12V PSU | 1 | ~$5 | - | Not ordered |
 | 27 | 2N2222 NPN transistor | Relay coil driver (Pi GPIO can't source enough) | 1 | ~$1 | - | Not ordered |
 | 28 | 1N4007 flyback diode | Protects transistor from relay coil back-EMF | 1 | ~$1 | - | Not ordered |
 | 29 | 1k ohm resistor | Transistor base current limiter | 1 | ~$1 | - | Not ordered |
