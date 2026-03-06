@@ -69,7 +69,7 @@ Every wire connection in both systems. Use this as the wiring reference when bui
 
 | From | Terminal | To | Terminal | Wire Gauge | Notes |
 |------|----------|----|----------|-----------|-------|
-| 12V PSU | +12V | Main DC fuse (25A) | In | **10 AWG** | |
+| 12V PSU | +12V | Main DC fuse (30A) | In | **10 AWG** | |
 | Main DC fuse | Out | 12V bus (Wago) | In | **10 AWG** | |
 | 12V bus | Out | Buck 2 fuse (3A inline) | In | 18 AWG | **Always on** (before relay) |
 | Buck 2 fuse | Out | Buck conv 2 | VIN+ | 18 AWG | |

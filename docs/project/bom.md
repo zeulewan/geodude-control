@@ -73,7 +73,7 @@ Components referenced in the [electrical diagrams](../electrical/diagrams/index.
 | Component | Qty | Why Needed | Source |
 |-----------|-----|------------|--------|
 | 6A slow-blow AC fuse + inline holder | 1 | Protects AC hot line before slip ring | L1-geodude diagram |
-| 25A DC fuse + holder | 1 | Main DC protection after 12V PSU | L2-geodude-power diagram |
+| 30A DC fuse + holder | 1 | Main DC protection after 12V PSU | L2-geodude-power diagram |
 | 2N2222 NPN transistor | 1 | Relay coil driver (Pi GPIO can't source enough current) | L2-geodude-power diagram |
 | 1N4007 flyback diode | 1 | Protects transistor from relay coil back-EMF | L2-geodude-power diagram |
 | 1k ohm resistor | 1 | Transistor base current limiter for relay driver | L2-geodude-power diagram |

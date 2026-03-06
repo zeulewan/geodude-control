@@ -114,7 +114,7 @@ Wire gauge must be rated for the **fuse rating** (not the load), since the fuse 
 
 | Segment | Old Gauge | Old Fuse | Revised Gauge | Revised Fuse | Justification |
 |---------|-----------|----------|--------------|-------------|---------------|
-| PSU to bus trunk | 8 AWG | 40A | **10 AWG** | **25A** | Realistic peak ~17A, 25A covers transients |
+| PSU to bus trunk | 8 AWG | 40A | **10 AWG** | **30A** | Realistic peak ~17A, 30A matches 10 AWG rating |
 | Bus to relay | 8 AWG | - | **10 AWG** | - | Matches trunk |
 | Relay to fuse block | 8 AWG | - | **10 AWG** | - | Matches trunk |
 | GND trunk | 8 AWG | - | **10 AWG** | - | Matches trunk |
@@ -141,7 +141,7 @@ The wire gauges in the diagrams are for the **distribution runs** (PSU to bus, b
 | Fuse | Branch | Realistic Draw | Peak/Stall | Rating | Wire Gauge | Notes |
 |------|--------|---------------|------------|--------|-----------|-------|
 | AC inline | Mains hot before slip ring | ~3A @120V | ~5A | **6A slow-blow** | Mains cable | |
-| Main DC | 12V bus after PSU | **~17A** | ~42A stall | **25A** | **10 AWG** | Revised down from 40A |
+| Main DC | 12V bus after PSU | **~17A** | ~42A stall | **30A** | **10 AWG** | Revised down from 40A |
 | Base servo branch | 2x base 150kg servos | **~6A** | 16A stall | **15A** | **14 AWG** | |
 | Shoulder servo branch | 2x shoulder 150kg servos | **~6A** | 16A stall | **15A** | **14 AWG** | |
 | Buck 1 input | Elbow servos at 12V in | **~2.5A** | ~6.2A | **8A** | 16 AWG | Fuse block circuit |
