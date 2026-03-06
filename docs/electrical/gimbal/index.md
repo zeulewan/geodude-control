@@ -26,8 +26,7 @@ The 3-axis gimbal and linear rail system runs on a 24V system with an ESP32 cont
 | Stepper 3 | Gimbal roll axis | Through 80mm thrust bearing |
 | Stepper 4 | Belt drive | Linear approach, housed in gimbal base |
 
-!!! warning "Stepper motor specs unknown"
-    Aidan M has the 4 stepper motors but NEMA size and current rating are not documented. The TMC2209 maxes out at ~1.77A RMS with the BTT module's sense resistors. If the motors are NEMA 23 rated above 2A/phase, these drivers will be undersized. **Aidan needs to confirm motor model and current rating.**
+Stepper motors are provided by Aidan M. Confirmed compatible with TMC2209 drivers (under 1.77A RMS per phase). Model/specs TBD - update when Aidan provides details.
 
 ### Mounting
 
