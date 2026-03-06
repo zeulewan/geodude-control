@@ -28,15 +28,10 @@ for f in *.d2; do d2 --layout elk --theme 0 "$f" "${f%.d2}.svg"; done
 - Don't add child nodes to containers after the container block closes
 - Always use `--layout elk` for best results on block diagrams
 
-### Mermaid Diagrams
-
-Inline in Markdown files via superfences (configured in `zensical.toml`). Used for L0 and L1 comparison diagrams only.
-
 ## Skills
 
 Diagram generation skills are saved at:
 - `/Users/zeul/.claude/skills/d2-diagrams/SKILL.md` - D2 syntax reference and generation guide
-- `/Users/zeul/.claude/skills/mermaid-diagrams/SKILL.md` - Mermaid syntax reference
 - `/Users/zeul/.claude/skills/aer813-capstone/references/chart-making.md` - SVG style guide (PDR color palette)
 
 ## Serving
@@ -50,8 +45,8 @@ Port 8813 by default.
 ## Google Sheet BOM
 
 - **Spreadsheet ID:** `1E1N-070xhcGK5FVkjd1sBZlGc8as569FgII3UE0jsTo`
-- **Subscale Satellite BOM** tab (rows 4-24)
-- **Testing Apparatus BOM** tab (rows 4-17)
+- **Subscale Satellite BOM** tab (rows 4-24 original, 27-40 additional wiring/discrete)
+- **Testing Apparatus BOM** tab (rows 4-17 original, 19-26 additional wiring/discrete)
 
 ## Key Component Reference
 
@@ -61,12 +56,17 @@ Port 8813 by default.
 - 14 PWM servos (3 voltage rails: 12V, 7.4V, 5V)
 - PCA9685 I2C PWM driver (all 14 servo signals)
 - 3 buck converters (7.4V elbow, 5V Pi, 5V servo)
-- 40A relay for power-on sequencing
+- 40A relay for power-on sequencing (Pi GPIO via 2N2222 transistor driver)
 - Cyrico 12-circuit fuse block with negative bus
+- 30A inline blade fuse on trunk (sum of branch fuses = 47A, exceeds 10 AWG/40A relay rating)
+- 6A slow-blow AC fuse on mains hot (must be AC-rated, not blade fuse)
+- Trunk wiring: 10 AWG (rated 30A), branch fuses: 15A base/shoulder, 8A buck1/buck3, 3A buck2, 1A fan
+- Realistic load ~17A through relay, stall worst-case ~42A
 
 ### Gimbal (24V System)
 - 24V 480W PSU, 20A max
 - 4x TMC2209 stepper drivers (UART addressed, breadboard mounted)
-- 4x stepper motors (yaw, pitch, roll, belt)
-- ESP32 DOIT DevKit V1
+- 4x NEMA 17 stepper motors (yaw, pitch, roll, belt)
+- ESP32 DOIT DevKit V1 (powered separately via 5V USB)
+- 12A main DC fuse, 14 AWG trunk
 - WiFi link to Raspberry Pi
