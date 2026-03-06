@@ -31,11 +31,11 @@ Current draw calculations based on component datasheets. All servos are dumb PWM
 | Servo | Voltage | Stall Current (each) | Qty | Total Stall | Power Source |
 |-------|---------|---------------------|-----|-------------|-------------|
 | Base (HOOYIJ 150kg) | 12V | 8.0A | 2 | 16.0A | 12V bus direct |
-| Shoulder (ANNIMOS 150kg) | 12V | ~8.0A (confirm) | 2 | ~16.0A | 12V bus direct |
+| Shoulder (ANNIMOS 150kg) | 12V | 8.0A | 2 | ~16.0A | 12V bus direct |
 | Elbow (ANNIMOS 80kg) | 7.4V | 5.0A | 2 | 10.0A | Buck conv 1 (7.4V) |
-| Wrist rotate (RDS3218 20kg) | 5V | 1.6A | 2 | 3.2A | Buck conv 2 (5V) |
-| Wrist pan (RDS3218 20kg) | 5V | 1.6A | 2 | 3.2A | Buck conv 2 (5V) |
-| End-effector (MG90S) | 5V | 0.5A | 4 | 2.0A | Buck conv 2 (5V) |
+| Wrist rotate (RDS3218 20kg) | 5V | 1.6A | 2 | 3.2A | Buck conv 3 (5V) |
+| Wrist pan (RDS3218 20kg) | 5V | 1.6A | 2 | 3.2A | Buck conv 3 (5V) |
+| End-effector (MG90S) | 5V | 0.5A | 4 | 2.0A | Buck conv 3 (5V) |
 
 ### Other Loads
 
@@ -50,8 +50,9 @@ Current draw calculations based on component datasheets. All servos are dumb PWM
 | Rail | Components | Total Max Current | Capacity | Status |
 |------|-----------|------------------|----------|--------|
 | **12V direct** | 4x 150kg servos + fan | ~32A stall | 50A PSU (40A fused) | OK |
-| **7.4V buck** | 2x 80kg elbow servos | 10A | 20A converter | OK |
-| **5V buck** | Pi + 4x RDS3218 + 4x MG90S + PCA9685 | ~11A stall | 20A converter (8A fused at 12V in) | OK |
+| **7.4V buck 1** | 2x 80kg elbow servos | 10A | 20A converter (8A fused at 12V in) | OK |
+| **5V buck 2** | Pi + PCA9685 (always on) | ~2.6A | 20A converter (3A fused at 12V in) | OK |
+| **5V buck 3** | 4x RDS3218 + 4x MG90S (after relay) | ~8.4A stall | 20A converter (8A fused at 12V in) | OK |
 
 ---
 
@@ -61,9 +62,9 @@ Current draw calculations based on component datasheets. All servos are dumb PWM
 
 | Buck # | Output V | Load | Max Current | Headroom | Notes |
 |--------|----------|------|-------------|----------|-------|
-| 1 | 7.4V | 2x elbow servos | 10A stall | 5-10A spare | OK |
-| 2 | 5V | Pi + 4x RDS3218 wrist + 4x MG90S + PCA9685 | ~11A stall | 4-9A spare | OK |
-| 3 | - | **Spare** | - | - | |
+| 1 | 7.4V | 2x elbow servos | 10A stall | 5-10A spare | After relay (fuse block) |
+| 2 | 5V | Pi + PCA9685 | ~2.6A | 12-17A spare | Before relay (always on) |
+| 3 | 5V | 4x RDS3218 wrist + 4x MG90S | ~8.4A stall | 7-12A spare | After relay (fuse block) |
 | 4 | - | **Spare** | - | - | |
 
 ---
@@ -76,7 +77,8 @@ Current draw calculations based on component datasheets. All servos are dumb PWM
 | Main DC | 12V bus after PSU | ~40A worst case | **40A** | **8 AWG** | |
 | Base servo branch | 2x base 150kg servos | 16A stall | **20A** | **12 AWG** | Split for fault isolation |
 | Shoulder servo branch | 2x shoulder 150kg servos | 16A stall | **20A** | **12 AWG** | Split for fault isolation |
-| Buck 1 input | Elbow servos at 12V in | ~6.2A | **8A** | 16 AWG | |
-| Buck 2 input | Pi + wrist + MG90S at 12V in | ~5.4A | **8A** | 16 AWG | Wrist servos on 5V rail |
-| Fan line | 12V fan | 0.15A | **1A** | 22 AWG | |
+| Buck 1 input | Elbow servos at 12V in | ~6.2A | **8A** | 16 AWG | Fuse block circuit |
+| Buck 2 input | Pi + PCA9685 at 12V in | ~1.1A | **3A** | 18 AWG | Before relay (always on) |
+| Buck 3 input | Wrist + MG90S at 12V in | ~3.5A | **8A** | 16 AWG | Fuse block circuit |
+| Fan line | 12V fan | 0.15A | **1A** | 22 AWG | Fuse block circuit |
 | Apparatus main | 24V bus | ~8.6A | **12A** | 14 AWG | |

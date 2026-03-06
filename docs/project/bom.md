@@ -17,7 +17,7 @@ Source: [Subscale Satellite BOM](https://docs.google.com/spreadsheets/d/1E1N-070
 | 8 | Elbow servo motors | ANNIMOS 80kg, robot version w/ brackets | 2 | $77.98 | [Amazon.ca](https://www.amazon.ca/ANNIMOS-Waterproof-Digital-Steering-Brackets/dp/B0C69WWLWQ) | Not ordered |
 | 9 | Wrist servo motors (rotate + pan) | Wishiot RDS3218 20kg, with U-bracket | 4 | $107.96 | [Amazon.ca](https://www.amazon.ca/Wishiot-RDS3218-Waterproof-Mounting-Bracket/dp/B0CCXRCFK4) | Not ordered |
 | 10 | End-effector servo motors | Miuzei MG90S 2kg, pack of 4 | 1 | $21.99 | [Amazon.ca](https://www.amazon.ca/Miuzei-MG90S-Servo-Helicopter-Arduino/dp/B0CP98TZJ2) | Not ordered |
-| 11 | Slip ring (3 wire) | For base rotation passthrough | 1 | $27.59 | [Amazon.ca](https://www.amazon.ca/Conductive-Current-Collecting-Electric-Connector/dp/B09NBLY16J) | Ordered, not arrived |
+| 11 | Slip ring (3 wire) | For base rotation passthrough | 1 | $27.59 | [Amazon.ca](https://www.amazon.ca/Conductive-Current-Collecting-Electric-Connector/dp/B09NBLY16J) | Arrived |
 | 12 | Raspberry Pi | Satellite controller | 1 | - | - | Have (Zeul) |
 | 13 | Raspberry Pi camera | AI vision | 1 | - | - | Have (Zeul) |
 | 14 | Power supply | 12V 600W | 1 | $57.99 | [Amazon.ca](https://www.amazon.ca/VAYALT-Switching-Universal-Transformer-Industrial/dp/B0DXL2BCGS) | Not ordered |
@@ -26,11 +26,13 @@ Source: [Subscale Satellite BOM](https://docs.google.com/spreadsheets/d/1E1N-070
 | 17 | ~~I2C expander~~ | ~~PCF8575, pack of 3~~ | 0 | $0.00 | - | NOT NEEDED (6 limit switches fit on Pi GPIO) |
 | 18 | 12V cooling fan | 80mm | 1 | $8.89 | [Amazon.ca](https://www.amazon.ca/KingWin-CF-08LB-80mm-Long-Bearing/dp/B002YFSHPY) | Not ordered |
 | 19 | Limit switches | Momentary, pack of 12 | 2 | $21.38 | [Amazon.ca](https://www.amazon.ca/MKBKLLJY-Momentary-Terminal-Electronic-Appliance/dp/B0DK693J79) | Not ordered |
-| 20 | Fuses | - | - | - | - | Have (Mach) |
-| 21 | Wago connectors | - | - | - | - | Have (Mach) |
-| 22 | IEC C16 socket | Mains input | 1 | $10.89 | [Amazon.ca](https://www.amazon.ca/Baomain-Panel-Power-Sockets-Connectors/dp/B00WFZH042) | Not ordered |
+| 20 | Wago connectors | General purpose | - | - | - | Have (Mach) |
+| 21 | IEC C16 socket | Mains input | 1 | $10.89 | [Amazon.ca](https://www.amazon.ca/Baomain-Panel-Power-Sockets-Connectors/dp/B00WFZH042) | Not ordered |
+| 22 | 12-circuit fuse block | Cyrico, w/ negative bus, LED indicators, 24 blade fuses | 1 | - | [Amazon.ca](https://www.amazon.ca/Indicator-Waterproof-Circuits-Negative-Automotive/dp/B0C6Z49434) | Have (Mach) |
+| 23 | 120A 12V relay | irhapsody, SPST 4-pin, continuous duty, power-on sequencing | 1 | ~$15.00 | [Amazon.ca](https://www.amazon.ca/irhapsody-Continuous-Automotive-Current-Starter/dp/B07T35K8S2) | Not ordered |
+| 24 | GPIO breakout HAT | GeeekPi, 40-pin screw terminal, no soldering | 1 | $12.99 | [Amazon.ca](https://www.amazon.ca/GeeekPi-Raspberry-Terminal-Breakout-Expansion/dp/B08GKQMC72) | Not ordered |
 
-**GEO-DUDe Total: $787.57**
+**GEO-DUDe Total: ~$800.57**
 
 ---
 
@@ -58,4 +60,4 @@ Source: [Testing Apparatus BOM](https://docs.google.com/spreadsheets/d/1E1N-070x
 
 ---
 
-**Combined Total: $1,322.10**
+**Combined Total: ~$1,335.10**

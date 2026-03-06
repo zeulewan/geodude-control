@@ -56,6 +56,7 @@ The 3-axis gimbal and linear rail system runs on a 24V system with an ESP32 cont
 
 ESP32 is powered separately via a 5V USB adapter, NOT from the 24V bus.
 
+
 ---
 
 ## Linear Rail System

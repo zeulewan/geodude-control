@@ -25,14 +25,14 @@ Every wire connection in both systems. Use this as the wiring reference when bui
 
 | From | Pin | To | Pin | Cable | Notes |
 |------|-----|----|-----|-------|-------|
-| ESP32 | STEP pin (TBD) | TMC2209 #1 | STEP | Jumper | Yaw axis |
-| ESP32 | DIR pin (TBD) | TMC2209 #1 | DIR | Jumper | Yaw axis |
-| ESP32 | STEP pin (TBD) | TMC2209 #2 | STEP | Jumper | Pitch axis |
-| ESP32 | DIR pin (TBD) | TMC2209 #2 | DIR | Jumper | Pitch axis |
-| ESP32 | STEP pin (TBD) | TMC2209 #3 | STEP | Jumper | Roll axis |
-| ESP32 | DIR pin (TBD) | TMC2209 #3 | DIR | Jumper | Roll axis |
-| ESP32 | STEP pin (TBD) | TMC2209 #4 | STEP | Jumper | Belt motor |
-| ESP32 | DIR pin (TBD) | TMC2209 #4 | DIR | Jumper | Belt motor |
+| ESP32 | GPIO 13 (STEP) | TMC2209 #1 | STEP | Jumper | Yaw axis |
+| ESP32 | GPIO 14 (DIR) | TMC2209 #1 | DIR | Jumper | Yaw axis |
+| ESP32 | GPIO 16 (STEP) | TMC2209 #2 | STEP | Jumper | Pitch axis |
+| ESP32 | GPIO 17 (DIR) | TMC2209 #2 | DIR | Jumper | Pitch axis |
+| ESP32 | GPIO 18 (STEP) | TMC2209 #3 | STEP | Jumper | Roll axis |
+| ESP32 | GPIO 19 (DIR) | TMC2209 #3 | DIR | Jumper | Roll axis |
+| ESP32 | GPIO 25 (STEP) | TMC2209 #4 | STEP | Jumper | Belt motor |
+| ESP32 | GPIO 26 (DIR) | TMC2209 #4 | DIR | Jumper | Belt motor |
 | TMC2209 #1 | A1/A2/B1/B2 | Stepper #1 | Coils | 6-to-4 pin cable | 1M length |
 | TMC2209 #2 | A1/A2/B1/B2 | Stepper #2 | Coils | 6-to-4 pin cable | 1M length |
 | TMC2209 #3 | A1/A2/B1/B2 | Stepper #3 | Coils | 6-to-4 pin cable | 1M length |
@@ -58,43 +58,67 @@ Every wire connection in both systems. Use this as the wiring reference when bui
 
 ### DC Power (all internal to GEO-DUDe)
 
-| From | Terminal | To | Terminal | Wire Gauge | Fuse |
-|------|----------|----|----------|-----------|------|
-| 12V PSU | +12V | Main DC fuse (40A) | In | **8 AWG** | - |
-| Main DC fuse | Out | 12V bus (Wago) | In | **8 AWG** | - |
-| 12V bus | Out | Base fuse (20A) | In | **12 AWG** | - |
-| Base fuse | Out | Base Wago block | In | **12 AWG** | - |
-| Base Wago | Out | Base servo L | Power + | 14 AWG | - |
-| Base Wago | Out | Base servo R | Power + | 14 AWG | - |
-| 12V bus | Out | Shoulder fuse (20A) | In | **12 AWG** | - |
-| Shoulder fuse | Out | Shoulder Wago block | In | **12 AWG** | - |
-| Shoulder Wago | Out | Shoulder servo L | Power + | 14 AWG | - |
-| Shoulder Wago | Out | Shoulder servo R | Power + | 14 AWG | - |
-| 12V bus | Out | 12V fan | +12V | 22 AWG | 1A inline |
-| 12V bus | Out | Buck 1 fuse (8A) | In | 16 AWG | - |
-| Buck 1 fuse | Out | Buck conv 1 | VIN+ | 16 AWG | - |
-| Buck conv 1 (7.4V) | VOUT+ | 7.4V Wago block | In | 16 AWG | - |
-| 7.4V Wago | Out | Elbow servo L | Power + | 18 AWG | - |
-| 7.4V Wago | Out | Elbow servo R | Power + | 18 AWG | - |
-| 12V bus | Out | Buck 2 fuse (8A) | In | 16 AWG | - |
-| Buck 2 fuse | Out | Buck conv 2 | VIN+ | 16 AWG | - |
-| Buck conv 2 (5V) | VOUT+ | 5V Wago block | In | 16 AWG | - |
-| 5V Wago | Out | Raspberry Pi | 5V GPIO pin | 20 AWG | - |
-| 5V Wago | Out | PCA9685 | VCC | 22 AWG | - |
-| 5V Wago | Out | Wrist rotate L (RDS3218) | Power + | 18 AWG | - |
-| 5V Wago | Out | Wrist rotate R (RDS3218) | Power + | 18 AWG | - |
-| 5V Wago | Out | Wrist pan L (RDS3218) | Power + | 18 AWG | - |
-| 5V Wago | Out | Wrist pan R (RDS3218) | Power + | 18 AWG | - |
-| 5V Wago | Out | MG90S #1 | Power + | 22 AWG | - |
-| 5V Wago | Out | MG90S #2 | Power + | 22 AWG | - |
-| 5V Wago | Out | MG90S #3 | Power + | 22 AWG | - |
-| 5V Wago | Out | MG90S #4 | Power + | 22 AWG | - |
-| 12V PSU | GND | GND bus (Wago) | In | **8 AWG** | - |
-| GND bus | Out | All servo GND | GND | Various | Common ground |
-| GND bus | Out | Buck conv 1 | GND | 16 AWG | |
-| GND bus | Out | Buck conv 2 | GND | 16 AWG | |
-| GND bus | Out | Pi | GND GPIO | 20 AWG | |
-| GND bus | Out | PCA9685 | GND | 22 AWG | |
+#### 12V Bus and Always-On Path (before relay)
+
+| From | Terminal | To | Terminal | Wire Gauge | Notes |
+|------|----------|----|----------|-----------|-------|
+| 12V PSU | +12V | Main DC fuse (40A) | In | **8 AWG** | |
+| Main DC fuse | Out | 12V bus (Wago) | In | **8 AWG** | |
+| 12V bus | Out | Buck 2 fuse (3A inline) | In | 18 AWG | **Always on** (before relay) |
+| Buck 2 fuse | Out | Buck conv 2 | VIN+ | 18 AWG | |
+| Buck conv 2 (5V) | VOUT+ | 5V Pi Wago | In | 18 AWG | Pi + PCA9685 only |
+| 5V Pi Wago | Out | Raspberry Pi | 5V GPIO pin | 20 AWG | |
+| 5V Pi Wago | Out | PCA9685 | VCC | 22 AWG | Logic power only |
+
+#### Relay and Fuse Block (servo power, after relay)
+
+| From | Terminal | To | Terminal | Wire Gauge | Notes |
+|------|----------|----|----------|-----------|-------|
+| 12V bus | Out | 40A Relay | Input | **8 AWG** | Normally open, Pi GPIO controlled |
+| 40A Relay | Output | Cyrico fuse block | +12V in | **8 AWG** | All servo power through here |
+| Fuse block | 20A circuit | Base servo L | Power + | 14 AWG | |
+| Fuse block | 20A circuit | Base servo R | Power + | 14 AWG | |
+| Fuse block | 20A circuit | Shoulder servo L | Power + | 14 AWG | |
+| Fuse block | 20A circuit | Shoulder servo R | Power + | 14 AWG | |
+| Fuse block | 8A circuit | Buck conv 1 | VIN+ | 16 AWG | |
+| Buck conv 1 (7.4V) | VOUT+ | 7.4V Wago | In | 16 AWG | |
+| 7.4V Wago | Out | Elbow servo L | Power + | 18 AWG | |
+| 7.4V Wago | Out | Elbow servo R | Power + | 18 AWG | |
+| Fuse block | 8A circuit | Buck conv 3 | VIN+ | 16 AWG | |
+| Buck conv 3 (5V) | VOUT+ | 5V Servo Wago | In | 16 AWG | Servo 5V only (after relay) |
+| 5V Servo Wago | Out | Wrist rotate L (RDS3218) | Power + | 18 AWG | |
+| 5V Servo Wago | Out | Wrist rotate R (RDS3218) | Power + | 18 AWG | |
+| 5V Servo Wago | Out | Wrist pan L (RDS3218) | Power + | 18 AWG | |
+| 5V Servo Wago | Out | Wrist pan R (RDS3218) | Power + | 18 AWG | |
+| 5V Servo Wago | Out | MG90S #1 | Power + | 22 AWG | |
+| 5V Servo Wago | Out | MG90S #2 | Power + | 22 AWG | |
+| 5V Servo Wago | Out | MG90S #3 | Power + | 22 AWG | |
+| 5V Servo Wago | Out | MG90S #4 | Power + | 22 AWG | |
+| Fuse block | 1A circuit | 12V fan | +12V | 22 AWG | |
+
+#### GND (star topology via fuse block negative bus)
+
+| From | Terminal | To | Terminal | Wire Gauge | Notes |
+|------|----------|----|----------|-----------|-------|
+| 12V PSU | GND | GND bus (Wago) | In | **8 AWG** | Star ground point |
+| GND bus | Out | Fuse block | Negative bus | **8 AWG** | Fuse block has built-in GND bus |
+| Fuse block neg bus | Out | Base servo L | GND | 14 AWG | Star topology |
+| Fuse block neg bus | Out | Base servo R | GND | 14 AWG | Star topology |
+| Fuse block neg bus | Out | Shoulder servo L | GND | 14 AWG | Star topology |
+| Fuse block neg bus | Out | Shoulder servo R | GND | 14 AWG | Star topology |
+| Fuse block neg bus | Out | Buck conv 1 | GND | 16 AWG | Star topology |
+| Fuse block neg bus | Out | Elbow servo L | GND | 18 AWG | Via buck 1 GND or direct |
+| Fuse block neg bus | Out | Elbow servo R | GND | 18 AWG | Via buck 1 GND or direct |
+| Fuse block neg bus | Out | Buck conv 3 | GND | 16 AWG | Star topology |
+| Fuse block neg bus | Out | Wrist rotate L | GND | 18 AWG | Via buck 3 GND or direct |
+| Fuse block neg bus | Out | Wrist rotate R | GND | 18 AWG | Via buck 3 GND or direct |
+| Fuse block neg bus | Out | Wrist pan L | GND | 18 AWG | Via buck 3 GND or direct |
+| Fuse block neg bus | Out | Wrist pan R | GND | 18 AWG | Via buck 3 GND or direct |
+| Fuse block neg bus | Out | MG90S #1-4 | GND | 22 AWG | Via buck 3 GND or direct |
+| Fuse block neg bus | Out | 12V fan | GND | 22 AWG | Star topology |
+| GND bus | Out | Buck conv 2 | GND | 18 AWG | Before relay path |
+| GND bus | Out | Pi | GND GPIO | 20 AWG | Star topology |
+| GND bus | Out | PCA9685 | GND | 22 AWG | Star topology |
 
 ### Signal (all via PCA9685 I2C PWM driver)
 
@@ -122,6 +146,7 @@ Every wire connection in both systems. Use this as the wiring reference when bui
 | Pi | GPIO 17 | Limit switch 4 | Signal | 22 AWG | Wrist rotate homing |
 | Pi | GPIO 27 | Limit switch 5 | Signal | 22 AWG | Wrist pan homing |
 | Pi | GPIO 22 | Limit switch 6 | Signal | 22 AWG | End-effector homing |
+| Pi | GPIO TBD | 40A Relay coil | Control | 22 AWG | Via transistor driver circuit |
 | Pi | CSI connector | Pi Camera | Ribbon | Ribbon cable | |
 
 ### Connector Reference
@@ -133,6 +158,8 @@ Every wire connection in both systems. Use this as the wiring reference when bui
 | 12V PSU AC input | Screw terminals (on PSU) | Strip and insert |
 | 12V PSU DC output | Screw terminals (on PSU) | Strip and insert |
 | DC bus distribution | **Wago lever connectors** | Tool-free, from Mach |
+| Cyrico fuse block | Blade fuse + screw terminals | 12-circuit, has negative bus |
+| 40A Relay | Spade terminals or bolt | Automotive style, Pi GPIO via transistor |
 | Buck converter I/O | Screw terminals (on board) | Strip and insert |
 | Servo power/signal | Bare leads or JST | Cut servo connector if needed |
 | Pi GPIO | Dupont jumper pins | Standard 2.54mm headers |
