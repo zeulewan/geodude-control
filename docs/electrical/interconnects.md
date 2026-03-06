@@ -13,12 +13,13 @@ Every wire connection in both systems. Use this as the wiring reference when bui
 | Mains | L/N/G | 24V PSU | AC input | Mains cable | Breaker |
 | 24V PSU | +24V | Main fuse | In | 14 AWG | - |
 | Main fuse (12A) | Out | 24V bus (Wago) | In | 14 AWG | - |
-| 24V bus | Out | TMC2209 #1 | VMOT | 18 AWG | - |
-| 24V bus | Out | TMC2209 #2 | VMOT | 18 AWG | - |
-| 24V bus | Out | TMC2209 #3 | VMOT | 18 AWG | - |
-| 24V bus | Out | TMC2209 #4 | VMOT | 18 AWG | - |
+| 24V bus | Out | TMC2209 #1 | VMOT | 18 AWG | 100uF 50V cap at driver |
+| 24V bus | Out | TMC2209 #2 | VMOT | 18 AWG | 100uF 50V cap at driver |
+| 24V bus | Out | TMC2209 #3 | VMOT | 18 AWG | 100uF 50V cap at driver |
+| 24V bus | Out | TMC2209 #4 | VMOT | 18 AWG | 100uF 50V cap at driver |
 | 24V bus | Out | 24V Fans | +24V | 22 AWG | - |
 | 24V PSU | GND | GND bus (Wago) | In | 14 AWG | - |
+| ESP32 3.3V | Out | TMC2209 #1-4 | VIO | 22 AWG | Shared logic supply |
 | USB adapter | USB | ESP32 | USB port | USB cable | - |
 
 ### Signal
@@ -33,6 +34,12 @@ Every wire connection in both systems. Use this as the wiring reference when bui
 | ESP32 | GPIO 19 (DIR) | TMC2209 #3 | DIR | Jumper | Roll axis |
 | ESP32 | GPIO 25 (STEP) | TMC2209 #4 | STEP | Jumper | Belt motor |
 | ESP32 | GPIO 26 (DIR) | TMC2209 #4 | DIR | Jumper | Belt motor |
+| ESP32 | GPIO TBD (UART) | TMC2209 #1-4 | PDN_UART | Jumper | Shared bus, 1k bridge TX/RX |
+| TMC2209 #1 | MS1/MS2 | GND/GND | - | Jumper | Address 0 |
+| TMC2209 #2 | MS1/MS2 | 3.3V/GND | - | Jumper | Address 1 |
+| TMC2209 #3 | MS1/MS2 | GND/3.3V | - | Jumper | Address 2 |
+| TMC2209 #4 | MS1/MS2 | 3.3V/3.3V | - | Jumper | Address 3 |
+| TMC2209 #1-4 | CLK | GND | - | Jumper | Internal 12MHz clock |
 | TMC2209 #1 | A1/A2/B1/B2 | Stepper #1 | Coils | 6-to-4 pin cable | 1M length |
 | TMC2209 #2 | A1/A2/B1/B2 | Stepper #2 | Coils | 6-to-4 pin cable | 1M length |
 | TMC2209 #3 | A1/A2/B1/B2 | Stepper #3 | Coils | 6-to-4 pin cable | 1M length |

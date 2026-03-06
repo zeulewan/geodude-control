@@ -30,11 +30,42 @@ The 3-axis gimbal and linear rail system runs on a 24V system with an ESP32 cont
 
 | | |
 |---|---|
-| **Driver IC** | TMC2209 (BIGTREETECH) |
+| **Driver IC** | TMC2209 (BIGTREETECH V1.3) |
 | **Quantity** | Pack of 5 (4 needed, 1 spare) |
-| **Current limit** | 2A RMS per driver |
-| **Features** | Silent stepping, UART config, sensorless homing |
+| **VMOT range** | 4.75-28V (24V is ideal) |
+| **Current limit** | 2A RMS / 2.8A peak per driver (1.77A effective max with 110 mOhm sense resistors) |
+| **Logic voltage (VIO)** | 3.3-5V (ESP32 3.3V is fine) |
+| **Features** | StealthChop (silent), SpreadCycle, UART config, sensorless homing (StallGuard4), CoolStep |
+| **Heatsinks** | Included in pack, must be installed |
 | **Link** | [Amazon.ca](https://www.amazon.ca/BIGTREETECH-TMC2209-Stepper-Stepstick-Heatsink/dp/B0CQC7QMS2) |
+
+### UART Addressing
+
+All 4 TMC2209 drivers can share a single UART bus from the ESP32. Each driver gets a unique address via MS1/MS2 pins:
+
+| Driver | Motor | MS1 | MS2 | Address |
+|--------|-------|-----|-----|---------|
+| TMC2209 #1 | Yaw | LOW | LOW | 0 |
+| TMC2209 #2 | Pitch | HIGH | LOW | 1 |
+| TMC2209 #3 | Roll | LOW | HIGH | 2 |
+| TMC2209 #4 | Belt | HIGH | HIGH | 3 |
+
+ESP32 TX and RX are bridged with a **1k ohm resistor** for the single-wire UART interface. The TMCStepper Arduino library handles echo stripping automatically.
+
+!!! warning "Critical TMC2209 Requirements"
+    - **100uF electrolytic cap on each VMOT** (50V rated) - protects against back-EMF spikes. Without this, drivers will die. Add 100nF ceramic in parallel.
+    - **Power sequencing:** VMOT must power up BEFORE VIO, and VIO must power down BEFORE VMOT.
+    - **Never disconnect a motor while powered** - the voltage spike destroys the driver instantly.
+    - **CLK pin must be tied to GND** (uses internal 12MHz clock). Floating CLK causes erratic behavior.
+    - **Never hot-swap drivers** - always power down first.
+
+### Current Setting
+
+In UART mode, motor current is set digitally via IRUN/IHOLD registers (no potentiometer needed). In standalone STEP/DIR mode, adjust the onboard Vref potentiometer:
+
+- Formula: I_RMS = (Vref / 2.5V) x 1.77A
+- Factory default Vref ~1.2V = ~0.85A RMS
+- For 1.5A RMS motor: set Vref to ~2.12V
 
 ### Wiring
 
@@ -42,6 +73,17 @@ The 3-axis gimbal and linear rail system runs on a 24V system with an ESP32 cont
 |---|---|
 | **Motor cables** | 1M, 6-pin to 4-pin (pack of 4, qty 2 packs) |
 | **Link** | [Amazon.ca](https://www.amazon.ca/Stepper-Cables-Printer-XH2-54-Terminal/dp/B0DKJ69DQX) |
+
+### ESP32 Pin Assignments
+
+| Driver | STEP | DIR |
+|--------|------|-----|
+| TMC2209 #1 (Yaw) | GPIO 13 | GPIO 14 |
+| TMC2209 #2 (Pitch) | GPIO 16 | GPIO 17 |
+| TMC2209 #3 (Roll) | GPIO 18 | GPIO 19 |
+| TMC2209 #4 (Belt) | GPIO 25 | GPIO 26 |
+
+UART bus: ESP32 GPIO TBD (one pin, bridged TX/RX with 1k resistor)
 
 ---
 
