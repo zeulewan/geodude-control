@@ -56,17 +56,22 @@ Port 8813 by default.
 - 14 PWM servos (3 voltage rails: 12V, 7.4V, 5V)
 - PCA9685 I2C PWM driver (all 14 servo signals)
 - 3 buck converters (7.4V elbow, 5V Pi, 5V servo)
-- 40A relay for power-on sequencing (Pi GPIO via 2N2222 transistor driver)
-- Cyrico 12-circuit fuse block with negative bus
-- 30A inline blade fuse on trunk (sum of branch fuses = 47A, exceeds 10 AWG/40A relay rating)
+- 40A toggle switch for manual servo power control (BAITHNA DC12V 40A, replaces relay + transistor driver)
+- Per-servo fusing on custom servo bus boards (glass tube slow-blow, sized at 125% of normal operating current)
+- 30A inline blade fuse on 12V trunk
 - 6A slow-blow AC fuse on mains hot (must be AC-rated, not blade fuse)
-- Trunk wiring: 10 AWG (rated 30A), branch fuses: 15A base/shoulder, 8A buck1/buck3, 3A buck2, 1A fan
+- Trunk wiring: 10 AWG (rated 30A)
 - Realistic load ~17A through relay, stall worst-case ~42A
+- Cyrico blade fuse block removed entirely
+- All fusing uses glass tube slow-blow fuses with inline holders (need to buy holders)
 
 ### Gimbal (24V System)
 - 24V 480W PSU, 20A max
-- 4x TMC2209 stepper drivers (UART addressed, breadboard mounted)
+- 4x TMC2209 stepper drivers (UART addressed, breadboard for logic/signal)
 - 4x NEMA 17 stepper motors (yaw, pitch, roll, belt)
 - ESP32 DOIT DevKit V1 (powered separately via 5V USB)
 - 12A main DC fuse, 14 AWG trunk
 - WiFi link to Raspberry Pi
+- Power wiring (VMOT, GND, motor outputs) via Wago lever connectors, NOT through breadboard (2A per motor exceeds breadboard contact rating)
+- Need to buy: screw terminals for breadboard (plug into breadboard, accept wire via screw)
+- TMC2209 drivers handle overcurrent protection (2A RMS limit), no per-motor fusing needed
