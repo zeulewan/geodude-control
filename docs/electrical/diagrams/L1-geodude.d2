@@ -57,8 +57,8 @@ bus: 12V DC Bus\n(Wago) {
 }
 psu -> fuse_main -> bus: 10 AWG {style.stroke: "#1565C0"; style.stroke-width: 2}
 
-# === ALWAYS-ON PATH (before relay) ===
-always_on: Always-On Path (before relay) {
+# === ALWAYS-ON PATH (before toggle switch) ===
+always_on: Always-On Path (before toggle) {
   style.fill: "#E8F5E9"
   style.stroke: "#43A047"
   style.border-radius: 8
@@ -85,15 +85,14 @@ always_on: Always-On Path (before relay) {
 }
 bus -> always_on.fuse_b2: 18 AWG {style.stroke: "#1565C0"}
 
-# === RELAY ===
-relay: 40A Relay\n(Pi GPIO controlled)\nNormally Open {
+# === TOGGLE SWITCH ===
+toggle: 40A Toggle Switch\n(manual, panel mount)\nBATHNA SPST {
   shape: rectangle
   style.fill: "#FFF9C4"
   style.stroke: "#F9A825"
   style.stroke-width: 2
 }
-bus -> relay: 10 AWG {style.stroke: "#1565C0"; style.stroke-width: 2}
-always_on.pi -> relay: GPIO enable {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+bus -> toggle: 10 AWG {style.stroke: "#1565C0"; style.stroke-width: 2}
 
 # === PCA9685 (signal hub, powered from always-on 5V) ===
 pca: PCA9685\nPWM Driver {
@@ -105,65 +104,114 @@ pca: PCA9685\nPWM Driver {
 always_on.buck2 -> pca: 5V logic {style.stroke: "#43A047"}
 always_on.pi -> pca: I2C (GPIO 2+3) {style.stroke: "#7B1FA2"}
 
-# === FUSE BLOCK (after relay) ===
-fuse_block: Cyrico 12-Circuit Fuse Block {
+# === SERVO BUS BOARDS (after toggle switch) ===
+bus12: 12V Servo Bus Board\n(per-servo glass tube slow-blow fuses) {
   style.fill: "#E3F2FD"
   style.stroke: "#1565C0"
   style.border-radius: 8
 
-  base: Base Servos\n2x 150kg @ 12V {
+  base: Base Servos\n2x 150kg @ 12V\n(8A fuse each) {
     shape: rectangle
     style.fill: "#BBDEFB"
     style.stroke: "#1565C0"
   }
-  shoulder: Shoulder Servos\n2x 150kg @ 12V {
+  shoulder: Shoulder Servos\n2x 150kg @ 12V\n(8A fuse each) {
     shape: rectangle
     style.fill: "#BBDEFB"
     style.stroke: "#1565C0"
   }
-  buck1: Buck Conv 1\n12V -> 7.4V {
-    shape: rectangle
-    style.fill: "#C8E6C9"
-    style.stroke: "#2E7D32"
-  }
-  elbow: Elbow Servos\n2x 80kg @ 7.4V {
-    shape: rectangle
-    style.fill: "#C8E6C9"
-    style.stroke: "#2E7D32"
-  }
-  buck3: Buck Conv 3\n12V -> 5V {
-    shape: rectangle
-    style.fill: "#E8F5E9"
-    style.stroke: "#43A047"
-  }
-  wrist: Wrist Servos\n4x RDS3218 @ 5V {
-    shape: rectangle
-    style.fill: "#E8F5E9"
-    style.stroke: "#43A047"
-  }
-  ee: End-Effector\n4x MG90S @ 5V {
-    shape: rectangle
-    style.fill: "#E8F5E9"
-    style.stroke: "#43A047"
-  }
-  fan: 12V Fan {
-    shape: rectangle
-    style.fill: "#ECEFF1"
-    style.stroke: "#78909C"
-  }
-
-  buck1 -> elbow: 7.4V {style.stroke: "#2E7D32"}
-  buck3 -> wrist: 5V {style.stroke: "#43A047"}
-  buck3 -> ee: 5V {style.stroke: "#43A047"}
 }
-relay -> fuse_block: 10 AWG {style.stroke: "#1565C0"; style.stroke-width: 2}
+
+buck1: Buck Conv 1\n12V -> 7.4V {
+  shape: rectangle
+  style.fill: "#C8E6C9"
+  style.stroke: "#2E7D32"
+  style.stroke-width: 2
+}
+bus74: 7.4V Servo Bus Board\n(per-servo glass tube slow-blow fuses) {
+  style.fill: "#E8F5E9"
+  style.stroke: "#2E7D32"
+  style.border-radius: 8
+
+  elbow: Elbow Servos\n2x 80kg @ 7.4V\n(5A fuse each) {
+    shape: rectangle
+    style.fill: "#C8E6C9"
+    style.stroke: "#2E7D32"
+  }
+}
+
+buck3: Buck Conv 3\n12V -> 5V {
+  shape: rectangle
+  style.fill: "#E8F5E9"
+  style.stroke: "#43A047"
+  style.stroke-width: 2
+}
+bus5: 5V Servo Bus Board\n(per-servo glass tube slow-blow fuses) {
+  style.fill: "#E8F5E9"
+  style.stroke: "#43A047"
+  style.border-radius: 8
+
+  wrist: Wrist Servos\n4x RDS3218 @ 5V\n(3A fuse each) {
+    shape: rectangle
+    style.fill: "#E8F5E9"
+    style.stroke: "#43A047"
+  }
+  ee: End-Effector\n4x MG90S @ 5V\n(1A fuse each) {
+    shape: rectangle
+    style.fill: "#E8F5E9"
+    style.stroke: "#43A047"
+  }
+}
+
+# === MACE ===
+esc: 40A ESC {
+  shape: rectangle
+  style.fill: "#BBDEFB"
+  style.stroke: "#1565C0"
+}
+mace: MACE Reaction Wheel\nX2807 1700KV BLDC {
+  shape: rectangle
+  style.fill: "#BBDEFB"
+  style.stroke: "#1565C0"
+}
+
+fan: 12V Fan\n(1A fuse) {
+  shape: rectangle
+  style.fill: "#ECEFF1"
+  style.stroke: "#78909C"
+}
+
+# === POWER FLOW ===
+toggle -> bus12: 12V {style.stroke: "#1565C0"; style.stroke-width: 2}
+toggle -> buck1: 12V {style.stroke: "#1565C0"}
+buck1 -> bus74: 7.4V {style.stroke: "#2E7D32"}
+toggle -> buck3: 12V {style.stroke: "#1565C0"}
+buck3 -> bus5: 5V {style.stroke: "#43A047"}
+toggle -> esc: 12V {style.stroke: "#1565C0"}
+esc -> mace: motor drive {style.stroke: "#1565C0"}
+toggle -> fan: 12V {style.stroke: "#78909C"}
 
 # === PCA SIGNAL LINES ===
-pca -> fuse_block.base: Ch 0-1 {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-pca -> fuse_block.shoulder: Ch 2-3 {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-pca -> fuse_block.elbow: Ch 4-5 {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-pca -> fuse_block.wrist: Ch 6-9 {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-pca -> fuse_block.ee: Ch 10-13 {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+pca -> bus12.base: Ch 0-1 {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+pca -> bus12.shoulder: Ch 2-3 {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+pca -> bus74.elbow: Ch 4-5 {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+pca -> bus5.wrist: Ch 6-9 {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+pca -> bus5.ee: Ch 10-13 {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+pca -> esc: Ch 14 PWM {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+
+# === I2C SENSORS (MACE) ===
+imu: ICM20948 IMU\n(0x68) {
+  shape: rectangle
+  style.fill: "#F3E5F5"
+  style.stroke: "#7B1FA2"
+}
+enc: AS5600 Encoder\n(0x36) {
+  shape: rectangle
+  style.fill: "#F3E5F5"
+  style.stroke: "#7B1FA2"
+}
+always_on.pi -> imu: I2C {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+always_on.pi -> enc: I2C {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 
 # === GND ===
 gnd: GND Bus (Wago, star topology) {
@@ -173,3 +221,17 @@ gnd: GND Bus (Wago, star topology) {
   style.font-size: 12
 }
 psu -> gnd: 10 AWG {style.stroke: "#78909C"}
+
+# === WIFI ===
+base: Base Station Pi {
+  shape: cloud
+  style.fill: "#FCE4EC"
+  style.stroke: "#AD1457"
+}
+esp: ESP32 (Gimbal) {
+  shape: cloud
+  style.fill: "#FFF3E0"
+  style.stroke: "#EF6C00"
+}
+always_on.pi -> base: WiFi {style.stroke: "#7B1FA2"; style.stroke-dash: 5}
+always_on.pi -> esp: WiFi {style.stroke: "#7B1FA2"; style.stroke-dash: 5}

@@ -26,11 +26,7 @@ pi: Raspberry Pi {
     style.fill: "#E1BEE7"
     style.stroke: "#7B1FA2"
   }
-  gpio_relay: GPIO TBD\n(relay control) {
-    shape: rectangle
-    style.fill: "#FFF9C4"
-    style.stroke: "#F9A825"
-  }
+  # GPIO pin freed up (relay replaced by manual toggle switch)
   csi: CSI Connector {
     shape: rectangle
     style.fill: "#ECEFF1"
@@ -44,7 +40,7 @@ pi: Raspberry Pi {
 }
 
 # === PCA9685 ===
-pca: PCA9685 16-Ch PWM Driver {
+pca: PCA9685 16-Ch PWM Driver (0x40) {
   style.fill: "#F3E5F5"
   style.stroke: "#7B1FA2"
   style.stroke-width: 2
@@ -55,6 +51,17 @@ pca: PCA9685 16-Ch PWM Driver {
   ch45: Ch 4-5\nElbow {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"}
   ch69: Ch 6-9\nWrist {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
   ch1013: Ch 10-13\nEnd-Effector {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
+  ch14: Ch 14\nMACE ESC {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+}
+
+# === MACE I2C SENSORS ===
+mace_sensors: MACE Sensors {
+  style.fill: "#E3F2FD"
+  style.stroke: "#1565C0"
+  style.border-radius: 8
+
+  imu: ICM20948 IMU\n(0x68)\n3.3V, I2C {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+  enc: AS5600 Encoder\n(0x36)\n3.3V, I2C {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
 }
 
 # === SERVO GROUPS ===
@@ -68,6 +75,13 @@ servos: Servo Arm - 6-DOF {
   elbow: Elbow L + R\n2x 80kg @ 7.4V {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"}
   wrist: Wrist Rot + Pan (x4)\n4x RDS3218 @ 5V {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
   ee: End-Effector (x4)\n4x MG90S @ 5V {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
+}
+
+# === MACE ESC ===
+esc: 40A ESC\n(MACE Reaction Wheel) {
+  shape: rectangle
+  style.fill: "#BBDEFB"
+  style.stroke: "#1565C0"
 }
 
 # === LIMIT SWITCHES ===
@@ -86,7 +100,7 @@ camera: Pi Camera\n(AI vision) {
   style.fill: "#ECEFF1"
   style.stroke: "#78909C"
 }
-relay: 40A Relay\nCoil Circuit {
+toggle: 40A Toggle Switch\n(manual, no signal) {
   shape: rectangle
   style.fill: "#FFF9C4"
   style.stroke: "#F9A825"
@@ -96,9 +110,16 @@ esp32: ESP32 (Gimbal) {
   style.fill: "#FFF3E0"
   style.stroke: "#EF6C00"
 }
+base: Base Station Pi\n+ Laptop {
+  shape: cloud
+  style.fill: "#FCE4EC"
+  style.stroke: "#AD1457"
+}
 
 # === I2C ===
 pi.i2c -> pca: "I2C (SDA/SCL)" {style.stroke: "#7B1FA2"; style.stroke-width: 2}
+pi.i2c -> mace_sensors.imu: "I2C (shared bus)" {style.stroke: "#7B1FA2"; style.stroke-width: 2}
+pi.i2c -> mace_sensors.enc: "I2C (shared bus)" {style.stroke: "#7B1FA2"; style.stroke-width: 2}
 
 # === PWM CHANNELS ===
 pca.ch01 -> servos.base: "Ch 0-1 PWM" {style.stroke: "#1565C0"}
@@ -106,12 +127,14 @@ pca.ch23 -> servos.shld: "Ch 2-3 PWM" {style.stroke: "#1565C0"}
 pca.ch45 -> servos.elbow: "Ch 4-5 PWM" {style.stroke: "#2E7D32"}
 pca.ch69 -> servos.wrist: "Ch 6-9 PWM" {style.stroke: "#43A047"}
 pca.ch1013 -> servos.ee: "Ch 10-13 PWM" {style.stroke: "#43A047"}
+pca.ch14 -> esc: "Ch 14 PWM" {style.stroke: "#1565C0"}
 
 # === LIMIT SWITCHES ===
 pi.gpio_ls -> limits.ls_top: "GPIO 4, 5, 6\npull-up" {style.stroke: "#EF6C00"; style.stroke-dash: 3}
 pi.gpio_ls -> limits.ls_bot: "GPIO 17, 27, 22\npull-up" {style.stroke: "#EF6C00"; style.stroke-dash: 3}
 
 # === OTHER CONNECTIONS ===
-pi.gpio_relay -> relay: "via 2N2222 + 1k" {style.stroke: "#F9A825"; style.stroke-dash: 3}
+# Toggle switch has no signal connection (manual only)
 pi.csi -> camera: "ribbon cable" {style.stroke: "#78909C"}
 pi.wifi -> esp32: "WiFi" {style.stroke: "#7B1FA2"; style.stroke-dash: 5}
+pi.wifi -> base: "WiFi" {style.stroke: "#AD1457"; style.stroke-dash: 5}

@@ -109,6 +109,11 @@ geodude: GEO-DUDe Servicer - 12V System {
     style.fill: "#BBDEFB"
     style.stroke: "#1565C0"
   }
+  mace: MACE Reaction Wheel\nX2807 BLDC + 40A ESC {
+    shape: rectangle
+    style.fill: "#BBDEFB"
+    style.stroke: "#1565C0"
+  }
   camera: Pi Camera {
     shape: rectangle
     style.fill: "#ECEFF1"
@@ -119,8 +124,10 @@ geodude: GEO-DUDe Servicer - 12V System {
   slip -> psu: AC passthrough {style.stroke: "#C62828"}
   psu -> pi: 5V (buck 2) {style.stroke: "#43A047"}
   psu -> servos: 12V / 7.4V / 5V {style.stroke: "#1565C0"}
+  psu -> mace: 12V via ESC {style.stroke: "#1565C0"}
   pi -> pca: I2C {style.stroke: "#7B1FA2"}
   pca -> servos: PWM x14 {style.stroke: "#7B1FA2"}
+  pca -> mace: PWM Ch 14 {style.stroke: "#7B1FA2"}
   pi -> camera: CSI {style.stroke: "#78909C"}
 }
 
@@ -129,9 +136,41 @@ rails -> geodude: GEO-DUDe\ntravels along {
   style.stroke-dash: 5
 }
 
-# --- WiFi link ---
+# --- Base Station (below, centered) ---
+basestation: Base Station (Ground Control) {
+  style.fill: "#FCE4EC"
+  style.stroke: "#AD1457"
+  style.stroke-width: 3
+  style.border-radius: 12
+  style.font-color: "#880E4F"
+
+  laptop: Laptop\n(Operator UI) {
+    shape: rectangle
+    style.fill: "#F8BBD0"
+    style.stroke: "#AD1457"
+  }
+  pi: Raspberry Pi\n(Ground Control) {
+    shape: rectangle
+    style.fill: "#F3E5F5"
+    style.stroke: "#7B1FA2"
+  }
+
+  laptop -> pi: USB / Ethernet {style.stroke: "#AD1457"}
+}
+
+# --- WiFi links ---
 gimbal.esp32 <-> geodude.pi: WiFi\ncoordinated operation {
   style.stroke: "#7B1FA2"
+  style.stroke-width: 2
+  style.stroke-dash: 3
+}
+basestation.pi <-> gimbal.esp32: WiFi {
+  style.stroke: "#AD1457"
+  style.stroke-width: 2
+  style.stroke-dash: 3
+}
+basestation.pi <-> geodude.pi: WiFi {
+  style.stroke: "#AD1457"
   style.stroke-width: 2
   style.stroke-dash: 3
 }
