@@ -1,6 +1,6 @@
 # GEO-DUDe Electronics
 
-The GEO-DUDe servicer subscale model runs on a 12V system. A Raspberry Pi controls all 14 servos via a PCA9685 PWM driver board over I2C. The entire system sits inside the rotating satellite body, powered by 120V AC mains passed through a slip ring.
+The GEO-DUDe servicer subscale model runs on a 12V system. A Raspberry Pi controls all 14 servos and a MACE reaction wheel via a PCA9685 PWM driver board over I2C. The entire system sits inside the rotating satellite body, powered by 120V AC mains passed through a slip ring.
 
 ---
 
@@ -12,8 +12,9 @@ The GEO-DUDe servicer subscale model runs on a 12V system. A Raspberry Pi contro
 | **PWM driver** | PCA9685 16-channel I2C PWM board (**add to BOM**) |
 | **Camera** | Raspberry Pi Camera (AI vision, already have, Zeul) |
 | **Comms to ESP32** | WiFi (both have built-in WiFi, no extra hardware) |
+| **Comms to base station** | WiFi |
 
-The PCA9685 drives all 14 servo signal lines over I2C (2 Pi pins). Limit switches connect directly to Pi GPIO (6 needed, plenty of free pins).
+The PCA9685 drives all 14 servo signal lines and the ESC PWM signal over I2C (2 Pi pins). The IMU and magnetic encoder also share the I2C bus (different addresses). Limit switches connect directly to Pi GPIO (6 needed, plenty of free pins).
 
 ### Pi Connections
 
@@ -24,7 +25,10 @@ The PCA9685 drives all 14 servo signal lines over I2C (2 Pi pins). Limit switche
 | GPIO 4-9 (6 pins) | Limit switches | Digital input | One per joint, pulled up |
 | GPIO TBD | Servo power relay | Digital output | HIGH to enable servo power after boot |
 | CSI connector | Pi Camera | Ribbon cable | Fixed mount near Pi |
+| I2C SDA (GPIO 2) | ICM20948 IMU | I2C | MACE attitude sensing (addr 0x68) |
+| I2C SDA (GPIO 2) | AS5600 Encoder | I2C | MACE wheel speed sensing (addr 0x36) |
 | WiFi | ESP32 | Wireless | Coordinated operation |
+| WiFi | Base station Pi | Wireless | Ground control commands |
 
 ---
 
@@ -42,6 +46,25 @@ The PCA9685 drives all 14 servo signal lines over I2C (2 Pi pins). Limit switche
 | End-effector | [Miuzei MG90S](https://www.amazon.ca/Miuzei-MG90S-Servo-Helicopter-Arduino/dp/B0CP98TZJ2) | 2 kg-cm | 4 | **5V** | ~0.5A | Standard MG90S |
 
 **Total: 14 dumb PWM servos**, all driven by PCA9685 I2C PWM driver.
+
+---
+
+## MACE (Reaction Wheel)
+
+Momentum Attitude Control Electronics - a single-axis reaction wheel for attitude demonstration.
+
+| Component | Model | Voltage | Current | Interface | I2C Addr |
+|-----------|-------|---------|---------|-----------|----------|
+| Motor | Uangel X2807 1700KV BLDC | 12V (via ESC) | ~1-3A realistic | PWM via ESC | - |
+| ESC | Drfeify 40A | 7.4-14.8V | - | PWM (PCA9685 Ch 14) | - |
+| IMU | ICM20948 | 3.3V | ~mA | I2C | 0x68 |
+| Magnetic encoder | AS5600 | 3.3V | ~mA | I2C | 0x36 |
+
+**Power:** ESC powered from 12V bus through the relay (no separate fuse needed - ESC has built-in overcurrent protection, and the motor draws only ~1-3A as a reaction wheel).
+
+**Control:** PCA9685 Ch 14 sends PWM to ESC. ESC needs arming sequence on boot (send 1000us for ~2 seconds before accepting throttle commands).
+
+**Sensors:** IMU and encoder share the I2C bus with PCA9685 (all different addresses: PCA9685 0x40, ICM20948 0x68, AS5600 0x36).
 
 ---
 
@@ -63,9 +86,9 @@ The PCA9685 drives all 14 servo signal lines over I2C (2 Pi pins). Limit switche
 All DC power distribution uses **Wago lever connectors** (from Mach). Each voltage rail gets its own Wago block. The PCA9685 only carries signal wires - servo power is wired directly from the correct voltage rail.
 
 ```
-12V PSU output (8 AWG trunk)
+12V PSU output (10 AWG trunk)
     │
-    ├── Main Fuse (40A) ──→ 12V Bus (Wago)
+    ├── Main Fuse (30A) ──→ 12V Bus (Wago)
     │                          │
     │                          ├── Fuse (3A) ──→ Buck conv 2 (5V) ──→ 5V Pi Wago
     │                          │   (ALWAYS ON - taps off BEFORE relay)
@@ -74,20 +97,24 @@ All DC power distribution uses **Wago lever connectors** (from Mach). Each volta
     │                          │
     │                          └── RELAY (Pi GPIO controlled, normally open)
     │                                │
-    │                                └── Fuse block (12-circuit, Cyrico)
-    │                                      ├── 20A: Base servo L + R (14 AWG)
-    │                                      ├── 20A: Shoulder servo L + R (14 AWG)
-    │                                      ├── 8A: Buck conv 1 (7.4V) ──→ Elbow L + R
-    │                                      ├── 8A: Buck conv 3 (5V) ──→ 5V Servo Wago
-    │                                      │         ├──→ RDS3218 wrist x4 (18 AWG)
-    │                                      │         └──→ MG90S #1-4 (22 AWG)
-    │                                      ├── 1A: 12V fan
-    │                                      └── (spare circuits)
+    │                                ├── 12V Servo Bus Board
+    │                                │     ├── Base servo L (8A slow-blow fuse)
+    │                                │     ├── Base servo R (8A slow-blow fuse)
+    │                                │     ├── Shoulder servo L (8A slow-blow fuse)
+    │                                │     └── Shoulder servo R (8A slow-blow fuse)
+    │                                ├── Buck conv 1 (7.4V) ──→ 7.4V Servo Bus Board
+    │                                │     ├── Elbow servo L (5A slow-blow fuse)
+    │                                │     └── Elbow servo R (5A slow-blow fuse)
+    │                                ├── Buck conv 3 (5V) ──→ 5V Servo Bus Board
+    │                                │     ├── RDS3218 wrist x4 (3A slow-blow each)
+    │                                │     └── MG90S x4 (1A slow-blow each)
+    │                                ├── ESC (40A) ──→ MACE reaction wheel motor
+    │                                └── 12V fan (1A fuse)
     │
-    └── GND Bus (8 AWG) ──→ Everything (star ground via fuse block negative bus)
+    └── GND Bus (10 AWG) ──→ Everything (star ground via Wago bus)
 ```
 
-**Power-on sequence:** Pi and PCA9685 are always powered via buck 2 (before relay, always on). Pi boots (~30s), then sets GPIO pin HIGH to close relay, energizing the fuse block. All servo power (12V direct, 7.4V via buck 1, 5V via buck 3) flows through the relay. PCA9685 outputs are off until Pi sends I2C commands, so servos stay still even after relay closes.
+**Power-on sequence:** Pi and PCA9685 are always powered via buck 2 (before relay, always on). Pi boots (~30s), then sets GPIO pin HIGH to close relay, energizing all servo bus boards and the ESC. PCA9685 outputs are off until Pi sends I2C commands, so servos stay still even after relay closes. ESC requires arming sequence (1000us PWM for ~2s) before accepting throttle.
 
 **Base and shoulder servos run directly off 12V** - no buck converter needed. They're rated 10-12.6V and the PSU outputs 12V.
 
@@ -222,63 +249,9 @@ These items from the original BOM are **no longer needed** for GEO-DUDe electron
 
 ---
 
-## Power Architecture
+## Diagrams
 
-```mermaid
-graph TD
-    WALL["Wall Outlet<br/>120V AC"] --> IEC["IEC C16 on Gantry<br/>(crimp spade terminals)"]
-    IEC --> FUSE_AC["6A Fuse"] --> SLIP_IN["Slip Ring<br/>(stationary side)"]
-    SLIP_IN --> SLIP_OUT["Slip Ring<br/>(rotating side)"]
-    SLIP_OUT --> PSU["12V 600W PSU<br/>(inside GEO-DUDe)"]
-
-    PSU --> F_MAIN["Main DC Fuse (40A)<br/>8 AWG"]
-    F_MAIN --> BUS["12V DC Bus<br/>(Wago block)"]
-
-    BUS --> F_5V["Fuse (3A)<br/>18 AWG"] --> BUCK2["Buck Conv 2<br/>5V (ALWAYS ON)"]
-    BUCK2 --> PI["Raspberry Pi"]
-    BUCK2 --> PCA["PCA9685 Logic"]
-
-    BUS --> RELAY["40A Relay<br/>(Pi GPIO controlled)"]
-    PI -.->|"GPIO enable"| RELAY
-
-    RELAY --> FUSE_BLK["Cyrico 12-Circuit<br/>Fuse Block"]
-    FUSE_BLK --> BASE["Base Servos<br/>2x 150kg @ 12V<br/>(20A fuse)"]
-    FUSE_BLK --> SHOULDER["Shoulder Servos<br/>2x 150kg @ 12V<br/>(20A fuse)"]
-    FUSE_BLK --> BUCK1["Buck Conv 1<br/>7.4V (8A fuse)"]
-    BUCK1 --> ELBOW["Elbow Servos<br/>2x 80kg @ 7.4V"]
-    FUSE_BLK --> BUCK3["Buck Conv 3<br/>5V (8A fuse)"]
-    BUCK3 --> WRIST["Wrist Servos<br/>4x RDS3218 @ 5V"]
-    BUCK3 --> MG90["MG90S x4<br/>End-Effector @ 5V"]
-    FUSE_BLK --> FAN["12V Fan<br/>(1A fuse)"]
-
-    style WALL fill:#ff6b6b,color:#fff
-    style SLIP_IN fill:#ff6b6b,color:#fff
-    style SLIP_OUT fill:#ff6b6b,color:#fff
-    style IEC fill:#ff6b6b,color:#fff
-    style PSU fill:#ffa500,color:#fff
-    style WAGO_BASE fill:#4a9eff,color:#fff
-    style WAGO_SHLD fill:#4a9eff,color:#fff
-    style WAGO74 fill:#4a9eff,color:#fff
-    style WAGO5 fill:#4a9eff,color:#fff
-```
-
-## Signal Architecture
-
-```mermaid
-graph TD
-    PI["Raspberry Pi"] --> I2C["I2C Bus<br/>(GPIO 2 + 3)"]
-    I2C --> PCA["PCA9685<br/>16-ch PWM Driver"]
-    PCA --> CH0["Ch 0-1: Base Servos"]
-    PCA --> CH2["Ch 2-3: Shoulder Servos"]
-    PCA --> CH4["Ch 4-5: Elbow Servos"]
-    PCA --> CH6["Ch 6-7: Wrist Rotate"]
-    PCA --> CH8["Ch 8-9: Wrist Pan"]
-    PCA --> CH10["Ch 10-13: MG90S EE"]
-    PI --> GPIO["GPIO 4-9"]
-    GPIO --> LS["6x Limit Switches<br/>(one per joint)"]
-    PI --> CAM["Pi Camera<br/>(CSI ribbon)"]
-    PI --> WIFI["WiFi<br/>to ESP32"]
-```
+See the [System Diagrams](../diagrams/) page for full power and signal architecture diagrams (D2 rendered SVGs).
 
 ---
 
