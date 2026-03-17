@@ -61,8 +61,12 @@ buck3: "Buck 3: 12V to 5V" {shape: rectangle; style.fill: "#E8F5E9"; style.strok
 toggle -> buck1: "18 AWG" {style.stroke: "#1565C0"}
 toggle -> buck3: "18 AWG" {style.stroke: "#1565C0"}
 
-# === ARM 1 FUSE BOARD ===
-arm1: "Arm 1 Fuse Board" {
+# === ARM FUSE BOARDS (side by side) ===
+arms: "" {
+  style.fill: transparent
+  style.stroke: transparent
+
+  arm1: "Arm 1 Fuse Board" {
   style.fill: "#E3F2FD"
   style.stroke: "#1565C0"
   style.stroke-width: 2
@@ -87,25 +91,26 @@ arm2: "Arm 2 Fuse Board" {
   elbow2: "Elbow (5A, 7.4V)" {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"}
   wr2: "Wrist Rot (3A, 5V)" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
   wp2: "Wrist Pan (3A, 5V)" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
+  }
 }
 
 # Power to arm boards
-toggle -> arm1.base1: "12V, 16 AWG" {style.stroke: "#1565C0"}
-toggle -> arm1.shld1: "12V, 16 AWG" {style.stroke: "#1565C0"}
-toggle -> arm2.base2: "12V, 16 AWG" {style.stroke: "#1565C0"}
-toggle -> arm2.shld2: "12V, 16 AWG" {style.stroke: "#1565C0"}
+toggle -> arms.arm1.base1: "12V, 16 AWG" {style.stroke: "#1565C0"}
+toggle -> arms.arm1.shld1: "12V, 16 AWG" {style.stroke: "#1565C0"}
+toggle -> arms.arm2.base2: "12V, 16 AWG" {style.stroke: "#1565C0"}
+toggle -> arms.arm2.shld2: "12V, 16 AWG" {style.stroke: "#1565C0"}
 
-buck1 -> arm1.elbow1: "7.4V, 18 AWG" {style.stroke: "#2E7D32"}
-buck1 -> arm2.elbow2: "7.4V, 18 AWG" {style.stroke: "#2E7D32"}
+buck1 -> arms.arm1.elbow1: "7.4V, 18 AWG" {style.stroke: "#2E7D32"}
+buck1 -> arms.arm2.elbow2: "7.4V, 18 AWG" {style.stroke: "#2E7D32"}
 
-buck3 -> arm1.wr1: "5V, 18 AWG" {style.stroke: "#43A047"}
-buck3 -> arm1.wp1: "5V, 18 AWG" {style.stroke: "#43A047"}
-buck3 -> arm2.wr2: "5V, 18 AWG" {style.stroke: "#43A047"}
-buck3 -> arm2.wp2: "5V, 18 AWG" {style.stroke: "#43A047"}
+buck3 -> arms.arm1.wr1: "5V, 18 AWG" {style.stroke: "#43A047"}
+buck3 -> arms.arm1.wp1: "5V, 18 AWG" {style.stroke: "#43A047"}
+buck3 -> arms.arm2.wr2: "5V, 18 AWG" {style.stroke: "#43A047"}
+buck3 -> arms.arm2.wp2: "5V, 18 AWG" {style.stroke: "#43A047"}
 
 # === PWM SIGNAL (from PCA9685 to fuse boards) ===
-pca -> arm1: "Ch 0-4 PWM" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-pca -> arm2: "Ch 5-9 PWM" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+pca -> arms.arm1: "Ch 0-4 PWM" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+pca -> arms.arm2: "Ch 5-9 PWM" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 
 # === MACE ===
 esc: "40A ESC" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
