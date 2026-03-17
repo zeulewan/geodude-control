@@ -104,7 +104,7 @@ arm: "Arm Fuse Board (x2, one per arm)" {
 }
 
 # Power to arm board
-toggle -> arm.screw_in: "12V, 12 AWG" {style.stroke: "#1565C0"}
+toggle -> arm.screw_in: "12V, 16 AWG (per arm)" {style.stroke: "#1565C0"}
 
 buck1 -> arm.screw_in: "7.4V, 18 AWG" {style.stroke: "#2E7D32"}
 buck3 -> arm.screw_in: "5V, 18 AWG" {style.stroke: "#43A047"}
@@ -130,7 +130,7 @@ mace: "MACE Reaction Wheel" {
   motor -> encoder: "magnet" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 }
 
-toggle -> mace.esc: "12V direct" {style.stroke: "#1565C0"}
+toggle -> mace.esc: "12V, 18 AWG" {style.stroke: "#1565C0"}
 
 pca -> mace.esc: "Ch 14 PWM" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 pi -> mace.encoder: "I2C + 3.3V" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
