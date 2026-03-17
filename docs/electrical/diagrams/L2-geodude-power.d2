@@ -67,35 +67,48 @@ arm: "Arm Fuse Board (x2, one per arm)" {
   style.stroke: "#1565C0"
   style.stroke-width: 2
   style.border-radius: 8
+  direction: right
 
-  inputs: "Inputs: Screw Terminals | Power + PWM signal" {shape: rectangle; style.fill: "#E3F2FD"; style.stroke: "#90A4AE"; style.font-size: 11}
+  screw_in: "Screw Terminals (in)" {
+    shape: rectangle
+    style.fill: "#B0BEC5"
+    style.stroke: "#546E7A"
+    style.stroke-width: 2
+  }
 
-  base: "Base (8A fuse, 12V)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
-  shld: "Shoulder (8A fuse, 12V)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
-  elbow: "Elbow (5A fuse, 7.4V)" {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"}
-  wr: "Wrist Rot (3A fuse, 5V)" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
-  wp: "Wrist Pan (3A fuse, 5V)" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
+  fuses: "" {
+    style.fill: transparent
+    style.stroke: transparent
 
-  outputs: "Outputs: Male 3-pin Headers | Servos plug in" {shape: rectangle; style.fill: "#E3F2FD"; style.stroke: "#90A4AE"; style.font-size: 11}
+    base: "Base (8A, 12V)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+    shld: "Shoulder (8A, 12V)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+    elbow: "Elbow (5A, 7.4V)" {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"}
+    wr: "Wrist Rot (3A, 5V)" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
+    wp: "Wrist Pan (3A, 5V)" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
+  }
 
-  inputs -> base -> outputs {style.stroke: "#90A4AE"; style.stroke-dash: 5}
-  inputs -> shld -> outputs {style.stroke: "#90A4AE"; style.stroke-dash: 5}
-  inputs -> elbow -> outputs {style.stroke: "#90A4AE"; style.stroke-dash: 5}
-  inputs -> wr -> outputs {style.stroke: "#90A4AE"; style.stroke-dash: 5}
-  inputs -> wp -> outputs {style.stroke: "#90A4AE"; style.stroke-dash: 5}
+  headers_out: "Male Headers (out)" {
+    shape: rectangle
+    style.fill: "#B0BEC5"
+    style.stroke: "#546E7A"
+    style.stroke-width: 2
+  }
+
+  screw_in -> fuses.base -> headers_out {style.stroke: "#1565C0"}
+  screw_in -> fuses.shld -> headers_out {style.stroke: "#1565C0"}
+  screw_in -> fuses.elbow -> headers_out {style.stroke: "#2E7D32"}
+  screw_in -> fuses.wr -> headers_out {style.stroke: "#43A047"}
+  screw_in -> fuses.wp -> headers_out {style.stroke: "#43A047"}
 }
 
 # Power to arm board
-toggle -> arm.base: "12V, 16 AWG" {style.stroke: "#1565C0"}
-toggle -> arm.shld: "12V, 16 AWG" {style.stroke: "#1565C0"}
-buck1 -> arm.elbow: "7.4V, 18 AWG" {style.stroke: "#2E7D32"}
-buck3 -> arm.wr: "5V, 18 AWG" {style.stroke: "#43A047"}
-buck3 -> arm.wp: "5V, 18 AWG" {style.stroke: "#43A047"}
+toggle -> arm.screw_in: "12V, 16 AWG" {style.stroke: "#1565C0"}
+
+buck1 -> arm.screw_in: "7.4V, 18 AWG" {style.stroke: "#2E7D32"}
+buck3 -> arm.screw_in: "5V, 18 AWG" {style.stroke: "#43A047"}
 
 # PWM signal
-pca -> arm: "Ch 0-4 / Ch 5-9 PWM" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-
-
+pca -> arm.screw_in: "Ch 0-4 / Ch 5-9 PWM" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 
 # === PWM SIGNAL (from PCA9685 to fuse boards) ===
 
@@ -110,8 +123,6 @@ esc -> motor: "motor drive" {style.stroke: "#1565C0"}
 pca -> esc: "Ch 14 PWM" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 motor -> encoder: "magnet" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 pi -> encoder: "I2C" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-
-
 
 # === LIMIT SWITCHES ===
 limits: "10x Limit Switches | GPIO 4-6, 17, 22-27 | Pi pull-ups, 22 AWG" {
