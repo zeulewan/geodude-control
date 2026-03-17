@@ -36,7 +36,7 @@ fuse_main -> bus: "2x 16 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
 # === ALWAYS-ON BRANCH (before toggle) ===
 fuse_pi: "3A Fuse" {shape: diamond; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"}
 buck2: "Buck 2: 12V to 5V" {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"}
-pi: "Raspberry Pi (2.5A)" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"; style.stroke-width: 2}
+pi: "Raspberry Pi (2.5A) + Screw Terminal HAT" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"; style.stroke-width: 2}
 pca: "PCA9685 PWM (~50mA)" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
 
 bus -> fuse_pi: "18 AWG (always on)" {style.stroke: "#2E7D32"}
@@ -68,11 +68,21 @@ arm: "Arm Fuse Board (x2, one per arm)" {
   style.stroke-width: 2
   style.border-radius: 8
 
+  inputs: "Inputs: Screw Terminals | Power + PWM signal" {shape: rectangle; style.fill: "#E3F2FD"; style.stroke: "#90A4AE"; style.font-size: 11}
+
   base: "Base (8A fuse, 12V)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
   shld: "Shoulder (8A fuse, 12V)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
   elbow: "Elbow (5A fuse, 7.4V)" {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"}
   wr: "Wrist Rot (3A fuse, 5V)" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
   wp: "Wrist Pan (3A fuse, 5V)" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
+
+  outputs: "Outputs: Male 3-pin Headers | Servos plug in" {shape: rectangle; style.fill: "#E3F2FD"; style.stroke: "#90A4AE"; style.font-size: 11}
+
+  inputs -> base -> outputs {style.stroke: "#90A4AE"; style.stroke-dash: 5}
+  inputs -> shld -> outputs {style.stroke: "#90A4AE"; style.stroke-dash: 5}
+  inputs -> elbow -> outputs {style.stroke: "#90A4AE"; style.stroke-dash: 5}
+  inputs -> wr -> outputs {style.stroke: "#90A4AE"; style.stroke-dash: 5}
+  inputs -> wp -> outputs {style.stroke: "#90A4AE"; style.stroke-dash: 5}
 }
 
 # Power to arm board
@@ -93,16 +103,15 @@ pca -> arm: "Ch 0-4 / Ch 5-9 PWM" {style.stroke: "#7B1FA2"; style.stroke-dash: 3
 esc: "40A ESC" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
 motor: "X2807 BLDC (~1-3A)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
 
+encoder: "AS5600 Encoder (0x36)" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
+
 toggle -> esc: "12V direct" {style.stroke: "#1565C0"}
 esc -> motor: "motor drive" {style.stroke: "#1565C0"}
 pca -> esc: "Ch 14 PWM" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+motor -> encoder: "magnet" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+pi -> encoder: "I2C" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 
-# === FAN ===
-fuse_fan: "1A Fuse" {shape: diamond; style.fill: "#ECEFF1"; style.stroke: "#78909C"}
-fan: "12V Fan (0.15A)" {shape: rectangle; style.fill: "#ECEFF1"; style.stroke: "#78909C"}
 
-toggle -> fuse_fan: "22 AWG" {style.stroke: "#78909C"}
-fuse_fan -> fan {style.stroke: "#78909C"}
 
 # === LIMIT SWITCHES ===
 limits: "10x Limit Switches | GPIO 4-6, 17, 22-27 | Pi pull-ups, 22 AWG" {
