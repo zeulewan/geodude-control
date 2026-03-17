@@ -104,59 +104,72 @@ pca: PCA9685\nPWM Driver {
 always_on.buck2 -> pca: 5V logic {style.stroke: "#43A047"}
 always_on.pi -> pca: I2C (GPIO 2+3) {style.stroke: "#7B1FA2"}
 
-# === SERVO BUS BOARDS (after toggle switch) ===
-bus12: 12V Servo Bus Board\n(per-servo glass tube slow-blow fuses) {
-  style.fill: "#E3F2FD"
-  style.stroke: "#1565C0"
-  style.border-radius: 8
-
-  base: Base Servos\n2x 150kg @ 12V\n(8A fuse each) {
-    shape: rectangle
-    style.fill: "#BBDEFB"
-    style.stroke: "#1565C0"
-  }
-  shoulder: Shoulder Servos\n2x 150kg @ 12V\n(8A fuse each) {
-    shape: rectangle
-    style.fill: "#BBDEFB"
-    style.stroke: "#1565C0"
-  }
-}
-
+# === BUCK CONVERTERS (after toggle) ===
 buck1: Buck Conv 1\n12V -> 7.4V {
   shape: rectangle
   style.fill: "#C8E6C9"
   style.stroke: "#2E7D32"
   style.stroke-width: 2
 }
-bus74: 7.4V Servo Bus Board\n(per-servo glass tube slow-blow fuses) {
-  style.fill: "#E8F5E9"
-  style.stroke: "#2E7D32"
-  style.border-radius: 8
-
-  elbow: Elbow Servos\n2x 80kg @ 7.4V\n(5A fuse each) {
-    shape: rectangle
-    style.fill: "#C8E6C9"
-    style.stroke: "#2E7D32"
-  }
-}
-
 buck3: Buck Conv 3\n12V -> 5V {
   shape: rectangle
   style.fill: "#E8F5E9"
   style.stroke: "#43A047"
   style.stroke-width: 2
 }
-bus5: 5V Servo Bus Board\n(per-servo glass tube slow-blow fuses) {
-  style.fill: "#E8F5E9"
-  style.stroke: "#43A047"
+toggle -> buck1: 12V {style.stroke: "#1565C0"}
+toggle -> buck3: 12V {style.stroke: "#1565C0"}
+
+# === ARM 1 FUSE BOARD ===
+arm1: Arm 1 Fuse Board\n(per-servo glass tube slow-blow fuses) {
+  style.fill: "#E3F2FD"
+  style.stroke: "#1565C0"
   style.border-radius: 8
 
-  wrist: Wrist Servos\n4x RDS3218 @ 5V\n(3A fuse each) {
+  base: Base Servo\n150kg @ 12V\n(8A fuse) {
+    shape: rectangle
+    style.fill: "#BBDEFB"
+    style.stroke: "#1565C0"
+  }
+  shoulder: Shoulder Servo\n150kg @ 12V\n(8A fuse) {
+    shape: rectangle
+    style.fill: "#BBDEFB"
+    style.stroke: "#1565C0"
+  }
+  elbow: Elbow Servo\n80kg @ 7.4V\n(5A fuse) {
+    shape: rectangle
+    style.fill: "#C8E6C9"
+    style.stroke: "#2E7D32"
+  }
+  wrist: Wrist Servos\n2x RDS3218 @ 5V\n(3A fuse each) {
     shape: rectangle
     style.fill: "#E8F5E9"
     style.stroke: "#43A047"
   }
-  ee: End-Effector\n4x MG90S @ 5V\n(1A fuse each) {
+}
+
+# === ARM 2 FUSE BOARD ===
+arm2: Arm 2 Fuse Board\n(per-servo glass tube slow-blow fuses) {
+  style.fill: "#E3F2FD"
+  style.stroke: "#1565C0"
+  style.border-radius: 8
+
+  base: Base Servo\n150kg @ 12V\n(8A fuse) {
+    shape: rectangle
+    style.fill: "#BBDEFB"
+    style.stroke: "#1565C0"
+  }
+  shoulder: Shoulder Servo\n150kg @ 12V\n(8A fuse) {
+    shape: rectangle
+    style.fill: "#BBDEFB"
+    style.stroke: "#1565C0"
+  }
+  elbow: Elbow Servo\n80kg @ 7.4V\n(5A fuse) {
+    shape: rectangle
+    style.fill: "#C8E6C9"
+    style.stroke: "#2E7D32"
+  }
+  wrist: Wrist Servos\n2x RDS3218 @ 5V\n(3A fuse each) {
     shape: rectangle
     style.fill: "#E8F5E9"
     style.stroke: "#43A047"
@@ -181,22 +194,40 @@ fan: 12V Fan\n(1A fuse) {
   style.stroke: "#78909C"
 }
 
+# === LIMIT SWITCHES ===
+limits: Limit Switches\n10x (5 per arm)\nPi GPIO, pull-ups {
+  shape: rectangle
+  style.fill: "#FFF3E0"
+  style.stroke: "#EF6C00"
+  style.border-radius: 8
+}
+
 # === POWER FLOW ===
-toggle -> bus12: 12V {style.stroke: "#1565C0"; style.stroke-width: 2}
-toggle -> buck1: 12V {style.stroke: "#1565C0"}
-buck1 -> bus74: 7.4V {style.stroke: "#2E7D32"}
-toggle -> buck3: 12V {style.stroke: "#1565C0"}
-buck3 -> bus5: 5V {style.stroke: "#43A047"}
+toggle -> arm1.base: 12V {style.stroke: "#1565C0"; style.stroke-width: 2}
+toggle -> arm1.shoulder: 12V {style.stroke: "#1565C0"; style.stroke-width: 2}
+toggle -> arm2.base: 12V {style.stroke: "#1565C0"; style.stroke-width: 2}
+toggle -> arm2.shoulder: 12V {style.stroke: "#1565C0"; style.stroke-width: 2}
+buck1 -> arm1.elbow: 7.4V {style.stroke: "#2E7D32"}
+buck1 -> arm2.elbow: 7.4V {style.stroke: "#2E7D32"}
+buck3 -> arm1.wrist: 5V {style.stroke: "#43A047"}
+buck3 -> arm2.wrist: 5V {style.stroke: "#43A047"}
 toggle -> esc: 12V {style.stroke: "#1565C0"}
 esc -> mace: motor drive {style.stroke: "#1565C0"}
 toggle -> fan: 12V {style.stroke: "#78909C"}
 
 # === PCA SIGNAL LINES ===
-pca -> bus12.base: Ch 0-1 {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-pca -> bus12.shoulder: Ch 2-3 {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-pca -> bus74.elbow: Ch 4-5 {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-pca -> bus5.wrist: Ch 6-9 {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+pca -> arm1.base: Ch 0 {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+pca -> arm1.shoulder: Ch 1 {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+pca -> arm1.elbow: Ch 2 {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+pca -> arm1.wrist: Ch 3-4 {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+pca -> arm2.base: Ch 5 {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+pca -> arm2.shoulder: Ch 6 {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+pca -> arm2.elbow: Ch 7 {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+pca -> arm2.wrist: Ch 8-9 {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 pca -> esc: Ch 14 PWM {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+
+# === LIMIT SWITCH CONNECTIONS ===
+always_on.pi -> limits: "GPIO 4-6, 17, 22-27\n22 AWG" {style.stroke: "#EF6C00"; style.stroke-dash: 3}
 
 # === I2C SENSORS (MACE) ===
 imu: ICM20948 IMU\n(0x68) {

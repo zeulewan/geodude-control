@@ -89,82 +89,81 @@ toggle: 40A Toggle Switch\n(manual, panel mount) {
 }
 bus -> toggle: "2x 16 AWG" {style.stroke: "#1565C0"; style.stroke-width: 3}
 
-# === 12V SERVO BUS BOARD ===
-bus12: 12V Servo Bus Board (perfboard) {
-  style.fill: "#E3F2FD"
-  style.stroke: "#1565C0"
-  style.stroke-width: 2
-  style.border-radius: 10
-
-  f_base_L: 8A Fuse {shape: diamond; style.fill: "#BBDEFB"; style.stroke: "#1565C0"; style.font-size: 10}
-  base_L: Base Servo L\n150kg, 8A stall {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
-  f_base_R: 8A Fuse {shape: diamond; style.fill: "#BBDEFB"; style.stroke: "#1565C0"; style.font-size: 10}
-  base_R: Base Servo R\n150kg, 8A stall {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
-  f_shld_L: 8A Fuse {shape: diamond; style.fill: "#BBDEFB"; style.stroke: "#1565C0"; style.font-size: 10}
-  shld_L: Shoulder Servo L\n150kg, 8A stall {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
-  f_shld_R: 8A Fuse {shape: diamond; style.fill: "#BBDEFB"; style.stroke: "#1565C0"; style.font-size: 10}
-  shld_R: Shoulder Servo R\n150kg, 8A stall {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
-
-  f_base_L -> base_L: "servo lead" {style.stroke: "#1565C0"}
-  f_base_R -> base_R: "servo lead" {style.stroke: "#1565C0"}
-  f_shld_L -> shld_L: "servo lead" {style.stroke: "#1565C0"}
-  f_shld_R -> shld_R: "servo lead" {style.stroke: "#1565C0"}
-}
-toggle -> bus12: "16 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
-
-# === 7.4V PATH ===
+# === BUCK CONVERTERS (after toggle) ===
 buck1: Buck Conv 1\n12V -> 7.4V {
   shape: rectangle
   style.fill: "#C8E6C9"
   style.stroke: "#2E7D32"
   style.stroke-width: 2
 }
-bus74: 7.4V Servo Bus Board (perfboard) {
-  style.fill: "#E8F5E9"
-  style.stroke: "#2E7D32"
-  style.stroke-width: 2
-  style.border-radius: 10
-
-  f_elbow_L: 5A Fuse {shape: diamond; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"; style.font-size: 10}
-  elbow_L: Elbow Servo L\n80kg, 5.4A stall {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"}
-  f_elbow_R: 5A Fuse {shape: diamond; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"; style.font-size: 10}
-  elbow_R: Elbow Servo R\n80kg, 5.4A stall {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"}
-
-  f_elbow_L -> elbow_L: "servo lead" {style.stroke: "#2E7D32"}
-  f_elbow_R -> elbow_R: "servo lead" {style.stroke: "#2E7D32"}
-}
-toggle -> buck1: "18 AWG" {style.stroke: "#1565C0"}
-buck1 -> bus74: "18 AWG, 7.4V" {style.stroke: "#2E7D32"}
-
-# === 5V PATH ===
 buck3: Buck Conv 3\n12V -> 5V {
   shape: rectangle
   style.fill: "#E8F5E9"
   style.stroke: "#43A047"
   style.stroke-width: 2
 }
-bus5: 5V Servo Bus Board (perfboard) {
-  style.fill: "#E8F5E9"
-  style.stroke: "#43A047"
+toggle -> buck1: "18 AWG" {style.stroke: "#1565C0"}
+toggle -> buck3: "18 AWG" {style.stroke: "#1565C0"}
+
+# === ARM 1 FUSE BOARD ===
+arm1: Arm 1 Fuse Board (perfboard) {
+  style.fill: "#E3F2FD"
+  style.stroke: "#1565C0"
   style.stroke-width: 2
   style.border-radius: 10
 
-  f_wr1: 3A {shape: diamond; style.fill: "#E8F5E9"; style.stroke: "#43A047"; style.font-size: 10}
-  wr1: Wrist Rot L\nRDS3218 {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
-  f_wr2: 3A {shape: diamond; style.fill: "#E8F5E9"; style.stroke: "#43A047"; style.font-size: 10}
-  wr2: Wrist Rot R\nRDS3218 {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
-  f_wp1: 3A {shape: diamond; style.fill: "#E8F5E9"; style.stroke: "#43A047"; style.font-size: 10}
-  wp1: Wrist Pan L\nRDS3218 {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
-  f_wp2: 3A {shape: diamond; style.fill: "#E8F5E9"; style.stroke: "#43A047"; style.font-size: 10}
-  wp2: Wrist Pan R\nRDS3218 {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
+  f_base: "8A Fuse (12V)" {shape: diamond; style.fill: "#BBDEFB"; style.stroke: "#1565C0"; style.font-size: 10}
+  base: Arm 1 Base\n150kg, 8A stall {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+  f_shld: "8A Fuse (12V)" {shape: diamond; style.fill: "#BBDEFB"; style.stroke: "#1565C0"; style.font-size: 10}
+  shld: Arm 1 Shoulder\n150kg, 8A stall {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+  f_elbow: "5A Fuse (7.4V)" {shape: diamond; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"; style.font-size: 10}
+  elbow: Arm 1 Elbow\n80kg, 5A stall {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"}
+  f_wr: "3A Fuse (5V)" {shape: diamond; style.fill: "#E8F5E9"; style.stroke: "#43A047"; style.font-size: 10}
+  wr: Arm 1 Wrist Rot\nRDS3218 {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
+  f_wp: "3A Fuse (5V)" {shape: diamond; style.fill: "#E8F5E9"; style.stroke: "#43A047"; style.font-size: 10}
+  wp: Arm 1 Wrist Pan\nRDS3218 {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
 
-  f_wr1 -> wr1 {style.stroke: "#43A047"}
-  f_wr2 -> wr2 {style.stroke: "#43A047"}
-  f_wp1 -> wp1 {style.stroke: "#43A047"}
-  f_wp2 -> wp2 {style.stroke: "#43A047"}
+  f_base -> base: "servo lead" {style.stroke: "#1565C0"}
+  f_shld -> shld: "servo lead" {style.stroke: "#1565C0"}
+  f_elbow -> elbow: "servo lead" {style.stroke: "#2E7D32"}
+  f_wr -> wr: "servo lead" {style.stroke: "#43A047"}
+  f_wp -> wp: "servo lead" {style.stroke: "#43A047"}
 }
-toggle -> buck3: "18 AWG" {style.stroke: "#1565C0"}
-buck3 -> bus5: "18 AWG, 5V" {style.stroke: "#43A047"}
+toggle -> arm1.f_base: "12V, 16 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
+toggle -> arm1.f_shld: "12V, 16 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
+buck1 -> arm1.f_elbow: "7.4V, 18 AWG" {style.stroke: "#2E7D32"}
+buck3 -> arm1.f_wr: "5V, 18 AWG" {style.stroke: "#43A047"}
+buck3 -> arm1.f_wp: "5V, 18 AWG" {style.stroke: "#43A047"}
+
+# === ARM 2 FUSE BOARD ===
+arm2: Arm 2 Fuse Board (perfboard) {
+  style.fill: "#E3F2FD"
+  style.stroke: "#1565C0"
+  style.stroke-width: 2
+  style.border-radius: 10
+
+  f_base: "8A Fuse (12V)" {shape: diamond; style.fill: "#BBDEFB"; style.stroke: "#1565C0"; style.font-size: 10}
+  base: Arm 2 Base\n150kg, 8A stall {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+  f_shld: "8A Fuse (12V)" {shape: diamond; style.fill: "#BBDEFB"; style.stroke: "#1565C0"; style.font-size: 10}
+  shld: Arm 2 Shoulder\n150kg, 8A stall {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+  f_elbow: "5A Fuse (7.4V)" {shape: diamond; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"; style.font-size: 10}
+  elbow: Arm 2 Elbow\n80kg, 5A stall {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"}
+  f_wr: "3A Fuse (5V)" {shape: diamond; style.fill: "#E8F5E9"; style.stroke: "#43A047"; style.font-size: 10}
+  wr: Arm 2 Wrist Rot\nRDS3218 {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
+  f_wp: "3A Fuse (5V)" {shape: diamond; style.fill: "#E8F5E9"; style.stroke: "#43A047"; style.font-size: 10}
+  wp: Arm 2 Wrist Pan\nRDS3218 {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
+
+  f_base -> base: "servo lead" {style.stroke: "#1565C0"}
+  f_shld -> shld: "servo lead" {style.stroke: "#1565C0"}
+  f_elbow -> elbow: "servo lead" {style.stroke: "#2E7D32"}
+  f_wr -> wr: "servo lead" {style.stroke: "#43A047"}
+  f_wp -> wp: "servo lead" {style.stroke: "#43A047"}
+}
+toggle -> arm2.f_base: "12V, 16 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
+toggle -> arm2.f_shld: "12V, 16 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
+buck1 -> arm2.f_elbow: "7.4V, 18 AWG" {style.stroke: "#2E7D32"}
+buck3 -> arm2.f_wr: "5V, 18 AWG" {style.stroke: "#43A047"}
+buck3 -> arm2.f_wp: "5V, 18 AWG" {style.stroke: "#43A047"}
 
 # === MACE ESC ===
 esc: 40A ESC\n(built-in overcurrent protection) {
@@ -195,7 +194,39 @@ fan: 12V Fan\n0.15A {
 toggle -> f_fan: "22 AWG" {style.stroke: "#78909C"}
 f_fan -> fan {style.stroke: "#78909C"}
 
+# === LIMIT SWITCHES ===
+limits: Limit Switches (Pi GPIO, internal pull-ups) {
+  style.fill: "#FFF3E0"
+  style.stroke: "#EF6C00"
+  style.stroke-width: 2
+  style.border-radius: 10
+
+  arm1_ls: Arm 1 Limits {
+    style.fill: "#FFE0B2"
+    style.stroke: "#EF6C00"
+    style.border-radius: 8
+
+    ls_base: "GPIO 4: Base" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
+    ls_shld: "GPIO 5: Shoulder" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
+    ls_elbow: "GPIO 6: Elbow" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
+    ls_wr: "GPIO 17: Wrist Rot" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
+    ls_wp: "GPIO 27: Wrist Pan" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
+  }
+  arm2_ls: Arm 2 Limits {
+    style.fill: "#FFE0B2"
+    style.stroke: "#EF6C00"
+    style.border-radius: 8
+
+    ls_base: "GPIO 22: Base" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
+    ls_shld: "GPIO 23: Shoulder" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
+    ls_elbow: "GPIO 24: Elbow" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
+    ls_wr: "GPIO 25: Wrist Rot" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
+    ls_wp: "GPIO 26: Wrist Pan" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
+  }
+}
+always_on.pi -> limits: "22 AWG signal + GND" {style.stroke: "#EF6C00"; style.stroke-dash: 3}
+
 # GND connections
-gnd_bus -> bus12: "star GND" {style.stroke: "#546E7A"; style.stroke-dash: 3}
-gnd_bus -> bus74: "star GND" {style.stroke: "#546E7A"; style.stroke-dash: 3}
-gnd_bus -> bus5: "star GND" {style.stroke: "#546E7A"; style.stroke-dash: 3}
+gnd_bus -> arm1: "star GND" {style.stroke: "#546E7A"; style.stroke-dash: 3}
+gnd_bus -> arm2: "star GND" {style.stroke: "#546E7A"; style.stroke-dash: 3}
+gnd_bus -> limits: "GND" {style.stroke: "#546E7A"; style.stroke-dash: 3}

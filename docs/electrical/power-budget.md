@@ -28,8 +28,10 @@ Current draw calculations based on component datasheets. All servos are dumb PWM
 
 ### Servo Specifications
 
-| Servo | Voltage | Stall Current (each) | Qty | Total Stall | Power Source |
-|-------|---------|---------------------|-----|-------------|-------------|
+Two independent identical arms, 5 servos per arm, 10 servos total.
+
+| Servo | Voltage | Stall Current (each) | Qty (total, 1 per arm) | Total Stall | Power Source |
+|-------|---------|---------------------|------------------------|-------------|-------------|
 | Base (HOOYIJ 150kg) | 12V | 8.0A | 2 | 16.0A | 12V bus direct |
 | Shoulder (ANNIMOS 150kg) | 12V | 8.0A | 2 | ~16.0A | 12V bus direct |
 | Elbow (ANNIMOS 80kg) | 7.4V | 5.0A | 2 | 10.0A | Buck conv 1 (7.4V) |
@@ -48,10 +50,10 @@ Current draw calculations based on component datasheets. All servos are dumb PWM
 
 | Rail | Components | Total Max Current | Capacity | Status |
 |------|-----------|------------------|----------|--------|
-| **12V direct** | 4x 150kg servos + fan | ~32A stall | 50A PSU (30A fused) | OK |
-| **7.4V buck 1** | 2x 80kg elbow servos | 10A | 20A converter (8A fused at 12V in) | OK |
+| **12V direct** | 4x 150kg servos (2 base + 2 shoulder, one per arm) + fan | ~32A stall | 50A PSU (30A fused) | OK |
+| **7.4V buck 1** | 2x 80kg elbow servos (one per arm) | 10A | 20A converter (8A fused at 12V in) | OK |
 | **5V buck 2** | Pi + PCA9685 (always on) | ~2.6A | 20A converter (3A fused at 12V in) | OK |
-| **5V buck 3** | 4x RDS3218 wrist (after toggle switch) | ~6.4A stall | 20A converter (8A fused at 12V in) | OK |
+| **5V buck 3** | 4x RDS3218 wrist (two per arm) (after toggle switch) | ~6.4A stall | 20A converter (8A fused at 12V in) | OK |
 
 ---
 
@@ -61,9 +63,9 @@ Current draw calculations based on component datasheets. All servos are dumb PWM
 
 | Buck # | Output V | Load | Max Current | Headroom | Notes |
 |--------|----------|------|-------------|----------|-------|
-| 1 | 7.4V | 2x elbow servos | 10A stall | 5-10A spare | After toggle switch |
+| 1 | 7.4V | 2x elbow servos (one per arm) | 10A stall | 5-10A spare | After toggle switch |
 | 2 | 5V | Pi + PCA9685 | ~2.6A | 12-17A spare | Before toggle switch (always on) |
-| 3 | 5V | 4x RDS3218 wrist | ~6.4A stall | 9-14A spare | After toggle switch |
+| 3 | 5V | 4x RDS3218 wrist (two per arm) | ~6.4A stall | 9-14A spare | After toggle switch |
 | 4 | - | **Spare** | - | - | |
 
 ---
@@ -74,16 +76,16 @@ The "kg" rating on hobby servos is the **stall torque** - the absolute maximum w
 
 **Assumptions:**
 
-- The arm is manipulating a lightweight subscale satellite model, not heavy payloads
+- The arms are manipulating a lightweight subscale satellite model, not heavy payloads
 - Servos operate at 20-40% of stall torque during typical motion (holding against gravity, positioning)
 - Current scales roughly linearly with torque for DC motors
-- All servos will never simultaneously stall - that would mean every joint is jammed at once
+- All servos will never simultaneously stall - that would mean every joint on both arms is jammed at once
 - Brief acceleration spikes may hit 50-60% of stall but are transient (milliseconds)
 
 ### GEO-DUDe Realistic Current Draw
 
-| Servo | Stall Current | Realistic Operating (per servo) | Qty | Realistic Total | Notes |
-|-------|--------------|-------------------------------|-----|----------------|-------|
+| Servo | Stall Current | Realistic Operating (per servo) | Qty (total) | Realistic Total | Notes |
+|-------|--------------|-------------------------------|-------------|----------------|-------|
 | Base (150kg) | 8.0A | **2-3A** (~30% load) | 2 | **4-6A** | Holding arm weight against gravity |
 | Shoulder (150kg) | 8.0A | **2-3A** (~30% load) | 2 | **4-6A** | Highest static load (arm cantilevered) |
 | Elbow (80kg) | 5.0A | **1.5-2A** (~35% load) | 2 | **3-4A** @ 7.4V | Lighter distal load |
@@ -97,10 +99,10 @@ Everything after the toggle switch, referred to 12V input:
 
 | Branch | Realistic @ native V | Referred to 12V input | Stall @ 12V |
 |--------|---------------------|----------------------|-------------|
-| Base (12V direct) | 4-6A | **4-6A** | 16A |
-| Shoulder (12V direct) | 4-6A | **4-6A** | 16A |
-| Elbow (7.4V buck) | 3-4A @ 7.4V | **~2.5A** (efficiency ~80%) | ~6.2A |
-| Wrist (5V buck) | 2-3.2A @ 5V | **~1.7A** (efficiency ~80%) | ~2.7A |
+| Base (12V direct, 2 servos) | 4-6A | **4-6A** | 16A |
+| Shoulder (12V direct, 2 servos) | 4-6A | **4-6A** | 16A |
+| Elbow (7.4V buck, 2 servos) | 3-4A @ 7.4V | **~2.5A** (efficiency ~80%) | ~6.2A |
+| Wrist (5V buck, 4 servos) | 2-3.2A @ 5V | **~1.7A** (efficiency ~80%) | ~2.7A |
 | Fan | 0.15A | **0.15A** | 0.15A |
 | **Total through toggle switch** | | **~12-16A** | ~41A |
 
@@ -114,13 +116,13 @@ Wire gauge must be rated for the **fuse rating** (not the load), since the fuse 
 |---------|-----------|----------|--------------|-------------|---------------|
 | PSU to bus trunk | 8 AWG | 40A | **2x 16 AWG parallel** | **30A** | 2x 16 AWG gives ~24A capacity, 30A fuse protects |
 | Bus to toggle switch | 8 AWG | - | **2x 16 AWG parallel** | - | Matches trunk |
-| Toggle switch to servo bus boards | 8 AWG | - | **16 AWG** | - | After toggle, splits to individual branches |
+| Toggle switch to fuse boards | 8 AWG | - | **16 AWG** | - | After toggle, splits to individual branches |
 | GND trunk | 8 AWG | - | **2x 16 AWG parallel** | - | Matches trunk |
-| Base/shoulder servo branch | 14 AWG | 20A | **16 AWG** | **8A per servo** | Per-servo fusing on bus board |
+| Base/shoulder servo branch | 14 AWG | 20A | **16 AWG** | **8A per servo** | Per-servo fusing on arm fuse board |
 | Buck 1 input | 16 AWG | 8A | **18 AWG** | **8A** | |
 | Buck 2 input | 18 AWG | 3A | **18 AWG** | **3A** | No change needed |
 | Buck 3 input | 16 AWG | 8A | **18 AWG** | **8A** | |
-| Buck outputs to servo boards | 16 AWG | - | **18 AWG** | - | |
+| Buck outputs to fuse boards | 16 AWG | - | **18 AWG** | - | |
 | Fan | 22 AWG | 1A | **22 AWG** | **1A** | No change needed |
 | Signal / low current | 22 AWG | - | **22 AWG** | - | No change needed |
 
@@ -133,7 +135,7 @@ Hobby servos come with thin built-in leads (typically 22-26 AWG). This is fine b
 - Even the 150kg servos at 8A stall use ~20 AWG factory leads - the wire is rated for thermal load over short bursts
 - The fuse upstream protects the servo's own wiring in a fault condition
 
-The wire gauges in the diagrams are for the **distribution runs** (PSU to bus, bus to toggle switch, toggle switch to servo bus boards). From the bus board to each servo, use the servo's own factory leads.
+The wire gauges in the diagrams are for the **distribution runs** (PSU to bus, bus to toggle switch, toggle switch to fuse boards). From the fuse board to each servo, use the servo's own factory leads.
 
 ## Fuse Sizing
 
@@ -141,8 +143,11 @@ The wire gauges in the diagrams are for the **distribution runs** (PSU to bus, b
 |------|--------|---------------|------------|--------|-----------|-------|
 | AC inline | Mains hot before slip ring | ~3A @120V | ~5A | **6A slow-blow** | Mains cable | |
 | Main DC | 12V bus after PSU | **~16A** | ~41A stall | **30A** | **2x 16 AWG parallel** | |
-| Base servo (each) | Per base 150kg servo | **~3A** | 8A stall | **8A** | **16 AWG** | Per-servo on bus board |
-| Shoulder servo (each) | Per shoulder 150kg servo | **~3A** | 8A stall | **8A** | **16 AWG** | Per-servo on bus board |
+| Base servo (each, x2) | Per base servo, one per arm | **~3A** | 8A stall | **8A** | **16 AWG** | Per-servo on arm fuse board |
+| Shoulder servo (each, x2) | Per shoulder servo, one per arm | **~3A** | 8A stall | **8A** | **16 AWG** | Per-servo on arm fuse board |
+| Elbow servo (each, x2) | Per elbow servo, one per arm | **~1.8A** | 5A stall | **5A** | **18 AWG** | Per-servo on arm fuse board |
+| Wrist rotate (each, x2) | Per wrist rotate, one per arm | **~0.7A** | 1.6A stall | **3A** | **18 AWG** | Per-servo on arm fuse board |
+| Wrist pan (each, x2) | Per wrist pan, one per arm | **~0.7A** | 1.6A stall | **3A** | **18 AWG** | Per-servo on arm fuse board |
 | Buck 1 input | Elbow servos at 12V in | **~2.5A** | ~6.2A | **8A** | 18 AWG | |
 | Buck 2 input | Pi + PCA9685 at 12V in | ~1.1A | ~1.1A | **3A** | 18 AWG | Before toggle switch (always on) |
 | Buck 3 input | Wrist servos at 12V in | **~1.7A** | ~2.7A | **8A** | 18 AWG | |

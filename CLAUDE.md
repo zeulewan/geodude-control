@@ -53,17 +53,17 @@ Port 8813 by default.
 ### GEO-DUDe (12V System)
 - 12V 600W PSU, 50A max
 - 120V AC via 3-wire 15A slip ring
-- 10 PWM servos (3 voltage rails: 12V, 7.4V, 5V)
-- PCA9685 I2C PWM driver (all 10 servo signals)
+- Two independent identical 5-DOF arms, 5 servos per arm, 10 PWM servos total (3 voltage rails: 12V, 7.4V, 5V)
+- PCA9685 I2C PWM driver (all 10 servo signals): Ch 0-4 Arm 1, Ch 5-9 Arm 2, Ch 14 MACE ESC
+- 10 limit switches (one per joint per arm), connected to Pi GPIO with internal pull-ups
 - 3 buck converters (7.4V elbow, 5V Pi, 5V servo)
+- 2 per-arm fuse boards (perfboard, 5 fuses each: 8A base, 8A shoulder, 5A elbow, 3A wrist rot, 3A wrist pan)
 - 40A toggle switch for manual servo power control (Jtron Waterproof DC12V 40A/24V 20A, replaces relay + transistor driver)
-- Per-servo fusing on custom servo bus boards (glass tube slow-blow, sized at 125% of normal operating current)
 - 30A inline blade fuse on 12V trunk
 - 6A slow-blow AC fuse on mains hot (must be AC-rated, not blade fuse)
 - Trunk wiring: 2x 16 AWG parallel (~24A capacity, 30A fuse)
 - Realistic load ~17A through toggle switch, stall worst-case ~42A
 - Cyrico blade fuse block used for buck converter inputs and fan
-- All per-servo fusing uses glass tube slow-blow fuses with inline holders (need to buy holders)
 
 ### Gimbal (24V System)
 - 24V 480W PSU, 20A max

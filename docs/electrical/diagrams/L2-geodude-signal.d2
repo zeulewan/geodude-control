@@ -21,12 +21,16 @@ pi: Raspberry Pi {
     style.fill: "#E1BEE7"
     style.stroke: "#7B1FA2"
   }
-  gpio_ls: Limit Switch GPIOs\nGPIO 4, 5, 6, 17, 27, 22 {
+  gpio_ls1: "Arm 1 Limit GPIOs\nGPIO 4, 5, 6, 17, 27" {
     shape: rectangle
     style.fill: "#E1BEE7"
     style.stroke: "#7B1FA2"
   }
-  # GPIO pin freed up (relay replaced by manual toggle switch)
+  gpio_ls2: "Arm 2 Limit GPIOs\nGPIO 22, 23, 24, 25, 26" {
+    shape: rectangle
+    style.fill: "#E1BEE7"
+    style.stroke: "#7B1FA2"
+  }
   csi: CSI Connector {
     shape: rectangle
     style.fill: "#ECEFF1"
@@ -46,11 +50,14 @@ pca: PCA9685 16-Ch PWM Driver (0x40) {
   style.stroke-width: 2
   style.border-radius: 8
 
-  ch01: Ch 0-1\nBase {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
-  ch23: Ch 2-3\nShoulder {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
-  ch45: Ch 4-5\nElbow {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"}
-  ch69: Ch 6-9\nWrist {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
-  ch1013: Ch 10-13\nEnd-Effector {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
+  ch0: Ch 0\nArm 1 Base {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+  ch1: Ch 1\nArm 1 Shoulder {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+  ch2: Ch 2\nArm 1 Elbow {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"}
+  ch34: Ch 3-4\nArm 1 Wrist {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
+  ch5: Ch 5\nArm 2 Base {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+  ch6: Ch 6\nArm 2 Shoulder {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+  ch7: Ch 7\nArm 2 Elbow {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"}
+  ch89: Ch 8-9\nArm 2 Wrist {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
   ch14: Ch 14\nMACE ESC {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
 }
 
@@ -65,16 +72,26 @@ mace_sensors: MACE Sensors {
 }
 
 # === SERVO GROUPS ===
-servos: Servo Arm - 6-DOF {
+arm1_servos: "Arm 1 - 5 Joints" {
   style.fill: "#E3F2FD"
   style.stroke: "#1565C0"
   style.border-radius: 8
 
-  base: Base L + R\n2x 150kg @ 12V {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
-  shld: Shoulder L + R\n2x 150kg @ 12V {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
-  elbow: Elbow L + R\n2x 80kg @ 7.4V {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"}
-  wrist: Wrist Rot + Pan (x4)\n4x RDS3218 @ 5V {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
-  ee: End-Effector (x4)\n4x MG90S @ 5V {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
+  base: Base\n150kg @ 12V {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+  shld: Shoulder\n150kg @ 12V {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+  elbow: Elbow\n80kg @ 7.4V {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"}
+  wrist: "Wrist Rot + Pan\n2x RDS3218 @ 5V" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
+}
+
+arm2_servos: "Arm 2 - 5 Joints" {
+  style.fill: "#E3F2FD"
+  style.stroke: "#1565C0"
+  style.border-radius: 8
+
+  base: Base\n150kg @ 12V {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+  shld: Shoulder\n150kg @ 12V {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+  elbow: Elbow\n80kg @ 7.4V {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"}
+  wrist: "Wrist Rot + Pan\n2x RDS3218 @ 5V" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
 }
 
 # === MACE ESC ===
@@ -85,13 +102,28 @@ esc: 40A ESC\n(MACE Reaction Wheel) {
 }
 
 # === LIMIT SWITCHES ===
-limits: Limit Switches - Homing {
+arm1_limits: Arm 1 Limit Switches {
   style.fill: "#FFF3E0"
   style.stroke: "#EF6C00"
   style.border-radius: 8
 
-  ls_top: LS1 Base | LS2 Shoulder | LS3 Elbow {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
-  ls_bot: LS4 Wrist Rot | LS5 Wrist Pan | LS6 End-Eff {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
+  ls1: "LS1 Base (GPIO 4)" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
+  ls2: "LS2 Shoulder (GPIO 5)" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
+  ls3: "LS3 Elbow (GPIO 6)" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
+  ls4: "LS4 Wrist Rot (GPIO 17)" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
+  ls5: "LS5 Wrist Pan (GPIO 27)" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
+}
+
+arm2_limits: Arm 2 Limit Switches {
+  style.fill: "#FFF3E0"
+  style.stroke: "#EF6C00"
+  style.border-radius: 8
+
+  ls6: "LS6 Base (GPIO 22)" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
+  ls7: "LS7 Shoulder (GPIO 23)" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
+  ls8: "LS8 Elbow (GPIO 24)" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
+  ls9: "LS9 Wrist Rot (GPIO 25)" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
+  ls10: "LS10 Wrist Pan (GPIO 26)" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
 }
 
 # === OTHER ===
@@ -121,20 +153,26 @@ pi.i2c -> pca: "I2C (SDA/SCL)" {style.stroke: "#7B1FA2"; style.stroke-width: 2}
 pi.i2c -> mace_sensors.imu: "I2C (shared bus)" {style.stroke: "#7B1FA2"; style.stroke-width: 2}
 pi.i2c -> mace_sensors.enc: "I2C (shared bus)" {style.stroke: "#7B1FA2"; style.stroke-width: 2}
 
-# === PWM CHANNELS ===
-pca.ch01 -> servos.base: "Ch 0-1 PWM" {style.stroke: "#1565C0"}
-pca.ch23 -> servos.shld: "Ch 2-3 PWM" {style.stroke: "#1565C0"}
-pca.ch45 -> servos.elbow: "Ch 4-5 PWM" {style.stroke: "#2E7D32"}
-pca.ch69 -> servos.wrist: "Ch 6-9 PWM" {style.stroke: "#43A047"}
-pca.ch1013 -> servos.ee: "Ch 10-13 PWM" {style.stroke: "#43A047"}
+# === PWM CHANNELS - ARM 1 ===
+pca.ch0 -> arm1_servos.base: "Ch 0 PWM" {style.stroke: "#1565C0"}
+pca.ch1 -> arm1_servos.shld: "Ch 1 PWM" {style.stroke: "#1565C0"}
+pca.ch2 -> arm1_servos.elbow: "Ch 2 PWM" {style.stroke: "#2E7D32"}
+pca.ch34 -> arm1_servos.wrist: "Ch 3-4 PWM" {style.stroke: "#43A047"}
+
+# === PWM CHANNELS - ARM 2 ===
+pca.ch5 -> arm2_servos.base: "Ch 5 PWM" {style.stroke: "#1565C0"}
+pca.ch6 -> arm2_servos.shld: "Ch 6 PWM" {style.stroke: "#1565C0"}
+pca.ch7 -> arm2_servos.elbow: "Ch 7 PWM" {style.stroke: "#2E7D32"}
+pca.ch89 -> arm2_servos.wrist: "Ch 8-9 PWM" {style.stroke: "#43A047"}
+
+# === MACE ESC ===
 pca.ch14 -> esc: "Ch 14 PWM" {style.stroke: "#1565C0"}
 
 # === LIMIT SWITCHES ===
-pi.gpio_ls -> limits.ls_top: "GPIO 4, 5, 6\npull-up" {style.stroke: "#EF6C00"; style.stroke-dash: 3}
-pi.gpio_ls -> limits.ls_bot: "GPIO 17, 27, 22\npull-up" {style.stroke: "#EF6C00"; style.stroke-dash: 3}
+pi.gpio_ls1 -> arm1_limits: "pull-up, 22 AWG" {style.stroke: "#EF6C00"; style.stroke-dash: 3}
+pi.gpio_ls2 -> arm2_limits: "pull-up, 22 AWG" {style.stroke: "#EF6C00"; style.stroke-dash: 3}
 
 # === OTHER CONNECTIONS ===
-# Toggle switch has no signal connection (manual only)
 pi.csi -> camera: "ribbon cable" {style.stroke: "#78909C"}
 pi.wifi -> esp32: "WiFi" {style.stroke: "#7B1FA2"; style.stroke-dash: 5}
 pi.wifi -> base: "WiFi" {style.stroke: "#AD1457"; style.stroke-dash: 5}
