@@ -148,12 +148,10 @@ limits: "10x Limit Switches | GPIO 4-6, 17, 22-27 | Pi pull-ups, 22 AWG" {
 pi -> limits: "GPIO, 22 AWG" {style.stroke: "#EF6C00"; style.stroke-dash: 3}
 
 # === GND ===
-gnd: "GND Bus (2x 16 AWG, Wago) | Star topology: all bucks, 12V servos, MACE return here" {
+gnd: "GND Bus (2x 16 AWG, Wago) | All bucks, 12V servos, MACE return here" {
   shape: rectangle
   style.fill: "#ECEFF1"
   style.stroke: "#546E7A"
   style.stroke-width: 2
+  near: bottom-center
 }
-
-psu -> gnd: "2x 16 AWG" {style.stroke: "#546E7A"; style.stroke-width: 2}
-gnd -> arm.screw_in: "GND, 16 AWG" {style.stroke: "#546E7A"; style.stroke-dash: 3}
