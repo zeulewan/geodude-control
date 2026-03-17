@@ -53,8 +53,8 @@ Port 8813 by default.
 ### GEO-DUDe (12V System)
 - 12V 600W PSU, 50A max
 - 120V AC via 3-wire 15A slip ring
-- 14 PWM servos (3 voltage rails: 12V, 7.4V, 5V)
-- PCA9685 I2C PWM driver (all 14 servo signals)
+- 10 PWM servos (3 voltage rails: 12V, 7.4V, 5V)
+- PCA9685 I2C PWM driver (all 10 servo signals)
 - 3 buck converters (7.4V elbow, 5V Pi, 5V servo)
 - 40A toggle switch for manual servo power control (Jtron Waterproof DC12V 40A/24V 20A, replaces relay + transistor driver)
 - Per-servo fusing on custom servo bus boards (glass tube slow-blow, sized at 125% of normal operating current)

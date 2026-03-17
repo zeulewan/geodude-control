@@ -14,7 +14,7 @@ Reference links for every electrical component. PDF links where available, Amazo
 | ANNIMOS 150kg (shoulder) | [Spec sheet PDF](https://m.media-amazon.com/images/I/81atmTkZyeL.pdf), [Amazon.ca](https://www.amazon.ca/ANNIMOS-Voltage-Digital-Steering-Brackets/dp/B0C69W2QP7) | 9-12.6V | 8.0A @ 12V | Same DSServo RDS51150SG internals as HOOYIJ, IP67 |
 | ANNIMOS DS5180 (80kg elbow) | [Spec sheet PDF](https://m.media-amazon.com/images/I/81+tlTNEl7L.pdf), [Amazon.ca](https://www.amazon.ca/ANNIMOS-Waterproof-Digital-Steering-Brackets/dp/B0C69WWLWQ) | 6-8.4V | 5.4A @ 7.4V | Copper/aluminum gear, IP67. Max 8.4V, needs buck to 7.4V |
 | Wishiot RDS3218 (20kg wrist) | [DSServo downloads](https://www.dsservo.com/en/download.asp), [Amazon.ca](https://www.amazon.ca/Wishiot-RDS3218-Waterproof-Mounting-Bracket/dp/B0CCXRCFK4) | 4.8-6.8V | ~2.5A stall | 270 deg, 25T spline, IP66. Needs 5V buck |
-| Miuzei MG90S (2kg end-effector) | [Tower Pro datasheet PDF](https://www.electronicoscaldas.com/datasheet/MG90S_Tower-Pro.pdf) | 4.8-6.0V | ~650mA stall | Metal gear micro servo, 180 deg |
+| ~~Miuzei MG90S (2kg end-effector)~~ | ~~[Tower Pro datasheet PDF](https://www.electronicoscaldas.com/datasheet/MG90S_Tower-Pro.pdf)~~ | ~~4.8-6.0V~~ | ~~\~650mA stall~~ | ~~Dropped (end-effector deferred)~~ |
 
 ### Controllers and ICs
 
@@ -68,7 +68,7 @@ All servos are dumb PWM. Control signal: 500-2500 us pulse width, 50-330 Hz.
 | Shoulder 150kg | RDS51150SG | 9-12.6V | 165 kg-cm @12V | 8.0A | 0.21s/60 @12V | 270 | Steel, 18T, 357:1 | IP67 | 175g |
 | Elbow 80kg | DS5180 | 6-8.4V | 78 kg-cm @7.4V | 5.4A | 0.21s/60 @7.4V | 270 | Cu/Al, 18T | IP67 | 165g |
 | Wrist 20kg | RDS3218 | 4.8-6.8V | 19 kg-cm @5V | ~2.5A | 0.16s/60 @5V | 270 | Cu/Al, 25T | IP66 | 60g |
-| End-effector 2kg | MG90S | 4.8-6.0V | 1.8 kg-cm @4.8V | ~650mA | 0.10s/60 @4.8V | 180 | Metal | - | 13.4g |
+| ~~End-effector 2kg~~ | ~~MG90S~~ | ~~4.8-6.0V~~ | ~~1.8 kg-cm @4.8V~~ | ~~\~650mA~~ | ~~0.10s/60 @4.8V~~ | ~~180~~ | ~~Metal~~ | ~~-~~ | ~~13.4g~~ |
 
 ---
 

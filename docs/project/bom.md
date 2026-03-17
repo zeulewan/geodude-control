@@ -16,7 +16,7 @@ Source: [Subscale Satellite BOM](https://docs.google.com/spreadsheets/d/1E1N-070
 | 7 | Shoulder servo motors | ANNIMOS 150kg, robot version w/ brackets | 2 | $117.96 | [Amazon.ca](https://www.amazon.ca/ANNIMOS-Voltage-Digital-Steering-Brackets/dp/B0C69W2QP7) | Not ordered |
 | 8 | Elbow servo motors | ANNIMOS 80kg, robot version w/ brackets | 2 | $77.98 | [Amazon.ca](https://www.amazon.ca/ANNIMOS-Waterproof-Digital-Steering-Brackets/dp/B0C69WWLWQ) | Not ordered |
 | 9 | Wrist servo motors (rotate + pan) | Wishiot RDS3218 20kg, with U-bracket | 4 | $107.96 | [Amazon.ca](https://www.amazon.ca/Wishiot-RDS3218-Waterproof-Mounting-Bracket/dp/B0CCXRCFK4) | Not ordered |
-| 10 | End-effector servo motors | Miuzei MG90S 2kg, pack of 4 | 1 | $21.99 | [Amazon.ca](https://www.amazon.ca/Miuzei-MG90S-Servo-Helicopter-Arduino/dp/B0CP98TZJ2) | Not ordered |
+| ~~10~~ | ~~End-effector servo motors~~ | ~~Miuzei MG90S 2kg, pack of 4~~ | 0 | $0.00 | - | NOT NEEDED (end-effector deferred) |
 | 11 | Slip ring (3 wire) | For base rotation passthrough | 1 | $27.59 | [Amazon.ca](https://www.amazon.ca/Conductive-Current-Collecting-Electric-Connector/dp/B09NBLY16J) | Arrived |
 | 12 | Raspberry Pi | Satellite controller | 1 | - | - | Have (Zeul) |
 | 13 | Raspberry Pi camera | AI vision | 1 | - | - | Have (Zeul) |
@@ -41,10 +41,10 @@ Source: [Subscale Satellite BOM](https://docs.google.com/spreadsheets/d/1E1N-070
 | 31 | Crimp butt connectors + heat shrink | Inline wire splices | ~10 | ~$5 | - | Not ordered |
 | 32 | Wire, 16 AWG (red + black) | PSU to bus trunk (doubled for capacity), toggle switch to servo bus boards, base/shoulder servo branches | ~5m | ~$8 | - | Not ordered |
 | 33 | Wire, 18 AWG | Buck converter inputs and outputs, always-on path | ~5m | ~$6 | - | Not ordered |
-| 34 | Wire, 22 AWG | Signal, low-current (PCA9685, MG90S, fan) | ~2m | ~$3 | - | Not ordered |
+| 34 | Wire, 22 AWG | Signal, low-current (PCA9685, fan) | ~2m | ~$3 | - | Not ordered |
 | 35 | Dupont jumper wires | I2C, GPIO, PCA9685 signal connections | ~20 | ~$5 | - | Not ordered |
 
-**GEO-DUDe Total: ~$845** (original ~$801 + ~$44 wiring/discrete)
+**GEO-DUDe Total: ~$823** (original ~$779 + ~$44 wiring/discrete)
 
 ---
 
@@ -80,7 +80,7 @@ Source: [Testing Apparatus BOM](https://docs.google.com/spreadsheets/d/1E1N-070x
 
 ---
 
-**Combined Total: ~$1,405**
+**Combined Total: ~$1,383**
 
 ---
 

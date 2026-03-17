@@ -35,7 +35,6 @@ Current draw calculations based on component datasheets. All servos are dumb PWM
 | Elbow (ANNIMOS 80kg) | 7.4V | 5.0A | 2 | 10.0A | Buck conv 1 (7.4V) |
 | Wrist rotate (RDS3218 20kg) | 5V | 1.6A | 2 | 3.2A | Buck conv 3 (5V) |
 | Wrist pan (RDS3218 20kg) | 5V | 1.6A | 2 | 3.2A | Buck conv 3 (5V) |
-| End-effector (MG90S) | 5V | 0.5A | 4 | 2.0A | Buck conv 3 (5V) |
 
 ### Other Loads
 
@@ -52,7 +51,7 @@ Current draw calculations based on component datasheets. All servos are dumb PWM
 | **12V direct** | 4x 150kg servos + fan | ~32A stall | 50A PSU (30A fused) | OK |
 | **7.4V buck 1** | 2x 80kg elbow servos | 10A | 20A converter (8A fused at 12V in) | OK |
 | **5V buck 2** | Pi + PCA9685 (always on) | ~2.6A | 20A converter (3A fused at 12V in) | OK |
-| **5V buck 3** | 4x RDS3218 + 4x MG90S (after toggle switch) | ~8.4A stall | 20A converter (8A fused at 12V in) | OK |
+| **5V buck 3** | 4x RDS3218 wrist (after toggle switch) | ~6.4A stall | 20A converter (8A fused at 12V in) | OK |
 
 ---
 
@@ -64,7 +63,7 @@ Current draw calculations based on component datasheets. All servos are dumb PWM
 |--------|----------|------|-------------|----------|-------|
 | 1 | 7.4V | 2x elbow servos | 10A stall | 5-10A spare | After toggle switch |
 | 2 | 5V | Pi + PCA9685 | ~2.6A | 12-17A spare | Before toggle switch (always on) |
-| 3 | 5V | 4x RDS3218 wrist + 4x MG90S | ~8.4A stall | 7-12A spare | After toggle switch |
+| 3 | 5V | 4x RDS3218 wrist | ~6.4A stall | 9-14A spare | After toggle switch |
 | 4 | - | **Spare** | - | - | |
 
 ---
@@ -89,7 +88,6 @@ The "kg" rating on hobby servos is the **stall torque** - the absolute maximum w
 | Shoulder (150kg) | 8.0A | **2-3A** (~30% load) | 2 | **4-6A** | Highest static load (arm cantilevered) |
 | Elbow (80kg) | 5.0A | **1.5-2A** (~35% load) | 2 | **3-4A** @ 7.4V | Lighter distal load |
 | Wrist RDS3218 (20kg) | 1.6A | **0.5-0.8A** (~40% load) | 4 | **2-3.2A** @ 5V | Fine positioning, light torque |
-| MG90S (2kg) | 0.5A | **0.2A** (~40% load) | 4 | **0.8A** @ 5V | End-effector gripper |
 | Pi + PCA9685 | - | 2.6A | 1 | **2.6A** @ 5V | Constant |
 | Fan | - | 0.15A | 1 | **0.15A** @ 12V | Constant |
 
@@ -102,9 +100,9 @@ Everything after the toggle switch, referred to 12V input:
 | Base (12V direct) | 4-6A | **4-6A** | 16A |
 | Shoulder (12V direct) | 4-6A | **4-6A** | 16A |
 | Elbow (7.4V buck) | 3-4A @ 7.4V | **~2.5A** (efficiency ~80%) | ~6.2A |
-| Wrist + EE (5V buck) | 2.8-4A @ 5V | **~2A** (efficiency ~80%) | ~3.5A |
+| Wrist (5V buck) | 2-3.2A @ 5V | **~1.7A** (efficiency ~80%) | ~2.7A |
 | Fan | 0.15A | **0.15A** | 0.15A |
-| **Total through toggle switch** | | **~13-17A** | ~42A |
+| **Total through toggle switch** | | **~12-16A** | ~41A |
 
 **Conclusion:** A **40A toggle switch** provides 2.5x margin on realistic load.
 
@@ -142,11 +140,11 @@ The wire gauges in the diagrams are for the **distribution runs** (PSU to bus, b
 | Fuse | Branch | Realistic Draw | Peak/Stall | Rating | Wire Gauge | Notes |
 |------|--------|---------------|------------|--------|-----------|-------|
 | AC inline | Mains hot before slip ring | ~3A @120V | ~5A | **6A slow-blow** | Mains cable | |
-| Main DC | 12V bus after PSU | **~17A** | ~42A stall | **30A** | **2x 16 AWG parallel** | |
+| Main DC | 12V bus after PSU | **~16A** | ~41A stall | **30A** | **2x 16 AWG parallel** | |
 | Base servo (each) | Per base 150kg servo | **~3A** | 8A stall | **8A** | **16 AWG** | Per-servo on bus board |
 | Shoulder servo (each) | Per shoulder 150kg servo | **~3A** | 8A stall | **8A** | **16 AWG** | Per-servo on bus board |
 | Buck 1 input | Elbow servos at 12V in | **~2.5A** | ~6.2A | **8A** | 18 AWG | |
 | Buck 2 input | Pi + PCA9685 at 12V in | ~1.1A | ~1.1A | **3A** | 18 AWG | Before toggle switch (always on) |
-| Buck 3 input | Wrist + MG90S at 12V in | **~2A** | ~3.5A | **8A** | 18 AWG | |
+| Buck 3 input | Wrist servos at 12V in | **~1.7A** | ~2.7A | **8A** | 18 AWG | |
 | Fan line | 12V fan | 0.15A | 0.15A | **1A** | 22 AWG | |
 | Apparatus main | 24V bus | ~8.6A | ~8.6A | **12A** | 14 AWG | Steppers are driver-limited |

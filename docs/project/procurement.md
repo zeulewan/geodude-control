@@ -36,7 +36,7 @@ Order tracking for all components. Data from the [master BOM spreadsheet](https:
 | Elbow servos 80kg (x2) | $77.98 | Not ordered |
 | Wrist smart servos - rotate | $66.34 | Not ordered |
 | Wrist smart servos - pan | $66.34 | Not ordered |
-| End-effector MG90S (x4) | $21.99 | Not ordered |
+| ~~End-effector MG90S (x4)~~ | ~~$21.99~~ | NOT NEEDED (deferred) |
 | Slip ring 3-wire | $27.59 | Ordered, not arrived |
 | Raspberry Pi | - | Have (Zeul) |
 | Pi Camera | - | Have (Zeul) |

@@ -1,6 +1,6 @@
 # GEO-DUDe Electronics
 
-The GEO-DUDe servicer subscale model runs on a 12V system. A Raspberry Pi controls all 14 servos and a MACE reaction wheel via a PCA9685 PWM driver board over I2C. The entire system sits inside the rotating satellite body, powered by 120V AC mains passed through a slip ring.
+The GEO-DUDe servicer subscale model runs on a 12V system. A Raspberry Pi controls all 10 servos and a MACE reaction wheel via a PCA9685 PWM driver board over I2C. The entire system sits inside the rotating satellite body, powered by 120V AC mains passed through a slip ring.
 
 ---
 
@@ -14,13 +14,13 @@ The GEO-DUDe servicer subscale model runs on a 12V system. A Raspberry Pi contro
 | **Comms to ESP32** | WiFi (both have built-in WiFi, no extra hardware) |
 | **Comms to base station** | WiFi |
 
-The PCA9685 drives all 14 servo signal lines and the ESC PWM signal over I2C (2 Pi pins). The IMU and magnetic encoder also share the I2C bus (different addresses). Limit switches connect directly to Pi GPIO (6 needed, plenty of free pins).
+The PCA9685 drives all 10 servo signal lines and the ESC PWM signal over I2C (2 Pi pins). The IMU and magnetic encoder also share the I2C bus (different addresses). Limit switches connect directly to Pi GPIO (6 needed, plenty of free pins).
 
 ### Pi Connections
 
 | Pi Pin | Goes To | Protocol | Notes |
 |--------|---------|----------|-------|
-| I2C SDA (GPIO 2) | PCA9685 | I2C | All 14 servo PWM signals |
+| I2C SDA (GPIO 2) | PCA9685 | I2C | All 10 servo PWM signals |
 | I2C SCL (GPIO 3) | PCA9685 | I2C | Shared bus |
 | GPIO 4-9 (6 pins) | Limit switches | Digital input | One per joint, pulled up |
 | CSI connector | Pi Camera | Ribbon cable | Fixed mount near Pi |
@@ -44,9 +44,8 @@ No GPIO is used for power switching -- the toggle switch is manual.
 | Elbow | [ANNIMOS 80kg](https://www.amazon.ca/ANNIMOS-Waterproof-Digital-Steering-Brackets/dp/B0C69WWLWQ) | 80 kg-cm | 2 | **7.4V** | 5.0A | [Specs](https://www.amazon.com/ANNIMOS-Waterproof-Digital-Steering-Brackets/dp/B0C69WWLWQ) |
 | Wrist (rotate) | [Wishiot RDS3218](https://www.amazon.ca/Wishiot-RDS3218-Waterproof-Mounting-Bracket/dp/B0CCXRCFK4) | 20 kg-cm | 2 | **5V** | 1.6A | 270 deg, with U-bracket |
 | Wrist (pan) | [Wishiot RDS3218](https://www.amazon.ca/Wishiot-RDS3218-Waterproof-Mounting-Bracket/dp/B0CCXRCFK4) | 20 kg-cm | 2 | **5V** | 1.6A | 270 deg, with U-bracket |
-| End-effector | [Miuzei MG90S](https://www.amazon.ca/Miuzei-MG90S-Servo-Helicopter-Arduino/dp/B0CP98TZJ2) | 2 kg-cm | 4 | **5V** | ~0.5A | Standard MG90S |
 
-**Total: 14 dumb PWM servos**, all driven by PCA9685 I2C PWM driver.
+**Total: 10 dumb PWM servos**, all driven by PCA9685 I2C PWM driver.
 
 ---
 
@@ -107,8 +106,7 @@ All DC power distribution uses **Wago lever connectors** (from Mach). Each volta
     |                                |     +-- Elbow servo L (5A slow-blow fuse)
     |                                |     \-- Elbow servo R (5A slow-blow fuse)
     |                                +-- Buck conv 3 (5V) --> 5V Servo Bus Board
-    |                                |     +-- RDS3218 wrist x4 (3A slow-blow each)
-    |                                |     \-- MG90S x4 (1A slow-blow each)
+    |                                |     \-- RDS3218 wrist x4 (3A slow-blow each)
     |                                +-- ESC (40A) --> MACE reaction wheel motor
     |                                \-- 12V fan (1A fuse)
     |
@@ -131,7 +129,7 @@ All DC power distribution uses **Wago lever connectors** (from Mach). Each volta
 |--------|----------|-------|-------------|----------|--------|
 | 1 | **7.4V** | 2x elbow servos (80kg) | 10A stall | After toggle switch (fuse block 8A circuit) | OK |
 | 2 | **5V** | Raspberry Pi + PCA9685 | ~2.6A | **Before toggle switch** (always on) | OK |
-| 3 | **5V** | 4x RDS3218 wrist + 4x MG90S | ~8.4A stall | After toggle switch (fuse block 8A circuit) | OK |
+| 3 | **5V** | 4x RDS3218 wrist | ~6.4A stall | After toggle switch (fuse block 8A circuit) | OK |
 | 4 | - | Spare | - | - | |
 
 **Buck converter specs:** Input 6-40V, Output 1.25-36V adjustable (potentiometer), 20A max / 15A continuous, 300W, screw terminals, short circuit protection.
@@ -150,7 +148,7 @@ Fuses from Mach. Sized at 125-150% of expected max draw.
 | Shoulder servo branch | 2x shoulder 150kg servos | 16A stall | **8A each** (per-servo) | **16 AWG** | Individual fusing on bus board |
 | Buck 1 input | Elbow servos | ~6.2A at 12V in | **8A** | 18 AWG | Fuse block circuit |
 | Buck 2 input | Pi + PCA9685 only | ~1.1A at 12V in | **3A** | 18 AWG | Before toggle switch (always on) |
-| Buck 3 input | Wrist + MG90S servos | ~3.5A at 12V in | **8A** | 18 AWG | Fuse block circuit |
+| Buck 3 input | Wrist servos | ~2.7A at 12V in | **8A** | 18 AWG | Fuse block circuit |
 | Fan line | 12V fan | 0.15A | **1A** | 22 AWG | Fuse block circuit |
 
 ---
@@ -215,6 +213,7 @@ These items from the original BOM are **no longer needed** for GEO-DUDe electron
 | ~~2N2222 NPN transistor~~ | Was for relay coil driver, no longer needed |
 | ~~1N4007 flyback diode~~ | Was for relay back-EMF protection, no longer needed |
 | ~~1k ohm resistor~~ | Was for transistor base limiter, no longer needed |
+| ~~Miuzei MG90S x4~~ | End-effector design deferred |
 
 ---
 
@@ -222,7 +221,7 @@ These items from the original BOM are **no longer needed** for GEO-DUDe electron
 
 | Item | Purpose | Status |
 |------|---------|--------|
-| ~~PCA9685 16-ch PWM driver~~ | ~~Drive all 14 servo signal lines via I2C~~ | Added (row 5, $19.99) |
+| ~~PCA9685 16-ch PWM driver~~ | ~~Drive all 10 servo signal lines via I2C~~ | Added (row 5, $19.99) |
 | ~~GPIO screw terminal breakout HAT~~ | ~~Clean wiring for Pi GPIO connections~~ | Added (row 24, $12.99) |
 
 ---
@@ -249,7 +248,7 @@ The HOOYIJ and ANNIMOS 150kg servos ship with thin pre-attached leads (~18-20 AW
 The GEO-DUDe body is a semi-enclosed rotating structure containing:
 
 - 600W PSU (generates heat even at partial load)
-- Up to 14 servos (heat from those near the body)
+- Up to 10 servos (heat from those near the body)
 - 3x buck converters
 
 Currently only 1x 80mm 12V fan for cooling. Considerations:
@@ -278,7 +277,7 @@ All wires inside the GEO-DUDe body experience forces during rotation. At low RPM
 - **Strain relief** at every connection point (screw terminals, Wago blocks, servo connectors)
 - Use **cable clips or adhesive tie mounts** on the 3D printed structure
 - Route wires along structural members, not floating freely
-- The arm cable bundle (signal + power to all 14 servos) exits the body through a single opening - use a **grommet or cable gland** to prevent chafing
+- The arm cable bundle (signal + power to all 10 servos) exits the body through a single opening - use a **grommet or cable gland** to prevent chafing
 - Keep slack to a minimum, but leave enough for the arm's range of motion
 
 ### Software Current Limiting

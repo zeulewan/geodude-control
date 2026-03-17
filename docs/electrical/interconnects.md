@@ -97,10 +97,6 @@ Every wire connection in both systems. Use this as the wiring reference when bui
 | 5V Servo Wago | Out | Wrist rotate R (RDS3218) | Power + | 18 AWG | |
 | 5V Servo Wago | Out | Wrist pan L (RDS3218) | Power + | 18 AWG | |
 | 5V Servo Wago | Out | Wrist pan R (RDS3218) | Power + | 18 AWG | |
-| 5V Servo Wago | Out | MG90S #1 | Power + | 22 AWG | |
-| 5V Servo Wago | Out | MG90S #2 | Power + | 22 AWG | |
-| 5V Servo Wago | Out | MG90S #3 | Power + | 22 AWG | |
-| 5V Servo Wago | Out | MG90S #4 | Power + | 22 AWG | |
 | 40A Toggle Switch | Output | 12V fan | +12V | 22 AWG | Via 1A fuse |
 
 #### GND (star topology via Wago bus)
@@ -121,7 +117,6 @@ Every wire connection in both systems. Use this as the wiring reference when bui
 | GND bus | Out | Wrist rotate R | GND | 18 AWG | Via buck 3 GND or direct |
 | GND bus | Out | Wrist pan L | GND | 18 AWG | Via buck 3 GND or direct |
 | GND bus | Out | Wrist pan R | GND | 18 AWG | Via buck 3 GND or direct |
-| GND bus | Out | MG90S #1-4 | GND | 22 AWG | Via buck 3 GND or direct |
 | GND bus | Out | 12V fan | GND | 22 AWG | Star topology |
 | GND bus | Out | Buck conv 2 | GND | 18 AWG | Before toggle switch path |
 | GND bus | Out | Pi | GND GPIO | 20 AWG | Star topology |
@@ -143,10 +138,6 @@ Every wire connection in both systems. Use this as the wiring reference when bui
 | PCA9685 | Ch 7 | Wrist rotate R | Signal | 22 AWG | PWM |
 | PCA9685 | Ch 8 | Wrist pan L | Signal | 22 AWG | PWM |
 | PCA9685 | Ch 9 | Wrist pan R | Signal | 22 AWG | PWM |
-| PCA9685 | Ch 10 | MG90S #1 | Signal | 22 AWG | End-effector |
-| PCA9685 | Ch 11 | MG90S #2 | Signal | 22 AWG | End-effector |
-| PCA9685 | Ch 12 | MG90S #3 | Signal | 22 AWG | End-effector |
-| PCA9685 | Ch 13 | MG90S #4 | Signal | 22 AWG | End-effector |
 | Pi | GPIO 4 | Limit switch 1 | Signal | 22 AWG | Base joint homing |
 | Pi | GPIO 5 | Limit switch 2 | Signal | 22 AWG | Shoulder joint homing |
 | Pi | GPIO 6 | Limit switch 3 | Signal | 22 AWG | Elbow joint homing |
