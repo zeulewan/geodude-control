@@ -36,10 +36,11 @@ fuse_main -> bus: "2x 16 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
 # === ALWAYS-ON BRANCH (before toggle) ===
 buck2: "Buck 2: 12V to 5V" {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"}
 
-pi_stack: "" {
-  direction: down
-  style.fill: transparent
-  style.stroke: transparent
+pi_stack: "Controller Stack" {
+  grid-rows: 3
+  style.fill: "#FAFAFA"
+  style.stroke: "#E0E0E0"
+  style.border-radius: 8
 
   limits: "10x Limit Switches | GPIO 4-6, 17, 22-27 | Pi pull-ups, 22 AWG" {shape: rectangle; style.fill: "#FFF3E0"; style.stroke: "#EF6C00"; style.stroke-width: 2; style.border-radius: 8}
   pi: "Raspberry Pi (2.5A) + Screw Terminal HAT" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"; style.stroke-width: 2}
