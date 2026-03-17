@@ -113,16 +113,25 @@ pca -> arm.screw_in: "Ch 0-4 / Ch 5-9 PWM" {style.stroke: "#7B1FA2"; style.strok
 # === PWM SIGNAL (from PCA9685 to fuse boards) ===
 
 # === MACE ===
-esc: "40A ESC" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
-motor: "X2807 BLDC (~1-3A)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+mace: "MACE Reaction Wheel" {
+  style.fill: "#E8EAF6"
+  style.stroke: "#3949AB"
+  style.stroke-width: 2
+  style.border-radius: 8
 
-encoder: "AS5600 Encoder (0x36)" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
+  esc: "40A ESC" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+  motor: "X2807 BLDC (~1-3A)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+  encoder: "AS5600 Encoder (0x36)" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
 
-toggle -> esc: "12V direct" {style.stroke: "#1565C0"}
-esc -> motor: "motor drive" {style.stroke: "#1565C0"}
-pca -> esc: "Ch 14 PWM" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-motor -> encoder: "magnet" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-pi -> encoder: "I2C" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+   "motor drive (bullet connectors)" {style.stroke: "#1565C0"}
+   "magnet" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+}
+
+toggle -> mace.esc: "12V direct" {style.stroke: "#1565C0"}
+ "motor drive (bullet connectors)" {style.stroke: "#1565C0"}
+pca -> mace.esc: "Ch 14 PWM" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+ "magnet" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+pi -> mace.encoder: "I2C" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 
 # === LIMIT SWITCHES ===
 limits: "10x Limit Switches | GPIO 4-6, 17, 22-27 | Pi pull-ups, 22 AWG" {
