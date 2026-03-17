@@ -8,7 +8,7 @@ title: |md
   style.font-size: 20
 }
 
-# === PSU ===
+# === ROW 1: PSU ===
 psu: "12V 600W PSU (50A max)" {
   shape: rectangle
   style.fill: "#BBDEFB"
@@ -16,7 +16,7 @@ psu: "12V 600W PSU (50A max)" {
   style.stroke-width: 2
 }
 
-# === MAIN FUSE + BUS ===
+# === ROW 2: MAIN FUSE + BUS ===
 fuse_main: "30A Blade Fuse" {
   shape: diamond
   style.fill: "#BBDEFB"
@@ -33,26 +33,15 @@ bus: "12V DC Bus (Wago)" {
 psu -> fuse_main: "2x 16 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
 fuse_main -> bus: "2x 16 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
 
-# === ALWAYS-ON BRANCH ===
+# === ALWAYS-ON BRANCH (before toggle) ===
 buck2: "Buck 2: 12V to 5V" {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"}
-
-# === CONTROLLER STACK (grid forces vertical) ===
-ctrl: "Controller Stack" {
-  grid-rows: 3
-  style.fill: "#FAFAFA"
-  style.stroke: "#E0E0E0"
-  style.border-radius: 8
-
-  limits: "10x Limit Switches | GPIO 4-6, 17, 22-27 | Pi pull-ups, 22 AWG" {style.fill: "#FFF3E0"; style.stroke: "#EF6C00"; style.stroke-width: 2; style.border-radius: 8}
-  pi: "Raspberry Pi (2.5A) + Screw Terminal HAT" {style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"; style.stroke-width: 2}
-  pca: "PCA9685 16-Ch I2C PWM Driver (~50mA)" {style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
-}
+pi: "Raspberry Pi (2.5A) + Screw Terminal HAT" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"; style.stroke-width: 2}
+pca: "PCA9685 16-Ch I2C PWM Driver (~50mA)" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
 
 bus -> buck2: "18 AWG (always on)" {style.stroke: "#2E7D32"}
-buck2 -> ctrl.pi: "5V, 18 AWG" {style.stroke: "#43A047"}
-buck2 -> ctrl.pca: "5V, 22 AWG" {style.stroke: "#43A047"}
-ctrl.pi -> ctrl.limits: "GPIO, 22 AWG" {style.stroke: "#EF6C00"; style.stroke-dash: 3}
-ctrl.pi -> ctrl.pca: "I2C (SDA/SCL)" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+buck2 -> pi: "5V, 18 AWG" {style.stroke: "#43A047"}
+buck2 -> pca: "5V, 22 AWG" {style.stroke: "#43A047"}
+pi -> pca: "I2C (SDA/SCL)" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 
 # === TOGGLE SWITCH ===
 toggle: "Jtron 40A Toggle Switch (manual)" {
@@ -71,83 +60,93 @@ buck3: "Buck 3: 12V to 5V" {shape: rectangle; style.fill: "#E8F5E9"; style.strok
 toggle -> buck1: "18 AWG" {style.stroke: "#1565C0"}
 toggle -> buck3: "18 AWG" {style.stroke: "#1565C0"}
 
-# === RIGHT SIDE (fuse board + MACE stacked) ===
-right_stack: "" {
-  grid-rows: 2
-  style.fill: transparent
-  style.stroke: transparent
+# === ARM FUSE BOARD (x2, identical) ===
+arm: "Arm Fuse Board (x2, one per arm)" {
+  style.fill: "#E3F2FD"
+  style.stroke: "#1565C0"
+  style.stroke-width: 2
+  style.border-radius: 8
+  direction: right
 
-  # === MACE REACTION WHEEL ===
-  mace: "MACE Reaction Wheel" {
-    style.fill: "#E8EAF6"
-    style.stroke: "#3949AB"
+  screw_in: "Screw Terminals (in: Power + PWM + GND)" {
+    shape: rectangle
+    style.fill: "#B0BEC5"
+    style.stroke: "#546E7A"
     style.stroke-width: 2
-    style.border-radius: 8
-
-    esc: "40A ESC" {style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
-    motor: "X2807 BLDC (~1-3A)" {style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
-    encoder: "AS5600 Encoder (0x36)" {style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
-    imu: "ICM20948 IMU (0x68)" {style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
-
-    esc -> motor: "motor drive (bullet connectors)" {style.stroke: "#1565C0"}
-    motor -> encoder: "magnet" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+    width: 80
+    height: 500
   }
 
-  # === ARM FUSE BOARD ===
-  arm: "Arm Fuse Board (x2, one per arm)" {
-    style.fill: "#E3F2FD"
-    style.stroke: "#1565C0"
-    style.stroke-width: 2
-    style.border-radius: 8
+  fuses: "" {
+    style.fill: transparent
+    style.stroke: transparent
 
-    screw_in: "Screw Terminals (in: Power + PWM + GND)" {
-      style.fill: "#B0BEC5"
-      style.stroke: "#546E7A"
-      style.stroke-width: 2
-      width: 80
-      height: 500
-    }
-
-    fuses: "" {
-      style.fill: transparent
-      style.stroke: transparent
-
-      base: "Base (8A, 12V)" {style.fill: "#BBDEFB"; style.stroke: "#1565C0"; width: 150}
-      shld: "Shoulder (8A, 12V)" {style.fill: "#BBDEFB"; style.stroke: "#1565C0"; width: 150}
-      elbow: "Elbow (5A, 7.4V)" {style.fill: "#C8E6C9"; style.stroke: "#2E7D32"; width: 150}
-      wr: "Wrist Rot (3A, 5V)" {style.fill: "#E8F5E9"; style.stroke: "#43A047"; width: 150}
-      wp: "Wrist Pan (3A, 5V)" {style.fill: "#E8F5E9"; style.stroke: "#43A047"; width: 150}
-    }
-
-    headers_out: "Male Headers (out)" {
-      style.fill: "#B0BEC5"
-      style.stroke: "#546E7A"
-      style.stroke-width: 2
-      width: 80
-      height: 500
-    }
-
-    screw_in -> fuses.base -> headers_out {style.stroke: "#1565C0"}
-    screw_in -> fuses.shld -> headers_out {style.stroke: "#1565C0"}
-    screw_in -> fuses.elbow -> headers_out {style.stroke: "#2E7D32"}
-    screw_in -> fuses.wr -> headers_out {style.stroke: "#43A047"}
-    screw_in -> fuses.wp -> headers_out {style.stroke: "#43A047"}
+    base: "Base (8A, 12V)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"; width: 150}
+    shld: "Shoulder (8A, 12V)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"; width: 150}
+    elbow: "Elbow (5A, 7.4V)" {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"; width: 150}
+    wr: "Wrist Rot (3A, 5V)" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"; width: 150}
+    wp: "Wrist Pan (3A, 5V)" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"; width: 150}
   }
+
+  headers_out: "Male Headers (out)" {
+    shape: rectangle
+    style.fill: "#B0BEC5"
+    style.stroke: "#546E7A"
+    style.stroke-width: 2
+    width: 80
+    height: 500
+  }
+
+  screw_in -> fuses.base -> headers_out {style.stroke: "#1565C0"}
+  screw_in -> fuses.shld -> headers_out {style.stroke: "#1565C0"}
+  screw_in -> fuses.elbow -> headers_out {style.stroke: "#2E7D32"}
+  screw_in -> fuses.wr -> headers_out {style.stroke: "#43A047"}
+  screw_in -> fuses.wp -> headers_out {style.stroke: "#43A047"}
 }
 
 # Power to arm board
-toggle -> right_stack.arm.screw_in: "12V, 16 AWG" {style.stroke: "#1565C0"}
-buck1 -> right_stack.arm.screw_in: "7.4V, 18 AWG" {style.stroke: "#2E7D32"}
-buck3 -> right_stack.arm.screw_in: "5V, 18 AWG" {style.stroke: "#43A047"}
+toggle -> arm.screw_in: "12V, 16 AWG" {style.stroke: "#1565C0"}
 
-# PWM signal to servos
-ctrl.pca -> right_stack.arm.screw_in: "Ch 0-4 / Ch 5-9 PWM" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+buck1 -> arm.screw_in: "7.4V, 18 AWG" {style.stroke: "#2E7D32"}
+buck3 -> arm.screw_in: "5V, 18 AWG" {style.stroke: "#43A047"}
 
-# MACE connections
-toggle -> right_stack.mace.esc: "12V direct" {style.stroke: "#1565C0"}
-ctrl.pca -> right_stack.mace.esc: "Ch 14 PWM" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-ctrl.pi -> right_stack.mace.encoder: "I2C + 3.3V" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-ctrl.pi -> right_stack.mace.imu: "I2C + 3.3V" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+# PWM signal
+pca -> arm.screw_in: "Ch 0-4 / Ch 5-9 PWM" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+
+# === PWM SIGNAL (from PCA9685 to fuse boards) ===
+
+# === MACE ===
+mace: "MACE Reaction Wheel" {
+  style.fill: "#E8EAF6"
+  style.stroke: "#3949AB"
+  style.stroke-width: 2
+  style.border-radius: 8
+
+  esc: "40A ESC" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+  motor: "X2807 BLDC (~1-3A)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+  encoder: "AS5600 Encoder (0x36)" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
+  imu: "ICM20948 IMU (0x68)" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
+
+  esc -> motor: "motor drive (bullet connectors)" {style.stroke: "#1565C0"}
+  motor -> encoder: "magnet" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+}
+
+toggle -> mace.esc: "12V direct" {style.stroke: "#1565C0"}
+
+pca -> mace.esc: "Ch 14 PWM" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+pi -> mace.encoder: "I2C + 3.3V" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+pi -> mace.imu: "I2C + 3.3V" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+
+# === LIMIT SWITCHES ===
+limits: "10x Limit Switches | GPIO 4-6, 17, 22-27 | Pi pull-ups, 22 AWG" {
+  shape: rectangle
+  style.fill: "#FFF3E0"
+  style.stroke: "#EF6C00"
+  style.stroke-width: 2
+  style.border-radius: 8
+}
+
+pi -> limits: "GPIO, 22 AWG" {style.stroke: "#EF6C00"; style.stroke-dash: 3}
 
 # === GND ===
 gnd: "GND Bus (2x 16 AWG, Wago) | Star topology: all bucks, fuse boards, MACE, PCA return here" {
@@ -158,4 +157,4 @@ gnd: "GND Bus (2x 16 AWG, Wago) | Star topology: all bucks, fuse boards, MACE, P
 }
 
 psu -> gnd: "2x 16 AWG" {style.stroke: "#546E7A"; style.stroke-width: 2}
-gnd -> right_stack.arm.screw_in: "GND, 16 AWG" {style.stroke: "#546E7A"; style.stroke-dash: 3}
+gnd -> arm.screw_in: "GND, 16 AWG" {style.stroke: "#546E7A"; style.stroke-dash: 3}
