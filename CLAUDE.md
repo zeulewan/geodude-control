@@ -56,14 +56,14 @@ Port 8813 by default.
 - 14 PWM servos (3 voltage rails: 12V, 7.4V, 5V)
 - PCA9685 I2C PWM driver (all 14 servo signals)
 - 3 buck converters (7.4V elbow, 5V Pi, 5V servo)
-- 40A toggle switch for manual servo power control (BAITHNA DC12V 40A, replaces relay + transistor driver)
+- 40A toggle switch for manual servo power control (Jtron Waterproof DC12V 40A/24V 20A, replaces relay + transistor driver)
 - Per-servo fusing on custom servo bus boards (glass tube slow-blow, sized at 125% of normal operating current)
 - 30A inline blade fuse on 12V trunk
 - 6A slow-blow AC fuse on mains hot (must be AC-rated, not blade fuse)
-- Trunk wiring: 10 AWG (rated 30A)
-- Realistic load ~17A through relay, stall worst-case ~42A
-- Cyrico blade fuse block removed entirely
-- All fusing uses glass tube slow-blow fuses with inline holders (need to buy holders)
+- Trunk wiring: 2x 16 AWG parallel (~24A capacity, 30A fuse)
+- Realistic load ~17A through toggle switch, stall worst-case ~42A
+- Cyrico blade fuse block used for buck converter inputs and fan
+- All per-servo fusing uses glass tube slow-blow fuses with inline holders (need to buy holders)
 
 ### Gimbal (24V System)
 - 24V 480W PSU, 20A max

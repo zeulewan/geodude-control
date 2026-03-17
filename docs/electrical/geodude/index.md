@@ -23,12 +23,13 @@ The PCA9685 drives all 14 servo signal lines and the ESC PWM signal over I2C (2 
 | I2C SDA (GPIO 2) | PCA9685 | I2C | All 14 servo PWM signals |
 | I2C SCL (GPIO 3) | PCA9685 | I2C | Shared bus |
 | GPIO 4-9 (6 pins) | Limit switches | Digital input | One per joint, pulled up |
-| GPIO TBD | Servo power relay | Digital output | HIGH to enable servo power after boot |
 | CSI connector | Pi Camera | Ribbon cable | Fixed mount near Pi |
 | I2C SDA (GPIO 2) | ICM20948 IMU | I2C | MACE attitude sensing (addr 0x68) |
 | I2C SDA (GPIO 2) | AS5600 Encoder | I2C | MACE wheel speed sensing (addr 0x36) |
 | WiFi | ESP32 | Wireless | Coordinated operation |
 | WiFi | Base station Pi | Wireless | Ground control commands |
+
+No GPIO is used for power switching -- the toggle switch is manual.
 
 ---
 
@@ -60,7 +61,7 @@ Momentum Attitude Control Electronics - a single-axis reaction wheel for attitud
 | IMU | ICM20948 | 3.3V | ~mA | I2C | 0x68 |
 | Magnetic encoder | AS5600 | 3.3V | ~mA | I2C | 0x36 |
 
-**Power:** ESC powered from 12V bus through the relay (no separate fuse needed - ESC has built-in overcurrent protection, and the motor draws only ~1-3A as a reaction wheel).
+**Power:** ESC powered from 12V bus through the toggle switch (no separate fuse needed -- ESC has built-in overcurrent protection, and the motor draws only ~1-3A as a reaction wheel).
 
 **Control:** PCA9685 Ch 14 sends PWM to ESC. ESC needs arming sequence on boot (send 1000us for ~2 seconds before accepting throttle commands).
 
@@ -86,65 +87,39 @@ Momentum Attitude Control Electronics - a single-axis reaction wheel for attitud
 All DC power distribution uses **Wago lever connectors** (from Mach). Each voltage rail gets its own Wago block. The PCA9685 only carries signal wires - servo power is wired directly from the correct voltage rail.
 
 ```
-12V PSU output (10 AWG trunk)
-    │
-    ├── Main Fuse (30A) ──→ 12V Bus (Wago)
-    │                          │
-    │                          ├── Fuse (3A) ──→ Buck conv 2 (5V) ──→ 5V Pi Wago
-    │                          │   (ALWAYS ON - taps off BEFORE relay)
-    │                          │         ├──→ Raspberry Pi (20 AWG)
-    │                          │         └──→ PCA9685 VCC (22 AWG)
-    │                          │
-    │                          └── RELAY (Pi GPIO controlled, normally open)
-    │                                │
-    │                                ├── 12V Servo Bus Board
-    │                                │     ├── Base servo L (8A slow-blow fuse)
-    │                                │     ├── Base servo R (8A slow-blow fuse)
-    │                                │     ├── Shoulder servo L (8A slow-blow fuse)
-    │                                │     └── Shoulder servo R (8A slow-blow fuse)
-    │                                ├── Buck conv 1 (7.4V) ──→ 7.4V Servo Bus Board
-    │                                │     ├── Elbow servo L (5A slow-blow fuse)
-    │                                │     └── Elbow servo R (5A slow-blow fuse)
-    │                                ├── Buck conv 3 (5V) ──→ 5V Servo Bus Board
-    │                                │     ├── RDS3218 wrist x4 (3A slow-blow each)
-    │                                │     └── MG90S x4 (1A slow-blow each)
-    │                                ├── ESC (40A) ──→ MACE reaction wheel motor
-    │                                └── 12V fan (1A fuse)
-    │
-    └── GND Bus (10 AWG) ──→ Everything (star ground via Wago bus)
+12V PSU output (2x 16 AWG parallel trunk)
+    |
+    +-- Main Fuse (30A) --> 12V Bus (Wago)
+    |                          |
+    |                          +-- Fuse (3A) --> Buck conv 2 (5V) --> 5V Pi Wago
+    |                          |   (ALWAYS ON - taps off BEFORE toggle switch)
+    |                          |         +-->  Raspberry Pi (20 AWG)
+    |                          |         \-->  PCA9685 VCC (22 AWG)
+    |                          |
+    |                          \-- 40A TOGGLE SWITCH (manual, panel mount)
+    |                                |
+    |                                +-- 12V Servo Bus Board (16 AWG from toggle)
+    |                                |     +-- Base servo L (8A slow-blow fuse)
+    |                                |     +-- Base servo R (8A slow-blow fuse)
+    |                                |     +-- Shoulder servo L (8A slow-blow fuse)
+    |                                |     \-- Shoulder servo R (8A slow-blow fuse)
+    |                                +-- Buck conv 1 (7.4V) --> 7.4V Servo Bus Board
+    |                                |     +-- Elbow servo L (5A slow-blow fuse)
+    |                                |     \-- Elbow servo R (5A slow-blow fuse)
+    |                                +-- Buck conv 3 (5V) --> 5V Servo Bus Board
+    |                                |     +-- RDS3218 wrist x4 (3A slow-blow each)
+    |                                |     \-- MG90S x4 (1A slow-blow each)
+    |                                +-- ESC (40A) --> MACE reaction wheel motor
+    |                                \-- 12V fan (1A fuse)
+    |
+    \-- GND Bus (2x 16 AWG parallel) --> Everything (star ground via Wago bus)
 ```
 
-**Power-on sequence:** Pi and PCA9685 are always powered via buck 2 (before relay, always on). Pi boots (~30s), then sets GPIO pin HIGH to close relay, energizing all servo bus boards and the ESC. PCA9685 outputs are off until Pi sends I2C commands, so servos stay still even after relay closes. ESC requires arming sequence (1000us PWM for ~2s) before accepting throttle.
+**Power-on sequence:** Pi and PCA9685 are always powered via buck 2 (before toggle switch, always on). When the operator is ready, they flip the panel-mount toggle switch to energize all servo bus boards and the ESC. PCA9685 outputs are off until Pi sends I2C commands, so servos stay still even after the toggle switch is flipped on. ESC requires arming sequence (1000us PWM for ~2s) before accepting throttle.
 
 **Base and shoulder servos run directly off 12V** - no buck converter needed. They're rated 10-12.6V and the PSU outputs 12V.
 
 **Grounding: Star topology.** Every component gets its own GND wire back to the GND Wago bus - no daisy-chaining. This prevents high-current servo ground return from raising the Pi/PCA9685 ground reference. The GND bus may need 2-3 ganged Wago blocks to fit all the wires (17+ connections).
-
----
-
-## Relay (Power-On Sequencing)
-
-| | |
-|---|---|
-| **Model** | [irhapsody 120A 12V continuous duty](https://www.amazon.ca/irhapsody-Continuous-Automotive-Current-Starter/dp/B07T35K8S2) |
-| **Type** | SPST, 4-pin, normally open |
-| **Rating** | 120A continuous at 12V |
-| **Coil** | 12V, 80 ohm (0.15A / 1.8W) |
-| **Purpose** | Prevent servo power until Pi boots and enables via GPIO |
-
-The Pi GPIO (3.3V, ~16mA max) cannot drive the 12V relay coil directly. Use a simple transistor driver circuit:
-
-```
-Pi GPIO (TBD) ──→ 1k resistor ──→ Base of NPN transistor (2N2222)
-                                    │
-                                    Collector ──→ Relay coil (-)
-                                    Emitter ──→ GND
-
-Relay coil (+) ──→ 12V (from bus, before relay)
-Flyback diode (1N4007) across relay coil (cathode to +12V, anode to collector)
-```
-
-Parts needed: 1x 2N2222 NPN transistor, 1x 1k resistor, 1x 1N4007 flyback diode. All common parts, likely already in stock.
 
 ---
 
@@ -154,9 +129,9 @@ Parts needed: 1x 2N2222 NPN transistor, 1x 1k resistor, 1x 1N4007 flyback diode.
 
 | Buck # | Output V | Feeds | Max Current | Location | Status |
 |--------|----------|-------|-------------|----------|--------|
-| 1 | **7.4V** | 2x elbow servos (80kg) | 10A stall | After relay (fuse block 8A circuit) | OK |
-| 2 | **5V** | Raspberry Pi + PCA9685 | ~2.6A | **Before relay** (always on) | OK |
-| 3 | **5V** | 4x RDS3218 wrist + 4x MG90S | ~8.4A stall | After relay (fuse block 8A circuit) | OK |
+| 1 | **7.4V** | 2x elbow servos (80kg) | 10A stall | After toggle switch (fuse block 8A circuit) | OK |
+| 2 | **5V** | Raspberry Pi + PCA9685 | ~2.6A | **Before toggle switch** (always on) | OK |
+| 3 | **5V** | 4x RDS3218 wrist + 4x MG90S | ~8.4A stall | After toggle switch (fuse block 8A circuit) | OK |
 | 4 | - | Spare | - | - | |
 
 **Buck converter specs:** Input 6-40V, Output 1.25-36V adjustable (potentiometer), 20A max / 15A continuous, 300W, screw terminals, short circuit protection.
@@ -170,12 +145,12 @@ Fuses from Mach. Sized at 125-150% of expected max draw.
 | Fuse | Branch | Max Draw | Rating | Wire Gauge | Notes |
 |------|--------|----------|--------|-----------|-------|
 | AC inline | Mains hot line before slip ring | ~5A at 120V | **6A slow-blow** | Mains cable | Protects AC path |
-| Main DC | 12V bus after PSU | ~40A worst case | **40A** | **8 AWG** | |
-| Base servo branch | 2x base 150kg servos | 16A stall | **20A** | **12 AWG** | Fault isolation |
-| Shoulder servo branch | 2x shoulder 150kg servos | 16A stall | **20A** | **12 AWG** | Fault isolation |
-| Buck 1 input | Elbow servos | ~6.2A at 12V in | **8A** | 16 AWG | Fuse block circuit |
-| Buck 2 input | Pi + PCA9685 only | ~1.1A at 12V in | **3A** | 18 AWG | Before relay (always on) |
-| Buck 3 input | Wrist + MG90S servos | ~3.5A at 12V in | **8A** | 16 AWG | Fuse block circuit |
+| Main DC | 12V bus after PSU | ~30A worst case | **30A** | **2x 16 AWG parallel** | |
+| Base servo branch | 2x base 150kg servos | 16A stall | **8A each** (per-servo) | **16 AWG** | Individual fusing on bus board |
+| Shoulder servo branch | 2x shoulder 150kg servos | 16A stall | **8A each** (per-servo) | **16 AWG** | Individual fusing on bus board |
+| Buck 1 input | Elbow servos | ~6.2A at 12V in | **8A** | 18 AWG | Fuse block circuit |
+| Buck 2 input | Pi + PCA9685 only | ~1.1A at 12V in | **3A** | 18 AWG | Before toggle switch (always on) |
+| Buck 3 input | Wrist + MG90S servos | ~3.5A at 12V in | **8A** | 18 AWG | Fuse block circuit |
 | Fan line | 12V fan | 0.15A | **1A** | 22 AWG | Fuse block circuit |
 
 ---
@@ -236,6 +211,10 @@ These items from the original BOM are **no longer needed** for GEO-DUDe electron
 | ~~Feetech STS3215 smart servos~~ | Replaced with Wishiot RDS3218 20kg PWM servos for wrist |
 | ~~PCF8575 I2C GPIO expander~~ | Only 6 limit switches, Pi GPIO handles it directly |
 | ~~Buck converter 4~~ | Only 3 needed (7.4V elbow, 5V Pi, 5V servo), 1 spare |
+| ~~120A 12V relay (irhapsody)~~ | Replaced by manual toggle switch |
+| ~~2N2222 NPN transistor~~ | Was for relay coil driver, no longer needed |
+| ~~1N4007 flyback diode~~ | Was for relay back-EMF protection, no longer needed |
+| ~~1k ohm resistor~~ | Was for transistor base limiter, no longer needed |
 
 ---
 
@@ -244,7 +223,6 @@ These items from the original BOM are **no longer needed** for GEO-DUDe electron
 | Item | Purpose | Status |
 |------|---------|--------|
 | ~~PCA9685 16-ch PWM driver~~ | ~~Drive all 14 servo signal lines via I2C~~ | Added (row 5, $19.99) |
-| ~~120A 12V relay (irhapsody)~~ | ~~Power-on sequencing, Pi GPIO via transistor~~ | Added (row 23, ~$15) |
 | ~~GPIO screw terminal breakout HAT~~ | ~~Clean wiring for Pi GPIO connections~~ | Added (row 24, $12.99) |
 
 ---
@@ -264,7 +242,7 @@ The HOOYIJ and ANNIMOS 150kg servos ship with thin pre-attached leads (~18-20 AW
 - Factory leads are short (typically 15-30cm)
 - Voltage drop over short runs is minimal
 - The fuse protects the branch, not the individual servo lead
-- Do NOT extend these leads with thin wire. If longer runs are needed, splice with 14 AWG and use proper crimp butt connectors with heat shrink.
+- Do NOT extend these leads with thin wire. If longer runs are needed, splice with 16 AWG and use proper crimp butt connectors with heat shrink.
 
 ### Heat Dissipation
 
@@ -273,7 +251,6 @@ The GEO-DUDe body is a semi-enclosed rotating structure containing:
 - 600W PSU (generates heat even at partial load)
 - Up to 14 servos (heat from those near the body)
 - 3x buck converters
-- Relay
 
 Currently only 1x 80mm 12V fan for cooling. Considerations:
 

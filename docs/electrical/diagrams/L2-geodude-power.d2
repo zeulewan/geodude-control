@@ -33,9 +33,9 @@ gnd_bus: GND Bus\n(Wago, star topology) {
   style.stroke-width: 2
 }
 
-psu -> fuse_main: "+12V, 10 AWG" {style.stroke: "#1565C0"; style.stroke-width: 3}
-fuse_main -> bus: "10 AWG" {style.stroke: "#1565C0"; style.stroke-width: 3}
-psu -> gnd_bus: "GND, 10 AWG" {style.stroke: "#546E7A"; style.stroke-width: 3}
+psu -> fuse_main: "+12V, 2x 16 AWG" {style.stroke: "#1565C0"; style.stroke-width: 3}
+fuse_main -> bus: "2x 16 AWG" {style.stroke: "#1565C0"; style.stroke-width: 3}
+psu -> gnd_bus: "GND, 2x 16 AWG" {style.stroke: "#546E7A"; style.stroke-width: 3}
 
 # === ALWAYS-ON PATH ===
 always_on: ALWAYS ON (before toggle) {
@@ -87,7 +87,7 @@ toggle: 40A Toggle Switch\n(manual, panel mount) {
   style.stroke-width: 2
   style.border-radius: 8
 }
-bus -> toggle: "10 AWG" {style.stroke: "#1565C0"; style.stroke-width: 3}
+bus -> toggle: "2x 16 AWG" {style.stroke: "#1565C0"; style.stroke-width: 3}
 
 # === 12V SERVO BUS BOARD ===
 bus12: 12V Servo Bus Board (perfboard) {
@@ -110,7 +110,7 @@ bus12: 12V Servo Bus Board (perfboard) {
   f_shld_L -> shld_L: "servo lead" {style.stroke: "#1565C0"}
   f_shld_R -> shld_R: "servo lead" {style.stroke: "#1565C0"}
 }
-toggle -> bus12: "14 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
+toggle -> bus12: "16 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
 
 # === 7.4V PATH ===
 buck1: Buck Conv 1\n12V -> 7.4V {
@@ -133,8 +133,8 @@ bus74: 7.4V Servo Bus Board (perfboard) {
   f_elbow_L -> elbow_L: "servo lead" {style.stroke: "#2E7D32"}
   f_elbow_R -> elbow_R: "servo lead" {style.stroke: "#2E7D32"}
 }
-toggle -> buck1: "16 AWG" {style.stroke: "#1565C0"}
-buck1 -> bus74: "16 AWG, 7.4V" {style.stroke: "#2E7D32"}
+toggle -> buck1: "18 AWG" {style.stroke: "#1565C0"}
+buck1 -> bus74: "18 AWG, 7.4V" {style.stroke: "#2E7D32"}
 
 # === 5V PATH ===
 buck3: Buck Conv 3\n12V -> 5V {
@@ -175,8 +175,8 @@ bus5: 5V Servo Bus Board (perfboard) {
   f_ee3 -> ee3 {style.stroke: "#43A047"}
   f_ee4 -> ee4 {style.stroke: "#43A047"}
 }
-toggle -> buck3: "16 AWG" {style.stroke: "#1565C0"}
-buck3 -> bus5: "16 AWG, 5V" {style.stroke: "#43A047"}
+toggle -> buck3: "18 AWG" {style.stroke: "#1565C0"}
+buck3 -> bus5: "18 AWG, 5V" {style.stroke: "#43A047"}
 
 # === MACE ESC ===
 esc: 40A ESC\n(built-in overcurrent protection) {

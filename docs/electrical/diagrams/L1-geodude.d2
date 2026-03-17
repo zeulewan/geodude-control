@@ -55,7 +55,7 @@ bus: 12V DC Bus\n(Wago) {
   style.stroke: "#1565C0"
   style.stroke-width: 2
 }
-psu -> fuse_main -> bus: 10 AWG {style.stroke: "#1565C0"; style.stroke-width: 2}
+psu -> fuse_main -> bus: "2x 16 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
 
 # === ALWAYS-ON PATH (before toggle switch) ===
 always_on: Always-On Path (before toggle) {
@@ -86,13 +86,13 @@ always_on: Always-On Path (before toggle) {
 bus -> always_on.fuse_b2: 18 AWG {style.stroke: "#1565C0"}
 
 # === TOGGLE SWITCH ===
-toggle: 40A Toggle Switch\n(manual, panel mount)\nBATHNA SPST {
+toggle: 40A Toggle Switch\n(manual, panel mount)\nJtron SPST {
   shape: rectangle
   style.fill: "#FFF9C4"
   style.stroke: "#F9A825"
   style.stroke-width: 2
 }
-bus -> toggle: 10 AWG {style.stroke: "#1565C0"; style.stroke-width: 2}
+bus -> toggle: "2x 16 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
 
 # === PCA9685 (signal hub, powered from always-on 5V) ===
 pca: PCA9685\nPWM Driver {
@@ -220,7 +220,7 @@ gnd: GND Bus (Wago, star topology) {
   style.stroke: "#78909C"
   style.font-size: 12
 }
-psu -> gnd: 10 AWG {style.stroke: "#78909C"}
+psu -> gnd: "2x 16 AWG" {style.stroke: "#78909C"}
 
 # === WIFI ===
 base: Base Station Pi {

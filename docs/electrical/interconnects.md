@@ -65,34 +65,34 @@ Every wire connection in both systems. Use this as the wiring reference when bui
 
 ### DC Power (all internal to GEO-DUDe)
 
-#### 12V Bus and Always-On Path (before relay)
+#### 12V Bus and Always-On Path (before toggle switch)
 
 | From | Terminal | To | Terminal | Wire Gauge | Notes |
 |------|----------|----|----------|-----------|-------|
-| 12V PSU | +12V | Main DC fuse (30A) | In | **10 AWG** | |
-| Main DC fuse | Out | 12V bus (Wago) | In | **10 AWG** | |
-| 12V bus | Out | Buck 2 fuse (3A inline) | In | 18 AWG | **Always on** (before relay) |
+| 12V PSU | +12V | Main DC fuse (30A) | In | **2x 16 AWG parallel** | |
+| Main DC fuse | Out | 12V bus (Wago) | In | **2x 16 AWG parallel** | |
+| 12V bus | Out | Buck 2 fuse (3A inline) | In | 18 AWG | **Always on** (before toggle switch) |
 | Buck 2 fuse | Out | Buck conv 2 | VIN+ | 18 AWG | |
 | Buck conv 2 (5V) | VOUT+ | 5V Pi Wago | In | 18 AWG | Pi + PCA9685 only |
 | 5V Pi Wago | Out | Raspberry Pi | 5V GPIO pin | 20 AWG | |
 | 5V Pi Wago | Out | PCA9685 | VCC | 22 AWG | Logic power only |
 
-#### Relay and Fuse Block (servo power, after relay)
+#### Toggle Switch and Servo Power (after toggle switch)
 
 | From | Terminal | To | Terminal | Wire Gauge | Notes |
 |------|----------|----|----------|-----------|-------|
-| 12V bus | Out | 40A Relay | Input | **10 AWG** | Normally open, Pi GPIO controlled |
-| 40A Relay | Output | Cyrico fuse block | +12V in | **10 AWG** | All servo power through here |
-| Fuse block | 15A circuit | Base servo L | Power + | 14 AWG | |
-| Fuse block | 15A circuit | Base servo R | Power + | 14 AWG | |
-| Fuse block | 15A circuit | Shoulder servo L | Power + | 14 AWG | |
-| Fuse block | 15A circuit | Shoulder servo R | Power + | 14 AWG | |
-| Fuse block | 8A circuit | Buck conv 1 | VIN+ | 16 AWG | |
-| Buck conv 1 (7.4V) | VOUT+ | 7.4V Wago | In | 16 AWG | |
+| 12V bus | Out | 40A Toggle Switch | Input | **2x 16 AWG parallel** | Jtron SPST, manual panel mount |
+| 40A Toggle Switch | Output | 12V Servo Bus Board | +12V in | **16 AWG** | Base/shoulder servo power |
+| 12V Servo Bus Board | 8A fuse | Base servo L | Power + | 16 AWG | Per-servo glass tube fuse |
+| 12V Servo Bus Board | 8A fuse | Base servo R | Power + | 16 AWG | Per-servo glass tube fuse |
+| 12V Servo Bus Board | 8A fuse | Shoulder servo L | Power + | 16 AWG | Per-servo glass tube fuse |
+| 12V Servo Bus Board | 8A fuse | Shoulder servo R | Power + | 16 AWG | Per-servo glass tube fuse |
+| 40A Toggle Switch | Output | Buck conv 1 | VIN+ | 18 AWG | Via 8A fuse |
+| Buck conv 1 (7.4V) | VOUT+ | 7.4V Wago | In | 18 AWG | |
 | 7.4V Wago | Out | Elbow servo L | Power + | 18 AWG | |
 | 7.4V Wago | Out | Elbow servo R | Power + | 18 AWG | |
-| Fuse block | 8A circuit | Buck conv 3 | VIN+ | 16 AWG | |
-| Buck conv 3 (5V) | VOUT+ | 5V Servo Wago | In | 16 AWG | Servo 5V only (after relay) |
+| 40A Toggle Switch | Output | Buck conv 3 | VIN+ | 18 AWG | Via 8A fuse |
+| Buck conv 3 (5V) | VOUT+ | 5V Servo Wago | In | 18 AWG | Servo 5V only (after toggle switch) |
 | 5V Servo Wago | Out | Wrist rotate L (RDS3218) | Power + | 18 AWG | |
 | 5V Servo Wago | Out | Wrist rotate R (RDS3218) | Power + | 18 AWG | |
 | 5V Servo Wago | Out | Wrist pan L (RDS3218) | Power + | 18 AWG | |
@@ -101,29 +101,29 @@ Every wire connection in both systems. Use this as the wiring reference when bui
 | 5V Servo Wago | Out | MG90S #2 | Power + | 22 AWG | |
 | 5V Servo Wago | Out | MG90S #3 | Power + | 22 AWG | |
 | 5V Servo Wago | Out | MG90S #4 | Power + | 22 AWG | |
-| Fuse block | 1A circuit | 12V fan | +12V | 22 AWG | |
+| 40A Toggle Switch | Output | 12V fan | +12V | 22 AWG | Via 1A fuse |
 
-#### GND (star topology via fuse block negative bus)
+#### GND (star topology via Wago bus)
 
 | From | Terminal | To | Terminal | Wire Gauge | Notes |
 |------|----------|----|----------|-----------|-------|
-| 12V PSU | GND | GND bus (Wago) | In | **10 AWG** | Star ground point |
-| GND bus | Out | Fuse block | Negative bus | **10 AWG** | Fuse block has built-in GND bus |
-| Fuse block neg bus | Out | Base servo L | GND | 14 AWG | Star topology |
-| Fuse block neg bus | Out | Base servo R | GND | 14 AWG | Star topology |
-| Fuse block neg bus | Out | Shoulder servo L | GND | 14 AWG | Star topology |
-| Fuse block neg bus | Out | Shoulder servo R | GND | 14 AWG | Star topology |
-| Fuse block neg bus | Out | Buck conv 1 | GND | 16 AWG | Star topology |
-| Fuse block neg bus | Out | Elbow servo L | GND | 18 AWG | Via buck 1 GND or direct |
-| Fuse block neg bus | Out | Elbow servo R | GND | 18 AWG | Via buck 1 GND or direct |
-| Fuse block neg bus | Out | Buck conv 3 | GND | 16 AWG | Star topology |
-| Fuse block neg bus | Out | Wrist rotate L | GND | 18 AWG | Via buck 3 GND or direct |
-| Fuse block neg bus | Out | Wrist rotate R | GND | 18 AWG | Via buck 3 GND or direct |
-| Fuse block neg bus | Out | Wrist pan L | GND | 18 AWG | Via buck 3 GND or direct |
-| Fuse block neg bus | Out | Wrist pan R | GND | 18 AWG | Via buck 3 GND or direct |
-| Fuse block neg bus | Out | MG90S #1-4 | GND | 22 AWG | Via buck 3 GND or direct |
-| Fuse block neg bus | Out | 12V fan | GND | 22 AWG | Star topology |
-| GND bus | Out | Buck conv 2 | GND | 18 AWG | Before relay path |
+| 12V PSU | GND | GND bus (Wago) | In | **2x 16 AWG parallel** | Star ground point |
+| GND bus | Out | 12V Servo Bus Board | GND rail | **16 AWG** | |
+| 12V Servo Bus Board | GND | Base servo L | GND | 16 AWG | Star topology |
+| 12V Servo Bus Board | GND | Base servo R | GND | 16 AWG | Star topology |
+| 12V Servo Bus Board | GND | Shoulder servo L | GND | 16 AWG | Star topology |
+| 12V Servo Bus Board | GND | Shoulder servo R | GND | 16 AWG | Star topology |
+| GND bus | Out | Buck conv 1 | GND | 18 AWG | Star topology |
+| GND bus | Out | Elbow servo L | GND | 18 AWG | Via buck 1 GND or direct |
+| GND bus | Out | Elbow servo R | GND | 18 AWG | Via buck 1 GND or direct |
+| GND bus | Out | Buck conv 3 | GND | 18 AWG | Star topology |
+| GND bus | Out | Wrist rotate L | GND | 18 AWG | Via buck 3 GND or direct |
+| GND bus | Out | Wrist rotate R | GND | 18 AWG | Via buck 3 GND or direct |
+| GND bus | Out | Wrist pan L | GND | 18 AWG | Via buck 3 GND or direct |
+| GND bus | Out | Wrist pan R | GND | 18 AWG | Via buck 3 GND or direct |
+| GND bus | Out | MG90S #1-4 | GND | 22 AWG | Via buck 3 GND or direct |
+| GND bus | Out | 12V fan | GND | 22 AWG | Star topology |
+| GND bus | Out | Buck conv 2 | GND | 18 AWG | Before toggle switch path |
 | GND bus | Out | Pi | GND GPIO | 20 AWG | Star topology |
 | GND bus | Out | PCA9685 | GND | 22 AWG | Star topology |
 
@@ -153,7 +153,6 @@ Every wire connection in both systems. Use this as the wiring reference when bui
 | Pi | GPIO 17 | Limit switch 4 | Signal | 22 AWG | Wrist rotate homing |
 | Pi | GPIO 27 | Limit switch 5 | Signal | 22 AWG | Wrist pan homing |
 | Pi | GPIO 22 | Limit switch 6 | Signal | 22 AWG | End-effector homing |
-| Pi | GPIO TBD | 40A Relay coil | Control | 22 AWG | Via transistor driver circuit |
 | Pi | CSI connector | Pi Camera | Ribbon | Ribbon cable | |
 
 ### Connector Reference
@@ -165,8 +164,7 @@ Every wire connection in both systems. Use this as the wiring reference when bui
 | 12V PSU AC input | Screw terminals (on PSU) | Strip and insert |
 | 12V PSU DC output | Screw terminals (on PSU) | Strip and insert |
 | DC bus distribution | **Wago lever connectors** | Tool-free, from Mach |
-| Cyrico fuse block | Blade fuse + screw terminals | 12-circuit, has negative bus |
-| 40A Relay | Spade terminals or bolt | Automotive style, Pi GPIO via transistor |
+| 40A Toggle Switch | Screw terminals | Jtron waterproof panel-mount |
 | Buck converter I/O | Screw terminals (on board) | Strip and insert |
 | Servo power/signal | Bare leads or JST | Cut servo connector if needed |
 | Pi GPIO | Dupont jumper pins | Standard 2.54mm headers |

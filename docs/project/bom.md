@@ -29,7 +29,7 @@ Source: [Subscale Satellite BOM](https://docs.google.com/spreadsheets/d/1E1N-070
 | 20 | Wago connectors | General purpose | - | - | - | Have (Mach) |
 | 21 | IEC C16 socket | Mains input | 1 | $10.89 | [Amazon.ca](https://www.amazon.ca/Baomain-Panel-Power-Sockets-Connectors/dp/B00WFZH042) | Not ordered |
 | 22 | 12-circuit fuse block | Cyrico, w/ negative bus, LED indicators, 24 blade fuses | 1 | - | [Amazon.ca](https://www.amazon.ca/Indicator-Waterproof-Circuits-Negative-Automotive/dp/B0C6Z49434) | Have (Mach) |
-| 23 | 40A toggle switch | BAITHNA DC12V 40A, SPST, waterproof, panel mount | 1 | $18.99 | [Amazon.ca](https://www.amazon.ca/Waterproof-Switch-Toggle-Rocker-Switches/dp/B088SXG1W8) | Ordered |
+| 23 | 40A toggle switch | Jtron Waterproof DC12V 40A/24V 20A, SPST, ON-OFF, panel mount | 1 | $18.99 | - | Ordered |
 | 24 | GPIO breakout HAT | GeeekPi, 40-pin screw terminal, no soldering | 1 | $12.99 | [Amazon.ca](https://www.amazon.ca/GeeekPi-Raspberry-Terminal-Breakout-Expansion/dp/B08GKQMC72) | Not ordered |
 | | **--- Additional (from wiring diagrams) ---** | | | | | |
 | 25 | 6A slow-blow AC fuse + inline holder | Protects AC hot line before slip ring | 1 | ~$5 | - | Not ordered |
@@ -37,16 +37,14 @@ Source: [Subscale Satellite BOM](https://docs.google.com/spreadsheets/d/1E1N-070
 | ~~27~~ | ~~2N2222 NPN transistor~~ | ~~Relay coil driver~~ | 0 | $0.00 | - | NOT NEEDED (relay replaced by toggle switch) |
 | ~~28~~ | ~~1N4007 flyback diode~~ | ~~Relay back-EMF protection~~ | 0 | $0.00 | - | NOT NEEDED |
 | ~~29~~ | ~~1k ohm resistor~~ | ~~Transistor base limiter~~ | 0 | $0.00 | - | NOT NEEDED |
-| 30 | Crimp spade terminals | 6.3mm insulated, for fuse block/relay/PSU | ~20 | ~$8 | - | Not ordered |
+| 30 | Crimp spade terminals | 6.3mm insulated, for fuse block/toggle switch/PSU | ~20 | ~$8 | - | Not ordered |
 | 31 | Crimp butt connectors + heat shrink | Inline wire splices | ~10 | ~$5 | - | Not ordered |
-| 32 | Wire, 10 AWG (red + black) | PSU to fuse block trunk, relay contacts | ~2m | ~$8 | - | Not ordered |
-| 33 | Wire, 14 AWG | Fuse block to base/shoulder servos | ~3m | ~$6 | - | Not ordered |
-| 34 | Wire, 16 AWG | Fuse block to buck converters | ~2m | ~$4 | - | Not ordered |
-| 35 | Wire, 18 AWG | Buck converter outputs, always-on path | ~3m | ~$4 | - | Not ordered |
-| 36 | Wire, 22 AWG | Signal, low-current (PCA9685, MG90S, fan) | ~2m | ~$3 | - | Not ordered |
-| 37 | Dupont jumper wires | I2C, GPIO, PCA9685 signal connections | ~20 | ~$5 | - | Not ordered |
+| 32 | Wire, 16 AWG (red + black) | PSU to bus trunk (doubled for capacity), toggle switch to servo bus boards, base/shoulder servo branches | ~5m | ~$8 | - | Not ordered |
+| 33 | Wire, 18 AWG | Buck converter inputs and outputs, always-on path | ~5m | ~$6 | - | Not ordered |
+| 34 | Wire, 22 AWG | Signal, low-current (PCA9685, MG90S, fan) | ~2m | ~$3 | - | Not ordered |
+| 35 | Dupont jumper wires | I2C, GPIO, PCA9685 signal connections | ~20 | ~$5 | - | Not ordered |
 
-**GEO-DUDe Total: ~$857** (original ~$801 + ~$56 wiring/discrete)
+**GEO-DUDe Total: ~$845** (original ~$801 + ~$44 wiring/discrete)
 
 ---
 
@@ -82,12 +80,13 @@ Source: [Testing Apparatus BOM](https://docs.google.com/spreadsheets/d/1E1N-070x
 
 ---
 
-**Combined Total: ~$1,417**
+**Combined Total: ~$1,405**
 
 ---
 
 ### Notes
 
-- **Blade fuses** (15A, 8A, 3A, 1A) for the Cyrico fuse block are already included with the fuse block (24 blade fuses come in the box).
+- **Blade fuses** (8A, 3A, 1A) for the Cyrico fuse block are already included with the fuse block (24 blade fuses come in the box). The Cyrico fuse block is used for buck converter inputs and fan.
 - **Wago connectors** are covered by Mach's existing supply.
-- Most of the additional items are cheap discrete components (~$5-15 total for resistors, transistor, diode, fuses). Wire and terminals are the main cost items.
+- Most of the additional items are cheap discrete components (~$5-15 total for fuses). Wire and terminals are the main cost items.
+- **Wire gauges needed:** Only 16, 18, and 22 AWG (no 10 or 14 AWG needed for the GEO-DUDe 12V system).

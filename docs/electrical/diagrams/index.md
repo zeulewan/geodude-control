@@ -14,7 +14,7 @@ Both systems at a glance - gimbal apparatus, linear rails, GEO-DUDe servicer, an
 
 ## Level 1a: GEO-DUDe System Overview
 
-Full 12V system - AC mains through slip ring, PSU, relay sequencing, fuse block, buck converters, and all servo groups.
+Full 12V system - AC mains through slip ring, PSU, toggle switch, buck converters, servo bus boards, and all servo groups.
 
 ![GEO-DUDe System Overview](L1-geodude.svg)
 
@@ -38,7 +38,7 @@ Every fuse, wire gauge, connector, and voltage rail in the 12V system.
 
 ## Level 2b: GEO-DUDe Signal Routing Detail
 
-All signal connections - I2C, PCA9685 PWM channels, limit switch GPIOs, relay control, camera.
+All signal connections - I2C, PCA9685 PWM channels, limit switch GPIOs, camera.
 
 ![GEO-DUDe Signal Detail](L2-geodude-signal.svg)
 
@@ -61,4 +61,4 @@ cd docs/electrical/diagrams
 d2 --layout elk --theme 0 <file>.d2 <file>.svg
 ```
 
-Requires [D2](https://d2lang.com/) installed (`brew install d2`).
+Requires [D2](https://d2lang.com/) installed (`brew install d2`)
