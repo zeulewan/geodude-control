@@ -195,34 +195,12 @@ toggle -> f_fan: "22 AWG" {style.stroke: "#78909C"}
 f_fan -> fan {style.stroke: "#78909C"}
 
 # === LIMIT SWITCHES ===
-limits: Limit Switches (Pi GPIO, internal pull-ups) {
+limits: "10x Limit Switches | GPIO 4-6, 17, 22-27 | Pi pull-ups, 22 AWG" {
+  shape: rectangle
   style.fill: "#FFF3E0"
   style.stroke: "#EF6C00"
   style.stroke-width: 2
-  style.border-radius: 10
-
-  arm1_ls: Arm 1 Limits {
-    style.fill: "#FFE0B2"
-    style.stroke: "#EF6C00"
-    style.border-radius: 8
-
-    ls_base: "GPIO 4: Base" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
-    ls_shld: "GPIO 5: Shoulder" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
-    ls_elbow: "GPIO 6: Elbow" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
-    ls_wr: "GPIO 17: Wrist Rot" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
-    ls_wp: "GPIO 27: Wrist Pan" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
-  }
-  arm2_ls: Arm 2 Limits {
-    style.fill: "#FFE0B2"
-    style.stroke: "#EF6C00"
-    style.border-radius: 8
-
-    ls_base: "GPIO 22: Base" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
-    ls_shld: "GPIO 23: Shoulder" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
-    ls_elbow: "GPIO 24: Elbow" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
-    ls_wr: "GPIO 25: Wrist Rot" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
-    ls_wp: "GPIO 26: Wrist Pan" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
-  }
+  style.border-radius: 8
 }
 always_on.pi -> limits: "22 AWG signal + GND" {style.stroke: "#EF6C00"; style.stroke-dash: 3}
 
