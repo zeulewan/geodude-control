@@ -44,12 +44,12 @@ toggle: "Jtron 40A Toggle Switch (manual)" {
 
 fuse_main -> toggle: "10 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
 
-# === POST-TOGGLE WAGOS ===
-wago_servos: "Wago #1 (12V Servos, both arms)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
-wago_bucks: "Wago #2 (Bucks + MACE)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+# === POST-TOGGLE WAGOS (10 AWG soldered to 3x 16 AWG) ===
+wago_arm: "Wago (x2, one per arm, 12V servos)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+wago_bucks: "Wago (Bucks + MACE)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
 
-toggle -> wago_servos: "10 AWG soldered to 16 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
-toggle -> wago_bucks: "10 AWG soldered to 16 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
+toggle -> wago_arm: "16 AWG each" {style.stroke: "#1565C0"; style.stroke-width: 2}
+toggle -> wago_bucks: "16 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
 
 # === BUCK CONVERTERS (from Wago #2) ===
 buck1: "Buck 1: 12V to 7.4V" {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"; style.stroke-width: 2}
@@ -102,8 +102,8 @@ arm: "Arm Fuse Board (x2, one per arm)" {
   screw_in -> fuses.wp -> headers_out {style.stroke: "#43A047"}
 }
 
-# Power to arm board (12V from servo Wago)
-wago_servos -> arm.screw_in: "12V, 16 AWG (per arm)" {style.stroke: "#1565C0"}
+# Power to arm board (12V from arm Wago)
+wago_arm -> arm.screw_in: "12V, 16 AWG" {style.stroke: "#1565C0"}
 
 buck1 -> arm.screw_in: "7.4V, 18 AWG" {style.stroke: "#2E7D32"}
 buck3 -> arm.screw_in: "5V, 18 AWG" {style.stroke: "#43A047"}
