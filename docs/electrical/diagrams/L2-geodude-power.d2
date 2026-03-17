@@ -25,12 +25,12 @@ fuse_main: "30A Blade Fuse (10 AWG pigtails)" {
 
 psu -> fuse_main: "2x 16 AWG (fork connectors, soldered to 10 AWG)" {style.stroke: "#1565C0"; style.stroke-width: 2}
 
-# === ALWAYS-ON BRANCH (before toggle, taps off fuse output) ===
+# === ALWAYS-ON BRANCH (direct from PSU, no fuse) ===
 buck2: "Buck 2: 12V to 5V" {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"}
 pi: "Raspberry Pi (2.5A) + Screw Terminal HAT" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"; style.stroke-width: 2}
 pca: "PCA9685 16-Ch PWM Driver | VCC: 5V | V+: not connected" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
 
-fuse_main -> buck2: "18 AWG (always on, before toggle)" {style.stroke: "#2E7D32"}
+psu -> buck2: "18 AWG (always on, no fuse)" {style.stroke: "#2E7D32"}
 buck2 -> pi: "5V, 18 AWG" {style.stroke: "#43A047"}
 pi -> pca: "I2C + 5V power" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 
