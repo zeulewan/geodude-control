@@ -69,7 +69,7 @@ arm: "Arm Fuse Board (x2, one per arm)" {
   style.border-radius: 8
   direction: right
 
-  screw_in: "Screw Terminals (in)" {
+  screw_in: "Screw Terminals (in: Power + PWM + GND)" {
     shape: rectangle
     style.fill: "#B0BEC5"
     style.stroke: "#546E7A"
@@ -82,11 +82,11 @@ arm: "Arm Fuse Board (x2, one per arm)" {
     style.fill: transparent
     style.stroke: transparent
 
-    base: "Base (8A, 12V)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
-    shld: "Shoulder (8A, 12V)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
-    elbow: "Elbow (5A, 7.4V)" {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"}
-    wr: "Wrist Rot (3A, 5V)" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
-    wp: "Wrist Pan (3A, 5V)" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
+    base: "Base (8A, 12V)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"; width: 150}
+    shld: "Shoulder (8A, 12V)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"; width: 150}
+    elbow: "Elbow (5A, 7.4V)" {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"; width: 150}
+    wr: "Wrist Rot (3A, 5V)" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"; width: 150}
+    wp: "Wrist Pan (3A, 5V)" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"; width: 150}
   }
 
   headers_out: "Male Headers (out)" {
@@ -135,8 +135,8 @@ mace: "MACE Reaction Wheel" {
 toggle -> mace.esc: "12V direct" {style.stroke: "#1565C0"}
 
 pca -> mace.esc: "Ch 14 PWM" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-pi -> mace.encoder: "I2C" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-pi -> mace.imu: "I2C" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+pi -> mace.encoder: "I2C + 3.3V" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+pi -> mace.imu: "I2C + 3.3V" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 
 # === LIMIT SWITCHES ===
 limits: "10x Limit Switches | GPIO 4-6, 17, 22-27 | Pi pull-ups, 22 AWG" {
@@ -158,3 +158,4 @@ gnd: "GND Bus (2x 16 AWG, star topology, Wago)" {
 }
 
 psu -> gnd: "2x 16 AWG" {style.stroke: "#546E7A"; style.stroke-width: 2}
+gnd -> arm.screw_in: "GND, 16 AWG" {style.stroke: "#546E7A"; style.stroke-dash: 3}
