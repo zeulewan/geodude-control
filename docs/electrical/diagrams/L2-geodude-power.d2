@@ -74,6 +74,8 @@ arm: "Arm Fuse Board (x2, one per arm)" {
     style.fill: "#B0BEC5"
     style.stroke: "#546E7A"
     style.stroke-width: 2
+    width: 50
+    height: 250
   }
 
   fuses: "" {
@@ -92,6 +94,8 @@ arm: "Arm Fuse Board (x2, one per arm)" {
     style.fill: "#B0BEC5"
     style.stroke: "#546E7A"
     style.stroke-width: 2
+    width: 50
+    height: 250
   }
 
   screw_in -> fuses.base -> headers_out {style.stroke: "#1565C0"}
@@ -123,12 +127,12 @@ mace: "MACE Reaction Wheel" {
   motor: "X2807 BLDC (~1-3A)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
   encoder: "AS5600 Encoder (0x36)" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
 
-   "motor drive (bullet connectors)" {style.stroke: "#1565C0"}
-   "magnet" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+  esc -> motor: "motor drive (bullet connectors)" {style.stroke: "#1565C0"}
+  motor -> encoder: "magnet" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 }
 
 toggle -> mace.esc: "12V direct" {style.stroke: "#1565C0"}
- "motor drive (bullet connectors)" {style.stroke: "#1565C0"}
+
 pca -> mace.esc: "Ch 14 PWM" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
  "magnet" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 pi -> mace.encoder: "I2C" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
