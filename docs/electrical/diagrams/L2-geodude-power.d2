@@ -35,13 +35,21 @@ fuse_main -> bus: "2x 16 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
 
 # === ALWAYS-ON BRANCH (before toggle) ===
 buck2: "Buck 2: 12V to 5V" {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"}
-pi: "Raspberry Pi (2.5A) + Screw Terminal HAT" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"; style.stroke-width: 2}
-pca: "PCA9685 16-Ch I2C PWM Driver (~50mA)" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
+ctrl: "" {
+  style.fill: transparent
+  style.stroke: transparent
+
+  limits: "10x Limit Switches | GPIO 4-6, 17, 22-27 | Pi pull-ups, 22 AWG" {shape: rectangle; style.fill: "#FFF3E0"; style.stroke: "#EF6C00"; style.stroke-width: 2; style.border-radius: 8}
+  pi: "Raspberry Pi (2.5A) + Screw Terminal HAT" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"; style.stroke-width: 2}
+  pca: "PCA9685 16-Ch I2C PWM Driver (~50mA)" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
+
+  pi -> limits: "GPIO, 22 AWG" {style.stroke: "#EF6C00"; style.stroke-dash: 3}
+  pi -> pca: "I2C (SDA/SCL)" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+}
 
 bus -> buck2: "18 AWG (always on)" {style.stroke: "#2E7D32"}
-buck2 -> pi: "5V, 18 AWG" {style.stroke: "#43A047"}
-buck2 -> pca: "5V, 22 AWG" {style.stroke: "#43A047"}
-pi -> pca: "I2C (SDA/SCL)" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+buck2 -> ctrl.pi: "5V, 18 AWG" {style.stroke: "#43A047"}
+buck2 -> ctrl.pca: "5V, 22 AWG" {style.stroke: "#43A047"}
 
 # === TOGGLE SWITCH ===
 toggle: "Jtron 40A Toggle Switch (manual)" {
@@ -111,7 +119,7 @@ buck1 -> arm.screw_in: "7.4V, 18 AWG" {style.stroke: "#2E7D32"}
 buck3 -> arm.screw_in: "5V, 18 AWG" {style.stroke: "#43A047"}
 
 # PWM signal
-pca -> arm.screw_in: "Ch 0-4 / Ch 5-9 PWM" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+ctrl.pca -> arm.screw_in: "Ch 0-4 / Ch 5-9 PWM" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 
 # === PWM SIGNAL (from PCA9685 to fuse boards) ===
 
@@ -133,20 +141,9 @@ mace: "MACE Reaction Wheel" {
 
 toggle -> mace.esc: "12V direct" {style.stroke: "#1565C0"}
 
-pca -> mace.esc: "Ch 14 PWM" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-pi -> mace.encoder: "I2C + 3.3V" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-pi -> mace.imu: "I2C + 3.3V" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-
-# === LIMIT SWITCHES ===
-limits: "10x Limit Switches | GPIO 4-6, 17, 22-27 | Pi pull-ups, 22 AWG" {
-  shape: rectangle
-  style.fill: "#FFF3E0"
-  style.stroke: "#EF6C00"
-  style.stroke-width: 2
-  style.border-radius: 8
-}
-
-pi -> limits: "GPIO, 22 AWG" {style.stroke: "#EF6C00"; style.stroke-dash: 3}
+ctrl.pca -> mace.esc: "Ch 14 PWM" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+ctrl.pi -> mace.encoder: "I2C + 3.3V" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+ctrl.pi -> mace.imu: "I2C + 3.3V" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 
 # === GND ===
 gnd: "GND Bus (2x 16 AWG, Wago) | Star topology: all bucks, fuse boards, MACE, PCA return here" {
