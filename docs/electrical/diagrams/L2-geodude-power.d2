@@ -44,23 +44,12 @@ toggle: "Jtron 40A Toggle Switch (manual)" {
 
 fuse_main -> toggle: "10 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
 
-# === POST-TOGGLE: 10 AWG to solder split ===
-split: "Solder Split (10 AWG to 3x 16 AWG)" {
-  shape: circle
-  style.fill: "#BBDEFB"
-  style.stroke: "#1565C0"
-  width: 40
-  height: 40
-}
-
-toggle -> split: "10 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
-
-# === WAGOS ===
+# === POST-TOGGLE WAGOS (10 AWG soldered to 3x 16 AWG) ===
 wago_arm: "Wago (x2, one per arm, 12V servos)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
 wago_bucks: "Wago (Bucks + MACE)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
 
-split -> wago_arm: "16 AWG each" {style.stroke: "#1565C0"; style.stroke-width: 2}
-split -> wago_bucks: "16 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
+toggle -> wago_arm: "16 AWG each" {style.stroke: "#1565C0"; style.stroke-width: 2}
+toggle -> wago_bucks: "16 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
 
 # === BUCK CONVERTERS (from Wago #2) ===
 buck1: "Buck 1: 12V to 7.4V" {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"; style.stroke-width: 2}
