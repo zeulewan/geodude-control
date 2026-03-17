@@ -30,8 +30,8 @@ bus: "12V DC Bus (Wago)" {
   style.stroke-width: 2
 }
 
-psu -> fuse_main: "2x 16 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
-fuse_main -> bus: "2x 16 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
+psu -> fuse_main: "12 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
+fuse_main -> bus: "12 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
 
 # === ALWAYS-ON BRANCH (before toggle) ===
 buck2: "Buck 2: 12V to 5V" {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"}
@@ -50,7 +50,7 @@ toggle: "Jtron 40A Toggle Switch (manual)" {
   style.stroke-width: 2
 }
 
-bus -> toggle: "2x 16 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
+bus -> toggle: "12 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
 
 # === BUCK CONVERTERS ===
 buck1: "Buck 1: 12V to 7.4V" {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"; style.stroke-width: 2}
@@ -104,7 +104,7 @@ arm: "Arm Fuse Board (x2, one per arm)" {
 }
 
 # Power to arm board
-toggle -> arm.screw_in: "12V, 16 AWG" {style.stroke: "#1565C0"}
+toggle -> arm.screw_in: "12V, 12 AWG" {style.stroke: "#1565C0"}
 
 buck1 -> arm.screw_in: "7.4V, 18 AWG" {style.stroke: "#2E7D32"}
 buck3 -> arm.screw_in: "5V, 18 AWG" {style.stroke: "#43A047"}
@@ -148,7 +148,7 @@ limits: "10x Limit Switches | GPIO 4-6, 17, 22-27 | Pi pull-ups, 22 AWG" {
 pi -> limits: "GPIO, 22 AWG" {style.stroke: "#EF6C00"; style.stroke-dash: 3}
 
 # === GND ===
-gnd: "GND Bus (2x 16 AWG, Wago) | All bucks, 12V servos, MACE return here" {
+gnd: "GND Bus (12 AWG, Wago) | All bucks, 12V servos, MACE GND return here" {
   shape: rectangle
   style.fill: "#ECEFF1"
   style.stroke: "#546E7A"
