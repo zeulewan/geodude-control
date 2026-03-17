@@ -34,19 +34,19 @@ psu -> fuse_main: "2x 16 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
 fuse_main -> bus: "2x 16 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
 
 # === ALWAYS-ON BRANCH (before toggle) ===
-
 buck2: "Buck 2: 12V to 5V" {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"}
+
 pi_stack: "" {
   direction: down
   style.fill: transparent
   style.stroke: transparent
 
-  
-  pi: "Raspberry Pi (2.5A) + Screw Terminal HAT" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"; style.stroke-width: 2}
   limits: "10x Limit Switches | GPIO 4-6, 17, 22-27 | Pi pull-ups, 22 AWG" {shape: rectangle; style.fill: "#FFF3E0"; style.stroke: "#EF6C00"; style.stroke-width: 2; style.border-radius: 8}
+  pi: "Raspberry Pi (2.5A) + Screw Terminal HAT" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"; style.stroke-width: 2}
+  pca: "PCA9685 16-Ch I2C PWM Driver (~50mA)" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
 
+  limits <- pi: "GPIO, 22 AWG" {style.stroke: "#EF6C00"; style.stroke-dash: 3}
   pi -> pca: "I2C (SDA/SCL)" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-  pi -> limits: "GPIO, 22 AWG" {style.stroke: "#EF6C00"; style.stroke-dash: 3}
 }
 
 bus -> buck2: "18 AWG (always on)" {style.stroke: "#2E7D32"}
@@ -116,15 +116,11 @@ arm: "Arm Fuse Board (x2, one per arm)" {
 
 # Power to arm board
 toggle -> arm.screw_in: "12V, 16 AWG" {style.stroke: "#1565C0"}
-
 buck1 -> arm.screw_in: "7.4V, 18 AWG" {style.stroke: "#2E7D32"}
 buck3 -> arm.screw_in: "5V, 18 AWG" {style.stroke: "#43A047"}
 
 # PWM signal
-
 pi_stack.pca -> arm.screw_in: "Ch 0-4 / Ch 5-9 PWM" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-
-# === PWM SIGNAL (from PCA9685 to fuse boards) ===
 
 # === MACE ===
 mace: "MACE Reaction Wheel" {
@@ -144,12 +140,9 @@ mace: "MACE Reaction Wheel" {
 }
 
 toggle -> mace.esc: "12V direct" {style.stroke: "#1565C0"}
-
 pi_stack.pca -> mace.esc: "Ch 14 PWM" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 pi_stack.pi -> mace.encoder: "I2C + 3.3V" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 pi_stack.pi -> mace.imu: "I2C + 3.3V" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-
-# === LIMIT SWITCHES ===
 
 # === GND ===
 gnd: "GND Bus (2x 16 AWG, Wago) | Star topology: all bucks, fuse boards, MACE, PCA return here" {
@@ -161,4 +154,3 @@ gnd: "GND Bus (2x 16 AWG, Wago) | Star topology: all bucks, fuse boards, MACE, P
 
 psu -> gnd: "2x 16 AWG" {style.stroke: "#546E7A"; style.stroke-width: 2}
 gnd -> arm.screw_in: "GND, 16 AWG" {style.stroke: "#546E7A"; style.stroke-dash: 3}
-
