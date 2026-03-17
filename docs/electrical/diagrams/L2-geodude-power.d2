@@ -73,19 +73,19 @@ arm: "Arm Fuse Board (x2, one per arm)" {
     style.fill: "#B0BEC5"
     style.stroke: "#546E7A"
     style.stroke-width: 2
-    width: 80
-    height: 500
+    width: 60
+    height: 350
   }
 
   fuses: "" {
     style.fill: transparent
     style.stroke: transparent
 
-    base: "Base (8A, 12V)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"; width: 150}
-    shld: "Shoulder (8A, 12V)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"; width: 150}
-    elbow: "Elbow (5A, 7.4V)" {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"; width: 150}
-    wr: "Wrist Rot (3A, 5V)" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"; width: 150}
-    wp: "Wrist Pan (3A, 5V)" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"; width: 150}
+    base: "Base (8A, 12V)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"; width: 120}
+    shld: "Shoulder (8A, 12V)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"; width: 120}
+    elbow: "Elbow (5A, 7.4V)" {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"; width: 120}
+    wr: "Wrist Rot (3A, 5V)" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"; width: 120}
+    wp: "Wrist Pan (3A, 5V)" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"; width: 120}
   }
 
   headers_out: "Male Headers (out)" {
@@ -93,8 +93,8 @@ arm: "Arm Fuse Board (x2, one per arm)" {
     style.fill: "#B0BEC5"
     style.stroke: "#546E7A"
     style.stroke-width: 2
-    width: 80
-    height: 500
+    width: 60
+    height: 350
   }
 
   screw_in -> fuses.base -> headers_out {style.stroke: "#1565C0"}
@@ -118,6 +118,7 @@ pca -> arm.screw_in: "Ch 0-4 / Ch 5-9 PWM" {style.stroke: "#7B1FA2"; style.strok
 
 # === MACE ===
 mace: "MACE Reaction Wheel" {
+  direction: down
   style.fill: "#E8EAF6"
   style.stroke: "#3949AB"
   style.stroke-width: 2
