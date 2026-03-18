@@ -16,21 +16,31 @@ psu: "12V 600W PSU (50A max)" {
   style.stroke-width: 2
 }
 
-# === MAIN FUSE ===
+# === V+ BUS BAR (250A 5/16" stud, ring terminals) ===
+busbar: "V+ Bus Bar (250A, 5/16\" stud)" {
+  shape: rectangle
+  style.fill: "#BBDEFB"
+  style.stroke: "#1565C0"
+  style.stroke-width: 2
+}
+
+psu -> busbar: "16 AWG (fork connectors from PSU screw terminals)" {style.stroke: "#1565C0"; style.stroke-width: 2}
+
+# === SERVO PATH (fused + switched) ===
 fuse_main: "40A Blade Fuse (10 AWG pigtails)" {
   shape: diamond
   style.fill: "#BBDEFB"
   style.stroke: "#1565C0"
 }
 
-psu -> fuse_main: "2x 16 AWG (fork connectors, soldered to 10 AWG)" {style.stroke: "#1565C0"; style.stroke-width: 2}
+busbar -> fuse_main: "10 AWG (ring terminal)" {style.stroke: "#1565C0"; style.stroke-width: 2}
 
-# === ALWAYS-ON BRANCH (direct from PSU, no fuse) ===
+# === ALWAYS-ON PI PATH (no fuse) ===
 buck2: "Buck 2: 12V to 5V" {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"}
 pi: "Raspberry Pi (2.5A) + Screw Terminal HAT | 1000-2200uF 10V cap on 5V input" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"; style.stroke-width: 2}
 pca: "PCA9685 16-Ch PWM Driver | VCC: 5V | V+: not connected" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
 
-psu -> buck2: "18 AWG (always on, no fuse)" {style.stroke: "#2E7D32"}
+busbar -> buck2: "18 AWG (ring terminal, always on)" {style.stroke: "#2E7D32"}
 buck2 -> pi: "5V, 18 AWG" {style.stroke: "#43A047"}
 pi -> pca: "I2C + 5V power" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 
@@ -129,8 +139,8 @@ mace: "MACE Reaction Wheel" {
   motor -> encoder: "magnet" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 }
 
-# === MACE POWER (direct from PSU, no fuse) ===
-psu -> mace.esc: "12 AWG (no fuse, XT60 to ESC)" {style.stroke: "#3949AB"; style.stroke-width: 2}
+# === MACE POWER (from bus bar, no fuse) ===
+busbar -> mace.esc: "12 AWG (ring terminal, XT60 to ESC)" {style.stroke: "#3949AB"; style.stroke-width: 2}
 
 pca -> mace.esc: "Ch 14 PWM + GND only (no 5V)" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 pi -> mace.encoder: "I2C + 3.3V" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
@@ -148,7 +158,7 @@ limits: "10x Limit Switches | GPIO 4-6, 17, 22-27 | Pi pull-ups, 22 AWG" {
 pi -> limits: "GPIO, 22 AWG" {style.stroke: "#EF6C00"; style.stroke-dash: 3}
 
 # === GND ===
-gnd: "GND Bus (Wago, star topology) | PSU GND -> 12 AWG -> Wago | 16 AWG to each fuse board | 18 AWG to each buck and MACE ESC" {
+gnd: "GND Bus Bar (250A, 5/16\" stud) | PSU GND -> 16 AWG -> bus bar | 16 AWG to each fuse board | 18 AWG to each buck | 12 AWG to MACE ESC" {
   shape: rectangle
   style.fill: "#ECEFF1"
   style.stroke: "#546E7A"
