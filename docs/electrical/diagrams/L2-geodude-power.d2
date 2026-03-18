@@ -56,7 +56,7 @@ fuse_main -> toggle: "10 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
 
 # === POST-TOGGLE WAGOS (10 AWG soldered to 3x 16 AWG) ===
 wago_arm: "Wago (x2, one per arm, 12V servos)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
-wago_bucks: "Wago (Bucks)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+wago_bucks: "Wago (Buck 1 + Buck 3)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
 
 toggle -> wago_arm: "16 AWG each" {style.stroke: "#1565C0"; style.stroke-width: 2}
 toggle -> wago_bucks: "16 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
@@ -121,8 +121,6 @@ buck3 -> arm.screw_in: "5V, 18 AWG" {style.stroke: "#43A047"}
 # PWM signal
 pca -> arm.screw_in: "Ch 0-4 / Ch 5-9 PWM" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 
-# === PWM SIGNAL (from PCA9685 to fuse boards) ===
-
 # === MACE ===
 mace: "MACE Reaction Wheel" {
   style.fill: "#E8EAF6"
@@ -131,7 +129,7 @@ mace: "MACE Reaction Wheel" {
   style.border-radius: 8
 
   esc: "Drfeify 40A ESC" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
-  motor: "X2807 BLDC (~1-3A)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+  motor: "X2807 1700KV BLDC (up to 40A)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
   encoder: "AS5600 Encoder (0x36)" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
   imu: "ICM20948 IMU (0x68)" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
 
