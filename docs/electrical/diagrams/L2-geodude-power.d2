@@ -14,10 +14,9 @@ psu: "12V 600W PSU (50A max)" {
   style.fill: "#BBDEFB"
   style.stroke: "#1565C0"
   style.stroke-width: 2
-  near: center-left
 }
 
-# === V+ BUS BAR (250A 5/16" stud, ring terminals) ===
+# === V+ BUS BAR ===
 busbar: "V+ Bus Bar (250A, 5/16\" stud)" {
   shape: rectangle
   style.fill: "#BBDEFB"
@@ -25,18 +24,45 @@ busbar: "V+ Bus Bar (250A, 5/16\" stud)" {
   style.stroke-width: 2
 }
 
-psu -> busbar: "16 AWG (fork connectors from PSU screw terminals)" {style.stroke: "#1565C0"; style.stroke-width: 2}
+psu -> busbar: "16 AWG (fork connectors)" {style.stroke: "#1565C0"; style.stroke-width: 2}
 
-# === SERVO PATH (fused + switched) ===
+# === THREE BRANCHES FROM BUS BAR ===
+
+# Branch 1: Servo path (fused + switched)
 fuse_main: "40A Blade Fuse (10 AWG pigtails)" {
   shape: diamond
   style.fill: "#BBDEFB"
   style.stroke: "#1565C0"
 }
+toggle: "Jtron 40A Toggle Switch (manual)" {
+  shape: rectangle
+  style.fill: "#FFF9C4"
+  style.stroke: "#F9A825"
+  style.stroke-width: 2
+}
 
 busbar -> fuse_main: "10 AWG (ring terminal)" {style.stroke: "#1565C0"; style.stroke-width: 2}
+fuse_main -> toggle: "10 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
 
-# === ALWAYS-ON PI PATH (no fuse) ===
+# Branch 2: MACE (direct, no fuse)
+mace: "MACE Reaction Wheel" {
+  style.fill: "#E8EAF6"
+  style.stroke: "#3949AB"
+  style.stroke-width: 2
+  style.border-radius: 8
+
+  esc: "Drfeify 40A ESC" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+  motor: "X2807 1700KV BLDC (up to 40A)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+  encoder: "AS5600 Encoder (0x36)" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
+  imu: "ICM20948 IMU (0x68)" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
+
+  esc -> motor: "motor drive (bullet connectors)" {style.stroke: "#1565C0"}
+  motor -> encoder: "magnet" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+}
+
+busbar -> mace.esc: "12 AWG (ring terminal, XT60 to ESC)" {style.stroke: "#3949AB"; style.stroke-width: 2}
+
+# Branch 3: Pi (always on, no fuse)
 buck2: "Buck 2: 12V to 5V" {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"}
 pi: "Raspberry Pi (2.5A) + Screw Terminal HAT | 1000-2200uF 10V cap on 5V input" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"; style.stroke-width: 2}
 pca: "PCA9685 16-Ch PWM Driver | VCC: 5V | V+: not connected" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
@@ -45,24 +71,14 @@ busbar -> buck2: "18 AWG (ring terminal, always on)" {style.stroke: "#2E7D32"}
 buck2 -> pi: "5V, 18 AWG" {style.stroke: "#43A047"}
 pi -> pca: "I2C + 5V power" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 
-# === TOGGLE SWITCH ===
-toggle: "Jtron 40A Toggle Switch (manual)" {
-  shape: rectangle
-  style.fill: "#FFF9C4"
-  style.stroke: "#F9A825"
-  style.stroke-width: 2
-}
-
-fuse_main -> toggle: "10 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
-
-# === POST-TOGGLE WAGOS (10 AWG soldered to 3x 16 AWG) ===
+# === POST-TOGGLE: WAGOS ===
 wago_arm: "Wago (x2, one per arm, 12V servos)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
 wago_bucks: "Wago (Buck 1 + Buck 3)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
 
 toggle -> wago_arm: "16 AWG each" {style.stroke: "#1565C0"; style.stroke-width: 2}
 toggle -> wago_bucks: "16 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
 
-# === BUCK CONVERTERS (from Wago #2) ===
+# === BUCK CONVERTERS ===
 buck1: "Buck 1: 12V to 7.4V" {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"; style.stroke-width: 2}
 buck3: "Buck 3: 12V to 5V" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"; style.stroke-width: 2}
 
@@ -113,34 +129,15 @@ arm: "Arm Fuse Board (x2, one per arm)" {
   screw_in -> fuses.wp -> headers_out {style.stroke: "#43A047"}
 }
 
-# Power to arm board (12V from arm Wago)
+# Power to arm board
 wago_arm -> arm.screw_in: "12V, 16 AWG" {style.stroke: "#1565C0"}
-
 buck1 -> arm.screw_in: "7.4V, 18 AWG" {style.stroke: "#2E7D32"}
 buck3 -> arm.screw_in: "5V, 18 AWG" {style.stroke: "#43A047"}
 
 # PWM signal
 pca -> arm.screw_in: "Ch 0-4 / Ch 5-9 PWM" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 
-# === MACE ===
-mace: "MACE Reaction Wheel" {
-  style.fill: "#E8EAF6"
-  style.stroke: "#3949AB"
-  style.stroke-width: 2
-  style.border-radius: 8
-
-  esc: "Drfeify 40A ESC" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
-  motor: "X2807 1700KV BLDC (up to 40A)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
-  encoder: "AS5600 Encoder (0x36)" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
-  imu: "ICM20948 IMU (0x68)" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
-
-  esc -> motor: "motor drive (bullet connectors)" {style.stroke: "#1565C0"}
-  motor -> encoder: "magnet" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-}
-
-# === MACE POWER (from bus bar, no fuse) ===
-busbar -> mace.esc: "12 AWG (ring terminal, XT60 to ESC)" {style.stroke: "#3949AB"; style.stroke-width: 2}
-
+# MACE signal + sensors
 pca -> mace.esc: "Ch 14 PWM + GND only (no 5V)" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 pi -> mace.encoder: "I2C + 3.3V" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 pi -> mace.imu: "I2C + 3.3V" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
