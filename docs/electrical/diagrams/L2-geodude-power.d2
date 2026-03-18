@@ -129,15 +129,8 @@ mace: "MACE Reaction Wheel" {
   motor -> encoder: "magnet" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 }
 
-# === MACE POWER (own fuse, direct from PSU) ===
-fuse_mace: "MACE Fuse (TBD)" {
-  shape: diamond
-  style.fill: "#E8EAF6"
-  style.stroke: "#3949AB"
-}
-
-psu -> fuse_mace: "10 AWG" {style.stroke: "#3949AB"; style.stroke-width: 2}
-fuse_mace -> mace.esc: "10 AWG" {style.stroke: "#3949AB"; style.stroke-width: 2}
+# === MACE POWER (direct from PSU, no fuse) ===
+psu -> mace.esc: "10 AWG (no fuse, ESC + PSU protected)" {style.stroke: "#3949AB"; style.stroke-width: 2}
 
 pca -> mace.esc: "Ch 14 PWM" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 pi -> mace.encoder: "I2C + 3.3V" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
