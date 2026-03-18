@@ -46,7 +46,7 @@ fuse_main -> toggle: "10 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
 
 # === POST-TOGGLE WAGOS (10 AWG soldered to 3x 16 AWG) ===
 wago_arm: "Wago (x2, one per arm, 12V servos)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
-wago_bucks: "Wago (Bucks + MACE)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+wago_bucks: "Wago (Bucks)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
 
 toggle -> wago_arm: "16 AWG each" {style.stroke: "#1565C0"; style.stroke-width: 2}
 toggle -> wago_bucks: "16 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
@@ -129,7 +129,15 @@ mace: "MACE Reaction Wheel" {
   motor -> encoder: "magnet" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 }
 
-wago_bucks -> mace.esc: "12V, 18 AWG" {style.stroke: "#1565C0"}
+# === MACE POWER (own fuse, direct from PSU) ===
+fuse_mace: "MACE Fuse (TBD)" {
+  shape: diamond
+  style.fill: "#E8EAF6"
+  style.stroke: "#3949AB"
+}
+
+psu -> fuse_mace: "10 AWG" {style.stroke: "#3949AB"; style.stroke-width: 2}
+fuse_mace -> mace.esc: "10 AWG" {style.stroke: "#3949AB"; style.stroke-width: 2}
 
 pca -> mace.esc: "Ch 14 PWM" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 pi -> mace.encoder: "I2C + 3.3V" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
