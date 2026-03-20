@@ -19,7 +19,7 @@ usb_adapter: "5V USB Wall Adapter" {shape: rectangle; style.fill: "#E8F5E9"; sty
 
 wall -> psu: "120V AC" {style.stroke: "#C62828"; style.stroke-width: 2}
 wall2 -> usb_adapter: "120V AC" {style.stroke: "#C62828"}
-usb_adapter -> perfboard.screw_in: "5V, barrel jack cable" {style.stroke: "#43A047"}
+usb_adapter -> perfboard.barrel: "5V, barrel jack cable" {style.stroke: "#43A047"}
 psu -> busbar: "14 AWG" {style.stroke: "#EF6C00"; style.stroke-width: 2}
 
 # === PERFBOARD ===
@@ -31,13 +31,17 @@ perfboard: "Gimbal Perfboard" {
 
   direction: right
 
-  screw_in: "Screw Terminals (in) | 24V VMOT x4 | 5V barrel jack | GND" {
+  screw_24v: "Screw Terminals (24V VMOT x4 + GND)" {
     shape: rectangle
     style.fill: "#B0BEC5"
     style.stroke: "#546E7A"
     style.stroke-width: 2
-    width: 80
-    height: 400
+  }
+  barrel: "5V Barrel Jack" {
+    shape: rectangle
+    style.fill: "#C8E6C9"
+    style.stroke: "#43A047"
+    style.stroke-width: 2
   }
 
   esp32: "ESP32 DOIT DevKit V1 | WiFi to Raspberry Pi" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"; style.stroke-width: 2}
@@ -54,8 +58,8 @@ perfboard: "Gimbal Perfboard" {
     height: 400
   }
 
-  screw_in -> esp32: "5V, 22 AWG" {style.stroke: "#43A047"}
-  screw_in -> caps -> drivers: "24V VMOT, 18 AWG" {style.stroke: "#EF6C00"}
+  barrel -> esp32: "5V, 22 AWG" {style.stroke: "#43A047"}
+  screw_24v -> caps -> drivers: "24V VMOT, 18 AWG" {style.stroke: "#EF6C00"}
   esp32 -> drivers: "STEP/DIR + 3.3V VIO, 22 AWG" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
   esp32 -> resistor -> drivers: "UART shared bus, 22 AWG" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
   drivers -> jst_out: "coil A/B, 22 AWG" {style.stroke: "#EF6C00"}
@@ -71,7 +75,7 @@ motors: "4x NEMA 17 Steppers | Yaw, Pitch, Roll, Belt" {
 }
 
 # === POWER: Bus bar to perfboard ===
-busbar -> perfboard.screw_in: "24V, 18 AWG each" {style.stroke: "#EF6C00"; style.stroke-width: 2}
+busbar -> perfboard.screw_24v: "24V, 18 AWG each" {style.stroke: "#EF6C00"; style.stroke-width: 2}
 
 # === MOTOR CABLES ===
 perfboard.jst_out -> motors: "6-to-4 pin cables, 1M" {style.stroke: "#EF6C00"}
