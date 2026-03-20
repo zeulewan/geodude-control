@@ -25,68 +25,40 @@ esp32: "ESP32 DOIT DevKit V1" {shape: rectangle; style.fill: "#F3E5F5"; style.st
 
 usb -> esp32: "5V USB" {style.stroke: "#43A047"}
 
-# === TMC2209 DRIVERS ===
-drivers: "TMC2209 Driver Bank (breadboard for logic, Wago for power)" {
+# === 4x TMC2209 + NEMA 17 (combined) ===
+stepper_bank: "4x TMC2209 + NEMA 17 Stepper Motors" {
   style.fill: "#FFF3E0"
   style.stroke: "#EF6C00"
   style.stroke-width: 2
   style.border-radius: 8
 
-  d1: "TMC2209 #1 - Yaw | Addr 0 (MS1=L MS2=L)" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
-  d2_drv: "TMC2209 #2 - Pitch | Addr 1 (MS1=H MS2=L)" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
-  d3: "TMC2209 #3 - Roll | Addr 2 (MS1=L MS2=H)" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
-  d4: "TMC2209 #4 - Belt | Addr 3 (MS1=H MS2=H)" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
+  s1: "Yaw | TMC2209 Addr 0 | GPIO 13/14 | base rotation" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
+  s2: "Pitch | TMC2209 Addr 1 | GPIO 16/17 | thrust bearing" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
+  s3: "Roll | TMC2209 Addr 2 | GPIO 18/19 | thrust bearing" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
+  s4: "Belt | TMC2209 Addr 3 | GPIO 25/26 | linear drive" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
 }
 
 # === DECOUPLING CAPS ===
-caps: "Decoupling Caps (per driver) | 100uF 50V + 100nF ceramic on VMOT" {
+caps: "4x Decoupling Caps | 100uF 50V + 100nF ceramic per VMOT" {
   shape: rectangle
   style.fill: "#FFCDD2"
   style.stroke: "#C62828"
   style.font-size: 11
 }
 
-# === STEPPER MOTORS ===
-motors: "NEMA 17 Stepper Motors" {
-  style.fill: "#FFF3E0"
-  style.stroke: "#EF6C00"
-  style.border-radius: 8
-
-  m1: "Yaw Motor (base rotation)" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
-  m2: "Pitch Motor (thrust bearing)" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
-  m3: "Roll Motor (thrust bearing)" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
-  m4: "Belt Motor (linear drive)" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
-}
-
 # === FANS ===
 fans: "4x 24V 80mm Fans (~0.6A total)" {shape: rectangle; style.fill: "#ECEFF1"; style.stroke: "#78909C"}
 
-# === WIFI ===
-wifi: "WiFi Link to Raspberry Pi" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-
-# === POWER: Bus bar to drivers (via Wago, 18 AWG each) ===
-busbar -> drivers.d1: "18 AWG (VMOT)" {style.stroke: "#EF6C00"}
-busbar -> drivers.d2_drv: "18 AWG (VMOT)" {style.stroke: "#EF6C00"}
-busbar -> drivers.d3: "18 AWG (VMOT)" {style.stroke: "#EF6C00"}
-busbar -> drivers.d4: "18 AWG (VMOT)" {style.stroke: "#EF6C00"}
+# === POWER: Bus bar to stepper bank ===
+busbar -> stepper_bank: "18 AWG each (VMOT via Wago, not breadboard)" {style.stroke: "#EF6C00"; style.stroke-width: 2}
 busbar -> fans: "22 AWG" {style.stroke: "#78909C"}
 busbar -> caps: "across VMOT/GND" {style.stroke: "#C62828"; style.stroke-dash: 3}
 
-# === SIGNAL: ESP32 to drivers ===
-esp32 -> drivers.d1: "GPIO 13/14 STEP/DIR" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-esp32 -> drivers.d2_drv: "GPIO 16/17 STEP/DIR" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-esp32 -> drivers.d3: "GPIO 18/19 STEP/DIR" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-esp32 -> drivers.d4: "GPIO 25/26 STEP/DIR" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-esp32 -> drivers: "UART shared bus (1k bridge TX/RX)" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-esp32 -> drivers: "3.3V to all VIO" {style.stroke: "#43A047"}
-
-# === MOTOR COILS ===
-drivers.d1 -> motors.m1: "6-to-4 pin, 1M" {style.stroke: "#EF6C00"}
-drivers.d2_drv -> motors.m2: "6-to-4 pin, 1M" {style.stroke: "#EF6C00"}
-drivers.d3 -> motors.m3: "6-to-4 pin, 1M" {style.stroke: "#EF6C00"}
-drivers.d4 -> motors.m4: "6-to-4 pin, 1M" {style.stroke: "#EF6C00"}
+# === SIGNAL: ESP32 to stepper bank ===
+esp32 -> stepper_bank: "STEP/DIR (4 pairs) + UART shared bus (1k bridge) + 3.3V VIO" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 
 # === WIFI ===
+wifi: "WiFi Link to Raspberry Pi" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 esp32 -> wifi {style.stroke: "#7B1FA2"; style.stroke-dash: 5}
 
 # === GND ===
