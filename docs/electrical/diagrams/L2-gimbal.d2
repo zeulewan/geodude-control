@@ -25,18 +25,25 @@ esp32: "ESP32 DOIT DevKit V1" {shape: rectangle; style.fill: "#F3E5F5"; style.st
 
 usb -> esp32: "5V USB" {style.stroke: "#43A047"}
 
-# === 4x TMC2209 + NEMA 17 (combined) ===
-stepper_bank: "4x TMC2209 + NEMA 17 Stepper Motors" {
-  style.fill: "#FFF3E0"
+# === 4x TMC2209 DRIVERS ===
+drivers: "4x TMC2209 Stepper Drivers | UART addressed | 2A RMS each | breadboard for logic, Wago for power" {
+  shape: rectangle
+  style.fill: "#FFE0B2"
   style.stroke: "#EF6C00"
   style.stroke-width: 2
   style.border-radius: 8
-
-  s1: "Yaw | TMC2209 Addr 0 | GPIO 13/14 | base rotation" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
-  s2: "Pitch | TMC2209 Addr 1 | GPIO 16/17 | thrust bearing" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
-  s3: "Roll | TMC2209 Addr 2 | GPIO 18/19 | thrust bearing" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
-  s4: "Belt | TMC2209 Addr 3 | GPIO 25/26 | linear drive" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
 }
+
+# === 4x NEMA 17 MOTORS ===
+motors: "4x NEMA 17 Steppers | Yaw, Pitch, Roll, Belt | 6-to-4 pin cables" {
+  shape: rectangle
+  style.fill: "#FFE0B2"
+  style.stroke: "#EF6C00"
+  style.stroke-width: 2
+  style.border-radius: 8
+}
+
+drivers -> motors: "coil A/B (6-to-4 pin, 1M)" {style.stroke: "#EF6C00"}
 
 # === DECOUPLING CAPS ===
 caps: "4x Decoupling Caps | 100uF 50V + 100nF ceramic per VMOT" {
@@ -50,12 +57,12 @@ caps: "4x Decoupling Caps | 100uF 50V + 100nF ceramic per VMOT" {
 fans: "4x 24V 80mm Fans (~0.6A total)" {shape: rectangle; style.fill: "#ECEFF1"; style.stroke: "#78909C"}
 
 # === POWER: Bus bar to stepper bank ===
-busbar -> stepper_bank: "18 AWG each (VMOT via Wago, not breadboard)" {style.stroke: "#EF6C00"; style.stroke-width: 2}
+busbar -> drivers: "18 AWG each (VMOT via Wago, not breadboard)" {style.stroke: "#EF6C00"; style.stroke-width: 2}
 busbar -> fans: "22 AWG" {style.stroke: "#78909C"}
 busbar -> caps: "across VMOT/GND" {style.stroke: "#C62828"; style.stroke-dash: 3}
 
 # === SIGNAL: ESP32 to stepper bank ===
-esp32 -> stepper_bank: "STEP/DIR (4 pairs) + UART shared bus (1k bridge) + 3.3V VIO" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+esp32 -> drivers: "STEP/DIR (4 pairs) + UART shared bus (1k bridge) + 3.3V VIO" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 
 # === WIFI ===
 wifi: "WiFi Link to Raspberry Pi" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"; style.stroke-dash: 3}
