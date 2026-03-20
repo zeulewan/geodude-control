@@ -24,7 +24,7 @@ esp32: "ESP32 DOIT DevKit V1" {shape: rectangle; style.fill: "#F3E5F5"; style.st
 usb -> esp32: "5V USB" {style.stroke: "#43A047"}
 
 # === 4x TMC2209 DRIVERS ===
-drivers: "4x TMC2209 Stepper Drivers | UART addressed | 2A RMS each | breadboard for logic, Wago for power" {
+drivers: "4x TMC2209 Stepper Drivers | UART addressed | 2A RMS each | breadboard for logic" {
   shape: rectangle
   style.fill: "#FFE0B2"
   style.stroke: "#EF6C00"
@@ -55,7 +55,7 @@ caps: "4x Decoupling Caps | 100uF 50V + 100nF ceramic per VMOT" {
 fans: "4x 24V 80mm Fans (~0.6A total)" {shape: rectangle; style.fill: "#ECEFF1"; style.stroke: "#78909C"}
 
 # === POWER: Bus bar to stepper bank ===
-busbar -> drivers: "18 AWG each (VMOT via Wago, not breadboard)" {style.stroke: "#EF6C00"; style.stroke-width: 2}
+busbar -> drivers: "18 AWG each (VMOT, ring terminals to bus bar)" {style.stroke: "#EF6C00"; style.stroke-width: 2}
 busbar -> fans: "22 AWG" {style.stroke: "#78909C"}
 busbar -> caps: "across VMOT/GND" {style.stroke: "#C62828"; style.stroke-dash: 3}
 
