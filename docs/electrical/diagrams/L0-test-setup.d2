@@ -28,32 +28,32 @@ gimbal: Gimbal Apparatus - 24V System {
     style.fill: "#FFE0B2"
     style.stroke: "#EF6C00"
   }
-  esp32: ESP32 Controller {
-    shape: rectangle
-    style.fill: "#F3E5F5"
-    style.stroke: "#7B1FA2"
-  }
-  drivers: 4x TMC2209\nStepper Drivers {
+  busbar: V+ Bus Bar {
     shape: rectangle
     style.fill: "#FFE0B2"
     style.stroke: "#EF6C00"
+  }
+  perfboard: Gimbal Perfboard {
+    shape: rectangle
+    style.fill: "#F3E5F5"
+    style.stroke: "#7B1FA2"
   }
   steppers: 4x NEMA 17 Steppers\nYaw / Pitch / Roll / Belt {
     shape: rectangle
     style.fill: "#FFE0B2"
     style.stroke: "#EF6C00"
   }
-  fans: 4x 24V Fans {
+  usb: 5V USB Adapter\n(separate outlet) {
     shape: rectangle
-    style.fill: "#ECEFF1"
-    style.stroke: "#78909C"
+    style.fill: "#E8F5E9"
+    style.stroke: "#43A047"
   }
 
   wall -> psu: 120V AC {style.stroke: "#C62828"; style.stroke-width: 2}
-  psu -> drivers: 24V {style.stroke: "#EF6C00"}
-  psu -> fans: 24V {style.stroke: "#EF6C00"}
-  esp32 -> drivers: STEP/DIR + UART {style.stroke: "#7B1FA2"}
-  drivers -> steppers: coil drive {style.stroke: "#EF6C00"}
+  psu -> busbar: 14 AWG {style.stroke: "#EF6C00"}
+  busbar -> perfboard: 24V VMOT {style.stroke: "#EF6C00"}
+  usb -> perfboard: 5V barrel jack {style.stroke: "#43A047"}
+  perfboard -> steppers: JST-XH {style.stroke: "#EF6C00"}
 }
 
 # --- Linear Rails (middle) ---
@@ -94,17 +94,17 @@ geodude: GEO-DUDe Servicer - 12V System {
     style.fill: "#BBDEFB"
     style.stroke: "#1565C0"
   }
-  pi: Raspberry Pi {
+  busbar: V+ Bus Bar {
+    shape: rectangle
+    style.fill: "#BBDEFB"
+    style.stroke: "#1565C0"
+  }
+  pi: Raspberry Pi\n+ PCA9685 PWM {
     shape: rectangle
     style.fill: "#F3E5F5"
     style.stroke: "#7B1FA2"
   }
-  pca: PCA9685\nPWM Driver {
-    shape: rectangle
-    style.fill: "#F3E5F5"
-    style.stroke: "#7B1FA2"
-  }
-  servos: 14x PWM Servos\n6-DOF Robotic Arm {
+  fuse_boards: Arm Fuse Boards (x2)\n10 servos, 2 arms {
     shape: rectangle
     style.fill: "#BBDEFB"
     style.stroke: "#1565C0"
@@ -119,16 +119,22 @@ geodude: GEO-DUDe Servicer - 12V System {
     style.fill: "#ECEFF1"
     style.stroke: "#78909C"
   }
+  limits: 10x Limit Switches {
+    shape: rectangle
+    style.fill: "#FFF3E0"
+    style.stroke: "#EF6C00"
+  }
 
   wall -> slip: 120V AC {style.stroke: "#C62828"; style.stroke-width: 2}
   slip -> psu: AC passthrough {style.stroke: "#C62828"}
-  psu -> pi: 5V (buck 2) {style.stroke: "#43A047"}
-  psu -> servos: 12V / 7.4V / 5V {style.stroke: "#1565C0"}
-  psu -> mace: 12V via ESC {style.stroke: "#1565C0"}
-  pi -> pca: I2C {style.stroke: "#7B1FA2"}
-  pca -> servos: PWM x14 {style.stroke: "#7B1FA2"}
-  pca -> mace: PWM Ch 14 {style.stroke: "#7B1FA2"}
+  psu -> busbar: 16 AWG {style.stroke: "#1565C0"}
+  busbar -> pi: 5V (buck 2, always on) {style.stroke: "#43A047"}
+  busbar -> fuse_boards: 40A fuse + toggle {style.stroke: "#1565C0"}
+  busbar -> mace: 12 AWG (direct, no fuse) {style.stroke: "#3949AB"}
+  pi -> fuse_boards: PWM + I2C {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+  pi -> mace: PWM + I2C {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
   pi -> camera: CSI {style.stroke: "#78909C"}
+  pi -> limits: GPIO {style.stroke: "#EF6C00"; style.stroke-dash: 3}
 }
 
 rails -> geodude: GEO-DUDe\ntravels along {
@@ -159,12 +165,12 @@ basestation: Base Station (Ground Control) {
 }
 
 # --- WiFi links ---
-gimbal.esp32 <-> geodude.pi: WiFi\ncoordinated operation {
+gimbal.perfboard <-> geodude.pi: WiFi\ncoordinated operation {
   style.stroke: "#7B1FA2"
   style.stroke-width: 2
   style.stroke-dash: 3
 }
-basestation.pi <-> gimbal.esp32: WiFi {
+basestation.pi <-> gimbal.perfboard: WiFi {
   style.stroke: "#AD1457"
   style.stroke-width: 2
   style.stroke-dash: 3
