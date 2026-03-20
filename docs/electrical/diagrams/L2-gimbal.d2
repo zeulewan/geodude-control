@@ -55,7 +55,8 @@ motors: "4x NEMA 17 Steppers | Yaw, Pitch, Roll, Belt" {
 
 # === POWER: Bus bar to perfboard screw terminals ===
 busbar -> perfboard.screw_24v: "24V, 18 AWG each" {style.stroke: "#EF6C00"; style.stroke-width: 2}
-perfboard.screw_24v -> perfboard.caps -> perfboard.drivers {style.stroke: "#EF6C00"}
+perfboard.screw_24v -> perfboard.drivers: "VMOT" {style.stroke: "#EF6C00"}
+perfboard.screw_24v -> perfboard.caps: "parallel across VMOT/GND" {style.stroke: "#C62828"; style.stroke-dash: 3}
 
 # === MOTOR CABLES ===
 perfboard.jst_out -> motors: "6-to-4 pin cables, 1M" {style.stroke: "#EF6C00"}
