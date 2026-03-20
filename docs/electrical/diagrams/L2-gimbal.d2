@@ -29,14 +29,12 @@ perfboard: "Gimbal Perfboard" {
   drivers: "4x TMC2209 Drivers (pin headers) | UART addressed | 2A RMS each" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"; style.stroke-width: 2}
   caps: "4x 100uF 50V + 4x 100nF caps (per VMOT)" {shape: rectangle; style.fill: "#FFCDD2"; style.stroke: "#C62828"; style.font-size: 11}
   resistor: "1k resistor (UART TX/RX bridge)" {shape: rectangle; style.fill: "#ECEFF1"; style.stroke: "#78909C"; style.font-size: 11}
-  screw_in: "Screw Terminals (in) | 10 positions: 4x VMOT+GND + 1x bus bar V+/GND" {shape: rectangle; style.fill: "#B0BEC5"; style.stroke: "#546E7A"; style.stroke-width: 2}
   jst_out: "4x JST-XH 4-pin sockets (motor outputs)" {shape: rectangle; style.fill: "#B0BEC5"; style.stroke: "#546E7A"; style.stroke-width: 2}
 
   usb -> esp32: "5V USB" {style.stroke: "#43A047"}
   esp32 -> drivers: "STEP/DIR (4 pairs) + UART + 3.3V VIO" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
   esp32 -> resistor: "UART" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
   resistor -> drivers: "shared bus" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-  screw_in -> caps -> drivers {style.stroke: "#EF6C00"}
   drivers -> jst_out: "coil A/B" {style.stroke: "#EF6C00"}
 }
 
@@ -49,8 +47,9 @@ motors: "4x NEMA 17 Steppers | Yaw, Pitch, Roll, Belt" {
   style.border-radius: 8
 }
 
-# === POWER: Bus bar to perfboard ===
-busbar -> perfboard.screw_in: "18 AWG each (ring terminals to bus bar)" {style.stroke: "#EF6C00"; style.stroke-width: 2}
+# === POWER: Bus bar direct to drivers (off-board, not through perfboard) ===
+busbar -> perfboard.drivers: "18 AWG each VMOT (ring terminals, off-board wiring)" {style.stroke: "#EF6C00"; style.stroke-width: 2}
+busbar -> perfboard.caps: "across VMOT/GND" {style.stroke: "#C62828"; style.stroke-dash: 3}
 
 # === MOTOR CABLES ===
 perfboard.jst_out -> motors: "6-to-4 pin cables, 1M" {style.stroke: "#EF6C00"}
