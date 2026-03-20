@@ -133,17 +133,29 @@ ESP32 is powered separately via a 5V USB adapter, NOT from the 24V bus.
 
 ## Power Architecture
 
-```mermaid
-graph TD
-    MAINS["Separate Mains<br/>Connection"] --> PSU["24V 480W PSU"]
-    PSU --> F_MAIN["Main Fuse (12A)"]
-    F_MAIN --> BUS["24V Bus"]
-    BUS --> DRV1["TMC2209 #1<br/>Yaw Stepper"]
-    BUS --> DRV2["TMC2209 #2<br/>Pitch Stepper"]
-    BUS --> DRV3["TMC2209 #3<br/>Roll Stepper"]
-    BUS --> DRV4["TMC2209 #4<br/>Belt Stepper"]
-    BUS --> FAN["24V Fans x4"]
+PSU -> 14 AWG -> V+ Bus Bar (250A, 5/16" stud) -> 18 AWG to each TMC2209 VMOT (ring terminals).
 
-    USB["5V USB Adapter<br/>(separate)"] --> ESP["ESP32"]
-    ESP --> WIFI["WiFi to Pi"]
-```
+No DC fuse on the gimbal. Overcurrent protection is handled by:
+
+- TMC2209 drivers: 2A RMS current limit per driver (hardware)
+- PSU: 20A overcurrent shutdown
+- Wall breaker: 15A
+
+### AC Current Calculation (no fuse needed)
+
+| Load | DC Current (24V) | AC Current (120V) |
+|------|------------------|-------------------|
+| 4x steppers (TMC2209 limited) | 8A | - |
+| Total DC | 8.6A | - |
+| PSU at full load (480W) | - | 4.0A |
+| With efficiency losses (~85%) | - | ~4.7A |
+
+Combined with GEO-DUDe on the same outlet:
+
+| System | AC Draw (max) |
+|--------|---------------|
+| GEO-DUDe (600W PSU) | ~5.9A |
+| Gimbal (480W PSU) | ~4.7A |
+| **Total** | **~10.6A** |
+
+15A wall breaker provides 30% margin at absolute worst case. No AC fuse needed.
