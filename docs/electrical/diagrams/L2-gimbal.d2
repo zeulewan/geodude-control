@@ -19,7 +19,7 @@ usb_adapter: "5V USB Wall Adapter" {shape: rectangle; style.fill: "#E8F5E9"; sty
 
 wall -> psu: "120V AC" {style.stroke: "#C62828"; style.stroke-width: 2}
 wall2 -> usb_adapter: "120V AC" {style.stroke: "#C62828"}
-usb_adapter -> perfboard.barrel: "5V barrel jack" {style.stroke: "#43A047"}
+usb_adapter -> perfboard.screw_in: "5V barrel jack" {style.stroke: "#43A047"}
 psu -> busbar: "14 AWG" {style.stroke: "#EF6C00"; style.stroke-width: 2}
 
 # === PERFBOARD ===
@@ -29,18 +29,35 @@ perfboard: "Gimbal Perfboard" {
   style.stroke-width: 2
   style.border-radius: 8
 
-  barrel: "5V Barrel Jack (in)" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
-  esp32: "ESP32 DOIT DevKit V1 (pin headers)" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"; style.stroke-width: 2}
-  drivers: "4x TMC2209 Drivers (pin headers) | UART addressed | 2A RMS each" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"; style.stroke-width: 2}
-  caps: "4x 100uF 50V + 4x 100nF caps (per VMOT)" {shape: rectangle; style.fill: "#FFCDD2"; style.stroke: "#C62828"; style.font-size: 11}
-  resistor: "1k resistor (UART TX/RX bridge)" {shape: rectangle; style.fill: "#ECEFF1"; style.stroke: "#78909C"; style.font-size: 11}
-  screw_24v: "4x Screw Terminals (24V VMOT in, beside JST)" {shape: rectangle; style.fill: "#B0BEC5"; style.stroke: "#546E7A"; style.stroke-width: 2}
-  jst_out: "4x JST-XH 4-pin sockets (motor outputs)" {shape: rectangle; style.fill: "#B0BEC5"; style.stroke: "#546E7A"; style.stroke-width: 2}
+  direction: right
 
-  barrel -> esp32: "5V" {style.stroke: "#43A047"}
-  esp32 -> drivers: "STEP/DIR (4 pairs) + UART + 3.3V VIO" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-  esp32 -> resistor: "UART" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-  resistor -> drivers: "shared bus" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+  screw_in: "Screw Terminals (in) | 24V VMOT x4 | 5V barrel jack | GND" {
+    shape: rectangle
+    style.fill: "#B0BEC5"
+    style.stroke: "#546E7A"
+    style.stroke-width: 2
+    width: 80
+    height: 400
+  }
+
+  esp32: "ESP32 DOIT DevKit V1" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"; style.stroke-width: 2}
+  drivers: "4x TMC2209 Drivers | UART addressed | 2A RMS each" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"; style.stroke-width: 2}
+  caps: "4x 100uF 50V + 4x 100nF caps" {shape: rectangle; style.fill: "#FFCDD2"; style.stroke: "#C62828"; style.font-size: 11}
+  resistor: "1k resistor (UART bridge)" {shape: rectangle; style.fill: "#ECEFF1"; style.stroke: "#78909C"; style.font-size: 11}
+
+  jst_out: "4x JST-XH 4-pin sockets (motor out)" {
+    shape: rectangle
+    style.fill: "#B0BEC5"
+    style.stroke: "#546E7A"
+    style.stroke-width: 2
+    width: 80
+    height: 400
+  }
+
+  screw_in -> esp32: "5V" {style.stroke: "#43A047"}
+  screw_in -> caps -> drivers: "24V VMOT" {style.stroke: "#EF6C00"}
+  esp32 -> drivers: "STEP/DIR + UART + 3.3V VIO" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+  esp32 -> resistor -> drivers: "UART shared bus" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
   drivers -> jst_out: "coil A/B" {style.stroke: "#EF6C00"}
 }
 
@@ -53,10 +70,8 @@ motors: "4x NEMA 17 Steppers | Yaw, Pitch, Roll, Belt" {
   style.border-radius: 8
 }
 
-# === POWER: Bus bar to perfboard screw terminals ===
-busbar -> perfboard.screw_24v: "24V, 18 AWG each" {style.stroke: "#EF6C00"; style.stroke-width: 2}
-perfboard.screw_24v -> perfboard.drivers: "VMOT" {style.stroke: "#EF6C00"}
-perfboard.screw_24v -> perfboard.caps: "parallel across VMOT/GND" {style.stroke: "#C62828"; style.stroke-dash: 3}
+# === POWER: Bus bar to perfboard ===
+busbar -> perfboard.screw_in: "24V, 18 AWG each" {style.stroke: "#EF6C00"; style.stroke-width: 2}
 
 # === MOTOR CABLES ===
 perfboard.jst_out -> motors: "6-to-4 pin cables, 1M" {style.stroke: "#EF6C00"}
