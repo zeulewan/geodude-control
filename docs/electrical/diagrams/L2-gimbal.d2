@@ -52,11 +52,9 @@ caps: "4x Decoupling Caps | 100uF 50V + 100nF ceramic per VMOT" {
 }
 
 # === FANS ===
-fans: "4x 24V 80mm Fans (~0.6A total)" {shape: rectangle; style.fill: "#ECEFF1"; style.stroke: "#78909C"}
 
 # === POWER: Bus bar to stepper bank ===
 busbar -> drivers: "18 AWG each (VMOT, ring terminals to bus bar)" {style.stroke: "#EF6C00"; style.stroke-width: 2}
-busbar -> fans: "22 AWG" {style.stroke: "#78909C"}
 busbar -> caps: "across VMOT/GND" {style.stroke: "#C62828"; style.stroke-dash: 3}
 
 # === SIGNAL: ESP32 to stepper bank ===
