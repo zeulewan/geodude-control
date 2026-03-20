@@ -17,23 +17,31 @@ busbar: "V+ Bus Bar (250A, 5/16\" stud)" {shape: rectangle; style.fill: "#FFE0B2
 wall -> psu: "120V AC" {style.stroke: "#C62828"; style.stroke-width: 2}
 psu -> busbar: "14 AWG (no fuse, TMC2209 + PSU protected)" {style.stroke: "#EF6C00"; style.stroke-width: 2}
 
-# === ESP32 (separate 5V USB power) ===
-usb: "5V USB Adapter" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
-esp32: "ESP32 DOIT DevKit V1" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"; style.stroke-width: 2}
-
-usb -> esp32: "5V USB" {style.stroke: "#43A047"}
-
-# === 4x TMC2209 DRIVERS ===
-drivers: "4x TMC2209 Stepper Drivers | UART addressed | 2A RMS each | breadboard for logic" {
-  shape: rectangle
-  style.fill: "#FFE0B2"
-  style.stroke: "#EF6C00"
+# === PERFBOARD ===
+perfboard: "Gimbal Perfboard" {
+  style.fill: "#F3E5F5"
+  style.stroke: "#7B1FA2"
   style.stroke-width: 2
   style.border-radius: 8
+
+  usb: "5V USB Adapter" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
+  esp32: "ESP32 DOIT DevKit V1 (pin headers)" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"; style.stroke-width: 2}
+  drivers: "4x TMC2209 Drivers (pin headers) | UART addressed | 2A RMS each" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"; style.stroke-width: 2}
+  caps: "4x 100uF 50V + 4x 100nF caps (per VMOT)" {shape: rectangle; style.fill: "#FFCDD2"; style.stroke: "#C62828"; style.font-size: 11}
+  resistor: "1k resistor (UART TX/RX bridge)" {shape: rectangle; style.fill: "#ECEFF1"; style.stroke: "#78909C"; style.font-size: 11}
+  screw_in: "Screw Terminals (in) | 10 positions: 4x VMOT+GND + 1x bus bar V+/GND" {shape: rectangle; style.fill: "#B0BEC5"; style.stroke: "#546E7A"; style.stroke-width: 2}
+  jst_out: "4x JST-XH 4-pin sockets (motor outputs)" {shape: rectangle; style.fill: "#B0BEC5"; style.stroke: "#546E7A"; style.stroke-width: 2}
+
+  usb -> esp32: "5V USB" {style.stroke: "#43A047"}
+  esp32 -> drivers: "STEP/DIR (4 pairs) + UART + 3.3V VIO" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+  esp32 -> resistor: "UART" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+  resistor -> drivers: "shared bus" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+  screw_in -> caps -> drivers {style.stroke: "#EF6C00"}
+  drivers -> jst_out: "coil A/B" {style.stroke: "#EF6C00"}
 }
 
 # === 4x NEMA 17 MOTORS ===
-motors: "4x NEMA 17 Steppers | Yaw, Pitch, Roll, Belt | 6-to-4 pin cables" {
+motors: "4x NEMA 17 Steppers | Yaw, Pitch, Roll, Belt" {
   shape: rectangle
   style.fill: "#FFE0B2"
   style.stroke: "#EF6C00"
@@ -41,31 +49,18 @@ motors: "4x NEMA 17 Steppers | Yaw, Pitch, Roll, Belt | 6-to-4 pin cables" {
   style.border-radius: 8
 }
 
-drivers -> motors: "coil A/B (6-to-4 pin, 1M)" {style.stroke: "#EF6C00"}
+# === POWER: Bus bar to perfboard ===
+busbar -> perfboard.screw_in: "18 AWG each (ring terminals to bus bar)" {style.stroke: "#EF6C00"; style.stroke-width: 2}
 
-# === DECOUPLING CAPS ===
-caps: "4x Decoupling Caps | 100uF 50V + 100nF ceramic per VMOT" {
-  shape: rectangle
-  style.fill: "#FFCDD2"
-  style.stroke: "#C62828"
-  style.font-size: 11
-}
-
-# === FANS ===
-
-# === POWER: Bus bar to stepper bank ===
-busbar -> drivers: "18 AWG each (VMOT, ring terminals to bus bar)" {style.stroke: "#EF6C00"; style.stroke-width: 2}
-busbar -> caps: "across VMOT/GND" {style.stroke: "#C62828"; style.stroke-dash: 3}
-
-# === SIGNAL: ESP32 to stepper bank ===
-esp32 -> drivers: "STEP/DIR (4 pairs) + UART shared bus (1k bridge) + 3.3V VIO" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+# === MOTOR CABLES ===
+perfboard.jst_out -> motors: "6-to-4 pin cables, 1M" {style.stroke: "#EF6C00"}
 
 # === WIFI ===
 wifi: "WiFi Link to Raspberry Pi" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-esp32 -> wifi {style.stroke: "#7B1FA2"; style.stroke-dash: 5}
+perfboard.esp32 -> wifi {style.stroke: "#7B1FA2"; style.stroke-dash: 5}
 
 # === GND ===
-gnd: "GND Bus Bar (250A, 5/16\" stud) | PSU GND -> 14 AWG -> bus bar | 18 AWG to each driver GND" {
+gnd: "GND Bus Bar (250A, 5/16\" stud) | PSU GND -> 14 AWG -> bus bar | 18 AWG to perfboard GND" {
   shape: rectangle
   style.fill: "#ECEFF1"
   style.stroke: "#546E7A"
