@@ -1,6 +1,6 @@
 title: |md
   # Subscale Satellite Test Setup
-  AER813 Capstone - Full System Overview
+  AER813 Capstone
 | {
   near: top-center
   shape: text
@@ -9,12 +9,21 @@ title: |md
 
 direction: right
 
-# --- Gimbal ---
-gimbal: "Gimbal Apparatus (24V) | ESP32 + 4x TMC2209 + 4x NEMA 17 | Yaw, Pitch, Roll, Belt" {
+# --- Gimbal System ---
+gimbal: Gimbal Apparatus - 24V System {
   style.fill: "#FFF3E0"
   style.stroke: "#EF6C00"
   style.stroke-width: 3
   style.border-radius: 12
+
+  psu: "24V 480W PSU" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
+  busbar: "V+ Bus Bar" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
+  perfboard: "Gimbal Perfboard | ESP32 + 4x TMC2209" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
+  steppers: "4x NEMA 17 | Yaw, Pitch, Roll, Belt" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
+
+  psu -> busbar: "14 AWG" {style.stroke: "#EF6C00"}
+  busbar -> perfboard: "24V" {style.stroke: "#EF6C00"}
+  perfboard -> steppers: "JST-XH" {style.stroke: "#EF6C00"}
 }
 
 # --- Linear Rails ---
@@ -26,27 +35,47 @@ rails: "Linear Rail System | HGR15 1000mm + Belt Drive" {
   style.border-radius: 8
 }
 
-# --- GEO-DUDe ---
-geodude: "GEO-DUDe Servicer (12V) | Pi + PCA9685 + Pi Camera | 2 arms (10 servos) + MACE reaction wheel | 10 limit switches" {
+gimbal -> rails: "gimbal mounts on" {style.stroke: "#78909C"; style.stroke-dash: 5}
+
+# --- GEO-DUDe System ---
+geodude: GEO-DUDe Servicer - 12V System {
   style.fill: "#E3F2FD"
   style.stroke: "#1565C0"
   style.stroke-width: 3
   style.border-radius: 12
+
+  psu: "12V 600W PSU" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+  busbar: "V+ Bus Bar" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+  pi: "Raspberry Pi | PCA9685 PWM | Pi Camera" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
+  arms: "2x Arm Fuse Boards | 10 servos (5 per arm)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+  mace: "MACE Reaction Wheel | X2807 BLDC + 40A ESC" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+  limits: "10x Limit Switches" {shape: rectangle; style.fill: "#FFF3E0"; style.stroke: "#EF6C00"}
+
+  psu -> busbar {style.stroke: "#1565C0"}
+  busbar -> pi: "5V (buck, always on)" {style.stroke: "#43A047"}
+  busbar -> arms: "40A fuse + toggle" {style.stroke: "#1565C0"}
+  busbar -> mace: "12 AWG direct" {style.stroke: "#3949AB"}
+  pi -> arms: "PWM" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+  pi -> mace: "PWM + I2C" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+  pi -> limits: "GPIO" {style.stroke: "#EF6C00"; style.stroke-dash: 3}
 }
 
+rails -> geodude: "GEO-DUDe travels along" {style.stroke: "#78909C"; style.stroke-dash: 5}
+
 # --- Base Station ---
-basestation: "Base Station | Raspberry Pi + Laptop (Operator UI)" {
+basestation: Base Station {
   style.fill: "#FCE4EC"
   style.stroke: "#AD1457"
   style.stroke-width: 3
   style.border-radius: 12
+
+  laptop: "Laptop (Operator UI)" {shape: rectangle; style.fill: "#F8BBD0"; style.stroke: "#AD1457"}
+  pi: "Raspberry Pi (Ground Control)" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
+
+  laptop -> pi: "USB / Ethernet" {style.stroke: "#AD1457"}
 }
 
-# --- Physical connections ---
-gimbal -> rails: "gimbal mounts on" {style.stroke: "#78909C"; style.stroke-dash: 5}
-rails -> geodude: "GEO-DUDe travels along" {style.stroke: "#78909C"; style.stroke-dash: 5}
-
 # --- WiFi ---
-gimbal <-> geodude: "WiFi" {style.stroke: "#7B1FA2"; style.stroke-width: 2; style.stroke-dash: 3}
-basestation <-> gimbal: "WiFi" {style.stroke: "#AD1457"; style.stroke-width: 2; style.stroke-dash: 3}
-basestation <-> geodude: "WiFi" {style.stroke: "#AD1457"; style.stroke-width: 2; style.stroke-dash: 3}
+gimbal.perfboard <-> geodude.pi: "WiFi" {style.stroke: "#7B1FA2"; style.stroke-width: 2; style.stroke-dash: 3}
+basestation.pi <-> gimbal.perfboard: "WiFi" {style.stroke: "#AD1457"; style.stroke-width: 2; style.stroke-dash: 3}
+basestation.pi <-> geodude.pi: "WiFi" {style.stroke: "#AD1457"; style.stroke-width: 2; style.stroke-dash: 3}
