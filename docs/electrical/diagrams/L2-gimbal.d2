@@ -12,12 +12,10 @@ title: |md
 # === PSU ===
 wall: "Wall Outlet (120V AC)" {shape: page; style.fill: "#FFCDD2"; style.stroke: "#C62828"}
 psu: "24V 480W PSU (20A max)" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"; style.stroke-width: 2}
-fuse: "12A Main Fuse" {shape: diamond; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"}
 busbar: "V+ Bus Bar (250A, 5/16\" stud)" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"; style.stroke-width: 2}
 
 wall -> psu: "120V AC" {style.stroke: "#C62828"; style.stroke-width: 2}
-psu -> fuse: "14 AWG" {style.stroke: "#EF6C00"; style.stroke-width: 2}
-fuse -> busbar: "14 AWG" {style.stroke: "#EF6C00"; style.stroke-width: 2}
+psu -> busbar: "14 AWG (no fuse, TMC2209 + PSU protected)" {style.stroke: "#EF6C00"; style.stroke-width: 2}
 
 # === ESP32 (separate 5V USB power) ===
 usb: "5V USB Adapter" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
