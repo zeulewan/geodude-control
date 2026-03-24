@@ -34,6 +34,17 @@ function ikSelectedArm() {
   return (controllerStatus && controllerStatus.selected_arm) ? controllerStatus.selected_arm : 'left';
 }
 
+function ikApplyPreviewToSliders(result) {
+  if (!result || !result.ok || !result.target_pwms) return;
+  Object.keys(result.target_pwms).forEach(function(channel) {
+    var slider = document.getElementById('ch_' + channel);
+    var value = result.target_pwms[channel];
+    if (!slider || typeof value !== 'number') return;
+    slider.value = value;
+    chUpdateLabel(channel, value);
+  });
+}
+
 function ikFormatPoint(point) {
   if (!point) return 'x:-- y:-- z:--';
   return ['x', 'y', 'z'].map(function(axis) {
@@ -82,6 +93,9 @@ function ikUpdateResult(result) {
       el.textContent = '--';
     }
   });
+  if (result && result.ok && armVizState.mode === 'test') {
+    ikApplyPreviewToSliders(result);
+  }
   if (noteEl) {
     noteEl.className = result && !result.ok ? 'ik-note error' : 'ik-note';
     if (!result) {
@@ -90,6 +104,8 @@ function ikUpdateResult(result) {
       noteEl.textContent = 'Target is outside the current approximate IK workspace or joint limits. Adjust the target or tune the calibration constants in mizi-dev.';
     } else if (result.applied) {
       noteEl.textContent = 'Dry-run move completed on the dev page. The solver returned PWM targets, but this isolated instance is not sending live actuator commands.';
+    } else if (armVizState.mode === 'test') {
+      noteEl.textContent = 'Solve preview updated and applied to the TEST MOVES sliders for visualization only.';
     } else {
       noteEl.textContent = 'Solve preview updated. This is using approximate joint calibration from mizi-dev and should be tuned before merge.';
     }
