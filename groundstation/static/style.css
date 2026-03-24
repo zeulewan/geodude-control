@@ -140,6 +140,7 @@ body {
 
 /* Camera */
 .cam-wrapper {
+  position: relative;
   background: #000;
   border-radius: 8px;
   overflow: hidden;
