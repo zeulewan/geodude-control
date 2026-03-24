@@ -1,13 +1,36 @@
+:root {
+  --bg: #05080a;
+  --bg-grid: rgba(20, 255, 163, 0.07);
+  --panel: rgba(7, 16, 13, 0.92);
+  --panel-strong: rgba(10, 22, 18, 0.96);
+  --panel-soft: rgba(11, 28, 21, 0.9);
+  --border: rgba(49, 196, 141, 0.28);
+  --border-strong: rgba(109, 255, 191, 0.45);
+  --text: #d7ffe9;
+  --muted: #78a792;
+  --green: #65ffb4;
+  --green-dim: #2fd38e;
+  --amber: #ffd166;
+  --red: #ff6b6b;
+  --blue: #6ee7ff;
+}
+
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
-  background: #0a0e17;
-  color: #e0e6f0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background:
+    linear-gradient(180deg, rgba(13, 31, 23, 0.22), transparent 28%),
+    linear-gradient(90deg, transparent 24px, var(--bg-grid) 25px, transparent 26px),
+    linear-gradient(transparent 24px, var(--bg-grid) 25px, transparent 26px),
+    var(--bg);
+  background-size: auto, 26px 26px, 26px 26px, auto;
+  color: var(--text);
+  font-family: 'IBM Plex Sans', 'Segoe UI', sans-serif;
   min-height: 100vh;
 }
 .header {
-  background: #141824;
-  border-bottom: 1px solid #1e2433;
+  background: rgba(5, 14, 11, 0.94);
+  border-bottom: 1px solid var(--border-strong);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
   padding: 8px 16px;
   display: flex;
   align-items: center;
@@ -16,7 +39,10 @@ body {
 .header h1 {
   font-size: 18px;
   font-weight: 700;
-  letter-spacing: 1px;
+  letter-spacing: 1.6px;
+  color: var(--green);
+  font-family: 'IBM Plex Mono', 'SF Mono', 'Fira Code', monospace;
+  text-transform: uppercase;
 }
 .header-status {
   display: flex;
@@ -27,21 +53,33 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
-  color: #9ca3af;
+  font-size: 12px;
+  color: var(--muted);
+  font-family: 'IBM Plex Mono', 'SF Mono', 'Fira Code', monospace;
+  text-transform: uppercase;
 }
 .status-dot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #ef4444;
+  background: var(--red);
   transition: background 0.3s;
+  box-shadow: 0 0 12px currentColor;
 }
-.status-dot.ok { background: #22c55e; }
-.status-dot.warn { background: #f59e0b; }
+.status-dot.ok { background: var(--green); }
+.status-dot.warn { background: var(--amber); }
 
 /* Sections */
-.section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #6b7280; margin: 10px 0 6px; padding-bottom: 4px; border-bottom: 1px solid #1e2433; }
+.section-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.4px;
+  color: var(--muted);
+  margin: 10px 0 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+  font-family: 'IBM Plex Mono', 'SF Mono', 'Fira Code', monospace;
+}
 
 .container {
   max-width: 100%;
@@ -68,18 +106,10 @@ body {
   margin-bottom: 0;
   flex: 1 1 280px;
 }
-.dashboard-camera {
-  flex-basis: 320px;
-}
-.dashboard-ml {
-  flex-basis: 420px;
-}
-.dashboard-sensors {
-  flex-basis: 330px;
-}
-#attitudeCard.dashboard-card {
-  flex-basis: 430px;
-}
+.dashboard-camera { flex-basis: 320px; }
+.dashboard-ml { flex-basis: 420px; }
+.dashboard-sensors { flex-basis: 330px; }
+#attitudeCard.dashboard-card { flex-basis: 430px; }
 .sensor-mini-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -90,10 +120,11 @@ body {
 }
 .sensor-panel-title {
   font-size: 10px;
-  color: #6b7280;
+  color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 6px;
+  font-family: 'IBM Plex Mono', 'SF Mono', 'Fira Code', monospace;
 }
 .compact-encoder {
   gap: 8px;
@@ -114,40 +145,78 @@ body {
   font-size: 12px;
 }
 .card {
-  background: #141824;
-  border: 1px solid #1e2433;
-  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(9, 24, 18, 0.96), rgba(7, 14, 12, 0.96));
+  border: 1px solid var(--border);
+  border-radius: 10px;
   padding: 10px;
   margin-bottom: 8px;
+  box-shadow: inset 0 0 0 1px rgba(101, 255, 180, 0.03), 0 10px 24px rgba(0, 0, 0, 0.22);
 }
 .card h3 {
-  font-size: 11px;
+  font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  color: #6b7280;
+  letter-spacing: 1.4px;
+  color: var(--green);
   margin-bottom: 6px;
-  font-weight: 600;
+  font-weight: 700;
+  font-family: 'IBM Plex Mono', 'SF Mono', 'Fira Code', monospace;
 }
 .inner {
-  background: #1e293b;
-  border-radius: 6px;
+  background: var(--panel-soft);
+  border-radius: 7px;
   padding: 8px;
+  border: 1px solid rgba(60, 170, 123, 0.18);
 }
 .inner + .inner { margin-top: 6px; }
 
-/* Camera */
-.cam-wrapper {
-  background: #000;
-  border-radius: 8px;
-  overflow: hidden;
-  line-height: 0;
+.btn,
+button.btn {
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(13, 42, 30, 0.95), rgba(9, 24, 18, 0.95));
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  font-family: 'IBM Plex Mono', 'SF Mono', 'Fira Code', monospace;
 }
-.cam-wrapper img {
-  width: 100%;
-  max-width: 100%;
-  border-radius: 8px;
+.btn:hover,
+button.btn:hover {
+  border-color: var(--border-strong);
+  box-shadow: 0 0 0 1px rgba(101, 255, 180, 0.18), 0 0 18px rgba(47, 211, 142, 0.12);
+}
+.btn-dark { color: var(--muted); }
+.btn-green { color: #04110a; background: linear-gradient(180deg, #8affca, #43d68e); border-color: rgba(138, 255, 202, 0.55); }
+.btn-amber { color: #1a1404; background: linear-gradient(180deg, #ffe08c, #ffc94d); border-color: rgba(255, 209, 102, 0.55); }
+.btn-red { color: #1b0707; background: linear-gradient(180deg, #ff9e9e, #ff6b6b); border-color: rgba(255, 107, 107, 0.55); }
+
+.slider-label .label,
+.controller-stat .label,
+.att-stat .label,
+.status-row .label,
+.sys-item .label,
+.vision-stat .label,
+.sensor-val .label {
+  color: var(--muted);
+}
+.slider-label .value,
+.controller-stat .value,
+.att-stat .value,
+.status-row .value,
+.sys-item .value,
+.vision-stat .value,
+.sensor-val .value,
+.ch-val {
+  color: var(--text);
 }
 
+input[type="range"] {
+  accent-color: var(--green-dim);
+}
+input[type="number"],
+select {
+  background: rgba(8, 21, 17, 0.96);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
 /* ML Vision */
 .vision-shell {
   display: flex;
