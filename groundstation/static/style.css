@@ -1367,3 +1367,171 @@ input[type="number"]::-webkit-outer-spin-button {
   .angle-btns { grid-template-columns: repeat(5, 1fr); }
   .compact-wide-card { width: 100%; }
 }
+
+
+.page-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.page-tab {
+  appearance: none;
+  border: 1px solid #233146;
+  background: #0f172a;
+  color: #94a3b8;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  cursor: pointer;
+}
+.page-tab.active {
+  background: #1d4ed8;
+  color: #eff6ff;
+  border-color: #3b82f6;
+}
+.page-panel { display: none; }
+.page-panel.active { display: block; }
+.mission-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(260px, 1fr));
+  gap: 12px;
+}
+.mission-card { min-width: 0; }
+.mission-hero,
+.mission-wide { grid-column: span 2; }
+.mission-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: start;
+}
+.mission-subtitle {
+  color: #94a3b8;
+  font-size: 13px;
+  line-height: 1.45;
+  margin-top: 4px;
+}
+.mission-badge {
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(59,130,246,0.14);
+  color: #bfdbfe;
+  border: 1px solid rgba(59,130,246,0.28);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+.mission-summary-grid,
+.mission-sim-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+  margin-top: 12px;
+}
+.mission-stat,
+.mission-sim-stat {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid #233146;
+  font-size: 12px;
+}
+.mission-stat .label,
+.mission-sim-stat .label { color: #6b7280; }
+.mission-stat .value,
+.mission-sim-stat .value {
+  color: #dbeafe;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  text-align: right;
+}
+.mission-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.mission-cam-wrapper img {
+  width: 100%;
+  display: block;
+  border-radius: 10px;
+}
+.mission-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mission-list-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid #233146;
+  font-size: 12px;
+}
+.mission-list-row span:last-child {
+  color: #dbeafe;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+.mission-flow {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+.mission-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid #233146;
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 600;
+}
+.mission-step.active {
+  border-color: rgba(59,130,246,0.38);
+  background: rgba(59,130,246,0.12);
+}
+.mission-step-index {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #1e293b;
+  color: #dbeafe;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 11px;
+}
+.mission-note {
+  margin-top: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: rgba(59,130,246,0.08);
+  border: 1px solid rgba(59,130,246,0.2);
+  color: #bfdbfe;
+  font-size: 12px;
+  line-height: 1.45;
+}
+@media (max-width: 1100px) {
+  .mission-grid { grid-template-columns: repeat(2, minmax(260px, 1fr)); }
+  .mission-hero, .mission-wide { grid-column: span 2; }
+  .mission-flow { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  .page-tabs { flex-direction: column; }
+  .mission-grid, .mission-summary-grid, .mission-sim-layout { grid-template-columns: 1fr; }
+  .mission-hero, .mission-wide { grid-column: span 1; }
+}

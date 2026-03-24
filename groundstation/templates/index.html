@@ -24,6 +24,12 @@
 </div>
 
 <div class="container">
+<div class="page-tabs">
+  <button class="page-tab active" id="pageTabManual" onclick="showPageTab('manual')">Manual Testing</button>
+  <button class="page-tab" id="pageTabMission" onclick="showPageTab('mission')">Mission Simulation</button>
+</div>
+
+<div class="page-panel active" id="pagePanelManual">
 
 <div class="dashboard-grid">
   <!-- Camera -->
@@ -450,6 +456,77 @@
         </div>
       </div>
       <div class="armviz-note">Frontend visualization only. `LIVE` follows actual servo output from the subscale Pi and remains the source of truth. `TEST MOVES` only changes the browser visualization from slider motion for staging; the control pipeline will need a later backend update if you want that mode reflected outside the GUI.</div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<div class="page-panel" id="pagePanelMission">
+  <div class="mission-grid">
+    <div class="card mission-card mission-hero">
+      <div class="mission-head">
+        <div>
+          <h3>Mission Simulation</h3>
+          <div class="mission-subtitle">Dev-only autonomous workflow sandbox. This tab stages the full mission path without replacing manual controls.</div>
+        </div>
+        <div class="mission-badge">mizi-dev only</div>
+      </div>
+      <div class="mission-summary-grid">
+        <div class="mission-stat"><span class="label">Mission State</span><span class="value" id="missionState">CONFIGURING</span></div>
+        <div class="mission-stat"><span class="label">Vision Stack</span><span class="value" id="missionVisionSummary">3 MODEL STAGING</span></div>
+        <div class="mission-stat"><span class="label">Arm Mode</span><span class="value" id="missionArmMode">AUTONOMY SIM</span></div>
+        <div class="mission-stat"><span class="label">Source Of Truth</span><span class="value">SUBSCALE PI IN LIVE</span></div>
+      </div>
+      <div class="mission-actions">
+        <button class="btn btn-dark" onclick="missionSetState('CONFIGURING')">Configure</button>
+        <button class="btn btn-dark" onclick="missionSetState('READY')">Ready</button>
+        <button class="btn btn-dark" onclick="missionSetState('RUNNING')">Run Simulation</button>
+        <button class="btn btn-dark" onclick="missionSetState('REVIEW')">Review</button>
+      </div>
+    </div>
+
+    <div class="card mission-card">
+      <h3>Mission Camera</h3>
+      <div class="cam-wrapper mission-cam-wrapper">
+        <img src="/api/camera" alt="Mission Camera Feed" crossorigin="anonymous">
+      </div>
+      <div class="mission-note">Uses the same Pi camera feed while keeping the simulation workflow isolated from the manual page.</div>
+    </div>
+
+    <div class="card mission-card">
+      <h3>Autonomy Stack</h3>
+      <div class="mission-list">
+        <div class="mission-list-row"><span>Model 1</span><span id="missionModel1">UNSET</span></div>
+        <div class="mission-list-row"><span>Model 2</span><span id="missionModel2">UNSET</span></div>
+        <div class="mission-list-row"><span>Model 3</span><span id="missionModel3">UNSET</span></div>
+        <div class="mission-list-row"><span>Run Mode</span><span id="missionRunMode">OBSERVE</span></div>
+        <div class="mission-list-row"><span>Profile</span><span id="missionProfile">DOCKING</span></div>
+      </div>
+      <div class="mission-note">Frontend-only summary of the staged ML and autonomy configuration for the mission workflow.</div>
+    </div>
+
+    <div class="card mission-card mission-wide">
+      <h3>Mission Flow</h3>
+      <div class="mission-flow">
+        <div class="mission-step active"><span class="mission-step-index">1</span><span>Load Models</span></div>
+        <div class="mission-step"><span class="mission-step-index">2</span><span>Validate Scene</span></div>
+        <div class="mission-step"><span class="mission-step-index">3</span><span>Plan Arm Path</span></div>
+        <div class="mission-step"><span class="mission-step-index">4</span><span>Run Capture</span></div>
+        <div class="mission-step"><span class="mission-step-index">5</span><span>Review Mission</span></div>
+      </div>
+      <div class="mission-note">This tab is the autonomous workflow shell. It is intended to compose the camera, ML staging, IK preview, and mission sequencing without interfering with manual debugging.</div>
+    </div>
+
+    <div class="card mission-card mission-wide">
+      <h3>Simulation View</h3>
+      <div class="mission-sim-layout">
+        <div class="mission-sim-stat"><span class="label">Selected Arm</span><span class="value" id="missionSelectedArm">LEFT</span></div>
+        <div class="mission-sim-stat"><span class="label">IK Target</span><span class="value" id="missionTargetPoint">x:-- y:-- z:--</span></div>
+        <div class="mission-sim-stat"><span class="label">Solved Tip</span><span class="value" id="missionSolvedPoint">x:-- y:-- z:--</span></div>
+        <div class="mission-sim-stat"><span class="label">Visualization</span><span class="value" id="missionVizSource">TEST MOVES SAFE</span></div>
+      </div>
+      <div class="mission-note">Use the Manual Testing tab to debug hardware and kinematics. Use this Mission Simulation tab to rehearse the full autonomous flow with the same staged data and visualization state.</div>
     </div>
   </div>
 </div>

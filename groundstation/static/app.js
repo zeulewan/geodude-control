@@ -27,6 +27,56 @@ var chActual = {};  // actual PWM value sent to hardware per channel
 var chNeutral = {};
 
 var controllerStatus = {enabled: false};
+var activePageTab = 'manual';
+
+function showPageTab(tab) {
+  activePageTab = tab === 'mission' ? 'mission' : 'manual';
+  var manualBtn = document.getElementById('pageTabManual');
+  var missionBtn = document.getElementById('pageTabMission');
+  var manualPanel = document.getElementById('pagePanelManual');
+  var missionPanel = document.getElementById('pagePanelMission');
+  if (manualBtn) manualBtn.classList.toggle('active', activePageTab === 'manual');
+  if (missionBtn) missionBtn.classList.toggle('active', activePageTab === 'mission');
+  if (manualPanel) manualPanel.classList.toggle('active', activePageTab === 'manual');
+  if (missionPanel) missionPanel.classList.toggle('active', activePageTab === 'mission');
+  missionSyncSummary();
+}
+
+function missionSetState(state) {
+  var el = document.getElementById('missionState');
+  if (el) el.textContent = state;
+}
+
+function missionSyncSummary() {
+  var names = [1,2,3].map(function(i) {
+    var el = document.getElementById('visionModelName' + i);
+    return el ? el.textContent : 'UNSET';
+  });
+  ['missionModel1','missionModel2','missionModel3'].forEach(function(id, index) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = (names[index] || 'UNSET').toUpperCase();
+  });
+  var runMode = document.getElementById('visionRunMode');
+  var profile = document.getElementById('visionProfileSelect');
+  var selectedArm = document.getElementById('controllerArm');
+  var solvedTip = document.getElementById('ikSolvedTip');
+  var targetX = document.getElementById('ikTargetX');
+  var targetY = document.getElementById('ikTargetY');
+  var targetZ = document.getElementById('ikTargetZ');
+  var missionRunMode = document.getElementById('missionRunMode');
+  var missionProfile = document.getElementById('missionProfile');
+  var missionArm = document.getElementById('missionSelectedArm');
+  var missionTarget = document.getElementById('missionTargetPoint');
+  var missionSolved = document.getElementById('missionSolvedPoint');
+  var missionViz = document.getElementById('missionVizSource');
+  if (missionRunMode && runMode) missionRunMode.textContent = runMode.value.toUpperCase();
+  if (missionProfile && profile) missionProfile.textContent = profile.value.toUpperCase();
+  if (missionArm && selectedArm) missionArm.textContent = selectedArm.textContent;
+  if (missionTarget) missionTarget.textContent = 'x:' + ((targetX && targetX.value) || '--') + ' y:' + ((targetY && targetY.value) || '--') + ' z:' + ((targetZ && targetZ.value) || '--');
+  if (missionSolved && solvedTip) missionSolved.textContent = solvedTip.textContent;
+  if (missionViz) missionViz.textContent = armVizState && armVizState.mode === 'live' ? 'LIVE TRUTH FEED' : 'TEST MOVES SAFE';
+}
+
 var ikStatus = null;
 var ikLastResult = null;
 
@@ -124,6 +174,7 @@ function ikUpdateStatus(status) {
   if (currentTip && status && status.arms && status.arms[arm]) {
     currentTip.textContent = ikFormatPoint(status.arms[arm].tip_mm);
   }
+  missionSyncSummary();
 }
 
 function ikRefreshStatus() {
@@ -221,34 +272,40 @@ function visionModelChanged(index, input) {
   visionState.models[index] = file ? file.name : '';
   visionState.status = visionState.models.some(function(name) { return !!name; }) ? 'LOADED' : 'STANDBY';
   updateVisionUI();
+  missionSyncSummary();
 }
 
 function visionProfileChanged(value) {
   visionState.profile = value || 'Docking';
   updateVisionUI();
+  missionSyncSummary();
 }
 
 function visionModeChanged(value) {
   visionState.mode = value || 'Observe';
   updateVisionUI();
+  missionSyncSummary();
 }
 
 function visionLoadModel() {
   if (!visionState.models.some(function(name) { return !!name; })) return;
   visionState.status = 'LOADED';
   updateVisionUI();
+  missionSyncSummary();
 }
 
 function visionPreviewPipeline() {
   if (!visionState.models.some(function(name) { return !!name; })) return;
   visionState.status = 'PREVIEW';
   updateVisionUI();
+  missionSyncSummary();
 }
 
 function visionStageAutonomy() {
   if (!visionState.models.some(function(name) { return !!name; })) return;
   visionState.status = 'STAGED';
   updateVisionUI();
+  missionSyncSummary();
 }
 
 function visionReset() {
@@ -265,6 +322,7 @@ function visionReset() {
   var mode = document.getElementById('visionRunMode');
   if (mode) mode.value = 'Observe';
   updateVisionUI();
+  missionSyncSummary();
 }
 
 var armVizGeometryDefaults = {
@@ -773,6 +831,7 @@ function armVizUpdateModeUI() {
   var liveBtn = document.getElementById('armVizLiveBtn');
   var testBtn = document.getElementById('armVizTestBtn');
   if (modeEl) modeEl.textContent = armVizState.mode === 'live' ? 'LIVE' : 'TEST';
+  missionSyncSummary();
   if (liveBtn) liveBtn.className = armVizState.mode === 'live' ? 'btn btn-sm btn-green' : 'btn btn-sm btn-dark';
   if (testBtn) testBtn.className = armVizState.mode === 'test' ? 'btn btn-sm btn-amber' : 'btn btn-sm btn-dark';
 }
@@ -1966,5 +2025,7 @@ function seqRun() {
   controllerPoll();
   ikRefreshStatus();
   updateVisionUI();
+  missionSyncSummary();
+  showPageTab('manual');
   armVizStart();
 })();
