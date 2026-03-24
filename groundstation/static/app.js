@@ -172,21 +172,21 @@ function armVizBuildArm(side) {
   var wrist = 24;
   var tool = 28;
 
-  function rotateRoll(vec, roll) {
+  function rotateBaseAxis(vec, roll) {
     return {
-      x: vec.x + Math.sin(roll) * vec.y * sideBias,
-      y: Math.cos(roll) * vec.y,
-      z: vec.z
+      x: vec.x,
+      y: vec.y * Math.cos(roll) - vec.z * Math.sin(roll),
+      z: vec.y * Math.sin(roll) + vec.z * Math.cos(roll)
     };
   }
 
   function pitchSegment(length, pitch, roll) {
     var local = {
-      x: 0,
+      x: Math.cos(pitch) * length * sideBias,
       y: Math.sin(pitch) * length,
-      z: Math.cos(pitch) * length
+      z: 0
     };
-    return rotateRoll(local, roll);
+    return rotateBaseAxis(local, roll);
   }
 
   function addPoint(a, b) {
@@ -194,7 +194,7 @@ function armVizBuildArm(side) {
   }
 
   var base = anchor;
-  var shoulderMount = addPoint(anchor, rotateRoll({x: 0, y: 16, z: 0}, baseRoll));
+  var shoulderMount = addPoint(anchor, rotateBaseAxis({x: 14 * sideBias, y: 0, z: 0}, baseRoll));
   var elbowPoint = addPoint(shoulderMount, pitchSegment(upper, shoulderPitch, baseRoll));
   var wristAPoint = addPoint(elbowPoint, pitchSegment(fore, shoulderPitch + elbowPitch, baseRoll));
   var wristBPoint = addPoint(wristAPoint, pitchSegment(wrist, shoulderPitch + elbowPitch, baseRoll + wristRoll));
