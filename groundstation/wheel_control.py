@@ -77,8 +77,8 @@ CONTROLLER_BINDINGS = {
 CONTROLLER_AXIS_ORDER = {
     0: "lx",
     1: "ly",
-    2: "rx",
-    3: "ry",
+    3: "rx",
+    4: "ry",
 }
 
 CONTROLLER_LABELS = {
@@ -88,7 +88,7 @@ CONTROLLER_LABELS = {
     "rx": "Right stick X -> wrist pair (W1/W2)",
 }
 
-DEADMAN_BUTTONS = {4, 5, 6, 7}
+DEADMAN_BUTTONS = {4, 5}
 
 controller_state = {
     "enabled": False,
