@@ -280,8 +280,7 @@ function armVizDrawScene() {
   }
 
   armVizDrawBox(ctx, width, height, {x: 0, y: 0, z: 0}, {x: 90, y: 90, z: 120}, armVizState.azimuth, armVizState.elevation, 'rgba(148, 163, 184, 0.9)', 'rgba(148, 163, 184, 0.08)');
-  armVizDrawBox(ctx, width, height, {x: 0, y: 74, z: 34}, {x: 210, y: 42, z: 170}, armVizState.azimuth, armVizState.elevation, 'rgba(239, 68, 68, 0.75)', 'rgba(239, 68, 68, 0.05)');
-  armVizDrawBox(ctx, width, height, {x: 0, y: -78, z: 58}, {x: 240, y: 34, z: 190}, armVizState.azimuth, armVizState.elevation, 'rgba(245, 158, 11, 0.75)', 'rgba(245, 158, 11, 0.05)');
+  armVizDrawBox(ctx, width, height, {x: 0, y: -112, z: 42}, {x: 320, y: 18, z: 240}, armVizState.azimuth, armVizState.elevation, 'rgba(239, 68, 68, 0.95)', 'rgba(239, 68, 68, 0.08)');
 
   var arms = [armVizBuildArm('left'), armVizBuildArm('right')];
   arms.forEach(function(arm) {
@@ -311,11 +310,9 @@ function armVizDrawScene() {
 
   ctx.fillStyle = '#cbd5e1';
   ctx.font = '12px "SF Mono", "Fira Code", monospace';
-  ctx.fillText('SUBSCALE SAT', 18, 24);
+  ctx.fillText('SAT KEEP-OUT', 18, 24);
   ctx.fillStyle = 'rgba(239, 68, 68, 0.95)';
-  ctx.fillText('KEEP-OUT A', 18, 42);
-  ctx.fillStyle = 'rgba(245, 158, 11, 0.95)';
-  ctx.fillText('KEEP-OUT B', 18, 60);
+  ctx.fillText('FLOOR KEEP-OUT', 18, 42);
 
   var leftTip = document.getElementById('armVizLeftTip');
   var rightTip = document.getElementById('armVizRightTip');

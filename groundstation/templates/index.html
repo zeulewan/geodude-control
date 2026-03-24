@@ -387,79 +387,83 @@
 
 <div class="section-title">Servos</div>
 
-<div class="card">
-  <h3>Arm Workspace View</h3>
-  <div class="armviz-shell">
-    <canvas id="armVizCanvas" class="armviz-canvas" width="960" height="420"></canvas>
-    <div class="armviz-toolbar">
-      <div class="armviz-slider-wrap">
-        <label for="armVizAzimuth">Orbit</label>
-        <input type="range" id="armVizAzimuth" min="-180" max="180" value="28" oninput="armVizSetView()">
+<div class="servo-layout">
+  <div class="servo-controls-col">
+    <div class="card servo-compact-card">
+      <h3>Controller Mode</h3>
+      <div class="controller-grid">
+        <div class="controller-stat"><span class="label">Mode</span><span class="value" id="controllerMode">OFF</span></div>
+        <div class="controller-stat"><span class="label">Link</span><span class="value" id="controllerLink">DISCONNECTED</span></div>
+        <div class="controller-stat"><span class="label">Arm</span><span class="value" id="controllerArm">LEFT</span></div>
+        <div class="controller-stat"><span class="label">Deadman</span><span class="value" id="controllerDeadman">RELEASED</span></div>
+        <div class="controller-stat"><span class="label">Activity</span><span class="value" id="controllerActivity">IDLE</span></div>
       </div>
-      <div class="armviz-slider-wrap">
-        <label for="armVizElevation">Elevation</label>
-        <input type="range" id="armVizElevation" min="-10" max="70" value="18" oninput="armVizSetView()">
+      <div class="controller-help">Select one arm at a time. Hold L1 or R1 as the deadman. Left stick controls base and shoulder. Right stick controls wrist X and elbow Y.</div>
+      <div class="btn-row" style="margin-top:8px;">
+        <button class="btn btn-dark" id="controllerArmLeftBtn" onclick="setControllerArm('left')">LEFT ARM</button>
+        <button class="btn btn-dark" id="controllerArmRightBtn" onclick="setControllerArm('right')">RIGHT ARM</button>
       </div>
-      <div class="btn-row armviz-btn-row">
-        <button class="btn btn-sm btn-dark" id="armVizOrbitBtn" onclick="armVizToggleOrbit()">AUTO ORBIT</button>
-        <button class="btn btn-sm btn-dark" onclick="armVizResetView()">RESET VIEW</button>
+      <div class="btn-row" style="margin-top:6px;">
+        <button class="btn btn-dark" id="controllerToggleBtn" onclick="toggleControllerMode()">ENABLE CONTROLLER</button>
       </div>
+      <div class="controller-error" id="controllerError"></div>
     </div>
-    <div class="armviz-stats">
-      <div class="armviz-stat"><span class="label">Left Tip</span><span class="value" id="armVizLeftTip">x:0 y:0 z:0</span></div>
-      <div class="armviz-stat"><span class="label">Right Tip</span><span class="value" id="armVizRightTip">x:0 y:0 z:0</span></div>
-      <div class="armviz-stat"><span class="label">Keep-Out Zones</span><span class="value">2 ACTIVE</span></div>
-      <div class="armviz-stat"><span class="label">Scene</span><span class="value">SAT + ARMS</span></div>
-    </div>
-    <div class="armviz-note">Frontend visualization only. The geometry is approximate and follows the current GUI servo state so you can stage arm motion and keep-out clearances without adding backend logic.</div>
-  </div>
-</div>
 
-<div class="card">
-  <h3>Controller Mode</h3>
-  <div class="controller-grid">
-    <div class="controller-stat"><span class="label">Mode</span><span class="value" id="controllerMode">OFF</span></div>
-    <div class="controller-stat"><span class="label">Link</span><span class="value" id="controllerLink">DISCONNECTED</span></div>
-    <div class="controller-stat"><span class="label">Arm</span><span class="value" id="controllerArm">LEFT</span></div>
-    <div class="controller-stat"><span class="label">Deadman</span><span class="value" id="controllerDeadman">RELEASED</span></div>
-    <div class="controller-stat"><span class="label">Activity</span><span class="value" id="controllerActivity">IDLE</span></div>
+    <div class="card servo-compact-card">
+      <h3>PCA9685 Channels</h3>
+      <div class="slider-group servo-tight-group" style="margin-bottom:4px;">
+        <div class="slider-label">
+          <span class="label">Servo Speed</span>
+          <span class="value" id="servoSpeedVal">50 us/tick (1500 us/s)</span>
+        </div>
+        <input type="range" id="servoSpeed" min="1" max="200" step="1" value="50"
+               oninput="updateServoSpeedLabel(this.value); saveServoSettings(); sendServoSettings()">
+        <div class="servo-mini-scale"><span>Slow</span><span>Fast</span></div>
+      </div>
+      <div class="slider-group servo-tight-group" style="margin-bottom:6px;">
+        <div class="slider-label">
+          <span class="label">Ramp Rate</span>
+          <span class="value" id="servoRampVal">20 us/tick (600 us/s)</span>
+        </div>
+        <input type="range" id="servoRampRate" min="1" max="100" step="1" value="20"
+               oninput="updateServoRampLabel(this.value); saveServoSettings(); sendServoSettings()">
+        <div class="servo-mini-scale"><span>Gentle</span><span>Snappy</span></div>
+      </div>
+      <div class="btn-row servo-action-row" style="margin-bottom:6px;margin-top:0;">
+        <button class="btn btn-green" onclick="startupNeutral()">STARTUP</button>
+        <button class="btn" onclick="allChannelsNeutral()">ALL NEUTRAL</button>
+      </div>
+      <div class="ch-grid ch-grid-compact" id="chGrid"></div>
+    </div>
   </div>
-  <div class="controller-help">Select one arm at a time. Hold L1 or R1 as the deadman. Left stick controls base and shoulder. Right stick controls wrist X and elbow Y.</div>
-  <div class="btn-row" style="margin-top:10px;">
-    <button class="btn btn-dark" id="controllerArmLeftBtn" onclick="setControllerArm('left')">LEFT ARM</button>
-    <button class="btn btn-dark" id="controllerArmRightBtn" onclick="setControllerArm('right')">RIGHT ARM</button>
-  </div>
-  <div class="btn-row" style="margin-top:8px;">
-    <button class="btn btn-dark" id="controllerToggleBtn" onclick="toggleControllerMode()">ENABLE CONTROLLER</button>
-  </div>
-  <div class="controller-error" id="controllerError"></div>
-</div>
 
-<div class="card">
-  <h3>PCA9685 Channels</h3>
-  <div class="slider-group" style="margin-bottom:4px;">
-    <div class="slider-label">
-      <span class="label">Servo Speed</span>
-      <span class="value" id="servoSpeedVal">50 us/tick (1500 us/s)</span>
+  <div class="card armviz-card">
+    <h3>Arm Workspace View</h3>
+    <div class="armviz-shell">
+      <canvas id="armVizCanvas" class="armviz-canvas" width="960" height="420"></canvas>
+      <div class="armviz-toolbar">
+        <div class="armviz-slider-wrap">
+          <label for="armVizAzimuth">Orbit</label>
+          <input type="range" id="armVizAzimuth" min="-180" max="180" value="28" oninput="armVizSetView()">
+        </div>
+        <div class="armviz-slider-wrap">
+          <label for="armVizElevation">Elevation</label>
+          <input type="range" id="armVizElevation" min="-10" max="70" value="18" oninput="armVizSetView()">
+        </div>
+        <div class="btn-row armviz-btn-row">
+          <button class="btn btn-sm btn-dark" id="armVizOrbitBtn" onclick="armVizToggleOrbit()">AUTO ORBIT</button>
+          <button class="btn btn-sm btn-dark" onclick="armVizResetView()">RESET VIEW</button>
+        </div>
+      </div>
+      <div class="armviz-stats">
+        <div class="armviz-stat"><span class="label">Left Tip</span><span class="value" id="armVizLeftTip">x:0 y:0 z:0</span></div>
+        <div class="armviz-stat"><span class="label">Right Tip</span><span class="value" id="armVizRightTip">x:0 y:0 z:0</span></div>
+        <div class="armviz-stat"><span class="label">Keep-Out Zones</span><span class="value">SAT + FLOOR</span></div>
+        <div class="armviz-stat"><span class="label">Scene</span><span class="value">ARMS + WORKSPACE</span></div>
+      </div>
+      <div class="armviz-note">Frontend visualization only. The geometry is approximate and follows the current GUI servo state so you can stage arm motion and keep-out clearances without adding backend logic.</div>
     </div>
-    <input type="range" id="servoSpeed" min="1" max="200" step="1" value="50"
-           oninput="updateServoSpeedLabel(this.value); saveServoSettings(); sendServoSettings()">
-    <div style="display:flex;justify-content:space-between;font-size:10px;color:#6b7280;margin-top:2px;"><span>Slow</span><span>Fast</span></div>
   </div>
-  <div class="slider-group" style="margin-bottom:8px;">
-    <div class="slider-label">
-      <span class="label">Ramp Rate</span>
-      <span class="value" id="servoRampVal">20 us/tick (600 us/s)</span>
-    </div>
-    <input type="range" id="servoRampRate" min="1" max="100" step="1" value="20"
-           oninput="updateServoRampLabel(this.value); saveServoSettings(); sendServoSettings()">
-    <div style="display:flex;justify-content:space-between;font-size:10px;color:#6b7280;margin-top:2px;"><span>Gentle</span><span>Snappy</span></div>
-  </div>
-  <div class="btn-row" style="margin-bottom:8px;margin-top:0;">
-    <button class="btn btn-green" onclick="startupNeutral()">STARTUP</button>
-    <button class="btn" onclick="allChannelsNeutral()">ALL NEUTRAL</button>
-  </div>
-  <div class="ch-grid" id="chGrid"></div>
 </div>
 
 </div><!-- end container -->
