@@ -37,6 +37,50 @@
       <button class="btn btn-sm btn-dark" style="margin-top:6px" onclick="takeSnapshot()">Snapshot</button>
     </div>
 
+    <!-- ML Vision -->
+    <div class="card">
+      <h3>ML Vision</h3>
+      <div class="vision-shell">
+        <div class="vision-upload-row">
+          <label class="vision-file-btn" for="visionModelFile">Select Model</label>
+          <input type="file" id="visionModelFile" accept=".pt,.onnx,.engine,.tflite,.pb,.bin" onchange="visionModelChanged(this)">
+          <div class="vision-file-name" id="visionModelName">No model selected</div>
+        </div>
+        <div class="vision-grid">
+          <div class="vision-stat"><span class="label">Status</span><span class="value" id="visionModelStatus">STANDBY</span></div>
+          <div class="vision-stat"><span class="label">Profile</span><span class="value" id="visionProfileStatus">Docking</span></div>
+          <div class="vision-stat"><span class="label">Camera</span><span class="value">Pi Camera</span></div>
+          <div class="vision-stat"><span class="label">Backend</span><span class="value">UI ONLY</span></div>
+        </div>
+        <div class="vision-controls">
+          <div class="vision-select-wrap">
+            <label for="visionProfileSelect">Autonomy Profile</label>
+            <select id="visionProfileSelect" onchange="visionProfileChanged(this.value)">
+              <option value="Docking">Docking</option>
+              <option value="Target Tracking">Target Tracking</option>
+              <option value="Pose Estimation">Pose Estimation</option>
+              <option value="Segmentation">Segmentation</option>
+            </select>
+          </div>
+          <div class="vision-select-wrap">
+            <label for="visionRunMode">Run Mode</label>
+            <select id="visionRunMode" onchange="visionModeChanged(this.value)">
+              <option value="Observe">Observe</option>
+              <option value="Assist">Assist</option>
+              <option value="Autonomous">Autonomous</option>
+            </select>
+          </div>
+        </div>
+        <div class="btn-row vision-btn-row">
+          <button class="btn btn-dark" id="visionLoadBtn" onclick="visionLoadModel()">Load Model</button>
+          <button class="btn btn-dark" id="visionPreviewBtn" onclick="visionPreviewPipeline()">Preview Pipeline</button>
+          <button class="btn btn-dark" id="visionArmBtn" onclick="visionStageAutonomy()">Stage Autonomy</button>
+          <button class="btn btn-dark" onclick="visionReset()">Reset</button>
+        </div>
+        <div class="vision-note" id="visionNote">Frontend placeholder only. Choose a model file to stage the UI for future autonomous vision tools.</div>
+      </div>
+    </div>
+
     <!-- Sensors -->
     <div class="card">
       <h3>Sensors</h3>
