@@ -96,12 +96,6 @@ board: "Servo Fuse Board (1 board, 10 servos)" {
     height: 500
   }
 
-  pca: "PCA9685 16-Ch PWM Driver | VCC: 5V from Pi | V+: not connected" {
-    shape: rectangle
-    style.fill: "#F3E5F5"
-    style.stroke: "#7B1FA2"
-  }
-
   fuses_12v: "4x 8A fuses (12V base + shoulder)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"; width: 200}
   fuses_74v: "2x 5A fuses (7.4V elbow)" {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"; width: 200}
   fuses_5v: "4x 3A fuses (5V wrist)" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"; width: 200}
@@ -115,10 +109,9 @@ board: "Servo Fuse Board (1 board, 10 servos)" {
     height: 400
   }
 
-  screw_in -> pca: "PWM signal" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-  pca -> fuses_12v {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-  pca -> fuses_74v {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-  pca -> fuses_5v {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+  screw_in -> fuses_12v: "PWM + 12V" {style.stroke: "#1565C0"}
+  screw_in -> fuses_74v: "PWM + 7.4V" {style.stroke: "#2E7D32"}
+  screw_in -> fuses_5v: "PWM + 5V" {style.stroke: "#43A047"}
   screw_in -> fuses_12v -> headers_out {style.stroke: "#1565C0"}
   screw_in -> fuses_74v -> headers_out {style.stroke: "#2E7D32"}
   screw_in -> fuses_5v -> headers_out {style.stroke: "#43A047"}
@@ -129,11 +122,14 @@ wago -> board.screw_in: "12V, 16 AWG (to 4x 12V+ screw terminals)" {style.stroke
 buck1 -> board.screw_in: "7.4V, 18 AWG" {style.stroke: "#2E7D32"}
 buck3 -> board.screw_in: "5V, 18 AWG" {style.stroke: "#43A047"}
 
-# Pi to PCA and board
-pi -> board.pca: "I2C + 5V power" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+# PCA9685 (standalone, connected to Pi and board)
+pca: "PCA9685 16-Ch PWM Driver | VCC: 5V from Pi | V+: not connected" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
+
+pi -> pca: "I2C + 5V power" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+pca -> board.screw_in: "Ch 0-9 PWM (10 servo signals)" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 
 # MACE signal + sensors
-board.pca -> mace.esc: "Ch 14 PWM + GND only (no 5V)" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+pca -> mace.esc: "Ch 14 PWM + GND only (no 5V)" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 pi -> mace.encoder: "I2C + 3.3V" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 pi -> mace.imu: "I2C + 3.3V" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 
