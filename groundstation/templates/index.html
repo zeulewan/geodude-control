@@ -489,17 +489,17 @@
         </div>
         <div class="mission-badge">mizi-dev only</div>
       </div>
-      <div class="mission-summary-grid">
-        <div class="mission-stat"><span class="label">Mission State</span><span class="value" id="missionState">CONFIGURING</span></div>
-        <div class="mission-stat"><span class="label">Vision Stack</span><span class="value" id="missionVisionSummary">3 MODEL STAGING</span></div>
-        <div class="mission-stat"><span class="label">Arm Mode</span><span class="value" id="missionArmMode">AUTONOMY SIM</span></div>
-        <div class="mission-stat"><span class="label">Source Of Truth</span><span class="value">SUBSCALE PI IN LIVE</span></div>
+      <div class="mission-summary-grid mission-summary-grid-compact">
+        <div class="mission-stat"><span class="label">Mission State</span><span class="value" id="missionState">MISSION START</span></div>
+        <div class="mission-stat"><span class="label">Active Vision Model</span><span class="value" id="missionActiveVisionModel">STANDBY</span></div>
+        <div class="mission-stat"><span class="label">Left Arm Status</span><span class="value" id="missionLeftArmStatus">STANDBY</span></div>
+        <div class="mission-stat"><span class="label">Right Arm Status</span><span class="value" id="missionRightArmStatus">STANDBY</span></div>
       </div>
-      <div class="mission-actions">
-        <button class="btn btn-dark" onclick="missionSetState('CONFIGURING')">Configure</button>
-        <button class="btn btn-dark" onclick="missionSetState('READY')">Ready</button>
-        <button class="btn btn-dark" onclick="missionSetState('RUNNING')">Run Simulation</button>
-        <button class="btn btn-dark" onclick="missionSetState('REVIEW')">Review</button>
+      <div class="mission-actions mission-actions-compact">
+        <button class="btn btn-dark" id="missionReadyBtn" type="button" onclick="missionToggleReady()">Ready</button>
+        <button class="btn btn-dark" id="missionRunBtn" type="button" onclick="missionRunSimulation()">Run Simulation</button>
+        <button class="btn btn-dark" type="button" onclick="missionSetState('REVIEW')">Review</button>
+        <button class="btn btn-dark mission-e-stop-btn" type="button" onclick="missionEmergencyStop()">Emergency Stop Simulation</button>
       </div>
     </div>
 
@@ -521,17 +521,6 @@
         <div class="mission-list-row"><span>Profile</span><span id="missionProfile">DOCKING</span></div>
       </div>
       <div class="mission-note">Frontend-only summary of the staged ML and autonomy configuration for the mission workflow.</div>
-    </div>
-
-    <div class="card mission-card mission-compact-card mission-sim-card">
-      <h3>Simulation View</h3>
-      <div class="mission-sim-layout mission-sim-layout-tight">
-        <div class="mission-sim-stat"><span class="label">Selected Arm</span><span class="value" id="missionSelectedArm">LEFT</span></div>
-        <div class="mission-sim-stat"><span class="label">IK Target</span><span class="value" id="missionTargetPoint">x:-- y:-- z:--</span></div>
-        <div class="mission-sim-stat"><span class="label">Solved Tip</span><span class="value" id="missionSolvedPoint">x:-- y:-- z:--</span></div>
-        <div class="mission-sim-stat"><span class="label">Visualization</span><span class="value" id="missionVizSource">TEST MOVES SAFE</span></div>
-      </div>
-      <div class="mission-note">Use the Manual Testing tab to debug hardware and kinematics. Use this Mission Simulation tab to rehearse the full autonomous flow with the same staged data and visualization state.</div>
     </div>
 
     <div class="card mission-card mission-flow-card">

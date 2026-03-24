@@ -1437,7 +1437,7 @@ input[type="number"]::-webkit-outer-spin-button {
 .page-panel.active { display: block; }
 .mission-grid {
   display: grid;
-  grid-template-columns: 1.3fr 1.3fr 0.95fr 0.95fr;
+  grid-template-columns: 1.45fr 1.45fr 0.95fr 0.95fr;
   gap: 10px;
 }
 .mission-card { min-width: 0; }
@@ -1445,7 +1445,6 @@ input[type="number"]::-webkit-outer-spin-button {
 .mission-wide { grid-column: span 2; }
 .mission-camera-card { grid-column: 3; }
 .mission-stack-card { grid-column: 4; }
-.mission-sim-card { grid-column: 3 / 5; }
 .mission-compact-card { grid-column: span 1; }
 .mission-flow-card { grid-column: 1 / -1; }
 .mission-head {
@@ -1471,32 +1470,27 @@ input[type="number"]::-webkit-outer-spin-button {
   text-transform: uppercase;
   letter-spacing: 0.6px;
 }
-.mission-summary-grid,
-.mission-sim-layout {
+.mission-summary-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px 12px;
-  margin-top: 12px;
+  margin-top: 10px;
 }
-.mission-sim-layout-tight {
-  gap: 5px 6px;
-  margin-top: 6px;
+.mission-summary-grid-compact {
+  gap: 6px 8px;
 }
-.mission-stat,
-.mission-sim-stat {
+.mission-stat {
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  padding: 8px 9px;
+  padding: 7px 8px;
   border-radius: 8px;
   background: rgba(15, 23, 42, 0.72);
   border: 1px solid #233146;
   font-size: 12px;
 }
-.mission-stat .label,
-.mission-sim-stat .label { color: #6b7280; }
-.mission-stat .value,
-.mission-sim-stat .value {
+.mission-stat .label { color: #6b7280; }
+.mission-stat .value {
   color: #dbeafe;
   font-family: 'SF Mono', 'Fira Code', monospace;
   text-align: right;
@@ -1505,7 +1499,18 @@ input[type="number"]::-webkit-outer-spin-button {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 10px;
+}
+.mission-actions-compact {
+  gap: 6px;
+}
+.mission-e-stop-btn {
+  border-color: rgba(239,68,68,0.45);
+  color: #fecaca;
+}
+.mission-e-stop-btn:hover {
+  border-color: rgba(239,68,68,0.65);
+  color: #fff1f2;
 }
 .mission-cam-wrapper {
   min-height: 150px;
@@ -1687,12 +1692,12 @@ input[type="number"]::-webkit-outer-spin-button {
   line-height: 1.35;
 }
 @media (max-width: 1400px) {
-  .mission-grid { grid-template-columns: 1.2fr 1.2fr 0.95fr 0.95fr; }
+  .mission-grid { grid-template-columns: 1.3fr 1.3fr 0.95fr 0.95fr; }
   .mission-flow { grid-template-columns: repeat(10, minmax(72px, 1fr)); }
 }
 @media (max-width: 1200px) {
   .mission-grid { grid-template-columns: repeat(2, minmax(240px, 1fr)); }
-  .mission-hero, .mission-wide, .mission-flow-card, .mission-sim-card { grid-column: span 2; }
+  .mission-hero, .mission-wide, .mission-flow-card { grid-column: span 2; }
   .mission-camera-card { grid-column: 1; }
   .mission-stack-card { grid-column: 2; }
   .mission-flow { overflow-x: auto; }
@@ -1700,6 +1705,6 @@ input[type="number"]::-webkit-outer-spin-button {
 @media (max-width: 760px) {
   .page-tabs { flex-direction: column; }
   .mission-grid, .mission-summary-grid, .mission-sim-layout { grid-template-columns: 1fr; }
-  .mission-hero, .mission-wide, .mission-flow-card, .mission-compact-card, .mission-camera-card, .mission-stack-card, .mission-sim-card { grid-column: span 1; }
+  .mission-hero, .mission-wide, .mission-flow-card, .mission-compact-card, .mission-camera-card, .mission-stack-card { grid-column: span 1; }
   .mission-flow { grid-template-columns: repeat(10, minmax(86px, 1fr)); overflow-x: auto; }
 }

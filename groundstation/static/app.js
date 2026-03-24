@@ -76,7 +76,7 @@ var chNeutral = {};
 
 var controllerStatus = {enabled: false};
 var activePageTab = 'manual';
-var missionFlowState = { currentStep: 1, started: false, halted: false, nominalCheckResolved: false, everythingNominalResolved: false, substeps: { 2: { 'sat-detect': false, 'gimbal': false, 'mace': false }, 4: { 'default': false }, 5: { 'client-rotation': false, 'docking-point': false }, 6: { 'default': false }, 7: { 'default': false }, 8: { 'default': false }, 9: { 'default': false }, 10: { 'default': false } } };
+var missionFlowState = { currentStep: 1, started: false, halted: false, armed: false, nominalCheckResolved: false, everythingNominalResolved: false, substeps: { 2: { 'sat-detect': false, 'gimbal': false, 'mace': false }, 4: { 'default': false }, 5: { 'client-rotation': false, 'docking-point': false }, 6: { 'default': false }, 7: { 'default': false }, 8: { 'default': false }, 9: { 'default': false }, 10: { 'default': false } } };
 
 function showPageTab(tab) {
   activePageTab = tab === 'mission' ? 'mission' : 'manual';
@@ -89,6 +89,66 @@ function showPageTab(tab) {
   if (manualPanel) manualPanel.classList.toggle('active', activePageTab === 'manual');
   if (missionPanel) missionPanel.classList.toggle('active', activePageTab === 'mission');
   missionSyncSummary();
+}
+
+function missionStepName(step) {
+  var names = {
+    1: 'MISSION START',
+    2: 'ALL JOINTS NEUTRAL CHECK',
+    3: 'EVERYTHING NOMINAL CHECK',
+    4: 'ALL IDENTIFIED CHECK',
+    5: 'APPROACH',
+    6: 'DOCKING',
+    7: 'UNDOCKING',
+    8: 'AOCS MODULE ATTACH',
+    9: 'BACK AWAY',
+    10: 'MISSION COMPLETE'
+  };
+  return names[step] || 'MISSION START';
+}
+
+function missionCurrentModelLabel() {
+  var modelEls = [1,2,3].map(function(i) { return document.getElementById('missionModel' + i); });
+  var models = modelEls.map(function(el) { return el ? el.textContent : 'UNSET'; });
+  if (missionFlowState.currentStep <= 3) return models[0] && models[0] !== 'UNSET' ? models[0] : 'MODEL 1 STANDBY';
+  if (missionFlowState.currentStep <= 5) return models[0] && models[0] !== 'UNSET' ? models[0] : 'MODEL 1 UNSET';
+  if (missionFlowState.currentStep <= 7) return models[1] && models[1] !== 'UNSET' ? models[1] : 'MODEL 2 UNSET';
+  return models[2] && models[2] !== 'UNSET' ? models[2] : 'MODEL 3 UNSET';
+}
+
+function missionArmStatusText(side) {
+  if (missionFlowState.halted) return 'STOPPED';
+  if (!missionFlowState.armed) return 'STANDBY';
+  var step = missionFlowState.currentStep;
+  if (step === 2) return 'NEUTRAL CHECK';
+  if (step === 3) return 'NOMINAL CHECK';
+  if (step === 4) return 'TARGET VERIFY';
+  if (step === 5) return 'APPROACHING';
+  if (step === 6) return 'DOCKING';
+  if (step === 7) return 'UNDOCKING';
+  if (step === 8) return side === 'left' ? 'AOCS ATTACHING' : 'STABILIZING';
+  if (step === 9) return 'BACKING AWAY';
+  if (step === 10) return 'COMPLETE';
+  return 'STANDBY';
+}
+
+function missionToggleReady() {
+  missionFlowState.armed = !missionFlowState.armed;
+  if (!missionFlowState.armed && !missionFlowState.halted) missionFlowState.currentStep = Math.max(1, missionFlowState.currentStep);
+  missionSetState(missionFlowState.armed ? 'ARMED' : 'SAFE');
+  missionRenderFlow();
+}
+
+function missionRunSimulation() {
+  if (!missionFlowState.armed || missionFlowState.halted) return;
+  missionSetState('RUNNING');
+}
+
+function missionEmergencyStop() {
+  missionFlowState.halted = true;
+  missionFlowState.armed = false;
+  missionSetState('STOPPED');
+  missionRenderFlow();
 }
 
 function missionIsStepComplete(step) {
@@ -106,6 +166,18 @@ function missionRenderFlow() {
   var checkpointTwo = document.getElementById('missionEverythingNominalCheckpoint');
   var labelTwo = checkpointTwo ? checkpointTwo.querySelector('.mission-substep-label') : null;
   var actionsTwo = checkpointTwo ? checkpointTwo.querySelector('.mission-checkpoint-actions') : null;
+  var missionStateEl = document.getElementById('missionState');
+  var missionActiveVisionModelEl = document.getElementById('missionActiveVisionModel');
+  var missionLeftArmStatusEl = document.getElementById('missionLeftArmStatus');
+  var missionRightArmStatusEl = document.getElementById('missionRightArmStatus');
+  var missionReadyBtn = document.getElementById('missionReadyBtn');
+  var missionRunBtn = document.getElementById('missionRunBtn');
+  if (missionStateEl) missionStateEl.textContent = missionFlowState.halted ? 'STOPPED AT ' + missionStepName(missionFlowState.currentStep) : missionStepName(missionFlowState.currentStep);
+  if (missionActiveVisionModelEl) missionActiveVisionModelEl.textContent = missionCurrentModelLabel();
+  if (missionLeftArmStatusEl) missionLeftArmStatusEl.textContent = missionArmStatusText('left');
+  if (missionRightArmStatusEl) missionRightArmStatusEl.textContent = missionArmStatusText('right');
+  if (missionReadyBtn) missionReadyBtn.textContent = missionFlowState.armed ? 'Armed' : 'Ready';
+  if (missionRunBtn) missionRunBtn.disabled = !missionFlowState.armed || missionFlowState.halted;
   for (var i = 1; i <= 10; i += 1) {
     var step = document.getElementById('missionStep' + i);
     if (!step) continue;
@@ -180,7 +252,7 @@ function missionRespondNominalCheck(approved) {
   if (approved) {
     missionFlowState.nominalCheckResolved = true;
     missionFlowState.halted = false;
-    missionSetState('READY FOR STEP 2');
+    missionSetState('STEP 2 READY');
     missionGoToStep(2);
   } else {
     missionFlowState.halted = true;
@@ -194,7 +266,7 @@ function missionRespondEverythingNominal(approved) {
   if (approved) {
     missionFlowState.everythingNominalResolved = true;
     missionFlowState.halted = false;
-    missionSetState('READY FOR STEP 4');
+    missionSetState('STEP 4 READY');
     missionGoToStep(4);
   } else {
     missionFlowState.halted = true;
@@ -235,18 +307,6 @@ function missionSyncSummary() {
   var targetX = document.getElementById('ikTargetX');
   var targetY = document.getElementById('ikTargetY');
   var targetZ = document.getElementById('ikTargetZ');
-  var missionRunMode = document.getElementById('missionRunMode');
-  var missionProfile = document.getElementById('missionProfile');
-  var missionArm = document.getElementById('missionSelectedArm');
-  var missionTarget = document.getElementById('missionTargetPoint');
-  var missionSolved = document.getElementById('missionSolvedPoint');
-  var missionViz = document.getElementById('missionVizSource');
-  if (missionRunMode && runMode) missionRunMode.textContent = runMode.value.toUpperCase();
-  if (missionProfile && profile) missionProfile.textContent = profile.value.toUpperCase();
-  if (missionArm && selectedArm) missionArm.textContent = selectedArm.textContent;
-  if (missionTarget) missionTarget.textContent = 'x:' + ((targetX && targetX.value) || '--') + ' y:' + ((targetY && targetY.value) || '--') + ' z:' + ((targetZ && targetZ.value) || '--');
-  if (missionSolved && solvedTip) missionSolved.textContent = solvedTip.textContent;
-  if (missionViz) missionViz.textContent = armVizState && armVizState.mode === 'live' ? 'LIVE TRUTH FEED' : 'TEST MOVES SAFE';
   missionRenderFlow();
 }
 
