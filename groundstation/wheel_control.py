@@ -114,6 +114,10 @@ IK_LINKS_MM = {
     "wrist_a": 55.0,
     "tool": 75.0,
 }
+IK_NEUTRAL_PWM = {
+    "B1": 1500, "S1": 1500, "E1": 1500, "W1A": 1500, "W1B": 1500,
+    "B2": 1500, "S2": 1500, "E2": 1500, "W2A": 1500, "W2B": 1500,
+}
 IK_SOLVER_NOTES = [
     "Cartesian IK solves the base roll plus shoulder and elbow pitch against the measured link lengths.",
     "Wrist roll stays at its current value and wrist pitch is held at neutral for positional solves.",
@@ -285,9 +289,11 @@ def ik_joint_config(selected_arm, joint_name):
 
 
 def ik_joint_neutral(channel):
-    neutral = servo_neutral.get(channel)
+    neutral = IK_NEUTRAL_PWM.get(channel)
     if neutral is None:
-        neutral = servo_positions.get(channel, 1000)
+        neutral = servo_neutral.get(channel)
+    if neutral is None:
+        neutral = servo_positions.get(channel, 1500)
     return int(neutral)
 
 

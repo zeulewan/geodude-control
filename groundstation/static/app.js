@@ -757,6 +757,17 @@ function armVizSyncControls() {
   if (zoom) zoom.value = Math.round(armVizState.zoom * 100);
 }
 
+function armVizResetTestSlidersToCenters() {
+  chOrder.forEach(function(name) {
+    if (name === 'MACE') return;
+    var slider = document.getElementById('ch_' + name);
+    var neutral = getNeutral(name);
+    if (!slider || typeof neutral !== 'number' || isNaN(neutral)) return;
+    slider.value = neutral;
+    chUpdateLabel(name, neutral);
+  });
+}
+
 function armVizUpdateModeUI() {
   var modeEl = document.getElementById('armVizModeStatus');
   var liveBtn = document.getElementById('armVizLiveBtn');
@@ -767,7 +778,12 @@ function armVizUpdateModeUI() {
 }
 
 function armVizSetMode(mode) {
-  armVizState.mode = mode === 'test' ? 'test' : 'live';
+  var nextMode = mode === 'test' ? 'test' : 'live';
+  var changed = armVizState.mode !== nextMode;
+  armVizState.mode = nextMode;
+  if (changed && nextMode === 'test') {
+    armVizResetTestSlidersToCenters();
+  }
   armVizUpdateModeUI();
   armVizDrawScene();
 }
