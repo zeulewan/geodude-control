@@ -119,8 +119,8 @@ IK_NEUTRAL_PWM = {
     "B2": 1500, "S2": 1500, "E2": 1500, "W2A": 1500, "W2B": 1500,
 }
 IK_SOLVER_NOTES = [
-    "Cartesian IK solves the base roll plus shoulder and elbow pitch against the measured link lengths.",
-    "Wrist roll can be targeted explicitly in the dev solver, while wrist pitch stays at neutral for positional solves.",
+    "Cartesian IK now optimizes base, shoulder, elbow, and wrist pitch against the measured link lengths.",
+    "Wrist roll can be targeted explicitly, and the dev solver prefers solutions that reduce shoulder and elbow deflection.",
     "PWM-angle calibration is approximate and should be tuned on hardware before merge.",
 ]
 IK_ARM_CONFIG = {
@@ -456,7 +456,6 @@ def ik_solve_arm(selected_arm, target_xyz, wrist_roll_deg=None):
     rel_z = target["z"] - float(anchor["z"])
     upper_len = IK_LINKS_MM["upper"]
     fore_len = IK_LINKS_MM["forearm"] + IK_LINKS_MM["wrist_a"] + IK_LINKS_MM["tool"]
-    shoulder_x = side_bias * IK_LINKS_MM["base"]
     plane_x = side_bias * rel_x - IK_LINKS_MM["base"]
     base_limits = ik_joint_config(arm_name, "base")
     desired_base = math.atan2(rel_z, rel_y) if abs(rel_y) > 1e-9 or abs(rel_z) > 1e-9 else ik_angle_from_pwm(arm_name, "base")
@@ -466,6 +465,7 @@ def ik_solve_arm(selected_arm, target_xyz, wrist_roll_deg=None):
     planar_distance = math.hypot(plane_x, plane_y)
     max_reach = upper_len + fore_len - 1e-6
     min_reach = abs(upper_len - fore_len) + 1e-6
+    requested_wrist_roll_deg = None if wrist_roll_deg is None else round(float(wrist_roll_deg), 3)
     if planar_distance > max_reach or planar_distance < min_reach:
         return {
             "ok": False,
@@ -474,44 +474,126 @@ def ik_solve_arm(selected_arm, target_xyz, wrist_roll_deg=None):
             "distance_mm": round(planar_distance, 3),
             "reachable_range_mm": [round(min_reach, 3), round(max_reach, 3)],
             "target_mm": {axis: round(target[axis], 3) for axis in ("x", "y", "z")},
-            "requested_wrist_roll_deg": None if wrist_roll_deg is None else round(float(wrist_roll_deg), 3),
+            "requested_wrist_roll_deg": requested_wrist_roll_deg,
         }
 
     cos_elbow = (planar_distance * planar_distance - upper_len * upper_len - fore_len * fore_len) / (2.0 * upper_len * fore_len)
     cos_elbow = clamp(cos_elbow, -1.0, 1.0)
     elbow_candidates = [math.acos(cos_elbow), -math.acos(cos_elbow)]
     wrist_roll_angle = ik_angle_from_pwm(arm_name, "wrist_roll") if wrist_roll_deg is None else math.radians(float(wrist_roll_deg))
-    wrist_pitch_angle = 0.0
-    best = None
+    wrist_roll_angle = clamp(wrist_roll_angle, ik_joint_config(arm_name, "wrist_roll")["min_angle"], ik_joint_config(arm_name, "wrist_roll")["max_angle"])
 
     def within_limits(joint_name, angle):
         cfg = ik_joint_config(arm_name, joint_name)
         return cfg["min_angle"] - 1e-6 <= angle <= cfg["max_angle"] + 1e-6
 
-    for elbow_angle in elbow_candidates:
-        shoulder_angle = math.atan2(plane_y, plane_x) - math.atan2(fore_len * math.sin(elbow_angle), upper_len + fore_len * math.cos(elbow_angle))
+    def make_candidate(base, shoulder, elbow, wrist_pitch):
         candidate = {
-            "base": base_angle,
-            "shoulder": shoulder_angle,
-            "elbow": elbow_angle,
-            "wrist_roll": clamp(wrist_roll_angle, ik_joint_config(arm_name, "wrist_roll")["min_angle"], ik_joint_config(arm_name, "wrist_roll")["max_angle"]),
-            "wrist_pitch": wrist_pitch_angle,
+            "base": clamp(base, ik_joint_config(arm_name, "base")["min_angle"], ik_joint_config(arm_name, "base")["max_angle"]),
+            "shoulder": clamp(shoulder, ik_joint_config(arm_name, "shoulder")["min_angle"], ik_joint_config(arm_name, "shoulder")["max_angle"]),
+            "elbow": clamp(elbow, ik_joint_config(arm_name, "elbow")["min_angle"], ik_joint_config(arm_name, "elbow")["max_angle"]),
+            "wrist_roll": wrist_roll_angle,
+            "wrist_pitch": clamp(wrist_pitch, ik_joint_config(arm_name, "wrist_pitch")["min_angle"], ik_joint_config(arm_name, "wrist_pitch")["max_angle"]),
         }
-        if not all(within_limits(joint_name, candidate[joint_name]) for joint_name in ("base", "shoulder", "elbow", "wrist_roll", "wrist_pitch")):
-            continue
+        return candidate if all(within_limits(name, candidate[name]) for name in ("base", "shoulder", "elbow", "wrist_roll", "wrist_pitch")) else None
+
+    def evaluate(candidate):
+        if candidate is None:
+            return None
         pose = ik_pose_from_angles(arm_name, candidate)
         error = math.sqrt(sum((pose["tip"][axis] - target[axis]) ** 2 for axis in ("x", "y", "z")))
-        result = {"angles": candidate, "pose": pose, "tip_error": error}
-        if best is None or result["tip_error"] < best["tip_error"]:
+        stiffness_cost = (
+            52.0 * (candidate["shoulder"] ** 2)
+            + 38.0 * (candidate["elbow"] ** 2)
+            + 8.0 * (candidate["base"] ** 2)
+            + 1.2 * (candidate["wrist_pitch"] ** 2)
+        )
+        wrist_usage_bonus = 2.5 * abs(candidate["wrist_pitch"])
+        score = (error * 180.0) ** 2 + stiffness_cost - wrist_usage_bonus
+        return {"angles": candidate, "pose": pose, "tip_error": error, "score": score}
+
+    def optimize(seed):
+        best = evaluate(seed)
+        if best is None:
+            return None
+        step_plan = {
+            "base": [0.35, 0.18, 0.08, 0.04],
+            "shoulder": [0.5, 0.25, 0.12, 0.06],
+            "elbow": [0.6, 0.3, 0.14, 0.07],
+            "wrist_pitch": [0.8, 0.4, 0.2, 0.1],
+        }
+        for _ in range(4):
+            improved = False
+            for joint_name in ("base", "shoulder", "elbow", "wrist_pitch"):
+                for step in step_plan[joint_name]:
+                    for direction in (-1.0, 1.0):
+                        trial_angles = dict(best["angles"])
+                        trial_angles[joint_name] += direction * step
+                        trial = evaluate(make_candidate(
+                            trial_angles["base"],
+                            trial_angles["shoulder"],
+                            trial_angles["elbow"],
+                            trial_angles["wrist_pitch"],
+                        ))
+                        if trial and trial["score"] + 1e-9 < best["score"]:
+                            best = trial
+                            improved = True
+            coupled_steps = [
+                ("shoulder", -1.0, "wrist_pitch", 1.0),
+                ("shoulder", 1.0, "wrist_pitch", -1.0),
+                ("elbow", -1.0, "wrist_pitch", 1.0),
+                ("elbow", 1.0, "wrist_pitch", -1.0),
+                ("shoulder", -1.0, "elbow", -1.0),
+                ("shoulder", 1.0, "elbow", 1.0),
+            ]
+            for joint_a, sign_a, joint_b, sign_b in coupled_steps:
+                for step_a in step_plan[joint_a]:
+                    for step_b in step_plan[joint_b]:
+                        trial_angles = dict(best["angles"])
+                        trial_angles[joint_a] += sign_a * step_a
+                        trial_angles[joint_b] += sign_b * step_b
+                        trial = evaluate(make_candidate(
+                            trial_angles["base"],
+                            trial_angles["shoulder"],
+                            trial_angles["elbow"],
+                            trial_angles["wrist_pitch"],
+                        ))
+                        if trial and trial["score"] + 1e-9 < best["score"]:
+                            best = trial
+                            improved = True
+            if not improved:
+                break
+        return best
+
+    seed_states = []
+    current = ik_current_angles(arm_name)
+    seed_states.append(make_candidate(current["base"], current["shoulder"], current["elbow"], current["wrist_pitch"]))
+    for elbow_angle in elbow_candidates:
+        shoulder_angle = math.atan2(plane_y, plane_x) - math.atan2(fore_len * math.sin(elbow_angle), upper_len + fore_len * math.cos(elbow_angle))
+        for wrist_pitch in (0.0, -0.45, 0.45, -0.9, 0.9, -1.2, 1.2):
+            seed_states.append(make_candidate(base_angle, shoulder_angle, elbow_angle, wrist_pitch))
+            for shoulder_scale, elbow_scale in ((0.9, 0.8), (0.82, 0.7), (0.7, 0.55), (0.55, 0.42)):
+                scaled_shoulder = shoulder_angle * shoulder_scale
+                scaled_elbow = elbow_angle * elbow_scale
+                seed_states.append(make_candidate(base_angle, scaled_shoulder, scaled_elbow, wrist_pitch))
+                seed_states.append(make_candidate(base_angle, scaled_shoulder, scaled_elbow, -(scaled_shoulder + scaled_elbow) * 0.8))
+                seed_states.append(make_candidate(base_angle, scaled_shoulder, scaled_elbow, -(scaled_shoulder + scaled_elbow)))
+
+    best = None
+    for seed in seed_states:
+        result = optimize(seed)
+        if result is None:
+            continue
+        if best is None or result["score"] < best["score"]:
             best = result
 
-    if best is None:
+    if best is None or best["tip_error"] > 12.0:
         return {
             "ok": False,
             "arm": arm_name,
             "reason": "joint_limits",
             "target_mm": {axis: round(target[axis], 3) for axis in ("x", "y", "z")},
-            "requested_wrist_roll_deg": None if wrist_roll_deg is None else round(float(wrist_roll_deg), 3),
+            "requested_wrist_roll_deg": requested_wrist_roll_deg,
             "notes": list(IK_SOLVER_NOTES),
         }
 
@@ -527,10 +609,11 @@ def ik_solve_arm(selected_arm, target_xyz, wrist_roll_deg=None):
         "angles_rad": {joint: round(value, 6) for joint, value in angles.items()},
         "angles_deg": {joint: round(math.degrees(value), 3) for joint, value in angles.items()},
         "target_mm": {axis: round(target[axis], 3) for axis in ("x", "y", "z")},
-        "requested_wrist_roll_deg": None if wrist_roll_deg is None else round(float(wrist_roll_deg), 3),
+        "requested_wrist_roll_deg": requested_wrist_roll_deg,
         "tip_mm": {axis: round(pose["tip"][axis], 3) for axis in ("x", "y", "z")},
         "target_pwms": target_pwms,
         "tip_error_mm": round(best["tip_error"], 3),
+        "optimization_score": round(best["score"], 3),
         "plane_side_error_mm": round(plane_side_error, 3),
         "notes": list(IK_SOLVER_NOTES),
     }
