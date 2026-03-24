@@ -246,6 +246,8 @@ var armVizState = {
   dragStartY: 0,
   startAzimuth: 28,
   startElevation: 18,
+  zoom: 1,
+  startZoom: 1,
   mode: 'live'
 };
 
@@ -351,7 +353,7 @@ function armVizBuildArm(side) {
   };
 }
 
-function armVizProject(point, width, height, azimuth, elevation) {
+function armVizProject(point, width, height, azimuth, elevation, zoom) {
   var az = azimuth * Math.PI / 180;
   var el = elevation * Math.PI / 180;
   var x1 = point.x * Math.cos(az) - point.z * Math.sin(az);
@@ -360,8 +362,8 @@ function armVizProject(point, width, height, azimuth, elevation) {
   var z2 = point.y * Math.sin(el) + z1 * Math.cos(el);
   var perspective = 1 + (z2 / 650);
   return {
-    x: width / 2 + x1 * perspective,
-    y: height / 2 - y2 * perspective,
+    x: width / 2 + x1 * perspective * zoom,
+    y: height / 2 - y2 * perspective * zoom,
     depth: z2
   };
 }
@@ -380,7 +382,7 @@ function armVizDrawBox(ctx, width, height, center, size, azimuth, elevation, str
     {x: center.x + sx, y: center.y + sy, z: center.z + sz},
     {x: center.x - sx, y: center.y + sy, z: center.z + sz}
   ].map(function(point) {
-    return armVizProject(point, width, height, azimuth, elevation);
+    return armVizProject(point, width, height, azimuth, elevation, armVizState.zoom);
   });
   var edges = [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
   ctx.save();
@@ -455,7 +457,7 @@ function armVizDrawScene() {
   var arms = [armVizBuildArm('left'), armVizBuildArm('right')];
   arms.forEach(function(arm) {
     var pts = arm.joints.map(function(point) {
-      return armVizProject(point, width, height, armVizState.azimuth, armVizState.elevation);
+      return armVizProject(point, width, height, armVizState.azimuth, armVizState.elevation, armVizState.zoom);
     });
     ctx.strokeStyle = arm.color;
     ctx.lineWidth = 3;
@@ -498,8 +500,10 @@ function armVizLoop() {
 function armVizSetView() {
   var az = document.getElementById('armVizAzimuth');
   var el = document.getElementById('armVizElevation');
+  var zoom = document.getElementById('armVizZoom');
   if (az) armVizState.azimuth = parseInt(az.value, 10);
   if (el) armVizState.elevation = parseInt(el.value, 10);
+  if (zoom) armVizState.zoom = parseInt(zoom.value, 10) / 100;
   armVizSyncControls();
   armVizDrawScene();
 }
@@ -507,8 +511,10 @@ function armVizSetView() {
 function armVizSyncControls() {
   var az = document.getElementById('armVizAzimuth');
   var el = document.getElementById('armVizElevation');
+  var zoom = document.getElementById('armVizZoom');
   if (az) az.value = Math.round(armVizState.azimuth);
   if (el) el.value = Math.round(armVizState.elevation);
+  if (zoom) zoom.value = Math.round(armVizState.zoom * 100);
 }
 
 function armVizUpdateModeUI() {
@@ -535,6 +541,7 @@ function armVizPointerDown(event) {
   armVizState.dragStartY = event.clientY;
   armVizState.startAzimuth = armVizState.azimuth;
   armVizState.startElevation = armVizState.elevation;
+  armVizState.startZoom = armVizState.zoom;
   canvas.classList.add('dragging');
   var btn = document.getElementById('armVizOrbitBtn');
   if (btn) btn.textContent = 'AUTO ORBIT';
@@ -546,6 +553,14 @@ function armVizPointerMove(event) {
   var dy = event.clientY - armVizState.dragStartY;
   armVizState.azimuth = Math.max(-180, Math.min(180, armVizState.startAzimuth - dx * 0.45));
   armVizState.elevation = Math.max(-10, Math.min(70, armVizState.startElevation + dy * 0.22));
+  armVizSyncControls();
+  armVizDrawScene();
+}
+
+function armVizWheel(event) {
+  event.preventDefault();
+  var delta = event.deltaY > 0 ? -0.08 : 0.08;
+  armVizState.zoom = Math.max(0.6, Math.min(1.8, armVizState.zoom + delta));
   armVizSyncControls();
   armVizDrawScene();
 }
@@ -562,6 +577,7 @@ function armVizBindPointer() {
   if (!canvas || canvas.dataset.bound === '1') return;
   canvas.dataset.bound = '1';
   canvas.addEventListener('pointerdown', armVizPointerDown);
+  canvas.addEventListener('wheel', armVizWheel, {passive: false});
   window.addEventListener('pointermove', armVizPointerMove);
   window.addEventListener('pointerup', armVizPointerUp);
   window.addEventListener('pointercancel', armVizPointerUp);
@@ -577,12 +593,15 @@ function armVizToggleOrbit() {
 function armVizResetView() {
   armVizState.azimuth = 28;
   armVizState.elevation = 18;
+  armVizState.zoom = 1;
   armVizState.autoOrbit = false;
   var az = document.getElementById('armVizAzimuth');
   var el = document.getElementById('armVizElevation');
+  var zoom = document.getElementById('armVizZoom');
   var btn = document.getElementById('armVizOrbitBtn');
   if (az) az.value = 28;
   if (el) el.value = 18;
+  if (zoom) zoom.value = 100;
   if (btn) btn.textContent = 'AUTO ORBIT';
   armVizDrawScene();
 }
