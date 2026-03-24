@@ -60,7 +60,7 @@ body {
 }
 .dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   align-items: start;
 }
@@ -71,6 +71,42 @@ body {
 .dashboard-ml,
 .dashboard-sensors {
   align-self: stretch;
+}
+.sensor-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+.sensor-panel {
+  padding: 6px;
+}
+.sensor-panel-title {
+  font-size: 10px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+.sensor-panel-encoder {
+  grid-column: 1 / -1;
+}
+.compact-encoder {
+  gap: 8px;
+  margin-top: 0;
+}
+.compact-encoder .dial-wrapper,
+.compact-encoder .dial-ring {
+  width: 52px;
+  height: 52px;
+}
+.compact-encoder #needle {
+  height: 28px;
+}
+.compact-encoder .encoder-text .value {
+  font-size: 20px;
+}
+.compact-encoder .encoder-text .sub {
+  font-size: 12px;
 }
 .card {
   background: #141824;
@@ -1093,8 +1129,12 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 /* Responsive */
+@media (max-width: 1200px) {
+  .dashboard-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
 @media (max-width: 1024px) {
   .dashboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sensor-mini-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 768px) {
   .two-col { grid-template-columns: 1fr; }
