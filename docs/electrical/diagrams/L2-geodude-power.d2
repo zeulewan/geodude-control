@@ -100,7 +100,7 @@ board: "Servo Fuse Board (1 board, 10 servos)" {
   fuses_74v: "2x 5A fuses (7.4V elbow)" {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"; width: 200}
   fuses_5v: "4x 3A fuses (5V wrist)" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"; width: 200}
 
-  headers_out: "10x Male 3-pin Headers (out)" {
+  headers_out: "11x Male 3-pin Headers (out) | 10 servos + 1 MACE ESC" {
     shape: rectangle
     style.fill: "#B0BEC5"
     style.stroke: "#546E7A"
@@ -126,10 +126,7 @@ buck3 -> board.screw_in: "5V, 18 AWG" {style.stroke: "#43A047"}
 pca: "PCA9685 16-Ch PWM Driver | VCC: 5V from Pi | V+: not connected" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
 
 pi -> pca: "I2C + 5V power" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-pca -> board.screw_in: "Ch 0-9 PWM (10 servo signals)" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-
-# MACE signal + sensors
-pca -> mace.esc: "Ch 14 PWM + GND only (no 5V)" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+pca -> board.headers_out: "Ch 0-9 PWM (10 servos) + Ch 14 (MACE ESC)" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 pi -> mace.encoder: "I2C + 3.3V" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 pi -> mace.imu: "I2C + 3.3V" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 
