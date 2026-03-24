@@ -561,7 +561,16 @@
         </div>
         <div class="mission-step" id="missionStep3" data-step-index="3">
           <div class="mission-step-head"><span class="mission-step-index">3</span><span>Everything Nominal Check</span></div>
-          <div class="mission-subflow"><div class="mission-subflow-title">Substeps</div><button class="mission-substep mission-action-substep" id="missionSubstep-3-default" type="button" onclick="missionCompleteSubstep(3, 'default')">Pending</button></div>
+          <div class="mission-subflow">
+            <div class="mission-subflow-title">Substeps</div>
+            <div class="mission-substep mission-checkpoint-substep" id="missionEverythingNominalCheckpoint">
+              <div class="mission-substep-label">Everything nominal?</div>
+              <div class="mission-checkpoint-actions">
+                <button class="btn btn-dark mission-inline-btn" type="button" onclick="missionRespondEverythingNominal(true)">Yes</button>
+                <button class="btn btn-dark mission-inline-btn" type="button" onclick="missionRespondEverythingNominal(false)">No</button>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="mission-step" id="missionStep4" data-step-index="4">
           <div class="mission-step-head"><span class="mission-step-index">4</span><span>All Identified Check</span></div>

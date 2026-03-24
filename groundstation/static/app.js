@@ -76,7 +76,7 @@ var chNeutral = {};
 
 var controllerStatus = {enabled: false};
 var activePageTab = 'manual';
-var missionFlowState = { currentStep: 1, started: false, halted: false, nominalCheckResolved: false, substeps: { 2: { 'sat-detect': false, 'gimbal': false, 'mace': false }, 3: { 'default': false }, 4: { 'default': false }, 5: { 'default': false }, 6: { 'default': false }, 7: { 'default': false }, 8: { 'default': false }, 9: { 'default': false }, 10: { 'default': false } } };
+var missionFlowState = { currentStep: 1, started: false, halted: false, nominalCheckResolved: false, everythingNominalResolved: false, substeps: { 2: { 'sat-detect': false, 'gimbal': false, 'mace': false }, 4: { 'default': false }, 5: { 'default': false }, 6: { 'default': false }, 7: { 'default': false }, 8: { 'default': false }, 9: { 'default': false }, 10: { 'default': false } } };
 
 function showPageTab(tab) {
   activePageTab = tab === 'mission' ? 'mission' : 'manual';
@@ -93,6 +93,7 @@ function showPageTab(tab) {
 
 function missionIsStepComplete(step) {
   if (step === 1) return !!missionFlowState.nominalCheckResolved;
+  if (step === 3) return !!missionFlowState.everythingNominalResolved;
   var substeps = missionFlowState.substeps[step] || {};
   var keys = Object.keys(substeps);
   return keys.length > 0 && keys.every(function(key) { return !!substeps[key]; });
@@ -102,6 +103,9 @@ function missionRenderFlow() {
   var checkpoint = document.getElementById('missionStartCheckpoint');
   var label = checkpoint ? checkpoint.querySelector('.mission-substep-label') : null;
   var actions = checkpoint ? checkpoint.querySelector('.mission-checkpoint-actions') : null;
+  var checkpointTwo = document.getElementById('missionEverythingNominalCheckpoint');
+  var labelTwo = checkpointTwo ? checkpointTwo.querySelector('.mission-substep-label') : null;
+  var actionsTwo = checkpointTwo ? checkpointTwo.querySelector('.mission-checkpoint-actions') : null;
   for (var i = 1; i <= 10; i += 1) {
     var step = document.getElementById('missionStep' + i);
     if (!step) continue;
@@ -118,9 +122,20 @@ function missionRenderFlow() {
   if (checkpoint) {
     checkpoint.classList.toggle('active', missionFlowState.currentStep === 1 && !missionFlowState.nominalCheckResolved && !missionFlowState.halted);
     checkpoint.classList.toggle('completed', !!missionFlowState.nominalCheckResolved);
-    checkpoint.classList.toggle('blocked', missionFlowState.halted);
+    checkpoint.classList.toggle('blocked', missionFlowState.halted && missionFlowState.currentStep === 1);
   }
   if (actions) actions.style.display = missionFlowState.currentStep === 1 && !missionFlowState.nominalCheckResolved && !missionFlowState.halted ? 'flex' : 'none';
+  if (labelTwo) {
+    if (missionFlowState.halted && missionFlowState.currentStep === 3) labelTwo.textContent = 'Everything nominal check failed';
+    else if (missionFlowState.everythingNominalResolved) labelTwo.textContent = 'Everything nominal check cleared';
+    else labelTwo.textContent = 'Everything nominal?';
+  }
+  if (checkpointTwo) {
+    checkpointTwo.classList.toggle('active', missionFlowState.currentStep === 3 && !missionFlowState.everythingNominalResolved && !missionFlowState.halted);
+    checkpointTwo.classList.toggle('completed', !!missionFlowState.everythingNominalResolved);
+    checkpointTwo.classList.toggle('blocked', missionFlowState.halted && missionFlowState.currentStep === 3);
+  }
+  if (actionsTwo) actionsTwo.style.display = missionFlowState.currentStep === 3 && !missionFlowState.everythingNominalResolved && !missionFlowState.halted ? 'flex' : 'none';
   Object.keys(missionFlowState.substeps).forEach(function(stepKey) {
     var stepNum = parseInt(stepKey, 10);
     var substeps = missionFlowState.substeps[stepNum];
@@ -167,6 +182,20 @@ function missionRespondNominalCheck(approved) {
     missionFlowState.halted = false;
     missionSetState('READY FOR STEP 2');
     missionGoToStep(2);
+  } else {
+    missionFlowState.halted = true;
+    missionSetState('STOPPED');
+    missionRenderFlow();
+  }
+}
+
+function missionRespondEverythingNominal(approved) {
+  missionFlowState.started = true;
+  if (approved) {
+    missionFlowState.everythingNominalResolved = true;
+    missionFlowState.halted = false;
+    missionSetState('READY FOR STEP 4');
+    missionGoToStep(4);
   } else {
     missionFlowState.halted = true;
     missionSetState('STOPPED');
