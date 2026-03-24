@@ -552,39 +552,44 @@
         </div>
         <div class="mission-step" id="missionStep2" data-step-index="2">
           <div class="mission-step-head"><span class="mission-step-index">2</span><span>All Joints Neutral Check</span></div>
-          <div class="mission-subflow"><div class="mission-subflow-title">Substeps</div><div class="mission-substep">Pending</div></div>
+          <div class="mission-subflow">
+            <div class="mission-subflow-title">Substeps</div>
+            <button class="mission-substep mission-action-substep" id="missionSubstep-2-sat-detect" type="button" onclick="missionCompleteSubstep(2, 'sat-detect')">Start sat detect model</button>
+            <button class="mission-substep mission-action-substep" id="missionSubstep-2-gimbal" type="button" onclick="missionCompleteSubstep(2, 'gimbal')">Start gimbal</button>
+            <button class="mission-substep mission-action-substep" id="missionSubstep-2-mace" type="button" onclick="missionCompleteSubstep(2, 'mace')">Start mace</button>
+          </div>
         </div>
         <div class="mission-step" id="missionStep3" data-step-index="3">
           <div class="mission-step-head"><span class="mission-step-index">3</span><span>Everything Nominal Check</span></div>
-          <div class="mission-subflow"><div class="mission-subflow-title">Substeps</div><div class="mission-substep">Pending</div></div>
+          <div class="mission-subflow"><div class="mission-subflow-title">Substeps</div><button class="mission-substep mission-action-substep" id="missionSubstep-3-default" type="button" onclick="missionCompleteSubstep(3, 'default')">Pending</button></div>
         </div>
         <div class="mission-step" id="missionStep4" data-step-index="4">
           <div class="mission-step-head"><span class="mission-step-index">4</span><span>All Identified Check</span></div>
-          <div class="mission-subflow"><div class="mission-subflow-title">Substeps</div><div class="mission-substep">Pending</div></div>
+          <div class="mission-subflow"><div class="mission-subflow-title">Substeps</div><button class="mission-substep mission-action-substep" id="missionSubstep-4-default" type="button" onclick="missionCompleteSubstep(4, 'default')">Pending</button></div>
         </div>
         <div class="mission-step" id="missionStep5" data-step-index="5">
           <div class="mission-step-head"><span class="mission-step-index">5</span><span>Approach</span></div>
-          <div class="mission-subflow"><div class="mission-subflow-title">Substeps</div><div class="mission-substep">Pending</div></div>
+          <div class="mission-subflow"><div class="mission-subflow-title">Substeps</div><button class="mission-substep mission-action-substep" id="missionSubstep-5-default" type="button" onclick="missionCompleteSubstep(5, 'default')">Pending</button></div>
         </div>
         <div class="mission-step" id="missionStep6" data-step-index="6">
           <div class="mission-step-head"><span class="mission-step-index">6</span><span>Docking</span></div>
-          <div class="mission-subflow"><div class="mission-subflow-title">Substeps</div><div class="mission-substep">Pending</div></div>
+          <div class="mission-subflow"><div class="mission-subflow-title">Substeps</div><button class="mission-substep mission-action-substep" id="missionSubstep-6-default" type="button" onclick="missionCompleteSubstep(6, 'default')">Pending</button></div>
         </div>
         <div class="mission-step" id="missionStep7" data-step-index="7">
           <div class="mission-step-head"><span class="mission-step-index">7</span><span>Undocking</span></div>
-          <div class="mission-subflow"><div class="mission-subflow-title">Substeps</div><div class="mission-substep">Pending</div></div>
+          <div class="mission-subflow"><div class="mission-subflow-title">Substeps</div><button class="mission-substep mission-action-substep" id="missionSubstep-7-default" type="button" onclick="missionCompleteSubstep(7, 'default')">Pending</button></div>
         </div>
         <div class="mission-step" id="missionStep8" data-step-index="8">
           <div class="mission-step-head"><span class="mission-step-index">8</span><span>AOCS Module Attach</span></div>
-          <div class="mission-subflow"><div class="mission-subflow-title">Substeps</div><div class="mission-substep">Pending</div></div>
+          <div class="mission-subflow"><div class="mission-subflow-title">Substeps</div><button class="mission-substep mission-action-substep" id="missionSubstep-8-default" type="button" onclick="missionCompleteSubstep(8, 'default')">Pending</button></div>
         </div>
         <div class="mission-step" id="missionStep9" data-step-index="9">
           <div class="mission-step-head"><span class="mission-step-index">9</span><span>Back Away</span></div>
-          <div class="mission-subflow"><div class="mission-subflow-title">Substeps</div><div class="mission-substep">Pending</div></div>
+          <div class="mission-subflow"><div class="mission-subflow-title">Substeps</div><button class="mission-substep mission-action-substep" id="missionSubstep-9-default" type="button" onclick="missionCompleteSubstep(9, 'default')">Pending</button></div>
         </div>
         <div class="mission-step" id="missionStep10" data-step-index="10">
           <div class="mission-step-head"><span class="mission-step-index">10</span><span>Mission Complete</span></div>
-          <div class="mission-subflow"><div class="mission-subflow-title">Substeps</div><div class="mission-substep">Pending</div></div>
+          <div class="mission-subflow"><div class="mission-subflow-title">Substeps</div><button class="mission-substep mission-action-substep" id="missionSubstep-10-default" type="button" onclick="missionCompleteSubstep(10, 'default')">Pending</button></div>
         </div>
       </div>
       <div class="mission-note">This tab is the autonomous workflow shell. It is intended to compose the camera, ML staging, IK preview, and mission sequencing without interfering with manual debugging.</div>

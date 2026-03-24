@@ -1595,6 +1595,25 @@ input[type="number"]::-webkit-outer-spin-button {
   font-size: 9px;
   font-weight: 500;
 }
+.mission-action-substep {
+  width: 100%;
+  appearance: none;
+  cursor: pointer;
+}
+.mission-action-substep.active {
+  border-color: rgba(59,130,246,0.4);
+  background: rgba(59,130,246,0.14);
+  color: #dbeafe;
+}
+.mission-action-substep.completed {
+  border-color: rgba(34,197,94,0.45);
+  background: rgba(34,197,94,0.16);
+  color: #dcfce7;
+}
+.mission-action-substep:disabled {
+  cursor: default;
+  opacity: 0.72;
+}
 .mission-checkpoint-substep {
   min-height: 58px;
   flex-direction: column;
@@ -1602,6 +1621,21 @@ input[type="number"]::-webkit-outer-spin-button {
   align-items: stretch;
   gap: 6px;
   padding: 6px;
+}
+.mission-checkpoint-substep.active {
+  border-color: rgba(59,130,246,0.4);
+  background: rgba(59,130,246,0.14);
+  color: #dbeafe;
+}
+.mission-checkpoint-substep.completed {
+  border-color: rgba(34,197,94,0.45);
+  background: rgba(34,197,94,0.16);
+  color: #dcfce7;
+}
+.mission-checkpoint-substep.blocked {
+  border-color: rgba(239,68,68,0.45);
+  background: rgba(239,68,68,0.16);
+  color: #fee2e2;
 }
 .mission-substep-label {
   text-align: center;

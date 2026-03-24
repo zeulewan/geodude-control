@@ -76,7 +76,7 @@ var chNeutral = {};
 
 var controllerStatus = {enabled: false};
 var activePageTab = 'manual';
-var missionFlowState = { currentStep: 1, started: false, halted: false, nominalCheckResolved: false };
+var missionFlowState = { currentStep: 1, started: false, halted: false, nominalCheckResolved: false, substeps: { 2: { 'sat-detect': false, 'gimbal': false, 'mace': false }, 3: { 'default': false }, 4: { 'default': false }, 5: { 'default': false }, 6: { 'default': false }, 7: { 'default': false }, 8: { 'default': false }, 9: { 'default': false }, 10: { 'default': false } } };
 
 function showPageTab(tab) {
   activePageTab = tab === 'mission' ? 'mission' : 'manual';
@@ -91,6 +91,13 @@ function showPageTab(tab) {
   missionSyncSummary();
 }
 
+function missionIsStepComplete(step) {
+  if (step === 1) return !!missionFlowState.nominalCheckResolved;
+  var substeps = missionFlowState.substeps[step] || {};
+  var keys = Object.keys(substeps);
+  return keys.length > 0 && keys.every(function(key) { return !!substeps[key]; });
+}
+
 function missionRenderFlow() {
   var checkpoint = document.getElementById('missionStartCheckpoint');
   var label = checkpoint ? checkpoint.querySelector('.mission-substep-label') : null;
@@ -98,21 +105,59 @@ function missionRenderFlow() {
   for (var i = 1; i <= 10; i += 1) {
     var step = document.getElementById('missionStep' + i);
     if (!step) continue;
-    step.classList.toggle('active', i === missionFlowState.currentStep && !missionFlowState.halted);
-    step.classList.toggle('completed', i < missionFlowState.currentStep && !missionFlowState.halted);
+    var isComplete = missionIsStepComplete(i);
+    step.classList.toggle('active', i === missionFlowState.currentStep && !missionFlowState.halted && !isComplete);
+    step.classList.toggle('completed', isComplete);
     step.classList.toggle('blocked', missionFlowState.halted && i === missionFlowState.currentStep);
   }
   if (label) {
     if (missionFlowState.halted) label.textContent = 'Nominal environment check failed';
     else if (missionFlowState.nominalCheckResolved) label.textContent = 'Nominal environment check cleared';
-    else label.textContent = missionFlowState.started ? 'Nominal environment check' : 'Nominal environment check';
+    else label.textContent = 'Nominal environment check';
+  }
+  if (checkpoint) {
+    checkpoint.classList.toggle('active', missionFlowState.currentStep === 1 && !missionFlowState.nominalCheckResolved && !missionFlowState.halted);
+    checkpoint.classList.toggle('completed', !!missionFlowState.nominalCheckResolved);
+    checkpoint.classList.toggle('blocked', missionFlowState.halted);
   }
   if (actions) actions.style.display = missionFlowState.currentStep === 1 && !missionFlowState.nominalCheckResolved && !missionFlowState.halted ? 'flex' : 'none';
+  Object.keys(missionFlowState.substeps).forEach(function(stepKey) {
+    var stepNum = parseInt(stepKey, 10);
+    var substeps = missionFlowState.substeps[stepNum];
+    Object.keys(substeps).forEach(function(subKey) {
+      var el = document.getElementById('missionSubstep-' + stepNum + '-' + subKey);
+      if (!el) return;
+      var complete = !!substeps[subKey];
+      var active = missionFlowState.currentStep === stepNum && !missionFlowState.halted && !complete;
+      el.classList.toggle('active', active);
+      el.classList.toggle('completed', complete);
+      el.disabled = !active && !complete;
+    });
+  });
+}
+
+function missionAdvanceFrom(step) {
+  var next = Math.min(10, step + 1);
+  missionFlowState.currentStep = next;
+  if (next === 10 && missionIsStepComplete(10)) missionSetState('MISSION COMPLETE');
+  missionRenderFlow();
 }
 
 function missionGoToStep(step) {
   missionFlowState.currentStep = Math.max(1, Math.min(10, step));
   missionRenderFlow();
+}
+
+function missionCompleteSubstep(step, substep) {
+  if (missionFlowState.halted || missionFlowState.currentStep !== step) return;
+  if (!missionFlowState.substeps[step] || !(substep in missionFlowState.substeps[step])) return;
+  missionFlowState.substeps[step][substep] = true;
+  if (missionIsStepComplete(step)) {
+    if (step < 10) missionAdvanceFrom(step);
+    else missionSetState('MISSION COMPLETE');
+  } else {
+    missionRenderFlow();
+  }
 }
 
 function missionRespondNominalCheck(approved) {
@@ -136,6 +181,7 @@ function missionSetState(state) {
     missionFlowState.started = true;
     missionFlowState.halted = false;
     if (!missionFlowState.nominalCheckResolved) missionGoToStep(1);
+    else missionRenderFlow();
   }
   if (state === 'CONFIGURING' || state === 'READY' || state === 'REVIEW') {
     missionFlowState.halted = false;
