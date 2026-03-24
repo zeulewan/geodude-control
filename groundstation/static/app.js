@@ -28,6 +28,93 @@ var chNeutral = {};
 
 var controllerStatus = {enabled: false};
 
+var visionState = {
+  fileName: '',
+  status: 'STANDBY',
+  profile: 'Docking',
+  mode: 'Observe'
+};
+
+function updateVisionUI() {
+  var nameEl = document.getElementById('visionModelName');
+  var statusEl = document.getElementById('visionModelStatus');
+  var profileEl = document.getElementById('visionProfileStatus');
+  var noteEl = document.getElementById('visionNote');
+  var loadBtn = document.getElementById('visionLoadBtn');
+  var previewBtn = document.getElementById('visionPreviewBtn');
+  var armBtn = document.getElementById('visionArmBtn');
+  var hasFile = !!visionState.fileName;
+  if (nameEl) nameEl.textContent = hasFile ? visionState.fileName : 'No model selected';
+  if (statusEl) {
+    statusEl.textContent = visionState.status;
+    statusEl.style.color = visionState.status === 'STAGED' ? '#22c55e' : (visionState.status === 'PREVIEW' ? '#3b82f6' : '#9ca3af');
+  }
+  if (profileEl) profileEl.textContent = visionState.profile;
+  if (noteEl) {
+    if (!hasFile) {
+      noteEl.textContent = 'Frontend placeholder only. Choose a model file to stage the UI for future autonomous vision tools.';
+    } else if (visionState.status === 'LOADED') {
+      noteEl.textContent = 'Model selected in the GUI only: ' + visionState.fileName + '. No backend inference path is connected yet.';
+    } else if (visionState.status === 'PREVIEW') {
+      noteEl.textContent = 'Preview staged for ' + visionState.profile + ' in ' + visionState.mode + ' mode. Camera integration is still backend-pending.';
+    } else if (visionState.status === 'STAGED') {
+      noteEl.textContent = 'Autonomy UI staged for ' + visionState.profile + ' with ' + visionState.fileName + '. This does not command hardware or start inference yet.';
+    }
+  }
+  if (loadBtn) loadBtn.className = hasFile ? 'btn' : 'btn btn-dark';
+  if (previewBtn) previewBtn.className = hasFile ? 'btn btn-dark' : 'btn btn-dark disabled';
+  if (armBtn) armBtn.className = hasFile ? 'btn btn-amber' : 'btn btn-dark disabled';
+}
+
+function visionModelChanged(input) {
+  var file = input && input.files && input.files[0] ? input.files[0] : null;
+  visionState.fileName = file ? file.name : '';
+  visionState.status = file ? 'LOADED' : 'STANDBY';
+  updateVisionUI();
+}
+
+function visionProfileChanged(value) {
+  visionState.profile = value || 'Docking';
+  updateVisionUI();
+}
+
+function visionModeChanged(value) {
+  visionState.mode = value || 'Observe';
+  updateVisionUI();
+}
+
+function visionLoadModel() {
+  if (!visionState.fileName) return;
+  visionState.status = 'LOADED';
+  updateVisionUI();
+}
+
+function visionPreviewPipeline() {
+  if (!visionState.fileName) return;
+  visionState.status = 'PREVIEW';
+  updateVisionUI();
+}
+
+function visionStageAutonomy() {
+  if (!visionState.fileName) return;
+  visionState.status = 'STAGED';
+  updateVisionUI();
+}
+
+function visionReset() {
+  visionState.fileName = '';
+  visionState.status = 'STANDBY';
+  visionState.profile = 'Docking';
+  visionState.mode = 'Observe';
+  var input = document.getElementById('visionModelFile');
+  if (input) input.value = '';
+  var profile = document.getElementById('visionProfileSelect');
+  if (profile) profile.value = 'Docking';
+  var mode = document.getElementById('visionRunMode');
+  if (mode) mode.value = 'Observe';
+  updateVisionUI();
+}
+
 function getNeutral(name) {
   return chNeutral[name] != null ? chNeutral[name] : 1500;
 }
@@ -1118,4 +1205,5 @@ function seqRun() {
   sysPoll();
   gimbalPoll();
   controllerPoll();
+  updateVisionUI();
 })();
