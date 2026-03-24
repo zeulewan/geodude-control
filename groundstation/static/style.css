@@ -1594,6 +1594,33 @@ input[type="number"]::-webkit-outer-spin-button {
   font-size: 9px;
   font-weight: 500;
 }
+.mission-checkpoint-substep {
+  justify-content: space-between;
+  gap: 6px;
+  padding: 6px;
+}
+.mission-substep-label {
+  text-align: center;
+  line-height: 1.25;
+}
+.mission-checkpoint-actions {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+}
+.mission-inline-btn {
+  min-width: 0;
+  padding: 4px 8px;
+  font-size: 10px;
+}
+.mission-step.completed {
+  border-color: rgba(34,197,94,0.42);
+  background: rgba(34,197,94,0.12);
+}
+.mission-step.blocked {
+  border-color: rgba(239,68,68,0.42);
+  background: rgba(239,68,68,0.12);
+}
 .mission-step.active {
   border-color: rgba(59,130,246,0.38);
   background: rgba(59,130,246,0.12);

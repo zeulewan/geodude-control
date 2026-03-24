@@ -76,6 +76,7 @@ var chNeutral = {};
 
 var controllerStatus = {enabled: false};
 var activePageTab = 'manual';
+var missionFlowState = { currentStep: 1, started: false, halted: false, nominalCheckResolved: false };
 
 function showPageTab(tab) {
   activePageTab = tab === 'mission' ? 'mission' : 'manual';
@@ -90,9 +91,57 @@ function showPageTab(tab) {
   missionSyncSummary();
 }
 
+function missionRenderFlow() {
+  var checkpoint = document.getElementById('missionStartCheckpoint');
+  var label = checkpoint ? checkpoint.querySelector('.mission-substep-label') : null;
+  var actions = checkpoint ? checkpoint.querySelector('.mission-checkpoint-actions') : null;
+  for (var i = 1; i <= 10; i += 1) {
+    var step = document.getElementById('missionStep' + i);
+    if (!step) continue;
+    step.classList.toggle('active', i === missionFlowState.currentStep && !missionFlowState.halted);
+    step.classList.toggle('completed', i < missionFlowState.currentStep && !missionFlowState.halted);
+    step.classList.toggle('blocked', missionFlowState.halted && i === missionFlowState.currentStep);
+  }
+  if (label) {
+    if (missionFlowState.halted) label.textContent = 'Nominal environment check failed';
+    else if (missionFlowState.nominalCheckResolved) label.textContent = 'Nominal environment check cleared';
+    else label.textContent = missionFlowState.started ? 'Nominal environment check' : 'Nominal environment check';
+  }
+  if (actions) actions.style.display = missionFlowState.currentStep === 1 && !missionFlowState.nominalCheckResolved && !missionFlowState.halted ? 'flex' : 'none';
+}
+
+function missionGoToStep(step) {
+  missionFlowState.currentStep = Math.max(1, Math.min(10, step));
+  missionRenderFlow();
+}
+
+function missionRespondNominalCheck(approved) {
+  missionFlowState.started = true;
+  if (approved) {
+    missionFlowState.nominalCheckResolved = true;
+    missionFlowState.halted = false;
+    missionSetState('READY FOR STEP 2');
+    missionGoToStep(2);
+  } else {
+    missionFlowState.halted = true;
+    missionSetState('STOPPED');
+    missionRenderFlow();
+  }
+}
+
 function missionSetState(state) {
   var el = document.getElementById('missionState');
   if (el) el.textContent = state;
+  if (state === 'RUNNING') {
+    missionFlowState.started = true;
+    missionFlowState.halted = false;
+    if (!missionFlowState.nominalCheckResolved) missionGoToStep(1);
+  }
+  if (state === 'CONFIGURING' || state === 'READY' || state === 'REVIEW') {
+    missionFlowState.halted = false;
+    if (!missionFlowState.nominalCheckResolved) missionGoToStep(1);
+    else missionRenderFlow();
+  }
 }
 
 function missionSyncSummary() {
@@ -123,6 +172,7 @@ function missionSyncSummary() {
   if (missionTarget) missionTarget.textContent = 'x:' + ((targetX && targetX.value) || '--') + ' y:' + ((targetY && targetY.value) || '--') + ' z:' + ((targetZ && targetZ.value) || '--');
   if (missionSolved && solvedTip) missionSolved.textContent = solvedTip.textContent;
   if (missionViz) missionViz.textContent = armVizState && armVizState.mode === 'live' ? 'LIVE TRUTH FEED' : 'TEST MOVES SAFE';
+  missionRenderFlow();
 }
 
 var ikStatus = null;
