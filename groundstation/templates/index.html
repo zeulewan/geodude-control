@@ -34,11 +34,18 @@
 <div class="dashboard-grid">
   <!-- Camera -->
   <div class="card dashboard-card dashboard-camera">
-    <h3>Camera</h3>
-    <div class="cam-wrapper">
-      <img id="camFeed" src="/api/camera" alt="Camera Feed" crossorigin="anonymous">
+    <div class="camera-head">
+      <h3>Camera</h3>
+      <div class="camera-toggle-row">
+        <span class="camera-toggle-label" id="cameraStatusLabel">STREAM ON</span>
+        <button class="btn btn-sm btn-dark" id="cameraToggleBtn" onclick="toggleCameraStream()">TURN OFF</button>
+      </div>
     </div>
-    <button class="btn btn-sm btn-dark" style="margin-top:6px" onclick="takeSnapshot()">Snapshot</button>
+    <div class="cam-wrapper" id="camWrapper">
+      <img id="camFeed" src="/api/camera" alt="Camera Feed" crossorigin="anonymous">
+      <div class="cam-off-overlay" id="camOffOverlay">CAMERA STREAM OFF</div>
+    </div>
+    <button class="btn btn-sm btn-dark" style="margin-top:6px" id="snapshotBtn" onclick="takeSnapshot()">Snapshot</button>
   </div>
 
   <!-- ML Vision -->

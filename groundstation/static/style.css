@@ -155,6 +155,46 @@ body {
   object-fit: cover;
   border-radius: 8px;
 }
+.camera-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.camera-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.camera-toggle-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #22c55e;
+}
+.cam-off-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(2, 6, 23, 0.88);
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+.cam-wrapper.stream-off .cam-off-overlay {
+  opacity: 1;
+}
+.cam-wrapper.stream-off img {
+  opacity: 0;
+}
 
 .btn,
 button.btn {

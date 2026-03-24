@@ -1,6 +1,54 @@
 /* ========== Snapshot ========== */
-function takeSnapshot() {
+var cameraStreamEnabled = true;
+var CAMERA_STREAM_STORAGE_KEY = 'cameraStreamEnabled';
+
+function applyCameraStreamState() {
   var img = document.getElementById('camFeed');
+  var wrapper = document.getElementById('camWrapper');
+  var toggleBtn = document.getElementById('cameraToggleBtn');
+  var statusLabel = document.getElementById('cameraStatusLabel');
+  var snapshotBtn = document.getElementById('snapshotBtn');
+  if (!img || !wrapper) return;
+  if (cameraStreamEnabled) {
+    if (img.dataset.streamSrc) {
+      img.src = img.dataset.streamSrc;
+    } else {
+      img.src = '/api/camera';
+      img.dataset.streamSrc = '/api/camera';
+    }
+  } else {
+    if (!img.dataset.streamSrc) img.dataset.streamSrc = img.src || '/api/camera';
+    img.removeAttribute('src');
+  }
+  wrapper.classList.toggle('stream-off', !cameraStreamEnabled);
+  if (toggleBtn) toggleBtn.textContent = cameraStreamEnabled ? 'TURN OFF' : 'TURN ON';
+  if (statusLabel) {
+    statusLabel.textContent = cameraStreamEnabled ? 'STREAM ON' : 'STREAM OFF';
+    statusLabel.style.color = cameraStreamEnabled ? '#22c55e' : '#94a3b8';
+  }
+  if (snapshotBtn) snapshotBtn.disabled = !cameraStreamEnabled;
+}
+
+function loadCameraStreamState() {
+  try {
+    var saved = localStorage.getItem(CAMERA_STREAM_STORAGE_KEY);
+    if (saved != null) cameraStreamEnabled = saved !== '0';
+  } catch (e) {}
+  applyCameraStreamState();
+}
+
+function toggleCameraStream() {
+  cameraStreamEnabled = !cameraStreamEnabled;
+  try {
+    localStorage.setItem(CAMERA_STREAM_STORAGE_KEY, cameraStreamEnabled ? '1' : '0');
+  } catch (e) {}
+  applyCameraStreamState();
+}
+
+function takeSnapshot() {
+  if (!cameraStreamEnabled) return;
+  var img = document.getElementById('camFeed');
+  if (!img || !img.src) return;
   var canvas = document.createElement('canvas');
   canvas.width = img.naturalWidth || img.width;
   canvas.height = img.naturalHeight || img.height;
@@ -2027,5 +2075,6 @@ function seqRun() {
   updateVisionUI();
   missionSyncSummary();
   showPageTab('manual');
+  loadCameraStreamState();
   armVizStart();
 })();
