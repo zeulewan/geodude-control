@@ -1525,8 +1525,8 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 .mission-flow {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 8px;
   margin-top: 12px;
 }
 .mission-step {
@@ -1534,8 +1534,8 @@ input[type="number"]::-webkit-outer-spin-button {
   flex-direction: column;
   align-items: stretch;
   gap: 8px;
-  min-height: 104px;
-  padding: 10px;
+  min-height: 148px;
+  padding: 8px;
   border-radius: 12px;
   background: linear-gradient(180deg, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.68));
   border: 1px solid #233146;
@@ -1545,32 +1545,37 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 .mission-step-head {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  font-size: 13px;
-  line-height: 1.25;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  font-size: 11px;
+  line-height: 1.2;
 }
 .mission-subflow {
   display: grid;
-  gap: 6px;
+  gap: 5px;
+  margin-top: auto;
 }
 .mission-subflow-title {
   color: #94a3b8;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 .mission-substep {
-  min-height: 38px;
+  min-height: 42px;
   display: flex;
   align-items: center;
-  padding: 9px 11px;
+  justify-content: center;
+  text-align: center;
+  padding: 7px 6px;
   border-radius: 9px;
   border: 1px dashed rgba(148, 163, 184, 0.35);
   background: rgba(15, 23, 42, 0.45);
   color: #94a3b8;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
 }
 .mission-step.active {
@@ -1578,8 +1583,8 @@ input[type="number"]::-webkit-outer-spin-button {
   background: rgba(59,130,246,0.12);
 }
 .mission-step-index {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1599,8 +1604,11 @@ input[type="number"]::-webkit-outer-spin-button {
   font-size: 12px;
   line-height: 1.45;
 }
+@media (max-width: 1600px) {
+  .mission-flow { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
 @media (max-width: 1400px) {
-  .mission-flow { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .mission-flow { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 @media (max-width: 1100px) {
   .mission-grid { grid-template-columns: repeat(2, minmax(260px, 1fr)); }
