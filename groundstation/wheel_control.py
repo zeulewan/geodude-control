@@ -10,7 +10,6 @@ import urllib.request
 app = Flask(__name__)
 
 GEODUDE_URL = "http://192.168.4.166:5000"
-ATTITUDE_URL = "http://192.168.4.166:5001"
 GIMBAL_URL = "http://192.168.4.222"
 WATCHDOG_TIMEOUT = 3  # seconds — auto-stop if no frontend heartbeat
 RAMP_HZ = 20  # ramp loop tick rate
@@ -649,79 +648,6 @@ def camera():
     except Exception as e:
         return jsonify({"error": str(e)}), 502
 
-
-# --- Attitude controller proxy ---
-
-def attitude_proxy(path, method="GET", data=None):
-    """Proxy requests to the attitude controller on GEO-DUDe:5001."""
-    try:
-        if method == "POST":
-            body = json.dumps(data).encode() if data else b""
-            req = urllib.request.Request(
-                f"{ATTITUDE_URL}/{path}",
-                data=body,
-                headers={"Content-Type": "application/json"},
-            )
-        else:
-            req = urllib.request.Request(f"{ATTITUDE_URL}/{path}")
-        resp = urllib.request.urlopen(req, timeout=3)
-        return json.loads(resp.read().decode()), resp.status
-    except Exception as e:
-        return {"error": str(e)}, 502
-
-
-@app.route('/api/attitude/status')
-def attitude_status():
-    data, code = attitude_proxy("status")
-    return jsonify(data), code
-
-
-@app.route('/api/attitude/enable', methods=['POST'])
-def attitude_enable():
-    data, code = attitude_proxy("enable", "POST")
-    return jsonify(data), code
-
-
-@app.route('/api/attitude/disable', methods=['POST'])
-def attitude_disable():
-    data, code = attitude_proxy("disable", "POST")
-    return jsonify(data), code
-
-
-@app.route('/api/attitude/setpoint', methods=['POST'])
-def attitude_setpoint():
-    data, code = attitude_proxy("setpoint", "POST", request.json)
-    return jsonify(data), code
-
-
-@app.route('/api/attitude/nudge', methods=['POST'])
-def attitude_nudge():
-    data, code = attitude_proxy("nudge", "POST", request.json)
-    return jsonify(data), code
-
-
-@app.route('/api/attitude/zero', methods=['POST'])
-def attitude_zero():
-    data, code = attitude_proxy("zero", "POST")
-    return jsonify(data), code
-
-
-@app.route('/api/attitude/gains', methods=['POST'])
-def attitude_gains():
-    data, code = attitude_proxy("gains", "POST", request.json)
-    return jsonify(data), code
-
-
-@app.route('/api/attitude/calibrate', methods=['POST'])
-def attitude_calibrate():
-    data, code = attitude_proxy("calibrate", "POST")
-    return jsonify(data), code
-
-
-@app.route('/api/attitude/stop', methods=['POST'])
-def attitude_stop():
-    data, code = attitude_proxy("stop", "POST")
-    return jsonify(data), code
 
 
 # --- Gimbal proxy ---
