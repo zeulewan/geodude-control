@@ -126,115 +126,6 @@ function visionReset() {
   updateVisionUI();
 }
 
-var dashboardTileState = {
-  storageKey: 'soosDashboardTileOrder',
-  draggedId: null
-};
-
-function dashboardTilesApplySavedOrder(grid) {
-  var raw = null;
-  try { raw = localStorage.getItem(dashboardTileState.storageKey); } catch (err) { raw = null; }
-  if (!raw) return;
-  var order = [];
-  try { order = JSON.parse(raw) || []; } catch (err) { order = []; }
-  order.forEach(function(id) {
-    var card = grid.querySelector('.dashboard-card[data-tile-id="' + id + '"]');
-    if (card) grid.appendChild(card);
-  });
-}
-
-function dashboardTilesPersist(grid) {
-  var order = Array.prototype.map.call(grid.querySelectorAll('.dashboard-card[data-tile-id]'), function(card) {
-    return card.dataset.tileId;
-  });
-  try { localStorage.setItem(dashboardTileState.storageKey, JSON.stringify(order)); } catch (err) {}
-}
-
-function dashboardTilesClearTargets(grid) {
-  Array.prototype.forEach.call(grid.querySelectorAll('.tile-drop-target'), function(card) {
-    card.classList.remove('tile-drop-target');
-  });
-}
-
-function dashboardTileShouldInsertAfter(card, clientX, clientY) {
-  var rect = card.getBoundingClientRect();
-  if (Math.abs(rect.width) >= Math.abs(rect.height)) {
-    return clientX > rect.left + (rect.width / 2);
-  }
-  return clientY > rect.top + (rect.height / 2);
-}
-
-function dashboardTilesInit() {
-  var grid = document.getElementById('dashboardGrid');
-  if (!grid) return;
-  dashboardTilesApplySavedOrder(grid);
-  Array.prototype.forEach.call(grid.querySelectorAll('.dashboard-card[data-tile-id]'), function(card) {
-    if (card.dataset.tileEnhanced === '1') return;
-    card.dataset.tileEnhanced = '1';
-    var grip = document.createElement('button');
-    grip.type = 'button';
-    grip.className = 'dashboard-tile-grip';
-    grip.title = 'Drag to reorder tile';
-    grip.setAttribute('aria-label', 'Drag to reorder tile');
-    card.appendChild(grip);
-
-    function armDrag() {
-      card.draggable = true;
-      card.dataset.dragArmed = '1';
-    }
-
-    function disarmDrag() {
-      card.draggable = false;
-      card.dataset.dragArmed = '0';
-    }
-
-    grip.addEventListener('mousedown', armDrag);
-    grip.addEventListener('touchstart', armDrag, {passive: true});
-    grip.addEventListener('mouseup', function() { setTimeout(disarmDrag, 0); });
-    grip.addEventListener('mouseleave', function() { if (!dashboardTileState.draggedId) disarmDrag(); });
-
-    card.addEventListener('dragstart', function(event) {
-      if (card.dataset.dragArmed !== '1') {
-        event.preventDefault();
-        return;
-      }
-      dashboardTileState.draggedId = card.dataset.tileId;
-      card.classList.add('is-dragging');
-      if (event.dataTransfer) {
-        event.dataTransfer.effectAllowed = 'move';
-        try { event.dataTransfer.setData('text/plain', dashboardTileState.draggedId); } catch (err) {}
-      }
-    });
-
-    card.addEventListener('dragover', function(event) {
-      var dragged = grid.querySelector('.dashboard-card.is-dragging');
-      if (!dragged || dragged === card) return;
-      event.preventDefault();
-      dashboardTilesClearTargets(grid);
-      card.classList.add('tile-drop-target');
-      if (dashboardTileShouldInsertAfter(card, event.clientX, event.clientY)) {
-        grid.insertBefore(dragged, card.nextSibling);
-      } else {
-        grid.insertBefore(dragged, card);
-      }
-    });
-
-    card.addEventListener('drop', function(event) {
-      event.preventDefault();
-      dashboardTilesClearTargets(grid);
-      dashboardTilesPersist(grid);
-    });
-
-    card.addEventListener('dragend', function() {
-      dashboardTileState.draggedId = null;
-      card.classList.remove('is-dragging');
-      dashboardTilesClearTargets(grid);
-      disarmDrag();
-      dashboardTilesPersist(grid);
-    });
-  });
-}
-
 var armVizState = {
   azimuth: 28,
   elevation: 18,
@@ -1704,7 +1595,6 @@ function seqRun() {
   sysPoll();
   gimbalPoll();
   controllerPoll();
-  dashboardTilesInit();
   updateVisionUI();
   armVizStart();
 })();
