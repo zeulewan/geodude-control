@@ -3,3 +3,5 @@ __pycache__/
 .env
 .venv/
 site/_build/
+groundstation/servo_neutral.json
+groundstation/servo_positions.json
