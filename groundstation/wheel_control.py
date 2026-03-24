@@ -13,6 +13,15 @@ GEODUDE_URL = "http://192.168.4.166:5000"
 ATTITUDE_URL = "http://192.168.4.166:5001"
 GIMBAL_URL = "http://192.168.4.222"
 WATCHDOG_TIMEOUT = 3  # seconds — auto-stop if no frontend heartbeat
+RAMP_HZ = 20  # ramp loop tick rate
+CONTROLLER_HZ = 20
+CONTROLLER_SCAN_INTERVAL = 2.0
+CONTROLLER_LIMIT_US = 450
+CONTROLLER_DEADZONE = 0.12
+CONTROLLER_ACTIVE_THRESHOLD = 0.2
+JS_EVENT_BUTTON = 0x01
+JS_EVENT_AXIS = 0x02
+JS_EVENT_INIT = 0x80
 
 
 # PCA9685 channel mapping (pin - 1 = 0-indexed)
@@ -193,6 +202,202 @@ def send_all_off():
         return True
     except Exception:
         return False
+
+
+
+def clamp(value, lo, hi):
+    return max(lo, min(hi, value))
+
+
+def controller_axis_value(name):
+    with lock:
+        value = float(controller_state["axes"].get(name, 0.0))
+    if abs(value) < CONTROLLER_DEADZONE:
+        return 0.0
+    return value
+
+
+def controller_limits(channel):
+    center = servo_neutral.get(channel)
+    if center is None:
+        center = servo_positions.get(channel, 1000)
+    center = int(center)
+    return (
+        clamp(center - CONTROLLER_LIMIT_US, 500, 2500),
+        clamp(center + CONTROLLER_LIMIT_US, 500, 2500),
+    )
+
+
+def controller_status_payload():
+    with lock:
+        axes = dict(controller_state["axes"])
+        buttons = dict(controller_state["buttons"])
+        payload = {
+            "enabled": controller_state["enabled"],
+            "connected": controller_state["connected"],
+            "active": controller_state["active"],
+            "deadman": controller_state["deadman"],
+            "device": controller_state["device"],
+            "last_error": controller_state["last_error"],
+            "updated_at": controller_state["updated_at"],
+        }
+    payload["axes"] = axes
+    payload["buttons"] = buttons
+    payload["bindings"] = CONTROLLER_LABELS
+    payload["selected_arm"] = controller_state["selected_arm"]
+    return payload
+
+
+def reset_controller_motion():
+    for name in controller_channel_velocity:
+        controller_channel_velocity[name] = 0.0
+
+
+def set_controller_arm(selected_arm):
+    with lock:
+        controller_state["selected_arm"] = "right" if selected_arm == "right" else "left"
+    reset_controller_motion()
+
+
+def set_controller_enabled(enabled):
+    with lock:
+        controller_state["enabled"] = bool(enabled)
+        controller_state["active"] = False
+        controller_state["deadman"] = False
+        controller_state["last_error"] = None
+        for name in controller_state["axes"]:
+            controller_state["axes"][name] = 0.0
+    reset_controller_motion()
+
+
+def controller_apply_outputs():
+    with lock:
+        enabled = controller_state["enabled"]
+        buttons = dict(controller_state["buttons"])
+        max_speed = int(SERVO_SETTINGS["speed"])
+        accel = int(SERVO_SETTINGS["ramp"])
+        selected_arm = controller_state["selected_arm"]
+    if not enabled:
+        reset_controller_motion()
+        with lock:
+            controller_state["active"] = False
+            controller_state["deadman"] = False
+        return
+
+    deadman = any(buttons.get(btn, 0) for btn in DEADMAN_BUTTONS)
+    active = False
+    changed = False
+
+    if not deadman:
+        reset_controller_motion()
+    else:
+        arm_bindings = CONTROLLER_ARM_BINDINGS[selected_arm]
+        for axis_name, bindings in arm_bindings.items():
+            axis_value = controller_axis_value(axis_name)
+            if abs(axis_value) >= CONTROLLER_ACTIVE_THRESHOLD:
+                active = True
+            for binding in bindings:
+                channel = binding["channel"]
+                current = int(servo_positions.get(channel, servo_neutral.get(channel, 1000)))
+                lo, hi = controller_limits(channel)
+                velocity = controller_channel_velocity.get(channel, 0.0)
+                target_velocity = axis_value * binding["scale"] * max_speed
+                if target_velocity > velocity:
+                    velocity = min(velocity + accel, target_velocity)
+                elif target_velocity < velocity:
+                    velocity = max(velocity - accel, target_velocity)
+                if abs(target_velocity) < 0.001 and abs(velocity) < accel:
+                    velocity = 0.0
+                controller_channel_velocity[channel] = velocity
+                if abs(velocity) < 0.5:
+                    continue
+                step = int(round(velocity))
+                if step == 0:
+                    step = 1 if velocity > 0 else -1
+                target = clamp(current + step, lo, hi)
+                if target == current:
+                    controller_channel_velocity[channel] = 0.0
+                    continue
+                if send_pwm(channel, target):
+                    servo_positions[channel] = target
+                    mark_positions_dirty()
+                    changed = True
+
+    with lock:
+        controller_state["deadman"] = deadman
+        controller_state["active"] = deadman and (active or changed)
+
+
+def controller_loop():
+    fd = None
+
+    def close_device():
+        nonlocal fd
+        if fd is not None:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+            fd = None
+        with lock:
+            controller_state["connected"] = False
+            controller_state["device"] = None
+            controller_state["active"] = False
+            controller_state["deadman"] = False
+            for name in controller_state["axes"]:
+                controller_state["axes"][name] = 0.0
+        reset_controller_motion()
+
+    while True:
+        with lock:
+            enabled = controller_state["enabled"]
+        if not enabled:
+            close_device()
+            time.sleep(0.25)
+            continue
+
+        if fd is None:
+            try:
+                fd = os.open('/dev/input/js0', os.O_RDONLY | os.O_NONBLOCK)
+                with lock:
+                    controller_state["connected"] = True
+                    controller_state["device"] = '/dev/input/js0'
+                    controller_state["last_error"] = None
+                    controller_state["updated_at"] = time.time()
+            except OSError as e:
+                with lock:
+                    controller_state["connected"] = False
+                    controller_state["device"] = None
+                    controller_state["last_error"] = str(e)
+                time.sleep(CONTROLLER_SCAN_INTERVAL)
+                continue
+
+        try:
+            ready, _, _ = select.select([fd], [], [], 1.0 / CONTROLLER_HZ)
+            if ready:
+                while True:
+                    try:
+                        event = os.read(fd, 8)
+                    except BlockingIOError:
+                        break
+                    if len(event) != 8:
+                        raise OSError('controller disconnected')
+                    _, value, event_type, number = struct.unpack('IhBB', event)
+                    if event_type & JS_EVENT_INIT:
+                        continue
+                    base_type = event_type & ~JS_EVENT_INIT
+                    with lock:
+                        controller_state["updated_at"] = time.time()
+                        if base_type == JS_EVENT_AXIS and number in CONTROLLER_AXIS_ORDER:
+                            controller_state["axes"][CONTROLLER_AXIS_ORDER[number]] = max(-1.0, min(1.0, value / 32767.0))
+                        elif base_type == JS_EVENT_BUTTON:
+                            controller_state["buttons"][number] = 1 if value else 0
+            controller_apply_outputs()
+        except OSError as e:
+            with lock:
+                controller_state["last_error"] = str(e)
+            close_device()
+            time.sleep(CONTROLLER_SCAN_INTERVAL)
 
 
 def watchdog_loop():
@@ -674,6 +879,7 @@ def restore_positions_loop():
 if __name__ == '__main__':
     threading.Thread(target=sensor_loop, daemon=True).start()
 
+    threading.Thread(target=controller_loop, daemon=True).start()
     threading.Thread(target=watchdog_loop, daemon=True).start()
     threading.Thread(target=positions_flush_loop, daemon=True).start()
     threading.Thread(target=restore_positions_loop, daemon=True).start()
