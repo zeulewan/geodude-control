@@ -364,8 +364,8 @@ function armVizPointerMove(event) {
   if (!armVizState.dragging) return;
   var dx = event.clientX - armVizState.dragStartX;
   var dy = event.clientY - armVizState.dragStartY;
-  armVizState.azimuth = Math.max(-180, Math.min(180, armVizState.startAzimuth + dx * 0.45));
-  armVizState.elevation = Math.max(-10, Math.min(70, armVizState.startElevation - dy * 0.22));
+  armVizState.azimuth = Math.max(-180, Math.min(180, armVizState.startAzimuth - dx * 0.45));
+  armVizState.elevation = Math.max(-10, Math.min(70, armVizState.startElevation + dy * 0.22));
   armVizSyncControls();
   armVizDrawScene();
 }

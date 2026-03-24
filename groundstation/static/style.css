@@ -52,6 +52,12 @@ body {
   grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
+.wide-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  align-items: start;
+}
 .card {
   background: #141824;
   border: 1px solid #1e2433;
@@ -235,9 +241,9 @@ body {
   cursor: grabbing;
 }
 .compact-wide-card {
-  width: min(100%, 960px);
-  margin-left: auto;
-  margin-right: auto;
+  width: 100%;
+  margin-left: 0;
+  margin-right: 0;
 }
 .armviz-toolbar {
   display: grid;
@@ -1059,6 +1065,7 @@ input[type="number"]::-webkit-outer-spin-button {
 /* Responsive */
 @media (max-width: 768px) {
   .two-col { grid-template-columns: 1fr; }
+  .wide-two-col { grid-template-columns: 1fr; }
   .att-cols { grid-template-columns: 1fr; }
   .sys-grid { grid-template-columns: 1fr; }
   .ch-grid { grid-template-columns: 1fr; }
