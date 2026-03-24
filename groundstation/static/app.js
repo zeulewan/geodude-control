@@ -371,16 +371,25 @@ function armVizNormalize(name, scale) {
   return ((armVizChannelValue(name) - getNeutral(name)) / 400) * scale;
 }
 
+function armVizLiveAngles(side) {
+  if (ikStatus && ikStatus.arms && ikStatus.arms[side] && ikStatus.arms[side].angles_rad) {
+    return ikStatus.arms[side].angles_rad;
+  }
+  return null;
+}
+
 function armVizBuildArm(side, overrideAngles) {
   var isLeft = side === 'left';
   var suffix = isLeft ? '1' : '2';
   var sideBias = isLeft ? -1 : 1;
   var anchor = armVizAnchorForSide(side);
-  var baseRoll = overrideAngles && typeof overrideAngles.base === 'number' ? overrideAngles.base : armVizNormalize('B' + suffix, 1.05) + (isLeft ? -0.08 : 0.08);
-  var shoulderPitch = overrideAngles && typeof overrideAngles.shoulder === 'number' ? overrideAngles.shoulder : armVizNormalize('S' + suffix, 1.05) - 0.12;
-  var elbowPitch = overrideAngles && typeof overrideAngles.elbow === 'number' ? overrideAngles.elbow : armVizNormalize('E' + suffix, 1.0) + 0.72;
-  var wristRoll = overrideAngles && typeof overrideAngles.wrist_roll === 'number' ? overrideAngles.wrist_roll : armVizNormalize('W' + suffix + 'A', 0.8);
-  var wristPitch = overrideAngles && typeof overrideAngles.wrist_pitch === 'number' ? overrideAngles.wrist_pitch : armVizNormalize('W' + suffix + 'B', 0.75) - 0.25;
+  var liveAngles = armVizState.mode === 'live' ? armVizLiveAngles(side) : null;
+  var sourceAngles = overrideAngles || liveAngles;
+  var baseRoll = sourceAngles && typeof sourceAngles.base === 'number' ? sourceAngles.base : armVizNormalize('B' + suffix, 1.05) + (isLeft ? -0.08 : 0.08);
+  var shoulderPitch = sourceAngles && typeof sourceAngles.shoulder === 'number' ? sourceAngles.shoulder : armVizNormalize('S' + suffix, 1.05) - 0.12;
+  var elbowPitch = sourceAngles && typeof sourceAngles.elbow === 'number' ? sourceAngles.elbow : armVizNormalize('E' + suffix, 1.0) + 0.72;
+  var wristRoll = sourceAngles && typeof sourceAngles.wrist_roll === 'number' ? sourceAngles.wrist_roll : armVizNormalize('W' + suffix + 'A', 0.8);
+  var wristPitch = sourceAngles && typeof sourceAngles.wrist_pitch === 'number' ? sourceAngles.wrist_pitch : armVizNormalize('W' + suffix + 'B', 0.75) - 0.25;
   var baseLink = armVizGeometry.base;
   var upper = armVizGeometry.upper;
   var fore = armVizGeometry.forearm;
