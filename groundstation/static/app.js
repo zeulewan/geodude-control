@@ -128,6 +128,16 @@ function missionSyncSummary() {
 var ikStatus = null;
 var ikLastResult = null;
 
+function getIkOptimizerBias() {
+  var el = document.getElementById('ikOptimizerBias');
+  return el ? parseInt(el.value || '70', 10) : 70;
+}
+
+function updateIkOptimizerLabel(val) {
+  var label = document.getElementById('ikOptimizerVal');
+  if (label) label.textContent = parseInt(val || '70', 10) + ' / 100';
+}
+
 function ikSelectedArm() {
   return (controllerStatus && controllerStatus.selected_arm) ? controllerStatus.selected_arm : 'left';
 }
@@ -161,7 +171,7 @@ function ikUpdateResult(result) {
       solverEl.textContent = 'IDLE';
       solverEl.style.color = '#9ca3af';
     } else if (result.ok) {
-      solverEl.textContent = result.applied ? 'DRY RUN MOVE' : 'SOLVED';
+      solverEl.textContent = result.applied ? (result.reused_last_solution ? 'DRY RUN SOLVED' : 'DRY RUN MOVE') : 'SOLVED';
       solverEl.style.color = result.applied ? '#f59e0b' : '#22c55e';
     } else {
       solverEl.textContent = 'UNREACHABLE';
@@ -198,15 +208,15 @@ function ikUpdateResult(result) {
   if (noteEl) {
     noteEl.className = result && !result.ok ? 'ik-note error' : 'ik-note';
     if (!result) {
-      noteEl.textContent = 'Solver uses the measured arm lengths in this branch. On the dev page, MOVE ARM is dry-run only until you explicitly choose otherwise.';
+      noteEl.textContent = 'Solver uses the measured arm lengths in this branch. On the dev page, MOVE SOLVED POSE reuses the dashed solution and stays dry-run only until you explicitly choose otherwise.';
     } else if (!result.ok) {
       noteEl.textContent = 'Target is outside the current approximate IK workspace or joint limits. Adjust the target or tune the calibration constants in mizi-dev.';
     } else if (result.applied) {
-      noteEl.textContent = 'Dry-run move completed on the dev page. The solver returned PWM targets, but this isolated instance is not sending live actuator commands.';
+      noteEl.textContent = result.reused_last_solution ? 'Dry-run solved pose move completed. The dashed pose was reused without re-solving, and this isolated instance is still not sending live actuator commands.' : 'Dry-run move completed on the dev page. The solver returned PWM targets, but this isolated instance is not sending live actuator commands.';
     } else if (armVizState.mode === 'test') {
       noteEl.textContent = 'Solve preview updated and applied to the TEST MOVES sliders for visualization only.';
     } else {
-      noteEl.textContent = 'Solve preview updated. Wrist roll is now included in the dev IK target, using approximate joint calibration that should be tuned before merge.';
+      noteEl.textContent = 'Solve preview updated. Wrist roll is included and the stiffness optimizer is biasing the solve toward lower shoulder/elbow load with more wrist usage.';
     }
   }
 }
@@ -255,11 +265,19 @@ function ikSolve(applyMove) {
     y: parseFloat(document.getElementById('ikTargetY').value || '0'),
     z: parseFloat(document.getElementById('ikTargetZ').value || '0'),
     wrist_roll_deg: parseFloat(document.getElementById('ikTargetWristRoll').value || '0'),
+    optimizer_bias: getIkOptimizerBias(),
     apply: !!applyMove
   };
+  if (applyMove && ikLastResult && ikLastResult.ok && ikLastResult.arm === ikSelectedArm()) {
+    payload = {
+      arm: ikSelectedArm(),
+      apply: true,
+      reuse_last_solution: true
+    };
+  }
   var solverEl = document.getElementById('ikSolverState');
   if (solverEl) {
-    solverEl.textContent = 'SOLVING';
+    solverEl.textContent = payload.reuse_last_solution ? 'MOVING SOLVED' : 'SOLVING';
     solverEl.style.color = '#3b82f6';
   }
   fetch('/api/ik/solve', {
@@ -2078,6 +2096,7 @@ function seqRun() {
   gimbalPoll();
   controllerPoll();
   ikRefreshStatus();
+  updateIkOptimizerLabel(getIkOptimizerBias());
   updateVisionUI();
   missionSyncSummary();
   showPageTab('manual');

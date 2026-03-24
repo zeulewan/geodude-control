@@ -7,6 +7,7 @@ import select
 import struct
 import urllib.request
 import math
+import copy
 
 app = Flask(__name__)
 
@@ -445,7 +446,7 @@ def ik_status_payload():
     }
 
 
-def ik_solve_arm(selected_arm, target_xyz, wrist_roll_deg=None):
+def ik_solve_arm(selected_arm, target_xyz, wrist_roll_deg=None, optimizer_bias=70.0):
     arm_name = ik_arm_name(selected_arm)
     arm = IK_ARM_CONFIG[arm_name]
     side_bias = float(arm["side_bias"])
@@ -466,6 +467,8 @@ def ik_solve_arm(selected_arm, target_xyz, wrist_roll_deg=None):
     max_reach = upper_len + fore_len - 1e-6
     min_reach = abs(upper_len - fore_len) + 1e-6
     requested_wrist_roll_deg = None if wrist_roll_deg is None else round(float(wrist_roll_deg), 3)
+    optimizer_bias = clamp(float(optimizer_bias), 0.0, 100.0)
+    optimizer_scale = optimizer_bias / 100.0
     if planar_distance > max_reach or planar_distance < min_reach:
         return {
             "ok": False,
@@ -475,13 +478,14 @@ def ik_solve_arm(selected_arm, target_xyz, wrist_roll_deg=None):
             "reachable_range_mm": [round(min_reach, 3), round(max_reach, 3)],
             "target_mm": {axis: round(target[axis], 3) for axis in ("x", "y", "z")},
             "requested_wrist_roll_deg": requested_wrist_roll_deg,
+            "optimizer_bias": round(optimizer_bias, 3),
         }
 
     cos_elbow = (planar_distance * planar_distance - upper_len * upper_len - fore_len * fore_len) / (2.0 * upper_len * fore_len)
     cos_elbow = clamp(cos_elbow, -1.0, 1.0)
     elbow_candidates = [math.acos(cos_elbow), -math.acos(cos_elbow)]
     wrist_roll_cfg = ik_joint_config(arm_name, "wrist_roll")
-    auto_wrist_roll_angle = 0.45 * side_bias
+    auto_wrist_roll_angle = (0.18 + 0.52 * optimizer_scale) * side_bias
     if wrist_roll_deg is None or abs(float(wrist_roll_deg)) < 1.0:
         wrist_roll_angle = auto_wrist_roll_angle
     else:
@@ -511,13 +515,13 @@ def ik_solve_arm(selected_arm, target_xyz, wrist_roll_deg=None):
         pose = ik_pose_from_angles(arm_name, candidate)
         error = math.sqrt(sum((pose["tip"][axis] - target[axis]) ** 2 for axis in ("x", "y", "z")))
         stiffness_cost = (
-            52.0 * (candidate["shoulder"] ** 2)
-            + 38.0 * (candidate["elbow"] ** 2)
+            (18.0 + 58.0 * optimizer_scale) * (candidate["shoulder"] ** 2)
+            + (14.0 + 44.0 * optimizer_scale) * (candidate["elbow"] ** 2)
             + 8.0 * (candidate["base"] ** 2)
-            + 0.8 * (candidate["wrist_pitch"] ** 2)
+            + (1.4 - 1.0 * optimizer_scale) * (candidate["wrist_pitch"] ** 2)
         )
-        wrist_usage_bonus = 8.0 * abs(candidate["wrist_pitch"]) + 2.0 * abs(candidate["wrist_roll"])
-        neutral_penalty = 18.0 if abs(candidate["wrist_pitch"]) < 0.36 else 0.0
+        wrist_usage_bonus = (2.0 + 10.0 * optimizer_scale) * abs(candidate["wrist_pitch"]) + (0.5 + 3.5 * optimizer_scale) * abs(candidate["wrist_roll"])
+        neutral_penalty = (5.0 + 22.0 * optimizer_scale) if abs(candidate["wrist_pitch"]) < (0.18 + 0.22 * optimizer_scale) else 0.0
         score = (error * 180.0) ** 2 + stiffness_cost - wrist_usage_bonus + neutral_penalty
         return {"angles": candidate, "pose": pose, "tip_error": error, "score": score}
 
@@ -603,6 +607,7 @@ def ik_solve_arm(selected_arm, target_xyz, wrist_roll_deg=None):
             "reason": "joint_limits",
             "target_mm": {axis: round(target[axis], 3) for axis in ("x", "y", "z")},
             "requested_wrist_roll_deg": requested_wrist_roll_deg,
+            "optimizer_bias": round(optimizer_bias, 3),
             "notes": list(IK_SOLVER_NOTES),
         }
 
@@ -1054,14 +1059,32 @@ def ik_solve():
     data = request.json or {}
     with lock:
         selected_arm = controller_state["selected_arm"]
+        last_solution = copy.deepcopy(ik_state["last_solution"])
     arm_name = ik_arm_name(data.get("arm", selected_arm))
-    target_xyz = {
-        "x": float(data.get("x", 0.0)),
-        "y": float(data.get("y", 0.0)),
-        "z": float(data.get("z", 0.0)),
-    }
-    wrist_roll_deg = data.get("wrist_roll_deg")
-    result = ik_solve_arm(arm_name, target_xyz, wrist_roll_deg)
+    reuse_last_solution = bool(data.get("reuse_last_solution", False))
+    optimizer_bias = float(data.get("optimizer_bias", 70.0))
+    if reuse_last_solution:
+        if last_solution and last_solution.get("ok") and last_solution.get("arm") == arm_name:
+            result = last_solution
+            result["reused_last_solution"] = True
+        else:
+            result = {
+                "ok": False,
+                "arm": arm_name,
+                "reason": "no_cached_solution",
+                "optimizer_bias": round(optimizer_bias, 3),
+                "reused_last_solution": False,
+                "notes": list(IK_SOLVER_NOTES),
+            }
+    else:
+        target_xyz = {
+            "x": float(data.get("x", 0.0)),
+            "y": float(data.get("y", 0.0)),
+            "z": float(data.get("z", 0.0)),
+        }
+        wrist_roll_deg = data.get("wrist_roll_deg")
+        result = ik_solve_arm(arm_name, target_xyz, wrist_roll_deg, optimizer_bias)
+        result["reused_last_solution"] = False
     apply_move = bool(data.get("apply", False))
     if result.get("ok") and apply_move:
         applied = {}
@@ -1080,7 +1103,8 @@ def ik_solve():
             result["reason"] = "send_failed"
     result["selected_arm"] = arm_name
     with lock:
-        ik_state["last_solution"] = result
+        if result.get("ok"):
+            ik_state["last_solution"] = copy.deepcopy(result)
     return jsonify(result)
 
 
