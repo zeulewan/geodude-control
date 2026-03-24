@@ -578,7 +578,11 @@
         </div>
         <div class="mission-step" id="missionStep5" data-step-index="5">
           <div class="mission-step-head"><span class="mission-step-index">5</span><span>Approach</span></div>
-          <div class="mission-subflow"><div class="mission-subflow-title">Substeps</div><button class="mission-substep mission-action-substep" id="missionSubstep-5-default" type="button" onclick="missionCompleteSubstep(5, 'default')">Pending</button></div>
+          <div class="mission-subflow">
+            <div class="mission-subflow-title">Substeps</div>
+            <button class="mission-substep mission-action-substep" id="missionSubstep-5-client-rotation" type="button" onclick="missionCompleteSubstep(5, 'client-rotation')">Identify client rotation</button>
+            <button class="mission-substep mission-action-substep" id="missionSubstep-5-docking-point" type="button" onclick="missionCompleteSubstep(5, 'docking-point')">Identify docking point</button>
+          </div>
         </div>
         <div class="mission-step" id="missionStep6" data-step-index="6">
           <div class="mission-step-head"><span class="mission-step-index">6</span><span>Docking</span></div>
