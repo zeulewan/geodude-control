@@ -460,9 +460,12 @@ def sensors():
 
 @app.route('/api/mace/status')
 def mace_status():
-    """Return current MACE state."""
+    """Return current MACE state including encoder angle and RPM from sensor data."""
     with lock:
-        return jsonify(dict(mace))
+        payload = dict(mace)
+        payload['encoder_angle'] = state.get('encoder_angle', 0)
+        payload['rpm'] = state.get('rpm', 0)
+    return jsonify(payload)
 
 
 @app.route('/api/mace/enable', methods=['POST'])

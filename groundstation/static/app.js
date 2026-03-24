@@ -812,10 +812,16 @@ function macePoll() {
     if (tEl) tEl.textContent = tgt.toFixed(2) + ' rad/s';
     var vEl = document.getElementById('maceVelocity');
     if (vEl) vEl.textContent = vel.toFixed(2) + ' rad/s';
-    // Wheel RPM: velocity in rad/s * 60 / (2*pi) = RPM
-    var rpm = Math.round(vel * 60 / (2 * Math.PI));
+    // Encoder angle from sensor data
+    var angEl = document.getElementById('maceEncoderAngle');
+    if (angEl) {
+      var ang = d.encoder_angle != null ? d.encoder_angle : 0;
+      angEl.textContent = ang.toFixed(1) + ' deg';
+    }
+    // Wheel RPM from sensor data (real encoder delta/dt, not velocity estimate)
+    var rpm = d.rpm != null ? d.rpm : Math.round(vel * 60 / (2 * Math.PI));
     var rpmEl = document.getElementById('maceRpm');
-    if (rpmEl) rpmEl.textContent = rpm;
+    if (rpmEl) rpmEl.textContent = Math.round(rpm);
     var errEl = document.getElementById('maceError');
     if (errEl) {
       if (d.error) {
