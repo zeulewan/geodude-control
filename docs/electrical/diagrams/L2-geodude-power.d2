@@ -102,21 +102,9 @@ board: "Servo Fuse Board (1 board, 10 servos)" {
     style.stroke: "#7B1FA2"
   }
 
-  fuses: "" {
-    style.fill: transparent
-    style.stroke: transparent
-
-    base1: "Arm1 Base (8A, 12V)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"; width: 150}
-    shld1: "Arm1 Shoulder (8A, 12V)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"; width: 150}
-    elbow1: "Arm1 Elbow (5A, 7.4V)" {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"; width: 150}
-    wr1: "Arm1 Wrist Rot (3A, 5V)" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"; width: 150}
-    wp1: "Arm1 Wrist Pan (3A, 5V)" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"; width: 150}
-    base2: "Arm2 Base (8A, 12V)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"; width: 150}
-    shld2: "Arm2 Shoulder (8A, 12V)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"; width: 150}
-    elbow2: "Arm2 Elbow (5A, 7.4V)" {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"; width: 150}
-    wr2: "Arm2 Wrist Rot (3A, 5V)" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"; width: 150}
-    wp2: "Arm2 Wrist Pan (3A, 5V)" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"; width: 150}
-  }
+  fuses_12v: "4x 8A fuses (12V base + shoulder)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"; width: 200}
+  fuses_74v: "2x 5A fuses (7.4V elbow)" {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"; width: 200}
+  fuses_5v: "4x 3A fuses (5V wrist)" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"; width: 200}
 
   headers_out: "10x Male 3-pin Headers (out)" {
     shape: rectangle
@@ -124,21 +112,16 @@ board: "Servo Fuse Board (1 board, 10 servos)" {
     style.stroke: "#546E7A"
     style.stroke-width: 2
     width: 80
-    height: 500
+    height: 400
   }
 
   screw_in -> pca: "PWM signal" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-  pca -> fuses.base1 {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-  screw_in -> fuses.base1 -> headers_out {style.stroke: "#1565C0"}
-  screw_in -> fuses.shld1 -> headers_out {style.stroke: "#1565C0"}
-  screw_in -> fuses.elbow1 -> headers_out {style.stroke: "#2E7D32"}
-  screw_in -> fuses.wr1 -> headers_out {style.stroke: "#43A047"}
-  screw_in -> fuses.wp1 -> headers_out {style.stroke: "#43A047"}
-  screw_in -> fuses.base2 -> headers_out {style.stroke: "#1565C0"}
-  screw_in -> fuses.shld2 -> headers_out {style.stroke: "#1565C0"}
-  screw_in -> fuses.elbow2 -> headers_out {style.stroke: "#2E7D32"}
-  screw_in -> fuses.wr2 -> headers_out {style.stroke: "#43A047"}
-  screw_in -> fuses.wp2 -> headers_out {style.stroke: "#43A047"}
+  pca -> fuses_12v {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+  pca -> fuses_74v {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+  pca -> fuses_5v {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+  screw_in -> fuses_12v -> headers_out {style.stroke: "#1565C0"}
+  screw_in -> fuses_74v -> headers_out {style.stroke: "#2E7D32"}
+  screw_in -> fuses_5v -> headers_out {style.stroke: "#43A047"}
 }
 
 # Power to fuse board
