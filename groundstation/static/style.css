@@ -98,27 +98,72 @@ body {
 }
 .dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  grid-auto-flow: dense;
-  gap: 8px;
+  grid-template-columns: repeat(4, minmax(260px, 1fr));
+  gap: 10px;
   align-items: start;
+  grid-auto-flow: dense;
 }
 .dashboard-card {
   margin-bottom: 0;
-  grid-column: span 3;
+  min-width: 0;
+  position: relative;
 }
-.dashboard-camera { grid-column: span 3; }
-.dashboard-ml { grid-column: span 4; }
-.dashboard-sensors { grid-column: span 3; }
-#attitudeCard.dashboard-card { grid-column: span 5; }
-.dashboard-grid > .compact-wide-card { grid-column: span 4; }
+.dashboard-card[data-tile-size="wide"] {
+  grid-column: span 2;
+}
+.dashboard-camera,
+.dashboard-ml,
+.dashboard-sensors,
+#attitudeCard.dashboard-card,
+.dashboard-grid > .compact-wide-card {
+  grid-column: auto;
+}
+.dashboard-card.is-dragging {
+  opacity: 0.45;
+  transform: scale(0.985);
+  border-color: var(--border-strong);
+  box-shadow: 0 0 0 1px rgba(101, 255, 180, 0.22), 0 0 24px rgba(47, 211, 142, 0.16);
+}
+.dashboard-card.tile-drop-target {
+  outline: 1px dashed var(--green);
+  outline-offset: 4px;
+}
+.dashboard-tile-grip {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: rgba(8, 24, 18, 0.96);
+  color: var(--green);
+  cursor: grab;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'IBM Plex Mono', 'SF Mono', 'Fira Code', monospace;
+  font-size: 11px;
+  letter-spacing: 1px;
+  z-index: 2;
+}
+.dashboard-tile-grip::before {
+  content: ':::';
+}
+.dashboard-tile-grip:hover {
+  border-color: var(--border-strong);
+  box-shadow: 0 0 0 1px rgba(101, 255, 180, 0.18), 0 0 14px rgba(47, 211, 142, 0.12);
+}
+.dashboard-tile-grip:active {
+  cursor: grabbing;
+}
 .sensor-mini-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
 }
 .sensor-panel {
-  padding: 6px;
+  padding: 7px;
 }
 .sensor-panel-title {
   font-size: 10px;
@@ -134,11 +179,11 @@ body {
 }
 .compact-encoder .dial-wrapper,
 .compact-encoder .dial-ring {
-  width: 52px;
-  height: 52px;
+  width: 54px;
+  height: 54px;
 }
 .compact-encoder #needle {
-  height: 28px;
+  height: 29px;
 }
 .compact-encoder .encoder-text .value {
   font-size: 20px;
@@ -162,6 +207,7 @@ body {
   margin-bottom: 6px;
   font-weight: 700;
   font-family: 'IBM Plex Mono', 'SF Mono', 'Fira Code', monospace;
+  padding-right: 38px;
 }
 .inner {
   background: var(--panel-soft);
@@ -219,21 +265,18 @@ select {
   border: 1px solid var(--border);
   color: var(--text);
 }
-@media (max-width: 1400px) {
-  .dashboard-grid { grid-template-columns: repeat(9, minmax(0, 1fr)); }
-  .dashboard-card { grid-column: span 3; }
-  .dashboard-ml, #attitudeCard.dashboard-card { grid-column: span 6; }
-  .dashboard-grid > .compact-wide-card { grid-column: span 3; }
+@media (max-width: 1500px) {
+  .dashboard-grid { grid-template-columns: repeat(3, minmax(250px, 1fr)); }
 }
-@media (max-width: 1100px) {
-  .dashboard-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-  .dashboard-card, .dashboard-camera, .dashboard-sensors, .dashboard-grid > .compact-wide-card { grid-column: span 3; }
-  .dashboard-ml, #attitudeCard.dashboard-card { grid-column: span 6; }
-  .sensor-mini-grid { grid-template-columns: 1fr; }
+@media (max-width: 1080px) {
+  .dashboard-grid { grid-template-columns: repeat(2, minmax(240px, 1fr)); }
+  .sensor-mini-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 760px) {
   .dashboard-grid, .wide-two-col, .servo-layout { grid-template-columns: 1fr; }
-  .dashboard-card, .dashboard-camera, .dashboard-ml, .dashboard-sensors, #attitudeCard.dashboard-card, .dashboard-grid > .compact-wide-card { grid-column: span 1; }
+  .dashboard-card[data-tile-size="wide"] { grid-column: auto; }
+  .sensor-mini-grid { grid-template-columns: 1fr; }
+  .dashboard-tile-grip { display: none; }
 }
 
 /* ML Vision */

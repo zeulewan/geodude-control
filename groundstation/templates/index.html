@@ -25,9 +25,9 @@
 
 <div class="container">
 
-<div class="dashboard-grid">
+<div class="dashboard-grid" id="dashboardGrid">
   <!-- Camera -->
-  <div class="card dashboard-card dashboard-camera">
+  <div class="card dashboard-card dashboard-camera" data-tile-id="camera" data-tile-size="standard">
     <h3>Camera</h3>
     <div class="cam-wrapper">
       <img id="camFeed" src="/api/camera" alt="Camera Feed" crossorigin="anonymous">
@@ -36,7 +36,7 @@
   </div>
 
   <!-- ML Vision -->
-  <div class="card dashboard-card dashboard-ml">
+  <div class="card dashboard-card dashboard-ml" data-tile-id="ml-vision" data-tile-size="wide">
     <h3>ML Vision</h3>
     <div class="vision-shell">
       <div class="vision-model-list">
@@ -112,7 +112,7 @@
   </div>
 
   <!-- Sensors -->
-  <div class="card dashboard-card dashboard-sensors">
+  <div class="card dashboard-card dashboard-sensors" data-tile-id="sensors" data-tile-size="standard">
     <h3>Sensors</h3>
     <div class="sensor-mini-grid">
       <div class="inner sensor-panel">
@@ -145,7 +145,7 @@
   </div>
 
   <!-- System Stats -->
-  <div class="card dashboard-card">
+  <div class="card dashboard-card" data-tile-id="system-stats" data-tile-size="standard">
     <h3>System Stats</h3>
     <div class="sys-grid">
       <div class="inner">
@@ -164,7 +164,7 @@
   </div>
 
   <!-- MACE Status -->
-  <div class="card dashboard-card">
+  <div class="card dashboard-card" data-tile-id="mace-status" data-tile-size="standard">
     <h3>MACE Status</h3>
     <div class="status-grid">
       <div class="status-row"><span class="label">Armed</span><span class="value" id="armedStatus">NO</span></div>
@@ -179,7 +179,7 @@
   </div>
 
   <!-- MACE Reaction Wheel -->
-  <div class="card dashboard-card compact-wide-card">
+  <div class="card dashboard-card compact-wide-card" data-tile-id="reaction-wheel" data-tile-size="standard">
     <h3>MACE Reaction Wheel</h3>
     <div class="slider-group">
       <div class="slider-label"><span class="label">Power</span><span class="value" id="holdPowerVal">10%</span></div>
@@ -201,7 +201,7 @@
   </div>
 
   <!-- Attitude Control -->
-  <div class="card dashboard-card compact-wide-card" id="attitudeCard">
+  <div class="card dashboard-card compact-wide-card" id="attitudeCard" data-tile-id="attitude-control" data-tile-size="wide">
     <h3>Attitude Control</h3>
     <div id="attitudeBanner" style="display:none"></div>
     <div class="att-cols">
