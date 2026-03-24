@@ -456,6 +456,13 @@
           <label for="armVizElevation">Elevation</label>
           <input type="range" id="armVizElevation" min="-10" max="70" value="18" oninput="armVizSetView()">
         </div>
+        <div class="armviz-mode-block">
+          <div class="armviz-mode-label">Visualization Source</div>
+          <div class="btn-row armviz-mode-row">
+            <button class="btn btn-sm btn-dark" id="armVizLiveBtn" onclick="armVizSetMode('live')">LIVE</button>
+            <button class="btn btn-sm btn-dark" id="armVizTestBtn" onclick="armVizSetMode('test')">TEST MOVES</button>
+          </div>
+        </div>
         <div class="btn-row armviz-btn-row">
           <button class="btn btn-sm btn-dark" id="armVizOrbitBtn" onclick="armVizToggleOrbit()">AUTO ORBIT</button>
           <button class="btn btn-sm btn-dark" onclick="armVizResetView()">RESET VIEW</button>
@@ -466,8 +473,10 @@
         <div class="armviz-stat"><span class="label">Right Tip</span><span class="value" id="armVizRightTip">x:0 y:0 z:0</span></div>
         <div class="armviz-stat"><span class="label">Keep-Out Zones</span><span class="value">SAT + FLOOR</span></div>
         <div class="armviz-stat"><span class="label">Scene</span><span class="value">ARMS + WORKSPACE</span></div>
+        <div class="armviz-stat"><span class="label">Source</span><span class="value" id="armVizModeStatus">LIVE</span></div>
+        <div class="armviz-stat"><span class="label">Truth</span><span class="value">SUBSCALE PI</span></div>
       </div>
-      <div class="armviz-note">Frontend visualization only. The geometry is approximate and follows the current GUI servo state so you can stage arm motion and keep-out clearances without adding backend logic.</div>
+      <div class="armviz-note">Frontend visualization only. `LIVE` follows actual servo output from the subscale Pi and remains the source of truth. `TEST MOVES` only changes the browser visualization from slider motion for staging; the control pipeline will need a later backend update if you want that mode reflected outside the GUI.</div>
     </div>
   </div>
 </div>
