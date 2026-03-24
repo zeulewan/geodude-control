@@ -388,6 +388,34 @@
 <div class="section-title">Servos</div>
 
 <div class="card">
+  <h3>Arm Workspace View</h3>
+  <div class="armviz-shell">
+    <canvas id="armVizCanvas" class="armviz-canvas" width="960" height="420"></canvas>
+    <div class="armviz-toolbar">
+      <div class="armviz-slider-wrap">
+        <label for="armVizAzimuth">Orbit</label>
+        <input type="range" id="armVizAzimuth" min="-180" max="180" value="28" oninput="armVizSetView()">
+      </div>
+      <div class="armviz-slider-wrap">
+        <label for="armVizElevation">Elevation</label>
+        <input type="range" id="armVizElevation" min="-10" max="70" value="18" oninput="armVizSetView()">
+      </div>
+      <div class="btn-row armviz-btn-row">
+        <button class="btn btn-sm btn-dark" id="armVizOrbitBtn" onclick="armVizToggleOrbit()">AUTO ORBIT</button>
+        <button class="btn btn-sm btn-dark" onclick="armVizResetView()">RESET VIEW</button>
+      </div>
+    </div>
+    <div class="armviz-stats">
+      <div class="armviz-stat"><span class="label">Left Tip</span><span class="value" id="armVizLeftTip">x:0 y:0 z:0</span></div>
+      <div class="armviz-stat"><span class="label">Right Tip</span><span class="value" id="armVizRightTip">x:0 y:0 z:0</span></div>
+      <div class="armviz-stat"><span class="label">Keep-Out Zones</span><span class="value">2 ACTIVE</span></div>
+      <div class="armviz-stat"><span class="label">Scene</span><span class="value">SAT + ARMS</span></div>
+    </div>
+    <div class="armviz-note">Frontend visualization only. The geometry is approximate and follows the current GUI servo state so you can stage arm motion and keep-out clearances without adding backend logic.</div>
+  </div>
+</div>
+
+<div class="card">
   <h3>Controller Mode</h3>
   <div class="controller-grid">
     <div class="controller-stat"><span class="label">Mode</span><span class="value" id="controllerMode">OFF</span></div>
