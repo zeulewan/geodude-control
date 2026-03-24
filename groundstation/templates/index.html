@@ -114,29 +114,31 @@
   <!-- Sensors -->
   <div class="card dashboard-card dashboard-sensors">
     <h3>Sensors</h3>
-    <div class="inner">
-      <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Gyroscope (deg/s)</div>
-      <div class="sensor-row">
-        <div class="sensor-val"><div class="label">X</div><div class="value red" id="gx">0.0</div></div>
-        <div class="sensor-val"><div class="label">Y</div><div class="value green" id="gy">0.0</div></div>
-        <div class="sensor-val"><div class="label">Z</div><div class="value blue" id="gz">0.0</div></div>
+    <div class="sensor-mini-grid">
+      <div class="inner sensor-panel">
+        <div class="sensor-panel-title">Gyroscope (deg/s)</div>
+        <div class="sensor-row">
+          <div class="sensor-val"><div class="label">X</div><div class="value red" id="gx">0.0</div></div>
+          <div class="sensor-val"><div class="label">Y</div><div class="value green" id="gy">0.0</div></div>
+          <div class="sensor-val"><div class="label">Z</div><div class="value blue" id="gz">0.0</div></div>
+        </div>
       </div>
-    </div>
-    <div class="inner">
-      <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Accelerometer (g)</div>
-      <div class="sensor-row">
-        <div class="sensor-val"><div class="label">X</div><div class="value red" id="ax">0.0</div></div>
-        <div class="sensor-val"><div class="label">Y</div><div class="value green" id="ay">0.0</div></div>
-        <div class="sensor-val"><div class="label">Z</div><div class="value blue" id="az">0.0</div></div>
+      <div class="inner sensor-panel">
+        <div class="sensor-panel-title">Accelerometer (g)</div>
+        <div class="sensor-row">
+          <div class="sensor-val"><div class="label">X</div><div class="value red" id="ax">0.0</div></div>
+          <div class="sensor-val"><div class="label">Y</div><div class="value green" id="ay">0.0</div></div>
+          <div class="sensor-val"><div class="label">Z</div><div class="value blue" id="az">0.0</div></div>
+        </div>
       </div>
-    </div>
-    <div class="inner">
-      <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Encoder</div>
-      <div class="encoder-section">
-        <div class="dial-wrapper"><div class="dial-ring"><div id="needle"></div><div class="dial-center"></div></div></div>
-        <div class="encoder-text">
-          <div class="value" id="angleText">0.0&deg;</div>
-          <div class="sub"><span id="rpmText">0</span> RPM</div>
+      <div class="inner sensor-panel sensor-panel-encoder">
+        <div class="sensor-panel-title">Encoder</div>
+        <div class="encoder-section compact-encoder">
+          <div class="dial-wrapper"><div class="dial-ring"><div id="needle"></div><div class="dial-center"></div></div></div>
+          <div class="encoder-text">
+            <div class="value" id="angleText">0.0&deg;</div>
+            <div class="sub"><span id="rpmText">0</span> RPM</div>
+          </div>
         </div>
       </div>
     </div>
