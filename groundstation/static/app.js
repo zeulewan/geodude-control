@@ -68,6 +68,14 @@ function saveServoSettings() {
   } catch(e) {}
 }
 
+function sendServoSettings() {
+  fetch('/api/servo_settings', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({speed: getServoSpeed(), ramp: getServoRampRate()})
+  }).catch(function() {});
+}
+
 function usToDuty(us) {
   return (us / 20000 * 100).toFixed(1);
 }
@@ -1074,6 +1082,7 @@ function seqRun() {
 
   /* Restore speed settings from localStorage */
   loadServoSettings();
+  sendServoSettings();
 
   /* Start servo ramp loop (rate-limits all servo movements) */
   startServoRampLoop();

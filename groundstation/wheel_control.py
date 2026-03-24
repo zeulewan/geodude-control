@@ -16,7 +16,6 @@ WATCHDOG_TIMEOUT = 3  # seconds — auto-stop if no frontend heartbeat
 RAMP_HZ = 20  # ramp loop tick rate
 CONTROLLER_HZ = 20
 CONTROLLER_SCAN_INTERVAL = 2.0
-CONTROLLER_STEP_US = 18
 CONTROLLER_LIMIT_US = 450
 CONTROLLER_DEADZONE = 0.12
 CONTROLLER_ACTIVE_THRESHOLD = 0.2
@@ -102,6 +101,9 @@ controller_state = {
     "buttons": {},
     "updated_at": 0.0,
 }
+
+SERVO_SETTINGS = {"speed": 50, "ramp": 20}
+controller_channel_velocity = {name: 0.0 for name in CHANNELS if name != "MACE"}
 # Server-side servo position tracking — persisted to disk, survives reboots
 POSITIONS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "servo_positions.json")
 
@@ -238,6 +240,11 @@ def controller_status_payload():
     return payload
 
 
+def reset_controller_motion():
+    for name in controller_channel_velocity:
+        controller_channel_velocity[name] = 0.0
+
+
 def set_controller_enabled(enabled):
     with lock:
         controller_state["enabled"] = bool(enabled)
@@ -246,13 +253,17 @@ def set_controller_enabled(enabled):
         controller_state["last_error"] = None
         for name in controller_state["axes"]:
             controller_state["axes"][name] = 0.0
+    reset_controller_motion()
 
 
 def controller_apply_outputs():
     with lock:
         enabled = controller_state["enabled"]
         buttons = dict(controller_state["buttons"])
+        max_speed = int(SERVO_SETTINGS["speed"])
+        accel = int(SERVO_SETTINGS["ramp"])
     if not enabled:
+        reset_controller_motion()
         with lock:
             controller_state["active"] = False
             controller_state["deadman"] = False
@@ -262,22 +273,34 @@ def controller_apply_outputs():
     active = False
     changed = False
 
-    if deadman:
+    if not deadman:
+        reset_controller_motion()
+    else:
         for axis_name, bindings in CONTROLLER_BINDINGS.items():
-            value = controller_axis_value(axis_name)
-            if abs(value) >= CONTROLLER_ACTIVE_THRESHOLD:
+            axis_value = controller_axis_value(axis_name)
+            if abs(axis_value) >= CONTROLLER_ACTIVE_THRESHOLD:
                 active = True
-            if value == 0.0:
-                continue
             for binding in bindings:
                 channel = binding["channel"]
                 current = int(servo_positions.get(channel, servo_neutral.get(channel, 1000)))
                 lo, hi = controller_limits(channel)
-                delta = int(round(value * binding["scale"] * CONTROLLER_STEP_US))
-                if delta == 0:
+                velocity = controller_channel_velocity.get(channel, 0.0)
+                target_velocity = axis_value * binding["scale"] * max_speed
+                if target_velocity > velocity:
+                    velocity = min(velocity + accel, target_velocity)
+                elif target_velocity < velocity:
+                    velocity = max(velocity - accel, target_velocity)
+                if abs(target_velocity) < 0.001 and abs(velocity) < accel:
+                    velocity = 0.0
+                controller_channel_velocity[channel] = velocity
+                if abs(velocity) < 0.5:
                     continue
-                target = clamp(current + delta, lo, hi)
+                step = int(round(velocity))
+                if step == 0:
+                    step = 1 if velocity > 0 else -1
+                target = clamp(current + step, lo, hi)
                 if target == current:
+                    controller_channel_velocity[channel] = 0.0
                     continue
                 if send_pwm(channel, target):
                     servo_positions[channel] = target
@@ -307,6 +330,7 @@ def controller_loop():
             controller_state["deadman"] = False
             for name in controller_state["axes"]:
                 controller_state["axes"][name] = 0.0
+        reset_controller_motion()
 
     while True:
         with lock:
@@ -565,6 +589,23 @@ def set_servo_neutral():
         servo_neutral[name] = pw
         save_neutral(servo_neutral)
     return jsonify({"ok": True})
+
+
+@app.route('/api/servo_settings')
+def get_servo_settings():
+    return jsonify(SERVO_SETTINGS)
+
+
+@app.route('/api/servo_settings', methods=['POST'])
+def set_servo_settings():
+    data = request.json or {}
+    with lock:
+        if "speed" in data:
+            SERVO_SETTINGS["speed"] = clamp(int(data["speed"]), 1, 200)
+        if "ramp" in data:
+            SERVO_SETTINGS["ramp"] = clamp(int(data["ramp"]), 1, 100)
+        settings = dict(SERVO_SETTINGS)
+    return jsonify(settings)
 
 
 @app.route('/api/controller/status')
