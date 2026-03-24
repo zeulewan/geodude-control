@@ -93,6 +93,37 @@ body {
   flex-direction: column;
   gap: 10px;
 }
+.vision-model-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.vision-model-slot {
+  padding: 10px;
+  border: 1px solid #233146;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.7);
+}
+.vision-model-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.vision-model-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #e2e8f0;
+}
+.vision-model-role {
+  font-size: 11px;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
 .vision-upload-row {
   display: grid;
   grid-template-columns: auto 1fr;

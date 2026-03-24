@@ -41,16 +41,48 @@
     <div class="card">
       <h3>ML Vision</h3>
       <div class="vision-shell">
-        <div class="vision-upload-row">
-          <label class="vision-file-btn" for="visionModelFile">Select Model</label>
-          <input type="file" id="visionModelFile" accept=".pt,.onnx,.engine,.tflite,.pb,.bin" onchange="visionModelChanged(this)">
-          <div class="vision-file-name" id="visionModelName">No model selected</div>
+        <div class="vision-model-list">
+          <div class="vision-model-slot">
+            <div class="vision-model-head">
+              <div class="vision-model-title">Model 1</div>
+              <div class="vision-model-role">Primary Vision</div>
+            </div>
+            <div class="vision-upload-row">
+              <label class="vision-file-btn" for="visionModelFile1">Select Model</label>
+              <input type="file" id="visionModelFile1" accept=".pt,.onnx,.engine,.tflite,.pb,.bin" onchange="visionModelChanged(0, this)">
+              <div class="vision-file-name" id="visionModelName1">No model selected</div>
+            </div>
+          </div>
+          <div class="vision-model-slot">
+            <div class="vision-model-head">
+              <div class="vision-model-title">Model 2</div>
+              <div class="vision-model-role">Support Vision</div>
+            </div>
+            <div class="vision-upload-row">
+              <label class="vision-file-btn" for="visionModelFile2">Select Model</label>
+              <input type="file" id="visionModelFile2" accept=".pt,.onnx,.engine,.tflite,.pb,.bin" onchange="visionModelChanged(1, this)">
+              <div class="vision-file-name" id="visionModelName2">No model selected</div>
+            </div>
+          </div>
+          <div class="vision-model-slot">
+            <div class="vision-model-head">
+              <div class="vision-model-title">Model 3</div>
+              <div class="vision-model-role">Autonomy Vision</div>
+            </div>
+            <div class="vision-upload-row">
+              <label class="vision-file-btn" for="visionModelFile3">Select Model</label>
+              <input type="file" id="visionModelFile3" accept=".pt,.onnx,.engine,.tflite,.pb,.bin" onchange="visionModelChanged(2, this)">
+              <div class="vision-file-name" id="visionModelName3">No model selected</div>
+            </div>
+          </div>
         </div>
         <div class="vision-grid">
           <div class="vision-stat"><span class="label">Status</span><span class="value" id="visionModelStatus">STANDBY</span></div>
+          <div class="vision-stat"><span class="label">Models</span><span class="value" id="visionModelCount">0 / 3</span></div>
           <div class="vision-stat"><span class="label">Profile</span><span class="value" id="visionProfileStatus">Docking</span></div>
           <div class="vision-stat"><span class="label">Camera</span><span class="value">Pi Camera</span></div>
           <div class="vision-stat"><span class="label">Backend</span><span class="value">UI ONLY</span></div>
+          <div class="vision-stat"><span class="label">Pipeline</span><span class="value" id="visionPipelineStatus">UNASSIGNED</span></div>
         </div>
         <div class="vision-controls">
           <div class="vision-select-wrap">
@@ -77,7 +109,7 @@
           <button class="btn btn-dark" id="visionArmBtn" onclick="visionStageAutonomy()">Stage Autonomy</button>
           <button class="btn btn-dark" onclick="visionReset()">Reset</button>
         </div>
-        <div class="vision-note" id="visionNote">Frontend placeholder only. Choose a model file to stage the UI for future autonomous vision tools.</div>
+        <div class="vision-note" id="visionNote">Frontend placeholder only. Choose up to three model files to stage the UI for future autonomous vision tools.</div>
       </div>
     </div>
 
