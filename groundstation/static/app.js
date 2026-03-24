@@ -854,22 +854,60 @@ function macePoll() {
       enEl.textContent = d.enabled ? 'YES' : 'NO';
       enEl.style.color = d.enabled ? '#22c55e' : '#ef4444';
     }
+    // Motor enabled (me flag from Pico)
+    var meEl = document.getElementById('maceMotorEnabled');
+    if (meEl) {
+      var me = d.me != null ? d.me : 0;
+      meEl.textContent = me ? 'YES' : 'NO';
+      meEl.style.color = me ? '#22c55e' : '#ef4444';
+    }
+    // EN pin state
+    var enPinEl = document.getElementById('maceEnPin');
+    if (enPinEl) {
+      var en = d.en != null ? d.en : 0;
+      enPinEl.textContent = en ? 'HIGH' : 'LOW';
+      enPinEl.style.color = en ? '#22c55e' : '#94a3b8';
+    }
     var tgt = d.target != null ? d.target : 0;
     var vel = d.velocity != null ? d.velocity : 0;
     var tEl = document.getElementById('maceTarget');
-    if (tEl) tEl.textContent = tgt.toFixed(2) + ' rad/s';
+    if (tEl) tEl.textContent = tgt.toFixed(1) + ' rad/s';
     var vEl = document.getElementById('maceVelocity');
     if (vEl) vEl.textContent = vel.toFixed(2) + ' rad/s';
-    // Encoder angle from sensor data
+    // Encoder angle
     var angEl = document.getElementById('maceEncoderAngle');
     if (angEl) {
       var ang = d.encoder_angle != null ? d.encoder_angle : 0;
       angEl.textContent = ang.toFixed(1) + ' deg';
     }
-    // Wheel RPM from sensor data (real encoder delta/dt, not velocity estimate)
+    // Wheel RPM
     var rpm = d.rpm != null ? d.rpm : Math.round(vel * 60 / (2 * Math.PI));
     var rpmEl = document.getElementById('maceRpm');
     if (rpmEl) rpmEl.textContent = Math.round(rpm);
+    // Phase values (p1, p2, p3)
+    var phaseEl = document.getElementById('macePhase');
+    if (phaseEl) {
+      var p1 = d.p1 != null ? d.p1 : 0;
+      var p2 = d.p2 != null ? d.p2 : 0;
+      var p3 = d.p3 != null ? d.p3 : 0;
+      phaseEl.textContent = 'P1=' + p1.toFixed(2) + ' P2=' + p2.toFixed(2) + ' P3=' + p3.toFixed(2);
+    }
+    // Accelerometer
+    var accelEl = document.getElementById('maceAccel');
+    if (accelEl) {
+      var ax = d.ax != null ? d.ax : 0;
+      var ay = d.ay != null ? d.ay : 0;
+      var az = d.az != null ? d.az : 0;
+      accelEl.textContent = ax.toFixed(2) + ' ' + ay.toFixed(2) + ' ' + az.toFixed(2) + ' g';
+    }
+    // Gyroscope
+    var gyroEl = document.getElementById('maceGyro');
+    if (gyroEl) {
+      var gx = d.gx != null ? d.gx : 0;
+      var gy = d.gy != null ? d.gy : 0;
+      var gz = d.gz != null ? d.gz : 0;
+      gyroEl.textContent = gx.toFixed(1) + ' ' + gy.toFixed(1) + ' ' + gz.toFixed(1) + ' deg/s';
+    }
     var errEl = document.getElementById('maceError');
     if (errEl) {
       if (d.error) {

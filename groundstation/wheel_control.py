@@ -47,6 +47,17 @@ mace = {
     "velocity": 0.0,    # current velocity rad/s (reported by Pico)
     "connected": False, # Pico USB serial connected
     "error": None,
+    "en": 0,            # EN pin state (1=high)
+    "me": 0,            # motor enabled flag (1=enabled)
+    "p1": 0.0,          # phase 1 value
+    "p2": 0.0,          # phase 2 value
+    "p3": 0.0,          # phase 3 value
+    "ax": 0.0,          # accelerometer x (g)
+    "ay": 0.0,          # accelerometer y (g)
+    "az": 0.0,          # accelerometer z (g)
+    "gx": 0.0,          # gyroscope x (deg/s)
+    "gy": 0.0,          # gyroscope y (deg/s)
+    "gz": 0.0,          # gyroscope z (deg/s)
 }
 
 state = {
@@ -418,28 +429,34 @@ def watchdog_loop():
 def sensor_loop():
     while True:
         try:
-            resp = urllib.request.urlopen(f"{GEODUDE_URL}/sensors", timeout=2)
-            data = json.loads(resp.read().decode())
-            with lock:
-                state["gyro"] = {"x": data["gx"], "y": data["gy"], "z": data["gz"]}
-                state["accel"] = {"x": data["ax"], "y": data["ay"], "z": data["az"]}
-                state["encoder_angle"] = data["angle"]
-                state["rpm"] = data.get("rpm", 0)
-                state["connected"] = True
-        except Exception:
-            with lock:
-                state["connected"] = False
-        # Poll SimpleFOC status from GEO-DUDe (Pico connection + current target)
-        try:
             resp = urllib.request.urlopen(f"{GEODUDE_URL}/simplefoc/status", timeout=2)
             sfoc = json.loads(resp.read().decode())
             with lock:
-                mace["connected"] = sfoc.get("connected", False)
+                # Update sensor state for the Sensors card
+                state["gyro"] = {"x": sfoc.get("gx", 0), "y": sfoc.get("gy", 0), "z": sfoc.get("gz", 0)}
+                state["accel"] = {"x": sfoc.get("ax", 0), "y": sfoc.get("ay", 0), "z": sfoc.get("az", 0)}
+                state["encoder_angle"] = sfoc.get("angle", 0)
+                state["rpm"] = sfoc.get("rpm", 0)
+                state["connected"] = True
+                # Update full MACE telemetry
+                mace["connected"] = sfoc.get("connected", True)
                 t = sfoc.get("target")
                 if t is not None:
                     mace["velocity"] = round(float(t), 4)
+                mace["en"] = sfoc.get("en", 0)
+                mace["me"] = sfoc.get("me", 0)
+                mace["p1"] = sfoc.get("p1", 0.0)
+                mace["p2"] = sfoc.get("p2", 0.0)
+                mace["p3"] = sfoc.get("p3", 0.0)
+                mace["ax"] = sfoc.get("ax", 0.0)
+                mace["ay"] = sfoc.get("ay", 0.0)
+                mace["az"] = sfoc.get("az", 0.0)
+                mace["gx"] = sfoc.get("gx", 0.0)
+                mace["gy"] = sfoc.get("gy", 0.0)
+                mace["gz"] = sfoc.get("gz", 0.0)
         except Exception:
             with lock:
+                state["connected"] = False
                 mace["connected"] = False
         time.sleep(0.1)
 
