@@ -59,22 +59,30 @@ body {
   align-items: start;
 }
 .dashboard-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  align-items: start;
+  align-items: flex-start;
 }
 .dashboard-card {
   margin-bottom: 0;
+  flex: 1 1 280px;
 }
-.dashboard-camera,
-.dashboard-ml,
+.dashboard-camera {
+  flex-basis: 320px;
+}
+.dashboard-ml {
+  flex-basis: 420px;
+}
 .dashboard-sensors {
-  align-self: stretch;
+  flex-basis: 330px;
+}
+#attitudeCard.dashboard-card {
+  flex-basis: 430px;
 }
 .sensor-mini-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
 }
 .sensor-panel {
@@ -86,9 +94,6 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 6px;
-}
-.sensor-panel-encoder {
-  grid-column: 1 / -1;
 }
 .compact-encoder {
   gap: 8px;
@@ -1129,11 +1134,7 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 /* Responsive */
-@media (max-width: 1200px) {
-  .dashboard-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-}
 @media (max-width: 1024px) {
-  .dashboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .sensor-mini-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 768px) {
