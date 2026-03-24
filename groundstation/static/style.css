@@ -313,6 +313,39 @@ input[type="range"]::-moz-range-thumb {
   color: #e0e6f0;
 }
 
+.controller-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 12px;
+}
+.controller-stat {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  padding: 2px 0;
+}
+.controller-stat .label {
+  color: #6b7280;
+}
+.controller-stat .value {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-weight: 600;
+}
+.controller-help {
+  margin-top: 10px;
+  font-size: 12px;
+  color: #9ca3af;
+  line-height: 1.45;
+}
+.controller-error {
+  color: #ef4444;
+  font-size: 12px;
+  margin-top: 8px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  display: none;
+  word-break: break-word;
+}
+
 /* Throttle bar */
 .throttle-bar-bg {
   width: 100%;

@@ -3,6 +3,8 @@ import threading
 import time
 import json
 import os
+import select
+import struct
 import urllib.request
 
 app = Flask(__name__)
@@ -12,6 +14,15 @@ ATTITUDE_URL = "http://192.168.4.166:5001"
 GIMBAL_URL = "http://192.168.4.222"
 WATCHDOG_TIMEOUT = 3  # seconds — auto-stop if no frontend heartbeat
 RAMP_HZ = 20  # ramp loop tick rate
+CONTROLLER_HZ = 20
+CONTROLLER_SCAN_INTERVAL = 2.0
+CONTROLLER_STEP_US = 18
+CONTROLLER_LIMIT_US = 450
+CONTROLLER_DEADZONE = 0.12
+CONTROLLER_ACTIVE_THRESHOLD = 0.2
+JS_EVENT_BUTTON = 0x01
+JS_EVENT_AXIS = 0x02
+JS_EVENT_INIT = 0x80
 
 # PCA9685 channel mapping (pin - 1 = 0-indexed)
 CHANNELS = {
@@ -43,6 +54,54 @@ state = {
     "rpm": 0,
 }
 
+CONTROLLER_BINDINGS = {
+    "lx": [
+        {"channel": "B1", "scale": 1.0},
+        {"channel": "B2", "scale": -1.0},
+    ],
+    "ly": [
+        {"channel": "S1", "scale": -1.0},
+        {"channel": "S2", "scale": -1.0},
+    ],
+    "ry": [
+        {"channel": "E1", "scale": -1.0},
+        {"channel": "E2", "scale": -1.0},
+    ],
+    "rx": [
+        {"channel": "W1A", "scale": 1.0},
+        {"channel": "W1B", "scale": -1.0},
+        {"channel": "W2A", "scale": -1.0},
+        {"channel": "W2B", "scale": 1.0},
+    ],
+}
+
+CONTROLLER_AXIS_ORDER = {
+    0: "lx",
+    1: "ly",
+    2: "rx",
+    3: "ry",
+}
+
+CONTROLLER_LABELS = {
+    "lx": "Left stick X -> base yaw (B1/B2)",
+    "ly": "Left stick Y -> shoulder pair (S1/S2)",
+    "ry": "Right stick Y -> elbow pair (E1/E2)",
+    "rx": "Right stick X -> wrist pair (W1/W2)",
+}
+
+DEADMAN_BUTTONS = {4, 5, 6, 7}
+
+controller_state = {
+    "enabled": False,
+    "connected": False,
+    "active": False,
+    "deadman": False,
+    "device": None,
+    "last_error": None,
+    "axes": {name: 0.0 for name in CONTROLLER_BINDINGS},
+    "buttons": {},
+    "updated_at": 0.0,
+}
 # Server-side servo position tracking — persisted to disk, survives reboots
 POSITIONS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "servo_positions.json")
 
@@ -135,6 +194,170 @@ def send_all_off():
         return True
     except Exception:
         return False
+
+
+def clamp(value, lo, hi):
+    return max(lo, min(hi, value))
+
+
+def controller_axis_value(name):
+    with lock:
+        value = float(controller_state["axes"].get(name, 0.0))
+    if abs(value) < CONTROLLER_DEADZONE:
+        return 0.0
+    return value
+
+
+def controller_limits(channel):
+    center = servo_neutral.get(channel)
+    if center is None:
+        center = servo_positions.get(channel, 1000)
+    center = int(center)
+    return (
+        clamp(center - CONTROLLER_LIMIT_US, 500, 2500),
+        clamp(center + CONTROLLER_LIMIT_US, 500, 2500),
+    )
+
+
+def controller_status_payload():
+    with lock:
+        axes = dict(controller_state["axes"])
+        buttons = dict(controller_state["buttons"])
+        payload = {
+            "enabled": controller_state["enabled"],
+            "connected": controller_state["connected"],
+            "active": controller_state["active"],
+            "deadman": controller_state["deadman"],
+            "device": controller_state["device"],
+            "last_error": controller_state["last_error"],
+            "updated_at": controller_state["updated_at"],
+        }
+    payload["axes"] = axes
+    payload["buttons"] = buttons
+    payload["bindings"] = CONTROLLER_LABELS
+    return payload
+
+
+def set_controller_enabled(enabled):
+    with lock:
+        controller_state["enabled"] = bool(enabled)
+        controller_state["active"] = False
+        controller_state["deadman"] = False
+        controller_state["last_error"] = None
+        for name in controller_state["axes"]:
+            controller_state["axes"][name] = 0.0
+
+
+def controller_apply_outputs():
+    with lock:
+        enabled = controller_state["enabled"]
+        buttons = dict(controller_state["buttons"])
+    if not enabled:
+        with lock:
+            controller_state["active"] = False
+            controller_state["deadman"] = False
+        return
+
+    deadman = any(buttons.get(btn, 0) for btn in DEADMAN_BUTTONS)
+    active = False
+    changed = False
+
+    if deadman:
+        for axis_name, bindings in CONTROLLER_BINDINGS.items():
+            value = controller_axis_value(axis_name)
+            if abs(value) >= CONTROLLER_ACTIVE_THRESHOLD:
+                active = True
+            if value == 0.0:
+                continue
+            for binding in bindings:
+                channel = binding["channel"]
+                current = int(servo_positions.get(channel, servo_neutral.get(channel, 1000)))
+                lo, hi = controller_limits(channel)
+                delta = int(round(value * binding["scale"] * CONTROLLER_STEP_US))
+                if delta == 0:
+                    continue
+                target = clamp(current + delta, lo, hi)
+                if target == current:
+                    continue
+                if send_pwm(channel, target):
+                    servo_positions[channel] = target
+                    mark_positions_dirty()
+                    changed = True
+
+    with lock:
+        controller_state["deadman"] = deadman
+        controller_state["active"] = deadman and (active or changed)
+
+
+def controller_loop():
+    fd = None
+
+    def close_device():
+        nonlocal fd
+        if fd is not None:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+            fd = None
+        with lock:
+            controller_state["connected"] = False
+            controller_state["device"] = None
+            controller_state["active"] = False
+            controller_state["deadman"] = False
+            for name in controller_state["axes"]:
+                controller_state["axes"][name] = 0.0
+
+    while True:
+        with lock:
+            enabled = controller_state["enabled"]
+        if not enabled:
+            close_device()
+            time.sleep(0.25)
+            continue
+
+        if fd is None:
+            try:
+                fd = os.open('/dev/input/js0', os.O_RDONLY | os.O_NONBLOCK)
+                with lock:
+                    controller_state["connected"] = True
+                    controller_state["device"] = '/dev/input/js0'
+                    controller_state["last_error"] = None
+                    controller_state["updated_at"] = time.time()
+            except OSError as e:
+                with lock:
+                    controller_state["connected"] = False
+                    controller_state["device"] = None
+                    controller_state["last_error"] = str(e)
+                time.sleep(CONTROLLER_SCAN_INTERVAL)
+                continue
+
+        try:
+            ready, _, _ = select.select([fd], [], [], 1.0 / CONTROLLER_HZ)
+            if ready:
+                while True:
+                    try:
+                        event = os.read(fd, 8)
+                    except BlockingIOError:
+                        break
+                    if len(event) != 8:
+                        raise OSError('controller disconnected')
+                    _, value, event_type, number = struct.unpack('IhBB', event)
+                    if event_type & JS_EVENT_INIT:
+                        continue
+                    base_type = event_type & ~JS_EVENT_INIT
+                    with lock:
+                        controller_state["updated_at"] = time.time()
+                        if base_type == JS_EVENT_AXIS and number in CONTROLLER_AXIS_ORDER:
+                            controller_state["axes"][CONTROLLER_AXIS_ORDER[number]] = max(-1.0, min(1.0, value / 32767.0))
+                        elif base_type == JS_EVENT_BUTTON:
+                            controller_state["buttons"][number] = 1 if value else 0
+            controller_apply_outputs()
+        except OSError as e:
+            with lock:
+                controller_state["last_error"] = str(e)
+            close_device()
+            time.sleep(CONTROLLER_SCAN_INTERVAL)
 
 
 def throttle_to_pw(throttle, reverse):
@@ -342,6 +565,19 @@ def set_servo_neutral():
         servo_neutral[name] = pw
         save_neutral(servo_neutral)
     return jsonify({"ok": True})
+
+
+@app.route('/api/controller/status')
+def controller_status():
+    return jsonify(controller_status_payload())
+
+
+@app.route('/api/controller/enable', methods=['POST'])
+def controller_enable():
+    data = request.json or {}
+    enabled = bool(data.get('enabled', False))
+    set_controller_enabled(enabled)
+    return jsonify(controller_status_payload())
 
 
 @app.route('/api/all_off', methods=['POST'])
@@ -674,6 +910,7 @@ def restore_positions_loop():
 
 if __name__ == '__main__':
     threading.Thread(target=sensor_loop, daemon=True).start()
+    threading.Thread(target=controller_loop, daemon=True).start()
     threading.Thread(target=ramp_loop, daemon=True).start()
     threading.Thread(target=watchdog_loop, daemon=True).start()
     threading.Thread(target=positions_flush_loop, daemon=True).start()

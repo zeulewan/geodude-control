@@ -26,6 +26,8 @@ var chActual = {};  // actual PWM value sent to hardware per channel
 /* Per-channel neutral positions (server-side, persisted to disk) */
 var chNeutral = {};
 
+var controllerStatus = {enabled: false};
+
 function getNeutral(name) {
   return chNeutral[name] != null ? chNeutral[name] : 1500;
 }
@@ -404,6 +406,57 @@ function calCancel() {
 }
 
 /* ========== Polling ========== */
+function updateControllerUI(status) {
+  controllerStatus = status || {enabled: false};
+  var modeEl = document.getElementById('controllerMode');
+  var linkEl = document.getElementById('controllerLink');
+  var deadmanEl = document.getElementById('controllerDeadman');
+  var activeEl = document.getElementById('controllerActivity');
+  var errorEl = document.getElementById('controllerError');
+  var btn = document.getElementById('controllerToggleBtn');
+  if (modeEl) {
+    modeEl.textContent = controllerStatus.enabled ? 'ON' : 'OFF';
+    modeEl.style.color = controllerStatus.enabled ? '#22c55e' : '#9ca3af';
+  }
+  if (linkEl) {
+    linkEl.textContent = controllerStatus.connected ? 'CONNECTED' : 'DISCONNECTED';
+    linkEl.style.color = controllerStatus.connected ? '#22c55e' : '#ef4444';
+  }
+  if (deadmanEl) {
+    deadmanEl.textContent = controllerStatus.deadman ? 'HELD' : 'RELEASED';
+    deadmanEl.style.color = controllerStatus.deadman ? '#22c55e' : '#9ca3af';
+  }
+  if (activeEl) {
+    activeEl.textContent = controllerStatus.active ? 'MOVING' : 'IDLE';
+    activeEl.style.color = controllerStatus.active ? '#3b82f6' : '#9ca3af';
+  }
+  if (errorEl) {
+    errorEl.textContent = controllerStatus.last_error || '';
+    errorEl.style.display = controllerStatus.last_error ? 'block' : 'none';
+  }
+  if (btn) {
+    btn.textContent = controllerStatus.enabled ? 'DISABLE CONTROLLER' : 'ENABLE CONTROLLER';
+    btn.className = controllerStatus.enabled ? 'btn btn-red' : 'btn btn-dark';
+  }
+}
+
+function controllerPoll() {
+  fetch('/api/controller/status').then(function(r) { return r.json(); }).then(function(d) {
+    updateControllerUI(d);
+  }).catch(function() {});
+}
+
+function toggleControllerMode() {
+  var enable = !controllerStatus.enabled;
+  fetch('/api/controller/enable', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({enabled: enable})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    updateControllerUI(d);
+  });
+}
+
 function poll() {
   fetch('/api/sensors').then(function(r) { return r.json(); }).then(function(d) {
     /* Gyro */
@@ -1031,8 +1084,10 @@ function seqRun() {
   setInterval(sysPoll, 2000);
   setInterval(gimbalPoll, 1000);
   setInterval(servoSyncPoll, 500);
+  setInterval(controllerPoll, 250);
 
   /* Immediate calls */
   sysPoll();
   gimbalPoll();
+  controllerPoll();
 })();
