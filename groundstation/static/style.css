@@ -262,6 +262,22 @@ body {
 .armviz-slider-wrap input[type="range"] {
   width: 100%;
 }
+.armviz-mode-block {
+  min-width: 0;
+}
+.armviz-mode-label {
+  margin-bottom: 4px;
+  font-size: 11px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+.armviz-mode-row {
+  margin-top: 0;
+}
+.armviz-mode-row .btn {
+  flex: 1 1 120px;
+}
 .armviz-btn-row {
   margin-top: 0;
   align-self: stretch;

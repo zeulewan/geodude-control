@@ -136,13 +136,20 @@ var armVizState = {
   dragStartX: 0,
   dragStartY: 0,
   startAzimuth: 28,
-  startElevation: 18
+  startElevation: 18,
+  mode: 'live'
 };
 
 function armVizChannelValue(name) {
-  if (typeof chActual[name] === 'number' && !isNaN(chActual[name])) return chActual[name];
   var slider = document.getElementById('ch_' + name);
-  if (slider) return parseInt(slider.value, 10);
+  var sliderValue = slider ? parseInt(slider.value, 10) : null;
+  var actualValue = (typeof chActual[name] === 'number' && !isNaN(chActual[name])) ? chActual[name] : null;
+  if (armVizState.mode === 'test') {
+    if (sliderValue != null && !isNaN(sliderValue)) return sliderValue;
+    if (actualValue != null) return actualValue;
+    return getNeutral(name);
+  }
+  if (actualValue != null) return actualValue;
   return getNeutral(name);
 }
 
@@ -360,6 +367,21 @@ function armVizSyncControls() {
   if (el) el.value = Math.round(armVizState.elevation);
 }
 
+function armVizUpdateModeUI() {
+  var modeEl = document.getElementById('armVizModeStatus');
+  var liveBtn = document.getElementById('armVizLiveBtn');
+  var testBtn = document.getElementById('armVizTestBtn');
+  if (modeEl) modeEl.textContent = armVizState.mode === 'live' ? 'LIVE' : 'TEST';
+  if (liveBtn) liveBtn.className = armVizState.mode === 'live' ? 'btn btn-sm btn-green' : 'btn btn-sm btn-dark';
+  if (testBtn) testBtn.className = armVizState.mode === 'test' ? 'btn btn-sm btn-amber' : 'btn btn-sm btn-dark';
+}
+
+function armVizSetMode(mode) {
+  armVizState.mode = mode === 'test' ? 'test' : 'live';
+  armVizUpdateModeUI();
+  armVizDrawScene();
+}
+
 function armVizPointerDown(event) {
   var canvas = document.getElementById('armVizCanvas');
   if (!canvas) return;
@@ -423,6 +445,7 @@ function armVizResetView() {
 
 function armVizStart() {
   armVizBindPointer();
+  armVizUpdateModeUI();
   if (armVizState.rafId != null) return;
   armVizResetView();
   armVizState.rafId = window.requestAnimationFrame(armVizLoop);
