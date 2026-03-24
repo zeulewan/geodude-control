@@ -13,23 +13,15 @@ GEODUDE_URL = "http://192.168.4.166:5000"
 ATTITUDE_URL = "http://192.168.4.166:5001"
 GIMBAL_URL = "http://192.168.4.222"
 WATCHDOG_TIMEOUT = 3  # seconds — auto-stop if no frontend heartbeat
-RAMP_HZ = 20  # ramp loop tick rate
-CONTROLLER_HZ = 20
-CONTROLLER_SCAN_INTERVAL = 2.0
-CONTROLLER_LIMIT_US = 450
-CONTROLLER_DEADZONE = 0.12
-CONTROLLER_ACTIVE_THRESHOLD = 0.2
-JS_EVENT_BUTTON = 0x01
-JS_EVENT_AXIS = 0x02
-JS_EVENT_INIT = 0x80
+
 
 # PCA9685 channel mapping (pin - 1 = 0-indexed)
+# MACE reaction wheel is no longer on PCA9685 — it is driven by Pi Pico via SimpleFOC
 CHANNELS = {
     "B1":   15,
     "S1":   14,
     "B2":   13,
     "S2":   12,
-    "MACE": 11,
     "E1":    6,
     "E2":    4,
     "W1A":   3,
@@ -38,18 +30,22 @@ CHANNELS = {
     "W2B":   0,
 }
 
+# SimpleFOC velocity limits (rad/s)
+MAX_VELOCITY = 20.0
+
+mace = {
+    "enabled": False,
+    "target": 0.0,      # target velocity rad/s
+    "velocity": 0.0,    # current velocity rad/s (reported by Pico)
+    "connected": False, # Pico USB serial connected
+    "error": None,
+}
+
 state = {
-    "armed": False,
-    "arming": False,
-    "throttle": 0.0,       # current throttle (ramped)
-    "target": 0.0,         # target throttle
-    "ramp_rate": 0.1,      # %/s — how fast throttle moves toward target
-    "reverse": False,
     "gyro": {"x": 0, "y": 0, "z": 0},
     "accel": {"x": 0, "y": 0, "z": 0},
     "encoder_angle": 0,
     "connected": False,
-    "motor_error": None,
     "rpm": 0,
 }
 
@@ -157,21 +153,21 @@ lock = threading.Lock()
 last_heartbeat = time.monotonic()
 
 
-def send_motor(pw):
-    """Send PWM to MACE channel via legacy /motor endpoint."""
+def send_velocity(velocity):
+    """Send velocity command (rad/s) to Pico via GEO-DUDe /simplefoc endpoint."""
     try:
         req = urllib.request.Request(
-            f"{GEODUDE_URL}/motor",
-            data=json.dumps({"pw": pw}).encode(),
+            f"{GEODUDE_URL}/simplefoc",
+            data=json.dumps({"velocity": round(float(velocity), 4)}).encode(),
             headers={"Content-Type": "application/json"},
         )
         urllib.request.urlopen(req, timeout=3)
         with lock:
-            state["motor_error"] = None
+            mace["error"] = None
         return True
     except Exception as e:
         with lock:
-            state["motor_error"] = str(e)
+            mace["error"] = str(e)
         return False
 
 
@@ -199,274 +195,20 @@ def send_all_off():
         return False
 
 
-def clamp(value, lo, hi):
-    return max(lo, min(hi, value))
-
-
-def controller_axis_value(name):
-    with lock:
-        value = float(controller_state["axes"].get(name, 0.0))
-    if abs(value) < CONTROLLER_DEADZONE:
-        return 0.0
-    return value
-
-
-def controller_limits(channel):
-    center = servo_neutral.get(channel)
-    if center is None:
-        center = servo_positions.get(channel, 1000)
-    center = int(center)
-    return (
-        clamp(center - CONTROLLER_LIMIT_US, 500, 2500),
-        clamp(center + CONTROLLER_LIMIT_US, 500, 2500),
-    )
-
-
-def controller_status_payload():
-    with lock:
-        axes = dict(controller_state["axes"])
-        buttons = dict(controller_state["buttons"])
-        payload = {
-            "enabled": controller_state["enabled"],
-            "connected": controller_state["connected"],
-            "active": controller_state["active"],
-            "deadman": controller_state["deadman"],
-            "device": controller_state["device"],
-            "last_error": controller_state["last_error"],
-            "updated_at": controller_state["updated_at"],
-        }
-    payload["axes"] = axes
-    payload["buttons"] = buttons
-    payload["bindings"] = CONTROLLER_LABELS
-    payload["selected_arm"] = controller_state["selected_arm"]
-    return payload
-
-
-def reset_controller_motion():
-    for name in controller_channel_velocity:
-        controller_channel_velocity[name] = 0.0
-
-
-def set_controller_arm(selected_arm):
-    with lock:
-        controller_state["selected_arm"] = "right" if selected_arm == "right" else "left"
-    reset_controller_motion()
-
-
-def set_controller_enabled(enabled):
-    with lock:
-        controller_state["enabled"] = bool(enabled)
-        controller_state["active"] = False
-        controller_state["deadman"] = False
-        controller_state["last_error"] = None
-        for name in controller_state["axes"]:
-            controller_state["axes"][name] = 0.0
-    reset_controller_motion()
-
-
-def controller_apply_outputs():
-    with lock:
-        enabled = controller_state["enabled"]
-        buttons = dict(controller_state["buttons"])
-        max_speed = int(SERVO_SETTINGS["speed"])
-        accel = int(SERVO_SETTINGS["ramp"])
-        selected_arm = controller_state["selected_arm"]
-    if not enabled:
-        reset_controller_motion()
-        with lock:
-            controller_state["active"] = False
-            controller_state["deadman"] = False
-        return
-
-    deadman = any(buttons.get(btn, 0) for btn in DEADMAN_BUTTONS)
-    active = False
-    changed = False
-
-    if not deadman:
-        reset_controller_motion()
-    else:
-        arm_bindings = CONTROLLER_ARM_BINDINGS[selected_arm]
-        for axis_name, bindings in arm_bindings.items():
-            axis_value = controller_axis_value(axis_name)
-            if abs(axis_value) >= CONTROLLER_ACTIVE_THRESHOLD:
-                active = True
-            for binding in bindings:
-                channel = binding["channel"]
-                current = int(servo_positions.get(channel, servo_neutral.get(channel, 1000)))
-                lo, hi = controller_limits(channel)
-                velocity = controller_channel_velocity.get(channel, 0.0)
-                target_velocity = axis_value * binding["scale"] * max_speed
-                if target_velocity > velocity:
-                    velocity = min(velocity + accel, target_velocity)
-                elif target_velocity < velocity:
-                    velocity = max(velocity - accel, target_velocity)
-                if abs(target_velocity) < 0.001 and abs(velocity) < accel:
-                    velocity = 0.0
-                controller_channel_velocity[channel] = velocity
-                if abs(velocity) < 0.5:
-                    continue
-                step = int(round(velocity))
-                if step == 0:
-                    step = 1 if velocity > 0 else -1
-                target = clamp(current + step, lo, hi)
-                if target == current:
-                    controller_channel_velocity[channel] = 0.0
-                    continue
-                if send_pwm(channel, target):
-                    servo_positions[channel] = target
-                    mark_positions_dirty()
-                    changed = True
-
-    with lock:
-        controller_state["deadman"] = deadman
-        controller_state["active"] = deadman and (active or changed)
-
-
-def controller_loop():
-    fd = None
-
-    def close_device():
-        nonlocal fd
-        if fd is not None:
-            try:
-                os.close(fd)
-            except OSError:
-                pass
-            fd = None
-        with lock:
-            controller_state["connected"] = False
-            controller_state["device"] = None
-            controller_state["active"] = False
-            controller_state["deadman"] = False
-            for name in controller_state["axes"]:
-                controller_state["axes"][name] = 0.0
-        reset_controller_motion()
-
-    while True:
-        with lock:
-            enabled = controller_state["enabled"]
-        if not enabled:
-            close_device()
-            time.sleep(0.25)
-            continue
-
-        if fd is None:
-            try:
-                fd = os.open('/dev/input/js0', os.O_RDONLY | os.O_NONBLOCK)
-                with lock:
-                    controller_state["connected"] = True
-                    controller_state["device"] = '/dev/input/js0'
-                    controller_state["last_error"] = None
-                    controller_state["updated_at"] = time.time()
-            except OSError as e:
-                with lock:
-                    controller_state["connected"] = False
-                    controller_state["device"] = None
-                    controller_state["last_error"] = str(e)
-                time.sleep(CONTROLLER_SCAN_INTERVAL)
-                continue
-
-        try:
-            ready, _, _ = select.select([fd], [], [], 1.0 / CONTROLLER_HZ)
-            if ready:
-                while True:
-                    try:
-                        event = os.read(fd, 8)
-                    except BlockingIOError:
-                        break
-                    if len(event) != 8:
-                        raise OSError('controller disconnected')
-                    _, value, event_type, number = struct.unpack('IhBB', event)
-                    if event_type & JS_EVENT_INIT:
-                        continue
-                    base_type = event_type & ~JS_EVENT_INIT
-                    with lock:
-                        controller_state["updated_at"] = time.time()
-                        if base_type == JS_EVENT_AXIS and number in CONTROLLER_AXIS_ORDER:
-                            controller_state["axes"][CONTROLLER_AXIS_ORDER[number]] = max(-1.0, min(1.0, value / 32767.0))
-                        elif base_type == JS_EVENT_BUTTON:
-                            controller_state["buttons"][number] = 1 if value else 0
-            controller_apply_outputs()
-        except OSError as e:
-            with lock:
-                controller_state["last_error"] = str(e)
-            close_device()
-            time.sleep(CONTROLLER_SCAN_INTERVAL)
-
-
-def throttle_to_pw(throttle, reverse):
-    """Convert throttle 0-100 and direction to PWM pulse width."""
-    t = int(round(throttle))
-    if reverse:
-        pw = 1000 - t * 10
-    else:
-        pw = 1000 + t * 10
-    return max(0, min(2000, pw))
-
-
-MAX_WHEEL_RPM = 600
-RPM_RESUME_PCT = 0.7  # resume throttle when RPM drops to 70% of max
-
-def ramp_loop():
-    """Server-side ramp: smoothly moves throttle toward target at ramp_rate %/s."""
-    last_pw = None
-    saturated = False
-    while True:
-        time.sleep(1.0 / RAMP_HZ)
-        with lock:
-            if not state["armed"] or state["arming"]:
-                last_pw = None
-                saturated = False
-                continue
-            rpm = state.get("rpm", 0)
-            target = state["target"]
-            current = state["throttle"]
-
-            # RPM saturation check with hysteresis
-            if rpm >= MAX_WHEEL_RPM:
-                saturated = True
-            elif saturated and rpm < MAX_WHEEL_RPM * RPM_RESUME_PCT:
-                saturated = False
-
-            if saturated:
-                # Coast until RPM drops
-                state["throttle"] = 0.0
-                pw = 1000
-            elif abs(target - current) > 0.1:
-                step = state["ramp_rate"] / RAMP_HZ
-                diff = target - current
-                if abs(diff) <= step:
-                    state["throttle"] = target
-                elif diff > 0:
-                    state["throttle"] = current + step
-                else:
-                    state["throttle"] = current - step
-                pw = throttle_to_pw(state["throttle"], state["reverse"])
-            else:
-                state["throttle"] = target
-                pw = throttle_to_pw(state["throttle"], state["reverse"])
-        # Only send if pw changed (avoid flooding)
-        if pw != last_pw:
-            send_motor(pw)
-            last_pw = pw
-
-
 def watchdog_loop():
     """Auto-stop motor if no frontend heartbeat within timeout."""
     while True:
         time.sleep(1)
         with lock:
-            armed = state["armed"]
-            throttle = state["throttle"]
-        if armed and throttle > 0:
+            enabled = mace["enabled"]
+            target = mace["target"]
+        if enabled and target != 0.0:
             if time.monotonic() - last_heartbeat > WATCHDOG_TIMEOUT:
                 with lock:
-                    state["throttle"] = 0.0
-                    state["target"] = 0.0
-                    state["armed"] = False
-                send_motor(1000)
-                time.sleep(0.5)
-                send_motor(0)
+                    mace["target"] = 0.0
+                    mace["velocity"] = 0.0
+                    mace["enabled"] = False
+                send_velocity(0.0)
 
 
 def sensor_loop():
@@ -483,6 +225,18 @@ def sensor_loop():
         except Exception:
             with lock:
                 state["connected"] = False
+        # Poll SimpleFOC status from GEO-DUDe (Pico connection + current target)
+        try:
+            resp = urllib.request.urlopen(f"{GEODUDE_URL}/simplefoc/status", timeout=2)
+            sfoc = json.loads(resp.read().decode())
+            with lock:
+                mace["connected"] = sfoc.get("connected", False)
+                t = sfoc.get("target")
+                if t is not None:
+                    mace["velocity"] = round(float(t), 4)
+        except Exception:
+            with lock:
+                mace["connected"] = False
         time.sleep(0.1)
 
 
@@ -500,67 +254,56 @@ def sensors():
         return jsonify(state)
 
 
-@app.route('/api/config', methods=['POST'])
-def config():
-    data = request.json
+@app.route('/api/mace/status')
+def mace_status():
+    """Return current MACE state."""
     with lock:
-        if "ramp_rate" in data:
-            state["ramp_rate"] = max(0.1, min(100.0, float(data["ramp_rate"])))
-    return jsonify({"ok": True})
+        return jsonify(dict(mace))
 
 
-@app.route('/api/arm', methods=['POST'])
-def arm():
+@app.route('/api/mace/enable', methods=['POST'])
+def mace_enable():
+    """Enable the reaction wheel motor."""
     with lock:
-        if state["arming"]:
-            return jsonify({"armed": state["armed"], "arming": True})
-        if not state["armed"]:
-            state["arming"] = True
-            threading.Thread(target=arm_async, args=(True,), daemon=True).start()
-        else:
-            state["armed"] = False
-            state["throttle"] = 0.0
-            state["target"] = 0.0
-            threading.Thread(target=arm_async, args=(False,), daemon=True).start()
-    return jsonify({"armed": state["armed"], "arming": state["arming"]})
+        mace["enabled"] = True
+        mace["error"] = None
+    return jsonify({"ok": True, "enabled": True})
 
 
-def arm_async(do_arm):
-    if do_arm:
-        send_motor(1000)
-        time.sleep(3)
-        with lock:
-            state["arming"] = False
-            state["armed"] = True
-    else:
-        send_motor(1000)
-        time.sleep(0.5)
-        send_motor(0)
+@app.route('/api/mace/disable', methods=['POST'])
+def mace_disable():
+    """Disable the reaction wheel motor and stop it."""
+    with lock:
+        mace["enabled"] = False
+        mace["target"] = 0.0
+        mace["velocity"] = 0.0
+    send_velocity(0.0)
+    return jsonify({"ok": True, "enabled": False})
 
 
-@app.route('/api/throttle', methods=['POST'])
-def throttle():
+@app.route('/api/mace/velocity', methods=['POST'])
+def mace_velocity():
+    """Set target velocity in rad/s. Only works if motor is enabled."""
     global last_heartbeat
     last_heartbeat = time.monotonic()
     data = request.json
-    t = max(0.0, min(100.0, float(data.get("target", 0))))
-    rev = data.get("reverse", False)
+    v = max(-MAX_VELOCITY, min(MAX_VELOCITY, float(data.get("target", 0))))
     with lock:
-        if state["arming"]:
-            return jsonify({"ok": False, "reason": "arming"})
-        state["target"] = t
-        state["reverse"] = rev
-        # Release = immediate idle, let wheel coast
-        if t == 0:
-            state["throttle"] = 0.0
-            send_idle = True
-        else:
-            # Jump to 10% floor so motor starts immediately
-            if state["throttle"] < 10.0:
-                state["throttle"] = 10.0
-            send_idle = False
-    if send_idle:
-        send_motor(1000)
+        if not mace["enabled"]:
+            return jsonify({"ok": False, "reason": "not enabled"})
+        mace["target"] = v
+    ok = send_velocity(v)
+    return jsonify({"ok": ok})
+
+
+@app.route('/api/mace/stop', methods=['POST'])
+def mace_stop():
+    """Immediate stop: send velocity 0 and disable motor."""
+    with lock:
+        mace["target"] = 0.0
+        mace["velocity"] = 0.0
+        mace["enabled"] = False
+    send_velocity(0.0)
     return jsonify({"ok": True})
 
 
@@ -645,31 +388,6 @@ def all_off():
     return jsonify({"ok": ok})
 
 
-@app.route('/api/brake', methods=['POST'])
-def brake():
-    """Brake: set throttle to 0 but stay armed, hold 1000us (ESC brake)."""
-    with lock:
-        state["throttle"] = 0.0
-        state["target"] = 0.0
-    send_motor(1000)
-    return jsonify({"ok": True})
-
-
-@app.route('/api/calibrate', methods=['POST'])
-def calibrate():
-    data = request.json
-    step = data.get("step", "")
-    if step == "max":
-        send_motor(2000)
-    elif step == "min":
-        send_motor(1000)
-    elif step == "cancel":
-        send_motor(1000)
-        time.sleep(0.5)
-        send_motor(0)
-    return jsonify({"ok": True})
-
-
 @app.route('/api/system')
 def system_stats():
     """System stats for both Pis."""
@@ -725,19 +443,6 @@ def camera():
         return app.response_class(generate(), mimetype=resp.headers.get('Content-Type', 'multipart/x-mixed-replace; boundary=frame'))
     except Exception as e:
         return jsonify({"error": str(e)}), 502
-
-
-@app.route('/api/stop', methods=['POST'])
-def stop():
-    with lock:
-        state["throttle"] = 0.0
-        state["target"] = 0.0
-        state["armed"] = False
-        state["arming"] = False
-    send_motor(1000)
-    time.sleep(0.5)
-    send_motor(0)
-    return jsonify({"ok": True})
 
 
 # --- Attitude controller proxy ---
@@ -968,8 +673,7 @@ def restore_positions_loop():
 
 if __name__ == '__main__':
     threading.Thread(target=sensor_loop, daemon=True).start()
-    threading.Thread(target=controller_loop, daemon=True).start()
-    threading.Thread(target=ramp_loop, daemon=True).start()
+
     threading.Thread(target=watchdog_loop, daemon=True).start()
     threading.Thread(target=positions_flush_loop, daemon=True).start()
     threading.Thread(target=restore_positions_loop, daemon=True).start()

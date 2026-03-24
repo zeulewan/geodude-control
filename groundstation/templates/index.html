@@ -163,39 +163,78 @@
     </div>
   </div>
 
-  <!-- MACE Status -->
-  <div class="card dashboard-card">
-    <h3>MACE Status</h3>
-    <div class="status-grid">
-      <div class="status-row"><span class="label">Armed</span><span class="value" id="armedStatus">NO</span></div>
-      <div class="status-row"><span class="label">Target</span><span class="value" id="targetStatus">0%</span></div>
-      <div class="status-row"><span class="label">Throttle</span><span class="value" id="throttleStatus">0%</span></div>
-      <div class="status-row"><span class="label">PWM</span><span class="value" id="pwmStatus">0 us</span></div>
-      <div class="status-row"><span class="label">Direction</span><span class="value" id="dirStatus">FWD</span></div>
-      <div class="status-row"><span class="label">Wheel RPM</span><span class="value" id="maceRpm">0</span></div>
-      <div class="status-row"><span class="label">Saturated</span><span class="value" id="maceSat">NO</span></div>
+    <!-- MACE Status -->
+    <div class="card">
+      <h3>MACE Status</h3>
+      <div class="status-grid">
+        <div class="status-row"><span class="label">Pico USB</span><span class="value" id="picoConnected">--</span></div>
+        <div class="status-row"><span class="label">Enabled</span><span class="value" id="maceEnabled">NO</span></div>
+        <div class="status-row"><span class="label">Target</span><span class="value" id="maceTarget">0.0 rad/s</span></div>
+        <div class="status-row"><span class="label">Velocity</span><span class="value" id="maceVelocity">0.0 rad/s</span></div>
+        <div class="status-row"><span class="label">Wheel RPM</span><span class="value" id="maceRpm">0</span></div>
+      </div>
+      <div id="maceError"></div>
     </div>
     <div id="motorError"></div>
   </div>
 
-  <!-- MACE Reaction Wheel -->
-  <div class="card dashboard-card compact-wide-card">
-    <h3>MACE Reaction Wheel</h3>
-    <div class="slider-group">
-      <div class="slider-label"><span class="label">Power</span><span class="value" id="holdPowerVal">10%</span></div>
-      <input type="range" id="holdPower" min="10" max="100" value="10" oninput="document.getElementById('holdPowerVal').textContent = this.value + '%'">
+<!-- MACE Reaction Wheel (full width) -->
+<div class="card">
+  <h3>MACE Reaction Wheel</h3>
+
+  <div class="slider-group">
+    <div class="slider-label">
+      <span class="label">Target Velocity</span>
+      <span class="value" id="velSliderVal">0.0 rad/s</span>
     </div>
-    <div class="slider-group">
-      <div class="slider-label"><span class="label">Ramp Rate</span><span class="value" id="rampVal">0.1%/s (1000.0s)</span></div>
-      <input type="range" id="rampRate" min="0.1" max="100" step="0.1" value="0.1" oninput="updateRampLabel(this.value); sendRampRate(this.value)">
-    </div>
-    <div class="throttle-bar-bg"><div id="targetBar" style="width:0%"></div><div id="currentBar" style="width:0%"></div></div>
-    <button class="btn btn-hold disabled" id="holdBtn" onmousedown="holdStart()" onmouseup="holdStop()" onmouseleave="holdStop()" ontouchstart="holdStart(event)" ontouchend="holdStop()" ontouchcancel="holdStop()">HOLD TO SPIN</button>
+    <input type="range" id="velSlider" min="-20" max="20" step="0.5" value="0"
+           oninput="maceUpdateSliderLabel(this.value)">
+    <div class="slider-scale"><span>-20 rad/s</span><span>0</span><span>+20 rad/s</span></div>
+  </div>
+
+  <div style="margin-top:14px;">
+    <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Quick Presets (rad/s)</div>
     <div class="btn-row">
-      <button class="btn btn-green" id="armBtn" onclick="toggleArm()">ARM</button>
-      <button class="btn btn-amber" onclick="brake()">BRAKE</button>
-      <button class="btn btn-dark" onclick="toggleReverse()">REVERSE</button>
-      <button class="btn btn-dark" onclick="startCalibrate()">CALIBRATE ESC</button>
+      <button class="btn btn-sm btn-dark" onclick="maceSetPreset(-10)">-10</button>
+      <button class="btn btn-sm btn-dark" onclick="maceSetPreset(-5)">-5</button>
+      <button class="btn btn-sm btn-dark" onclick="maceSetPreset(-2)">-2</button>
+      <button class="btn btn-sm btn-dark" onclick="maceSetPreset(-1)">-1</button>
+      <button class="btn btn-sm btn-dark" onclick="maceSetPreset(0)">0</button>
+      <button class="btn btn-sm" onclick="maceSetPreset(1)">+1</button>
+      <button class="btn btn-sm" onclick="maceSetPreset(2)">+2</button>
+      <button class="btn btn-sm" onclick="maceSetPreset(5)">+5</button>
+      <button class="btn btn-sm" onclick="maceSetPreset(10)">+10</button>
+    </div>
+  </div>
+
+  <div class="btn-row" style="margin-top:14px;">
+    <button class="btn btn-green" id="maceToggleBtn" onclick="maceToggle()">ENABLE</button>
+    <button class="btn disabled" id="maceSetVelBtn" onclick="maceSetVelocity(parseFloat(document.getElementById('velSlider').value))">SET VELOCITY</button>
+    <button class="btn btn-red" onclick="maceStop()">STOP</button>
+  </div>
+</div>
+
+<!-- Attitude Control (full width) -->
+<div class="card" id="attitudeCard">
+  <h3>Attitude Control</h3>
+  <div id="attitudeBanner" style="display:none"></div>
+
+  <div class="att-cols">
+    <!-- Left: dial -->
+    <div class="att-dial-section">
+      <svg id="attDial" width="160" height="160" viewBox="0 0 160 160">
+        <circle cx="80" cy="80" r="70" fill="none" stroke="#1e2433" stroke-width="4"/>
+        <circle cx="80" cy="80" r="3" fill="#6b7280"/>
+        <!-- Setpoint needle (amber) -->
+        <line id="attSetpointNeedle" x1="80" y1="80" x2="80" y2="16" stroke="#f59e0b" stroke-width="2" stroke-linecap="round"/>
+        <!-- Angle needle (blue) -->
+        <line id="attAngleNeedle" x1="80" y1="80" x2="80" y2="16" stroke="#3b82f6" stroke-width="3" stroke-linecap="round"/>
+        <text id="attRevs" x="80" y="125" text-anchor="middle" fill="#6b7280" font-size="11" font-family="'SF Mono','Fira Code',monospace">0 rev</text>
+      </svg>
+      <div style="margin-top:8px;">
+        <div style="font-family:'SF Mono','Fira Code',monospace;font-size:20px;font-weight:700;" id="attAngleText">0.0&deg;</div>
+        <div style="font-size:12px;color:#9ca3af;margin-top:2px;">Setpoint: <span id="attSetpointText">0.0&deg;</span></div>
+      </div>
     </div>
     <div id="calPanel" style="display:none"><div id="calStep"></div><div id="calBtns" class="btn-row"></div></div>
   </div>
