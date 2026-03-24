@@ -97,7 +97,7 @@ controller_state = {
     "deadman": False,
     "device": None,
     "last_error": None,
-    "axes": {name: 0.0 for name in CONTROLLER_BINDINGS},
+    "axes": {name: 0.0 for name in CONTROLLER_LABELS},
     "buttons": {},
     "updated_at": 0.0,
     "selected_arm": "left",
