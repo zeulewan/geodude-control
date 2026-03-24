@@ -511,9 +511,9 @@
       <div class="mission-note">Uses the same Pi camera feed while keeping the simulation workflow isolated from the manual page.</div>
     </div>
 
-    <div class="card mission-card">
+    <div class="card mission-card mission-compact-card">
       <h3>Autonomy Stack</h3>
-      <div class="mission-list">
+      <div class="mission-list mission-list-tight">
         <div class="mission-list-row"><span>Model 1</span><span id="missionModel1">UNSET</span></div>
         <div class="mission-list-row"><span>Model 2</span><span id="missionModel2">UNSET</span></div>
         <div class="mission-list-row"><span>Model 3</span><span id="missionModel3">UNSET</span></div>
@@ -521,6 +521,17 @@
         <div class="mission-list-row"><span>Profile</span><span id="missionProfile">DOCKING</span></div>
       </div>
       <div class="mission-note">Frontend-only summary of the staged ML and autonomy configuration for the mission workflow.</div>
+    </div>
+
+    <div class="card mission-card mission-compact-card">
+      <h3>Simulation View</h3>
+      <div class="mission-sim-layout mission-sim-layout-tight">
+        <div class="mission-sim-stat"><span class="label">Selected Arm</span><span class="value" id="missionSelectedArm">LEFT</span></div>
+        <div class="mission-sim-stat"><span class="label">IK Target</span><span class="value" id="missionTargetPoint">x:-- y:-- z:--</span></div>
+        <div class="mission-sim-stat"><span class="label">Solved Tip</span><span class="value" id="missionSolvedPoint">x:-- y:-- z:--</span></div>
+        <div class="mission-sim-stat"><span class="label">Visualization</span><span class="value" id="missionVizSource">TEST MOVES SAFE</span></div>
+      </div>
+      <div class="mission-note">Use the Manual Testing tab to debug hardware and kinematics. Use this Mission Simulation tab to rehearse the full autonomous flow with the same staged data and visualization state.</div>
     </div>
 
     <div class="card mission-card mission-flow-card">
@@ -570,16 +581,6 @@
       <div class="mission-note">This tab is the autonomous workflow shell. It is intended to compose the camera, ML staging, IK preview, and mission sequencing without interfering with manual debugging.</div>
     </div>
 
-    <div class="card mission-card mission-wide">
-      <h3>Simulation View</h3>
-      <div class="mission-sim-layout">
-        <div class="mission-sim-stat"><span class="label">Selected Arm</span><span class="value" id="missionSelectedArm">LEFT</span></div>
-        <div class="mission-sim-stat"><span class="label">IK Target</span><span class="value" id="missionTargetPoint">x:-- y:-- z:--</span></div>
-        <div class="mission-sim-stat"><span class="label">Solved Tip</span><span class="value" id="missionSolvedPoint">x:-- y:-- z:--</span></div>
-        <div class="mission-sim-stat"><span class="label">Visualization</span><span class="value" id="missionVizSource">TEST MOVES SAFE</span></div>
-      </div>
-      <div class="mission-note">Use the Manual Testing tab to debug hardware and kinematics. Use this Mission Simulation tab to rehearse the full autonomous flow with the same staged data and visualization state.</div>
-    </div>
   </div>
 </div>
 
