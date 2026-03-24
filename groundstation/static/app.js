@@ -180,25 +180,59 @@ function armVizBuildArm(side) {
     };
   }
 
-  function pitchSegment(length, pitch, roll) {
-    var local = {
-      x: Math.cos(pitch) * length * sideBias,
-      y: Math.sin(pitch) * length,
-      z: 0
-    };
-    return rotateBaseAxis(local, roll);
-  }
-
   function addPoint(a, b) {
     return {x: a.x + b.x, y: a.y + b.y, z: a.z + b.z};
   }
 
+  function scaleVec(vec, scale) {
+    return {x: vec.x * scale, y: vec.y * scale, z: vec.z * scale};
+  }
+
+  function normalizeVec(vec) {
+    var mag = Math.sqrt(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z) || 1;
+    return {x: vec.x / mag, y: vec.y / mag, z: vec.z / mag};
+  }
+
+  function crossVec(a, b) {
+    return {
+      x: a.y * b.z - a.z * b.y,
+      y: a.z * b.x - a.x * b.z,
+      z: a.x * b.y - a.y * b.x
+    };
+  }
+
+  function rotateAroundAxis(vec, axis, angle) {
+    var unit = normalizeVec(axis);
+    var cosA = Math.cos(angle);
+    var sinA = Math.sin(angle);
+    var dot = vec.x * unit.x + vec.y * unit.y + vec.z * unit.z;
+    var cross = crossVec(unit, vec);
+    return {
+      x: vec.x * cosA + cross.x * sinA + unit.x * dot * (1 - cosA),
+      y: vec.y * cosA + cross.y * sinA + unit.y * dot * (1 - cosA),
+      z: vec.z * cosA + cross.z * sinA + unit.z * dot * (1 - cosA)
+    };
+  }
+
+  function pitchDirection(pitch, roll) {
+    return rotateBaseAxis({
+      x: Math.cos(pitch) * sideBias,
+      y: Math.sin(pitch),
+      z: 0
+    }, roll);
+  }
+
   var base = anchor;
   var shoulderMount = addPoint(anchor, rotateBaseAxis({x: 14 * sideBias, y: 0, z: 0}, baseRoll));
-  var elbowPoint = addPoint(shoulderMount, pitchSegment(upper, shoulderPitch, baseRoll));
-  var wristAPoint = addPoint(elbowPoint, pitchSegment(fore, shoulderPitch + elbowPitch, baseRoll));
-  var wristBPoint = addPoint(wristAPoint, pitchSegment(wrist, shoulderPitch + elbowPitch, baseRoll + wristRoll));
-  var tipPoint = addPoint(wristBPoint, pitchSegment(tool, shoulderPitch + elbowPitch + wristPitch, baseRoll + wristRoll));
+  var upperDir = pitchDirection(shoulderPitch, baseRoll);
+  var elbowPoint = addPoint(shoulderMount, scaleVec(upperDir, upper));
+  var foreDir = pitchDirection(shoulderPitch + elbowPitch, baseRoll);
+  var wristAPoint = addPoint(elbowPoint, scaleVec(foreDir, fore));
+  var wristBPoint = addPoint(wristAPoint, scaleVec(foreDir, wrist));
+
+  var basePitchDir = pitchDirection(shoulderPitch + elbowPitch + wristPitch, baseRoll);
+  var toolDir = rotateAroundAxis(basePitchDir, foreDir, wristRoll);
+  var tipPoint = addPoint(wristBPoint, scaleVec(normalizeVec(toolDir), tool));
 
   return {
     color: isLeft ? '#38bdf8' : '#f59e0b',
