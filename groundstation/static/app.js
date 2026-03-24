@@ -27,6 +27,131 @@ var chActual = {};  // actual PWM value sent to hardware per channel
 var chNeutral = {};
 
 var controllerStatus = {enabled: false};
+var ikStatus = null;
+var ikLastResult = null;
+
+function ikSelectedArm() {
+  return (controllerStatus && controllerStatus.selected_arm) ? controllerStatus.selected_arm : 'left';
+}
+
+function ikFormatPoint(point) {
+  if (!point) return 'x:-- y:-- z:--';
+  return ['x', 'y', 'z'].map(function(axis) {
+    var value = point[axis];
+    return axis + ':' + (typeof value === 'number' ? Math.round(value) : '--');
+  }).join(' ');
+}
+
+function ikUpdateResult(result) {
+  ikLastResult = result || null;
+  var solverEl = document.getElementById('ikSolverState');
+  var solvedTipEl = document.getElementById('ikSolvedTip');
+  var noteEl = document.getElementById('ikNote');
+  if (solverEl) {
+    if (!result) {
+      solverEl.textContent = 'IDLE';
+      solverEl.style.color = '#9ca3af';
+    } else if (result.ok) {
+      solverEl.textContent = result.applied ? 'DRY RUN MOVE' : 'SOLVED';
+      solverEl.style.color = result.applied ? '#f59e0b' : '#22c55e';
+    } else {
+      solverEl.textContent = 'UNREACHABLE';
+      solverEl.style.color = '#ef4444';
+    }
+  }
+  if (solvedTipEl) solvedTipEl.textContent = ikFormatPoint(result && (result.tip_mm || result.target_mm));
+  [['Base', 'base'], ['Shoulder', 'shoulder'], ['Elbow', 'elbow'], ['WristPitch', 'wrist_pitch']].forEach(function(entry) {
+    var el = document.getElementById('ik' + entry[0] + 'Result');
+    if (!el) return;
+    if (result && result.angles_deg && typeof result.angles_deg[entry[1]] === 'number') {
+      var angle = result.angles_deg[entry[1]].toFixed(1);
+      var channel = null;
+      if (result.target_pwms) {
+        Object.keys(result.target_pwms).forEach(function(key) {
+          if (channel) return;
+          if ((entry[1] === 'base' && key[0] === 'B') ||
+              (entry[1] === 'shoulder' && key[0] === 'S') ||
+              (entry[1] === 'elbow' && key[0] === 'E') ||
+              (entry[1] === 'wrist_pitch' && key.indexOf('B') > 0)) {
+            channel = key + ': ' + result.target_pwms[key] + ' us';
+          }
+        });
+      }
+      el.textContent = angle + ' deg' + (channel ? ' / ' + channel : '');
+    } else {
+      el.textContent = '--';
+    }
+  });
+  if (noteEl) {
+    noteEl.className = result && !result.ok ? 'ik-note error' : 'ik-note';
+    if (!result) {
+      noteEl.textContent = 'Solver uses the measured arm lengths in this branch. On the dev page, MOVE ARM is dry-run only until you explicitly choose otherwise.';
+    } else if (!result.ok) {
+      noteEl.textContent = 'Target is outside the current approximate IK workspace or joint limits. Adjust the target or tune the calibration constants in mizi-dev.';
+    } else if (result.applied) {
+      noteEl.textContent = 'Dry-run move completed on the dev page. The solver returned PWM targets, but this isolated instance is not sending live actuator commands.';
+    } else {
+      noteEl.textContent = 'Solve preview updated. This is using approximate joint calibration from mizi-dev and should be tuned before merge.';
+    }
+  }
+}
+
+function ikUpdateStatus(status) {
+  ikStatus = status || null;
+  var arm = ikSelectedArm();
+  var armLabel = document.getElementById('ikArmLabel');
+  var currentTip = document.getElementById('ikCurrentTip');
+  if (armLabel) {
+    armLabel.textContent = arm.toUpperCase();
+    armLabel.style.color = '#f59e0b';
+  }
+  if (currentTip && status && status.arms && status.arms[arm]) {
+    currentTip.textContent = ikFormatPoint(status.arms[arm].tip_mm);
+  }
+}
+
+function ikRefreshStatus() {
+  fetch('/api/ik/status').then(function(r) { return r.json(); }).then(function(d) {
+    ikUpdateStatus(d);
+  }).catch(function() {});
+}
+
+function ikLoadCurrentTip() {
+  if (!ikStatus || !ikStatus.arms || !ikStatus.arms[ikSelectedArm()]) {
+    ikRefreshStatus();
+    return;
+  }
+  var tip = ikStatus.arms[ikSelectedArm()].tip_mm || {};
+  ['x', 'y', 'z'].forEach(function(axis) {
+    var input = document.getElementById('ikTarget' + axis.toUpperCase());
+    if (input && typeof tip[axis] === 'number') input.value = Math.round(tip[axis]);
+  });
+}
+
+function ikSolve(applyMove) {
+  var payload = {
+    arm: ikSelectedArm(),
+    x: parseFloat(document.getElementById('ikTargetX').value || '0'),
+    y: parseFloat(document.getElementById('ikTargetY').value || '0'),
+    z: parseFloat(document.getElementById('ikTargetZ').value || '0'),
+    apply: !!applyMove
+  };
+  var solverEl = document.getElementById('ikSolverState');
+  if (solverEl) {
+    solverEl.textContent = 'SOLVING';
+    solverEl.style.color = '#3b82f6';
+  }
+  fetch('/api/ik/solve', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload)
+  }).then(function(r) { return r.json(); }).then(function(result) {
+    ikUpdateResult(result);
+    ikRefreshStatus();
+  }).catch(function() {
+    ikUpdateResult({ok: false});
+  });
+}
 
 var visionState = {
   models: ['', '', ''],
@@ -159,16 +284,16 @@ function armVizNormalize(name, scale) {
   return ((armVizChannelValue(name) - getNeutral(name)) / 400) * scale;
 }
 
-function armVizBuildArm(side) {
+function armVizBuildArm(side, overrideAngles) {
   var isLeft = side === 'left';
   var suffix = isLeft ? '1' : '2';
   var sideBias = isLeft ? -1 : 1;
   var anchor = {x: isLeft ? -120 : 120, y: 50, z: -5};
-  var baseRoll = armVizNormalize('B' + suffix, 1.05) + (isLeft ? -0.08 : 0.08);
-  var shoulderPitch = armVizNormalize('S' + suffix, 1.05) - 0.12;
-  var elbowPitch = armVizNormalize('E' + suffix, 1.0) + 0.72;
-  var wristRoll = armVizNormalize('W' + suffix + 'A', 0.8);
-  var wristPitch = armVizNormalize('W' + suffix + 'B', 0.75) - 0.25;
+  var baseRoll = overrideAngles && typeof overrideAngles.base === 'number' ? overrideAngles.base : armVizNormalize('B' + suffix, 1.05) + (isLeft ? -0.08 : 0.08);
+  var shoulderPitch = overrideAngles && typeof overrideAngles.shoulder === 'number' ? overrideAngles.shoulder : armVizNormalize('S' + suffix, 1.05) - 0.12;
+  var elbowPitch = overrideAngles && typeof overrideAngles.elbow === 'number' ? overrideAngles.elbow : armVizNormalize('E' + suffix, 1.0) + 0.72;
+  var wristRoll = overrideAngles && typeof overrideAngles.wrist_roll === 'number' ? overrideAngles.wrist_roll : armVizNormalize('W' + suffix + 'A', 0.8);
+  var wristPitch = overrideAngles && typeof overrideAngles.wrist_pitch === 'number' ? overrideAngles.wrist_pitch : armVizNormalize('W' + suffix + 'B', 0.75) - 0.25;
   var baseLink = 103;
   var upper = 310;
   var fore = 230;
@@ -238,10 +363,19 @@ function armVizBuildArm(side) {
   var tipPoint = addPoint(wristBPoint, scaleVec(normalizeVec(toolDir), tool));
 
   return {
+    side: side,
     color: isLeft ? '#38bdf8' : '#f59e0b',
     joints: [base, shoulderMount, elbowPoint, wristAPoint, wristBPoint, tipPoint],
     tip: tipPoint
   };
+}
+
+function armVizIkTargetPoint() {
+  var x = parseFloat((document.getElementById('ikTargetX') || {}).value);
+  var y = parseFloat((document.getElementById('ikTargetY') || {}).value);
+  var z = parseFloat((document.getElementById('ikTargetZ') || {}).value);
+  if (isNaN(x) || isNaN(y) || isNaN(z)) return null;
+  return {x: x, y: y, z: z};
 }
 
 function armVizProject(point, width, height, azimuth, elevation, zoom) {
@@ -251,10 +385,9 @@ function armVizProject(point, width, height, azimuth, elevation, zoom) {
   var z1 = point.x * Math.sin(az) + point.z * Math.cos(az);
   var y2 = point.y * Math.cos(el) - z1 * Math.sin(el);
   var z2 = point.y * Math.sin(el) + z1 * Math.cos(el);
-  var perspective = 1 + (z2 / 650);
   return {
-    x: width / 2 + x1 * perspective * zoom,
-    y: height / 2 - y2 * perspective * zoom,
+    x: width / 2 + x1 * zoom,
+    y: height / 2 - y2 * zoom,
     depth: z2
   };
 }
@@ -297,6 +430,60 @@ function armVizDrawBox(ctx, width, height, center, size, azimuth, elevation, str
     ctx.lineTo(b.x, b.y);
     ctx.stroke();
   });
+  ctx.restore();
+}
+
+function armVizDrawArm(ctx, width, height, arm, options) {
+  options = options || {};
+  var pts = arm.joints.map(function(point) {
+    return armVizProject(point, width, height, armVizState.azimuth, armVizState.elevation, armVizState.zoom);
+  });
+  ctx.save();
+  ctx.strokeStyle = options.stroke || arm.color;
+  ctx.lineWidth = options.lineWidth || 3;
+  ctx.setLineDash(options.dash || []);
+  ctx.globalAlpha = options.opacity != null ? options.opacity : 1;
+  ctx.beginPath();
+  pts.forEach(function(point, index) {
+    if (!index) ctx.moveTo(point.x, point.y); else ctx.lineTo(point.x, point.y);
+  });
+  ctx.stroke();
+  ctx.setLineDash([]);
+  pts.forEach(function(point, index) {
+    var radius = index === pts.length - 1 ? (options.tipRadius || 5.5) : (options.jointRadius || 4.25);
+    ctx.beginPath();
+    ctx.fillStyle = index === pts.length - 1 ? (options.tipFill || '#e2e8f0') : (options.jointFill || arm.color);
+    ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+    ctx.fill();
+    if (index === pts.length - 1 || options.jointStroke) {
+      ctx.strokeStyle = options.tipStroke || options.stroke || arm.color;
+      ctx.lineWidth = options.tipStrokeWidth || 1.5;
+      ctx.stroke();
+    }
+  });
+  ctx.restore();
+}
+
+function armVizDrawTargetMarker(ctx, width, height, point) {
+  if (!point) return;
+  var projected = armVizProject(point, width, height, armVizState.azimuth, armVizState.elevation, armVizState.zoom);
+  ctx.save();
+  ctx.strokeStyle = 'rgba(34, 197, 94, 0.95)';
+  ctx.fillStyle = 'rgba(34, 197, 94, 0.18)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(projected.x, projected.y, 8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(projected.x - 12, projected.y);
+  ctx.lineTo(projected.x + 12, projected.y);
+  ctx.moveTo(projected.x, projected.y - 12);
+  ctx.lineTo(projected.x, projected.y + 12);
+  ctx.stroke();
+  ctx.font = '11px "SF Mono", "Fira Code", monospace';
+  ctx.fillStyle = 'rgba(34, 197, 94, 0.95)';
+  ctx.fillText('TARGET', projected.x + 12, projected.y - 10);
   ctx.restore();
 }
 
@@ -346,36 +533,41 @@ function armVizDrawScene() {
   armVizDrawBox(ctx, width, height, {x: 0, y: -159, z: 0}, {x: 360, y: 18, z: 300}, armVizState.azimuth, armVizState.elevation, 'rgba(239, 68, 68, 0.95)', 'rgba(239, 68, 68, 0.08)');
 
   var arms = [armVizBuildArm('left'), armVizBuildArm('right')];
-  arms.forEach(function(arm) {
-    var pts = arm.joints.map(function(point) {
-      return armVizProject(point, width, height, armVizState.azimuth, armVizState.elevation, armVizState.zoom);
-    });
-    ctx.strokeStyle = arm.color;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    pts.forEach(function(point, index) {
-      if (!index) ctx.moveTo(point.x, point.y); else ctx.lineTo(point.x, point.y);
-    });
-    ctx.stroke();
+  var ikTarget = armVizIkTargetPoint();
+  var solvedArm = null;
+  if (ikLastResult && ikLastResult.ok && ikLastResult.arm && ikLastResult.angles_rad) {
+    solvedArm = armVizBuildArm(ikLastResult.arm, ikLastResult.angles_rad);
+  }
 
-    pts.forEach(function(point, index) {
-      ctx.beginPath();
-      ctx.fillStyle = index === pts.length - 1 ? '#e2e8f0' : arm.color;
-      ctx.arc(point.x, point.y, index === pts.length - 1 ? 5.5 : 4.25, 0, Math.PI * 2);
-      ctx.fill();
-      if (index === pts.length - 1) {
-        ctx.strokeStyle = arm.color;
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-      }
-    });
+  arms.forEach(function(arm) {
+    armVizDrawArm(ctx, width, height, arm);
   });
+  if (solvedArm) {
+    armVizDrawArm(ctx, width, height, solvedArm, {
+      stroke: solvedArm.color,
+      jointFill: solvedArm.color,
+      tipFill: 'rgba(226, 232, 240, 0.55)',
+      opacity: 0.38,
+      dash: [10, 7],
+      lineWidth: 2.5,
+      jointRadius: 3.5,
+      tipRadius: 5,
+      tipStrokeWidth: 1.25
+    });
+  }
+  armVizDrawTargetMarker(ctx, width, height, ikTarget);
 
   ctx.fillStyle = '#cbd5e1';
   ctx.font = '12px "SF Mono", "Fira Code", monospace';
   ctx.fillText('SAT KEEP-OUT', 18, 24);
   ctx.fillStyle = 'rgba(239, 68, 68, 0.95)';
   ctx.fillText('FLOOR KEEP-OUT', 18, 42);
+  ctx.fillStyle = 'rgba(34, 197, 94, 0.95)';
+  ctx.fillText('IK TARGET', 18, 60);
+  if (solvedArm) {
+    ctx.fillStyle = 'rgba(226, 232, 240, 0.82)';
+    ctx.fillText('SOLVED POSE', 18, 78);
+  }
 
   var leftTip = document.getElementById('armVizLeftTip');
   var rightTip = document.getElementById('armVizRightTip');
@@ -932,7 +1124,9 @@ function updateControllerUI(status) {
     btn.textContent = controllerStatus.enabled ? 'DISABLE CONTROLLER' : 'ENABLE CONTROLLER';
     btn.className = controllerStatus.enabled ? 'btn btn-red' : 'btn btn-dark';
   }
+  ikUpdateStatus(ikStatus);
 }
+
 
 function controllerPoll() {
   fetch('/api/controller/status').then(function(r) { return r.json(); }).then(function(d) {
@@ -1590,11 +1784,13 @@ function seqRun() {
   setInterval(gimbalPoll, 1000);
   setInterval(servoSyncPoll, 500);
   setInterval(controllerPoll, 250);
+  setInterval(ikRefreshStatus, 1000);
 
   /* Immediate calls */
   sysPoll();
   gimbalPoll();
   controllerPoll();
+  ikRefreshStatus();
   updateVisionUI();
   armVizStart();
 })();
