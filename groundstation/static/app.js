@@ -153,35 +153,49 @@ function armVizNormalize(name, scale) {
 function armVizBuildArm(side) {
   var isLeft = side === 'left';
   var suffix = isLeft ? '1' : '2';
+  var sideBias = isLeft ? -1 : 1;
   var anchor = {x: isLeft ? -110 : 110, y: -10, z: -20};
-  var yaw = armVizNormalize('B' + suffix, 0.95) + (isLeft ? -0.18 : 0.18);
-  var shoulder = armVizNormalize('S' + suffix, 1.05) - 0.15;
-  var elbow = armVizNormalize('E' + suffix, 1.05) + 0.65;
-  var wrist = armVizNormalize('W' + suffix + 'A', 0.8) - 0.2;
+  var baseRoll = armVizNormalize('B' + suffix, 1.05) + (isLeft ? -0.08 : 0.08);
+  var shoulderPitch = armVizNormalize('S' + suffix, 1.05) - 0.12;
+  var elbowPitch = armVizNormalize('E' + suffix, 1.0) + 0.72;
+  var wristRoll = armVizNormalize('W' + suffix + 'A', 0.8);
+  var wristPitch = armVizNormalize('W' + suffix + 'B', 0.75) - 0.25;
   var upper = 82;
   var fore = 68;
-  var tool = 42;
+  var wrist = 24;
+  var tool = 28;
 
-  function pointFrom(length, angle) {
+  function rotateRoll(vec, roll) {
     return {
-      x: Math.sin(yaw) * length * Math.cos(angle),
-      y: Math.sin(angle) * length,
-      z: Math.cos(yaw) * length * Math.cos(angle)
+      x: vec.x + Math.sin(roll) * vec.y * sideBias,
+      y: Math.cos(roll) * vec.y,
+      z: vec.z
     };
   }
 
+  function pitchSegment(length, pitch, roll) {
+    var local = {
+      x: 0,
+      y: Math.sin(pitch) * length,
+      z: Math.cos(pitch) * length
+    };
+    return rotateRoll(local, roll);
+  }
+
+  function addPoint(a, b) {
+    return {x: a.x + b.x, y: a.y + b.y, z: a.z + b.z};
+  }
+
   var base = anchor;
-  var shoulderPoint = {x: anchor.x, y: anchor.y + 16, z: anchor.z};
-  var p2d = pointFrom(upper, shoulder);
-  var elbowPoint = {x: shoulderPoint.x + p2d.x, y: shoulderPoint.y + p2d.y, z: shoulderPoint.z + p2d.z};
-  var p3d = pointFrom(fore, shoulder + elbow);
-  var wristPoint = {x: elbowPoint.x + p3d.x, y: elbowPoint.y + p3d.y, z: elbowPoint.z + p3d.z};
-  var p4d = pointFrom(tool, shoulder + elbow + wrist);
-  var tipPoint = {x: wristPoint.x + p4d.x, y: wristPoint.y + p4d.y, z: wristPoint.z + p4d.z};
+  var shoulderMount = addPoint(anchor, rotateRoll({x: 0, y: 16, z: 0}, baseRoll));
+  var elbowPoint = addPoint(shoulderMount, pitchSegment(upper, shoulderPitch, baseRoll));
+  var wristAPoint = addPoint(elbowPoint, pitchSegment(fore, shoulderPitch + elbowPitch, baseRoll));
+  var wristBPoint = addPoint(wristAPoint, pitchSegment(wrist, shoulderPitch + elbowPitch, baseRoll + wristRoll));
+  var tipPoint = addPoint(wristBPoint, pitchSegment(tool, shoulderPitch + elbowPitch + wristPitch, baseRoll + wristRoll));
 
   return {
     color: isLeft ? '#38bdf8' : '#f59e0b',
-    joints: [base, shoulderPoint, elbowPoint, wristPoint, tipPoint],
+    joints: [base, shoulderMount, elbowPoint, wristAPoint, wristBPoint, tipPoint],
     tip: tipPoint
   };
 }
