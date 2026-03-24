@@ -383,6 +383,47 @@ function armVizChannelValue(name) {
   return getNeutral(name);
 }
 
+function armVizConfigForSide(side) {
+  return ikStatus && ikStatus.config && ikStatus.config.arms ? ikStatus.config.arms[side] : null;
+}
+
+function armVizSliderAngles(side) {
+  var config = armVizConfigForSide(side);
+  var suffix = side === 'left' ? '1' : '2';
+  if (!config || !config.joints) {
+    return {
+      base: armVizNormalize('B' + suffix, 1.05) + (side === 'left' ? -0.08 : 0.08),
+      shoulder: armVizNormalize('S' + suffix, 1.05) - 0.12,
+      elbow: armVizNormalize('E' + suffix, 1.0) + 0.72,
+      wrist_roll: armVizNormalize('W' + suffix + 'A', 0.8),
+      wrist_pitch: armVizNormalize('W' + suffix + 'B', 0.75) - 0.25
+    };
+  }
+  var mapping = {
+    base: 'B' + suffix,
+    shoulder: 'S' + suffix,
+    elbow: 'E' + suffix,
+    wrist_roll: 'W' + suffix + 'A',
+    wrist_pitch: 'W' + suffix + 'B'
+  };
+  var angles = {};
+  Object.keys(mapping).forEach(function(jointName) {
+    var joint = config.joints[jointName];
+    var channel = mapping[jointName];
+    var pwm = armVizChannelValue(channel);
+    var neutral = getNeutral(channel);
+    if (!joint || typeof pwm !== 'number') {
+      angles[jointName] = 0;
+      return;
+    }
+    var angle = ((pwm - neutral) / joint.us_per_rad) * joint.sign;
+    if (joint.min_angle != null) angle = Math.max(joint.min_angle, angle);
+    if (joint.max_angle != null) angle = Math.min(joint.max_angle, angle);
+    angles[jointName] = angle;
+  });
+  return angles;
+}
+
 function armVizNormalize(name, scale) {
   return ((armVizChannelValue(name) - getNeutral(name)) / 400) * scale;
 }
@@ -400,7 +441,8 @@ function armVizBuildArm(side, overrideAngles) {
   var sideBias = isLeft ? -1 : 1;
   var anchor = armVizAnchorForSide(side);
   var liveAngles = armVizState.mode === 'live' ? armVizLiveAngles(side) : null;
-  var sourceAngles = overrideAngles || liveAngles;
+  var sliderAngles = armVizState.mode === 'test' ? armVizSliderAngles(side) : null;
+  var sourceAngles = overrideAngles || liveAngles || sliderAngles;
   var baseRoll = sourceAngles && typeof sourceAngles.base === 'number' ? sourceAngles.base : armVizNormalize('B' + suffix, 1.05) + (isLeft ? -0.08 : 0.08);
   var shoulderPitch = sourceAngles && typeof sourceAngles.shoulder === 'number' ? sourceAngles.shoulder : armVizNormalize('S' + suffix, 1.05) - 0.12;
   var elbowPitch = sourceAngles && typeof sourceAngles.elbow === 'number' ? sourceAngles.elbow : armVizNormalize('E' + suffix, 1.0) + 0.72;
