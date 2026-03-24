@@ -312,6 +312,21 @@
 <div class="section-title">Servos</div>
 
 <div class="card">
+  <h3>Controller Mode</h3>
+  <div class="controller-grid">
+    <div class="controller-stat"><span class="label">Mode</span><span class="value" id="controllerMode">OFF</span></div>
+    <div class="controller-stat"><span class="label">Link</span><span class="value" id="controllerLink">DISCONNECTED</span></div>
+    <div class="controller-stat"><span class="label">Deadman</span><span class="value" id="controllerDeadman">RELEASED</span></div>
+    <div class="controller-stat"><span class="label">Activity</span><span class="value" id="controllerActivity">IDLE</span></div>
+  </div>
+  <div class="controller-help">Hold L1, R1, L2, or R2 as the deadman. Left stick controls base and shoulder. Right stick controls wrist X and elbow Y.</div>
+  <div class="btn-row" style="margin-top:10px;">
+    <button class="btn btn-dark" id="controllerToggleBtn" onclick="toggleControllerMode()">ENABLE CONTROLLER</button>
+  </div>
+  <div class="controller-error" id="controllerError"></div>
+</div>
+
+<div class="card">
   <h3>PCA9685 Channels</h3>
   <div class="slider-group" style="margin-bottom:4px;">
     <div class="slider-label">
@@ -319,7 +334,7 @@
       <span class="value" id="servoSpeedVal">50 us/tick (1500 us/s)</span>
     </div>
     <input type="range" id="servoSpeed" min="1" max="200" step="1" value="50"
-           oninput="updateServoSpeedLabel(this.value); saveServoSettings()">
+           oninput="updateServoSpeedLabel(this.value); saveServoSettings(); sendServoSettings()">
     <div style="display:flex;justify-content:space-between;font-size:10px;color:#6b7280;margin-top:2px;"><span>Slow</span><span>Fast</span></div>
   </div>
   <div class="slider-group" style="margin-bottom:8px;">
@@ -328,7 +343,7 @@
       <span class="value" id="servoRampVal">20 us/tick (600 us/s)</span>
     </div>
     <input type="range" id="servoRampRate" min="1" max="100" step="1" value="20"
-           oninput="updateServoRampLabel(this.value); saveServoSettings()">
+           oninput="updateServoRampLabel(this.value); saveServoSettings(); sendServoSettings()">
     <div style="display:flex;justify-content:space-between;font-size:10px;color:#6b7280;margin-top:2px;"><span>Gentle</span><span>Snappy</span></div>
   </div>
   <div class="btn-row" style="margin-bottom:8px;margin-top:0;">
