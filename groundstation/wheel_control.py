@@ -509,14 +509,6 @@ def ik_solve_arm(selected_arm, target_xyz, wrist_roll_deg=None, optimizer_bias=7
         }
         if abs(candidate["wrist_pitch"]) < min_active_wrist_pitch:
             candidate["wrist_pitch"] = math.copysign(min_active_wrist_pitch, candidate["wrist_pitch"] if abs(candidate["wrist_pitch"]) > 1e-6 else (-shoulder - elbow) or side_bias)
-        if optimizer_scale >= 0.55:
-            if candidate["shoulder"] < math.radians(55.0) or candidate["shoulder"] > math.radians(112.0):
-                return None
-            if candidate["elbow"] < math.radians(68.0) or candidate["elbow"] > math.radians(118.0):
-                return None
-        elif optimizer_scale >= 0.25:
-            if candidate["shoulder"] < math.radians(40.0) or candidate["elbow"] > math.radians(135.0):
-                return None
         return candidate if all(within_limits(name, candidate[name]) for name in ("base", "shoulder", "elbow", "wrist_roll", "wrist_pitch")) else None
 
     def evaluate(candidate):
@@ -525,18 +517,19 @@ def ik_solve_arm(selected_arm, target_xyz, wrist_roll_deg=None, optimizer_bias=7
         pose = ik_pose_from_angles(arm_name, candidate)
         error = math.sqrt(sum((pose["tip"][axis] - target[axis]) ** 2 for axis in ("x", "y", "z")))
         stiffness_cost = (
-            (10.0 + 26.0 * optimizer_scale) * (candidate["shoulder"] ** 2)
-            + (8.0 + 22.0 * optimizer_scale) * (candidate["elbow"] ** 2)
-            + 8.0 * (candidate["base"] ** 2)
+            (8.0 + 18.0 * optimizer_scale) * (candidate["shoulder"] ** 2)
+            + (6.0 + 16.0 * optimizer_scale) * (candidate["elbow"] ** 2)
+            + 6.0 * (candidate["base"] ** 2)
             + (1.4 - 1.0 * optimizer_scale) * (candidate["wrist_pitch"] ** 2)
         )
-        shoulder_posture_penalty = (22.0 + 70.0 * optimizer_scale) * ((candidate["shoulder"] - preferred_shoulder) ** 2)
-        elbow_posture_penalty = (28.0 + 86.0 * optimizer_scale) * ((candidate["elbow"] - preferred_elbow) ** 2)
-        flipped_elbow_penalty = (40.0 + 120.0 * optimizer_scale) if candidate["elbow"] > math.radians(118.0) else 0.0
-        low_shoulder_penalty = (24.0 + 80.0 * optimizer_scale) if candidate["shoulder"] < math.radians(55.0) else 0.0
+        shoulder_posture_penalty = (34.0 + 120.0 * optimizer_scale) * ((candidate["shoulder"] - preferred_shoulder) ** 2)
+        elbow_posture_penalty = (44.0 + 150.0 * optimizer_scale) * ((candidate["elbow"] - preferred_elbow) ** 2)
+        flipped_elbow_penalty = (70.0 + 240.0 * optimizer_scale) if candidate["elbow"] > math.radians(118.0) else 0.0
+        low_shoulder_penalty = (40.0 + 160.0 * optimizer_scale) if candidate["shoulder"] < math.radians(55.0) else 0.0
         wrist_usage_bonus = (2.0 + 10.0 * optimizer_scale) * abs(candidate["wrist_pitch"]) + (0.5 + 3.5 * optimizer_scale) * abs(candidate["wrist_roll"])
         neutral_penalty = (5.0 + 22.0 * optimizer_scale) if abs(candidate["wrist_pitch"]) < (0.18 + 0.22 * optimizer_scale) else 0.0
-        score = (error * 180.0) ** 2 + stiffness_cost + shoulder_posture_penalty + elbow_posture_penalty + flipped_elbow_penalty + low_shoulder_penalty - wrist_usage_bonus + neutral_penalty
+        reach_penalty = (error * (120.0 - 40.0 * optimizer_scale)) ** 2
+        score = reach_penalty + stiffness_cost + shoulder_posture_penalty + elbow_posture_penalty + flipped_elbow_penalty + low_shoulder_penalty - wrist_usage_bonus + neutral_penalty
         return {"angles": candidate, "pose": pose, "tip_error": error, "score": score}
 
     def optimize(seed):
