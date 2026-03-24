@@ -418,10 +418,13 @@ function updateControllerUI(status) {
   controllerStatus = status || {enabled: false};
   var modeEl = document.getElementById('controllerMode');
   var linkEl = document.getElementById('controllerLink');
+  var armEl = document.getElementById('controllerArm');
   var deadmanEl = document.getElementById('controllerDeadman');
   var activeEl = document.getElementById('controllerActivity');
   var errorEl = document.getElementById('controllerError');
   var btn = document.getElementById('controllerToggleBtn');
+  var leftBtn = document.getElementById('controllerArmLeftBtn');
+  var rightBtn = document.getElementById('controllerArmRightBtn');
   if (modeEl) {
     modeEl.textContent = controllerStatus.enabled ? 'ON' : 'OFF';
     modeEl.style.color = controllerStatus.enabled ? '#22c55e' : '#9ca3af';
@@ -430,6 +433,12 @@ function updateControllerUI(status) {
     linkEl.textContent = controllerStatus.connected ? 'CONNECTED' : 'DISCONNECTED';
     linkEl.style.color = controllerStatus.connected ? '#22c55e' : '#ef4444';
   }
+  if (armEl) {
+    armEl.textContent = (controllerStatus.selected_arm || "left").toUpperCase();
+    armEl.style.color = "#f59e0b";
+  }
+  if (leftBtn) leftBtn.className = controllerStatus.selected_arm === "left" ? "btn btn-amber" : "btn btn-dark";
+  if (rightBtn) rightBtn.className = controllerStatus.selected_arm === "right" ? "btn btn-amber" : "btn btn-dark";
   if (deadmanEl) {
     deadmanEl.textContent = controllerStatus.deadman ? 'HELD' : 'RELEASED';
     deadmanEl.style.color = controllerStatus.deadman ? '#22c55e' : '#9ca3af';
@@ -452,6 +461,16 @@ function controllerPoll() {
   fetch('/api/controller/status').then(function(r) { return r.json(); }).then(function(d) {
     updateControllerUI(d);
   }).catch(function() {});
+}
+
+function setControllerArm(selectedArm) {
+  fetch('/api/controller/arm', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({selected_arm: selectedArm})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    updateControllerUI(d);
+  });
 }
 
 function toggleControllerMode() {

@@ -316,11 +316,16 @@
   <div class="controller-grid">
     <div class="controller-stat"><span class="label">Mode</span><span class="value" id="controllerMode">OFF</span></div>
     <div class="controller-stat"><span class="label">Link</span><span class="value" id="controllerLink">DISCONNECTED</span></div>
+    <div class="controller-stat"><span class="label">Arm</span><span class="value" id="controllerArm">LEFT</span></div>
     <div class="controller-stat"><span class="label">Deadman</span><span class="value" id="controllerDeadman">RELEASED</span></div>
     <div class="controller-stat"><span class="label">Activity</span><span class="value" id="controllerActivity">IDLE</span></div>
   </div>
-  <div class="controller-help">Hold L1 or R1 as the deadman. Left stick controls base and shoulder. Right stick controls wrist X and elbow Y.</div>
+  <div class="controller-help">Select one arm at a time. Hold L1 or R1 as the deadman. Left stick controls base and shoulder. Right stick controls wrist X and elbow Y.</div>
   <div class="btn-row" style="margin-top:10px;">
+    <button class="btn btn-dark" id="controllerArmLeftBtn" onclick="setControllerArm('left')">LEFT ARM</button>
+    <button class="btn btn-dark" id="controllerArmRightBtn" onclick="setControllerArm('right')">RIGHT ARM</button>
+  </div>
+  <div class="btn-row" style="margin-top:8px;">
     <button class="btn btn-dark" id="controllerToggleBtn" onclick="toggleControllerMode()">ENABLE CONTROLLER</button>
   </div>
   <div class="controller-error" id="controllerError"></div>

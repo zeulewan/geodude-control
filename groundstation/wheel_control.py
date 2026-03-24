@@ -53,25 +53,25 @@ state = {
     "rpm": 0,
 }
 
-CONTROLLER_BINDINGS = {
-    "lx": [
-        {"channel": "B1", "scale": 1.0},
-        {"channel": "B2", "scale": -1.0},
-    ],
-    "ly": [
-        {"channel": "S1", "scale": -1.0},
-        {"channel": "S2", "scale": -1.0},
-    ],
-    "ry": [
-        {"channel": "E1", "scale": -1.0},
-        {"channel": "E2", "scale": -1.0},
-    ],
-    "rx": [
-        {"channel": "W1A", "scale": 1.0},
-        {"channel": "W1B", "scale": -1.0},
-        {"channel": "W2A", "scale": -1.0},
-        {"channel": "W2B", "scale": 1.0},
-    ],
+CONTROLLER_ARM_BINDINGS = {
+    "left": {
+        "lx": [{"channel": "B1", "scale": 1.0}],
+        "ly": [{"channel": "S1", "scale": -1.0}],
+        "ry": [{"channel": "E1", "scale": -1.0}],
+        "rx": [
+            {"channel": "W1A", "scale": 1.0},
+            {"channel": "W1B", "scale": -1.0},
+        ],
+    },
+    "right": {
+        "lx": [{"channel": "B2", "scale": -1.0}],
+        "ly": [{"channel": "S2", "scale": -1.0}],
+        "ry": [{"channel": "E2", "scale": -1.0}],
+        "rx": [
+            {"channel": "W2A", "scale": -1.0},
+            {"channel": "W2B", "scale": 1.0},
+        ],
+    },
 }
 
 CONTROLLER_AXIS_ORDER = {
@@ -100,6 +100,7 @@ controller_state = {
     "axes": {name: 0.0 for name in CONTROLLER_BINDINGS},
     "buttons": {},
     "updated_at": 0.0,
+    "selected_arm": "left",
 }
 
 SERVO_SETTINGS = {"speed": 50, "ramp": 20}
@@ -237,12 +238,19 @@ def controller_status_payload():
     payload["axes"] = axes
     payload["buttons"] = buttons
     payload["bindings"] = CONTROLLER_LABELS
+    payload["selected_arm"] = controller_state["selected_arm"]
     return payload
 
 
 def reset_controller_motion():
     for name in controller_channel_velocity:
         controller_channel_velocity[name] = 0.0
+
+
+def set_controller_arm(selected_arm):
+    with lock:
+        controller_state["selected_arm"] = "right" if selected_arm == "right" else "left"
+    reset_controller_motion()
 
 
 def set_controller_enabled(enabled):
@@ -262,6 +270,7 @@ def controller_apply_outputs():
         buttons = dict(controller_state["buttons"])
         max_speed = int(SERVO_SETTINGS["speed"])
         accel = int(SERVO_SETTINGS["ramp"])
+        selected_arm = controller_state["selected_arm"]
     if not enabled:
         reset_controller_motion()
         with lock:
@@ -276,7 +285,8 @@ def controller_apply_outputs():
     if not deadman:
         reset_controller_motion()
     else:
-        for axis_name, bindings in CONTROLLER_BINDINGS.items():
+        arm_bindings = CONTROLLER_ARM_BINDINGS[selected_arm]
+        for axis_name, bindings in arm_bindings.items():
             axis_value = controller_axis_value(axis_name)
             if abs(axis_value) >= CONTROLLER_ACTIVE_THRESHOLD:
                 active = True
@@ -618,6 +628,13 @@ def controller_enable():
     data = request.json or {}
     enabled = bool(data.get('enabled', False))
     set_controller_enabled(enabled)
+    return jsonify(controller_status_payload())
+
+
+@app.route('/api/controller/arm', methods=['POST'])
+def controller_select_arm():
+    data = request.json or {}
+    set_controller_arm(data.get('selected_arm', "left"))
     return jsonify(controller_status_payload())
 
 
