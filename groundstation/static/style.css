@@ -1597,7 +1597,9 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 .mission-checkpoint-substep {
   min-height: 58px;
-  justify-content: space-between;
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
   gap: 6px;
   padding: 6px;
 }
@@ -1609,6 +1611,7 @@ input[type="number"]::-webkit-outer-spin-button {
   display: flex;
   gap: 4px;
   justify-content: center;
+  align-items: center;
 }
 .mission-inline-btn {
   min-width: 0;
