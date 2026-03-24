@@ -161,7 +161,7 @@ function armVizBuildArm(side) {
   var isLeft = side === 'left';
   var suffix = isLeft ? '1' : '2';
   var sideBias = isLeft ? -1 : 1;
-  var anchor = {x: isLeft ? -110 : 110, y: -10, z: -20};
+  var anchor = {x: isLeft ? -120 : 120, y: 50, z: -5};
   var baseRoll = armVizNormalize('B' + suffix, 1.05) + (isLeft ? -0.08 : 0.08);
   var shoulderPitch = armVizNormalize('S' + suffix, 1.05) - 0.12;
   var elbowPitch = armVizNormalize('E' + suffix, 1.0) + 0.72;
@@ -339,8 +339,8 @@ function armVizDrawScene() {
     ctx.stroke();
   }
 
-  armVizDrawBox(ctx, width, height, {x: 0, y: 0, z: 0}, {x: 90, y: 90, z: 120}, armVizState.azimuth, armVizState.elevation, 'rgba(148, 163, 184, 0.9)', 'rgba(148, 163, 184, 0.08)');
-  armVizDrawBox(ctx, width, height, {x: 0, y: -112, z: 42}, {x: 320, y: 18, z: 240}, armVizState.azimuth, armVizState.elevation, 'rgba(239, 68, 68, 0.95)', 'rgba(239, 68, 68, 0.08)');
+  armVizDrawBox(ctx, width, height, {x: 0, y: 0, z: 0}, {x: 240, y: 300, z: 240}, armVizState.azimuth, armVizState.elevation, 'rgba(148, 163, 184, 0.9)', 'rgba(148, 163, 184, 0.08)');
+  armVizDrawBox(ctx, width, height, {x: 0, y: -159, z: 0}, {x: 360, y: 18, z: 300}, armVizState.azimuth, armVizState.elevation, 'rgba(239, 68, 68, 0.95)', 'rgba(239, 68, 68, 0.08)');
 
   var arms = [armVizBuildArm('left'), armVizBuildArm('right')];
   arms.forEach(function(arm) {
