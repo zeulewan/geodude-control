@@ -120,7 +120,7 @@ IK_NEUTRAL_PWM = {
 }
 IK_SOLVER_NOTES = [
     "Cartesian IK now optimizes base, shoulder, elbow, and wrist pitch against the measured link lengths.",
-    "Wrist roll can be targeted explicitly, and the dev solver prefers solutions that reduce shoulder and elbow deflection.",
+    "The dev solver keeps both wrist joints active: wrist roll auto-biases away from neutral and wrist pitch avoids straight-through poses.",
     "PWM-angle calibration is approximate and should be tuned on hardware before merge.",
 ]
 IK_ARM_CONFIG = {
@@ -480,8 +480,14 @@ def ik_solve_arm(selected_arm, target_xyz, wrist_roll_deg=None):
     cos_elbow = (planar_distance * planar_distance - upper_len * upper_len - fore_len * fore_len) / (2.0 * upper_len * fore_len)
     cos_elbow = clamp(cos_elbow, -1.0, 1.0)
     elbow_candidates = [math.acos(cos_elbow), -math.acos(cos_elbow)]
-    wrist_roll_angle = ik_angle_from_pwm(arm_name, "wrist_roll") if wrist_roll_deg is None else math.radians(float(wrist_roll_deg))
-    wrist_roll_angle = clamp(wrist_roll_angle, ik_joint_config(arm_name, "wrist_roll")["min_angle"], ik_joint_config(arm_name, "wrist_roll")["max_angle"])
+    wrist_roll_cfg = ik_joint_config(arm_name, "wrist_roll")
+    auto_wrist_roll_angle = 0.45 * side_bias
+    if wrist_roll_deg is None or abs(float(wrist_roll_deg)) < 1.0:
+        wrist_roll_angle = auto_wrist_roll_angle
+    else:
+        wrist_roll_angle = math.radians(float(wrist_roll_deg))
+    wrist_roll_angle = clamp(wrist_roll_angle, wrist_roll_cfg["min_angle"], wrist_roll_cfg["max_angle"])
+    min_active_wrist_pitch = 0.3
 
     def within_limits(joint_name, angle):
         cfg = ik_joint_config(arm_name, joint_name)
@@ -495,6 +501,8 @@ def ik_solve_arm(selected_arm, target_xyz, wrist_roll_deg=None):
             "wrist_roll": wrist_roll_angle,
             "wrist_pitch": clamp(wrist_pitch, ik_joint_config(arm_name, "wrist_pitch")["min_angle"], ik_joint_config(arm_name, "wrist_pitch")["max_angle"]),
         }
+        if abs(candidate["wrist_pitch"]) < min_active_wrist_pitch:
+            candidate["wrist_pitch"] = math.copysign(min_active_wrist_pitch, candidate["wrist_pitch"] if abs(candidate["wrist_pitch"]) > 1e-6 else (-shoulder - elbow) or side_bias)
         return candidate if all(within_limits(name, candidate[name]) for name in ("base", "shoulder", "elbow", "wrist_roll", "wrist_pitch")) else None
 
     def evaluate(candidate):
@@ -506,10 +514,11 @@ def ik_solve_arm(selected_arm, target_xyz, wrist_roll_deg=None):
             52.0 * (candidate["shoulder"] ** 2)
             + 38.0 * (candidate["elbow"] ** 2)
             + 8.0 * (candidate["base"] ** 2)
-            + 1.2 * (candidate["wrist_pitch"] ** 2)
+            + 0.8 * (candidate["wrist_pitch"] ** 2)
         )
-        wrist_usage_bonus = 2.5 * abs(candidate["wrist_pitch"])
-        score = (error * 180.0) ** 2 + stiffness_cost - wrist_usage_bonus
+        wrist_usage_bonus = 8.0 * abs(candidate["wrist_pitch"]) + 2.0 * abs(candidate["wrist_roll"])
+        neutral_penalty = 18.0 if abs(candidate["wrist_pitch"]) < 0.36 else 0.0
+        score = (error * 180.0) ** 2 + stiffness_cost - wrist_usage_bonus + neutral_penalty
         return {"angles": candidate, "pose": pose, "tip_error": error, "score": score}
 
     def optimize(seed):
