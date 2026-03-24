@@ -120,7 +120,7 @@ IK_NEUTRAL_PWM = {
 }
 IK_SOLVER_NOTES = [
     "Cartesian IK solves the base roll plus shoulder and elbow pitch against the measured link lengths.",
-    "Wrist roll stays at its current value and wrist pitch is held at neutral for positional solves.",
+    "Wrist roll can be targeted explicitly in the dev solver, while wrist pitch stays at neutral for positional solves.",
     "PWM-angle calibration is approximate and should be tuned on hardware before merge.",
 ]
 IK_ARM_CONFIG = {
@@ -433,6 +433,7 @@ def ik_status_payload():
         }
         arms[arm_name] = {
             "angles_rad": {joint: round(value, 5) for joint, value in angles.items()},
+            "angles_deg": {joint: round(math.degrees(value), 3) for joint, value in angles.items()},
             "tip_mm": {axis: round(pose["tip"][axis], 2) for axis in ("x", "y", "z")},
             "target_pwms": target_pwms,
         }
@@ -444,7 +445,7 @@ def ik_status_payload():
     }
 
 
-def ik_solve_arm(selected_arm, target_xyz):
+def ik_solve_arm(selected_arm, target_xyz, wrist_roll_deg=None):
     arm_name = ik_arm_name(selected_arm)
     arm = IK_ARM_CONFIG[arm_name]
     side_bias = float(arm["side_bias"])
@@ -473,12 +474,13 @@ def ik_solve_arm(selected_arm, target_xyz):
             "distance_mm": round(planar_distance, 3),
             "reachable_range_mm": [round(min_reach, 3), round(max_reach, 3)],
             "target_mm": {axis: round(target[axis], 3) for axis in ("x", "y", "z")},
+            "requested_wrist_roll_deg": None if wrist_roll_deg is None else round(float(wrist_roll_deg), 3),
         }
 
     cos_elbow = (planar_distance * planar_distance - upper_len * upper_len - fore_len * fore_len) / (2.0 * upper_len * fore_len)
     cos_elbow = clamp(cos_elbow, -1.0, 1.0)
     elbow_candidates = [math.acos(cos_elbow), -math.acos(cos_elbow)]
-    wrist_roll_angle = ik_angle_from_pwm(arm_name, "wrist_roll")
+    wrist_roll_angle = ik_angle_from_pwm(arm_name, "wrist_roll") if wrist_roll_deg is None else math.radians(float(wrist_roll_deg))
     wrist_pitch_angle = 0.0
     best = None
 
@@ -509,6 +511,7 @@ def ik_solve_arm(selected_arm, target_xyz):
             "arm": arm_name,
             "reason": "joint_limits",
             "target_mm": {axis: round(target[axis], 3) for axis in ("x", "y", "z")},
+            "requested_wrist_roll_deg": None if wrist_roll_deg is None else round(float(wrist_roll_deg), 3),
             "notes": list(IK_SOLVER_NOTES),
         }
 
@@ -524,6 +527,7 @@ def ik_solve_arm(selected_arm, target_xyz):
         "angles_rad": {joint: round(value, 6) for joint, value in angles.items()},
         "angles_deg": {joint: round(math.degrees(value), 3) for joint, value in angles.items()},
         "target_mm": {axis: round(target[axis], 3) for axis in ("x", "y", "z")},
+        "requested_wrist_roll_deg": None if wrist_roll_deg is None else round(float(wrist_roll_deg), 3),
         "tip_mm": {axis: round(pose["tip"][axis], 3) for axis in ("x", "y", "z")},
         "target_pwms": target_pwms,
         "tip_error_mm": round(best["tip_error"], 3),
@@ -964,7 +968,8 @@ def ik_solve():
         "y": float(data.get("y", 0.0)),
         "z": float(data.get("z", 0.0)),
     }
-    result = ik_solve_arm(arm_name, target_xyz)
+    wrist_roll_deg = data.get("wrist_roll_deg")
+    result = ik_solve_arm(arm_name, target_xyz, wrist_roll_deg)
     apply_move = bool(data.get("apply", False))
     if result.get("ok") and apply_move:
         applied = {}

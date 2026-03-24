@@ -169,7 +169,7 @@ function ikUpdateResult(result) {
     }
   }
   if (solvedTipEl) solvedTipEl.textContent = ikFormatPoint(result && (result.tip_mm || result.target_mm));
-  [['Base', 'base'], ['Shoulder', 'shoulder'], ['Elbow', 'elbow'], ['WristPitch', 'wrist_pitch']].forEach(function(entry) {
+  [['Base', 'base'], ['Shoulder', 'shoulder'], ['Elbow', 'elbow'], ['WristRoll', 'wrist_roll'], ['WristPitch', 'wrist_pitch']].forEach(function(entry) {
     var el = document.getElementById('ik' + entry[0] + 'Result');
     if (!el) return;
     if (result && result.angles_deg && typeof result.angles_deg[entry[1]] === 'number') {
@@ -181,6 +181,7 @@ function ikUpdateResult(result) {
           if ((entry[1] === 'base' && key[0] === 'B') ||
               (entry[1] === 'shoulder' && key[0] === 'S') ||
               (entry[1] === 'elbow' && key[0] === 'E') ||
+              (entry[1] === 'wrist_roll' && key.indexOf('A') > 0) ||
               (entry[1] === 'wrist_pitch' && key.indexOf('B') > 0)) {
             channel = key + ': ' + result.target_pwms[key] + ' us';
           }
@@ -205,7 +206,7 @@ function ikUpdateResult(result) {
     } else if (armVizState.mode === 'test') {
       noteEl.textContent = 'Solve preview updated and applied to the TEST MOVES sliders for visualization only.';
     } else {
-      noteEl.textContent = 'Solve preview updated. This is using approximate joint calibration from mizi-dev and should be tuned before merge.';
+      noteEl.textContent = 'Solve preview updated. Wrist roll is now included in the dev IK target, using approximate joint calibration that should be tuned before merge.';
     }
   }
 }
@@ -241,6 +242,10 @@ function ikLoadCurrentTip() {
     var input = document.getElementById('ikTarget' + axis.toUpperCase());
     if (input && typeof tip[axis] === 'number') input.value = Math.round(tip[axis]);
   });
+  var armState = ikStatus && ikStatus.arms ? ikStatus.arms[ikSelectedArm()] : null;
+  var wristRollInput = document.getElementById('ikTargetWristRoll');
+  var wristRollDeg = armState && armState.angles_deg ? armState.angles_deg.wrist_roll : null;
+  if (wristRollInput && typeof wristRollDeg === 'number') wristRollInput.value = wristRollDeg.toFixed(1);
 }
 
 function ikSolve(applyMove) {
@@ -249,6 +254,7 @@ function ikSolve(applyMove) {
     x: parseFloat(document.getElementById('ikTargetX').value || '0'),
     y: parseFloat(document.getElementById('ikTargetY').value || '0'),
     z: parseFloat(document.getElementById('ikTargetZ').value || '0'),
+    wrist_roll_deg: parseFloat(document.getElementById('ikTargetWristRoll').value || '0'),
     apply: !!applyMove
   };
   var solverEl = document.getElementById('ikSolverState');
