@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SOOS-1 Control</title>
+<title>SOOS-1 Control | mizi-dev</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 
 <!-- Header -->
 <div class="header">
-  <h1>SOOS-1 Control</h1>
+  <h1>SOOS-1 Control | mizi-dev</h1>
   <div class="header-status">
     <div class="status-indicator">
       <div class="status-dot" id="statusDot"></div>
@@ -334,6 +334,33 @@
     </div>
 
     <div class="card servo-compact-card">
+      <h3>Inverse Kinematics</h3>
+      <div class="controller-grid ik-status-grid">
+        <div class="controller-stat"><span class="label">Arm</span><span class="value" id="ikArmLabel">LEFT</span></div>
+        <div class="controller-stat"><span class="label">Solver</span><span class="value" id="ikSolverState">IDLE</span></div>
+        <div class="controller-stat controller-stat-wide"><span class="label">Current Tip</span><span class="value" id="ikCurrentTip">x:0 y:0 z:0</span></div>
+        <div class="controller-stat controller-stat-wide"><span class="label">Solved Tip</span><span class="value" id="ikSolvedTip">x:0 y:0 z:0</span></div>
+      </div>
+      <div class="ik-target-grid">
+        <label class="ik-target-field" for="ikTargetX"><span>X (mm)</span><input type="number" id="ikTargetX" value="-250" step="5"></label>
+        <label class="ik-target-field" for="ikTargetY"><span>Y (mm)</span><input type="number" id="ikTargetY" value="220" step="5"></label>
+        <label class="ik-target-field" for="ikTargetZ"><span>Z (mm)</span><input type="number" id="ikTargetZ" value="40" step="5"></label>
+      </div>
+      <div class="btn-row" style="margin-top:8px;">
+        <button class="btn btn-dark" onclick="ikLoadCurrentTip()">LOAD CURRENT TIP</button>
+        <button class="btn btn-dark" onclick="ikSolve(false)">SOLVE</button>
+        <button class="btn btn-amber" onclick="ikSolve(true)">MOVE ARM</button>
+      </div>
+      <div class="ik-solution-grid">
+        <div class="ik-solution-line"><span>Base</span><span id="ikBaseResult">--</span></div>
+        <div class="ik-solution-line"><span>Shoulder</span><span id="ikShoulderResult">--</span></div>
+        <div class="ik-solution-line"><span>Elbow</span><span id="ikElbowResult">--</span></div>
+        <div class="ik-solution-line"><span>Wrist Pitch</span><span id="ikWristPitchResult">--</span></div>
+      </div>
+      <div class="ik-note" id="ikNote">Solver uses the measured arm lengths in this branch. On the dev page, MOVE ARM is dry-run only until you explicitly choose otherwise.</div>
+    </div>
+
+    <div class="card servo-compact-card">
       <h3>PCA9685 Channels</h3>
       <div class="slider-group servo-tight-group" style="margin-bottom:4px;">
         <div class="slider-label">
@@ -397,6 +424,30 @@
         <div class="armviz-stat"><span class="label">Scene</span><span class="value">ARMS + WORKSPACE</span></div>
         <div class="armviz-stat"><span class="label">Source</span><span class="value" id="armVizModeStatus">LIVE</span></div>
         <div class="armviz-stat"><span class="label">Truth</span><span class="value">SUBSCALE PI</span></div>
+      </div>
+      <div class="armviz-geometry-block">
+        <div class="armviz-geometry-head">
+          <div class="armviz-geometry-title">mizi-dev Geometry Hot Edit</div>
+          <div class="armviz-geometry-subtitle">Defaults match the dimensions you gave me. These inputs update the browser visualization live on this dev page; backend IK constants still need a later sync pass if you want hot edits to affect the solver too.</div>
+        </div>
+        <div class="armviz-geometry-grid">
+          <label class="armviz-geometry-field"><span>Sat Width</span><input type="number" id="armVizSatWidth" value="240" step="5" oninput="armVizGeometryChanged()"></label>
+          <label class="armviz-geometry-field"><span>Sat Length</span><input type="number" id="armVizSatLength" value="240" step="5" oninput="armVizGeometryChanged()"></label>
+          <label class="armviz-geometry-field"><span>Sat Height</span><input type="number" id="armVizSatHeight" value="300" step="5" oninput="armVizGeometryChanged()"></label>
+          <label class="armviz-geometry-field"><span>Attach From Bottom</span><input type="number" id="armVizAttachBottom" value="200" step="5" oninput="armVizGeometryChanged()"></label>
+          <label class="armviz-geometry-field"><span>Attach From Rear</span><input type="number" id="armVizAttachRear" value="65" step="5" oninput="armVizGeometryChanged()"></label>
+          <label class="armviz-geometry-field"><span>Base Link</span><input type="number" id="armVizLinkBase" value="103" step="1" oninput="armVizGeometryChanged()"></label>
+          <label class="armviz-geometry-field"><span>Bicep</span><input type="number" id="armVizLinkUpper" value="310" step="1" oninput="armVizGeometryChanged()"></label>
+          <label class="armviz-geometry-field"><span>Forearm</span><input type="number" id="armVizLinkForearm" value="230" step="1" oninput="armVizGeometryChanged()"></label>
+          <label class="armviz-geometry-field"><span>Wrist A</span><input type="number" id="armVizLinkWristA" value="55" step="1" oninput="armVizGeometryChanged()"></label>
+          <label class="armviz-geometry-field"><span>Wrist B to EE</span><input type="number" id="armVizLinkTool" value="75" step="1" oninput="armVizGeometryChanged()"></label>
+        </div>
+        <div class="armviz-geometry-readback">
+          <div class="armviz-stat"><span class="label">Sat</span><span class="value" id="armVizSatSummary">240 x 240 x 300 mm</span></div>
+          <div class="armviz-stat"><span class="label">Anchors</span><span class="value" id="armVizAnchorSummary">L(-120, 50, -55) R(120, 50, -55)</span></div>
+          <div class="armviz-stat"><span class="label">Links</span><span class="value" id="armVizLinkSummary">103 / 310 / 230 / 55 / 75 mm</span></div>
+          <div class="armviz-stat"><span class="label">Floor Zone</span><span class="value" id="armVizFloorSummary">AUTO-EXPANDED</span></div>
+        </div>
       </div>
       <div class="armviz-note">Frontend visualization only. `LIVE` follows actual servo output from the subscale Pi and remains the source of truth. `TEST MOVES` only changes the browser visualization from slider motion for staging; the control pipeline will need a later backend update if you want that mode reflected outside the GUI.</div>
     </div>

@@ -251,6 +251,20 @@ function visionReset() {
   updateVisionUI();
 }
 
+var armVizGeometryDefaults = {
+  satWidth: 240,
+  satLength: 240,
+  satHeight: 300,
+  attachBottom: 200,
+  attachRear: 65,
+  base: 103,
+  upper: 310,
+  forearm: 230,
+  wristA: 55,
+  tool: 75
+};
+var armVizGeometryStorageKey = 'armVizGeometryV2';
+var armVizGeometry = Object.assign({}, armVizGeometryDefaults);
 var armVizState = {
   azimuth: 28,
   elevation: 18,
@@ -266,6 +280,79 @@ var armVizState = {
   startZoom: 1,
   mode: 'live'
 };
+
+function armVizGeometryFields() {
+  return {
+    satWidth: 'armVizSatWidth',
+    satLength: 'armVizSatLength',
+    satHeight: 'armVizSatHeight',
+    attachBottom: 'armVizAttachBottom',
+    attachRear: 'armVizAttachRear',
+    base: 'armVizLinkBase',
+    upper: 'armVizLinkUpper',
+    forearm: 'armVizLinkForearm',
+    wristA: 'armVizLinkWristA',
+    tool: 'armVizLinkTool'
+  };
+}
+
+function armVizAnchorForSide(side) {
+  return {
+    x: side === 'left' ? -armVizGeometry.satWidth / 2 : armVizGeometry.satWidth / 2,
+    y: -armVizGeometry.satHeight / 2 + armVizGeometry.attachBottom,
+    z: -armVizGeometry.satLength / 2 + armVizGeometry.attachRear
+  };
+}
+
+function armVizRefreshGeometryUI() {
+  var fields = armVizGeometryFields();
+  Object.keys(fields).forEach(function(key) {
+    var input = document.getElementById(fields[key]);
+    if (input && document.activeElement !== input) input.value = armVizGeometry[key];
+  });
+  var leftAnchor = armVizAnchorForSide('left');
+  var rightAnchor = armVizAnchorForSide('right');
+  var satSummary = document.getElementById('armVizSatSummary');
+  var anchorSummary = document.getElementById('armVizAnchorSummary');
+  var linkSummary = document.getElementById('armVizLinkSummary');
+  var floorSummary = document.getElementById('armVizFloorSummary');
+  if (satSummary) satSummary.textContent = armVizGeometry.satWidth + ' x ' + armVizGeometry.satLength + ' x ' + armVizGeometry.satHeight + ' mm';
+  if (anchorSummary) anchorSummary.textContent = 'L(' + Math.round(leftAnchor.x) + ', ' + Math.round(leftAnchor.y) + ', ' + Math.round(leftAnchor.z) + ') R(' + Math.round(rightAnchor.x) + ', ' + Math.round(rightAnchor.y) + ', ' + Math.round(rightAnchor.z) + ')';
+  if (linkSummary) linkSummary.textContent = [armVizGeometry.base, armVizGeometry.upper, armVizGeometry.forearm, armVizGeometry.wristA, armVizGeometry.tool].join(' / ') + ' mm';
+  if (floorSummary) {
+    var floorX = Math.round(armVizGeometry.satWidth + 2 * (armVizGeometry.base + armVizGeometry.upper + armVizGeometry.forearm + armVizGeometry.wristA + armVizGeometry.tool));
+    var floorZ = Math.round(armVizGeometry.satLength + 2 * (armVizGeometry.base + armVizGeometry.upper + armVizGeometry.forearm + armVizGeometry.wristA + armVizGeometry.tool));
+    floorSummary.textContent = floorX + ' x ' + floorZ + ' mm';
+  }
+}
+
+function armVizLoadGeometry() {
+  try {
+    var saved = localStorage.getItem(armVizGeometryStorageKey);
+    if (saved) {
+      var parsed = JSON.parse(saved);
+      Object.keys(armVizGeometryDefaults).forEach(function(key) {
+        if (parsed[key] != null && !isNaN(parsed[key])) armVizGeometry[key] = parseFloat(parsed[key]);
+      });
+    }
+  } catch (e) {}
+  armVizRefreshGeometryUI();
+}
+
+function armVizGeometryChanged() {
+  var fields = armVizGeometryFields();
+  Object.keys(fields).forEach(function(key) {
+    var input = document.getElementById(fields[key]);
+    if (!input) return;
+    var value = parseFloat(input.value);
+    if (!isNaN(value)) armVizGeometry[key] = value;
+  });
+  try {
+    localStorage.setItem(armVizGeometryStorageKey, JSON.stringify(armVizGeometry));
+  } catch (e) {}
+  armVizRefreshGeometryUI();
+  armVizDrawScene();
+}
 
 function armVizChannelValue(name) {
   var slider = document.getElementById('ch_' + name);
@@ -288,17 +375,17 @@ function armVizBuildArm(side, overrideAngles) {
   var isLeft = side === 'left';
   var suffix = isLeft ? '1' : '2';
   var sideBias = isLeft ? -1 : 1;
-  var anchor = {x: isLeft ? -120 : 120, y: 50, z: -5};
+  var anchor = armVizAnchorForSide(side);
   var baseRoll = overrideAngles && typeof overrideAngles.base === 'number' ? overrideAngles.base : armVizNormalize('B' + suffix, 1.05) + (isLeft ? -0.08 : 0.08);
   var shoulderPitch = overrideAngles && typeof overrideAngles.shoulder === 'number' ? overrideAngles.shoulder : armVizNormalize('S' + suffix, 1.05) - 0.12;
   var elbowPitch = overrideAngles && typeof overrideAngles.elbow === 'number' ? overrideAngles.elbow : armVizNormalize('E' + suffix, 1.0) + 0.72;
   var wristRoll = overrideAngles && typeof overrideAngles.wrist_roll === 'number' ? overrideAngles.wrist_roll : armVizNormalize('W' + suffix + 'A', 0.8);
   var wristPitch = overrideAngles && typeof overrideAngles.wrist_pitch === 'number' ? overrideAngles.wrist_pitch : armVizNormalize('W' + suffix + 'B', 0.75) - 0.25;
-  var baseLink = 103;
-  var upper = 310;
-  var fore = 230;
-  var wrist = 55;
-  var tool = 75;
+  var baseLink = armVizGeometry.base;
+  var upper = armVizGeometry.upper;
+  var fore = armVizGeometry.forearm;
+  var wrist = armVizGeometry.wristA;
+  var tool = armVizGeometry.tool;
 
   function rotateBaseAxis(vec, roll) {
     return {
@@ -529,8 +616,11 @@ function armVizDrawScene() {
     ctx.stroke();
   }
 
-  armVizDrawBox(ctx, width, height, {x: 0, y: 0, z: 0}, {x: 240, y: 300, z: 240}, armVizState.azimuth, armVizState.elevation, 'rgba(148, 163, 184, 0.9)', 'rgba(148, 163, 184, 0.08)');
-  armVizDrawBox(ctx, width, height, {x: 0, y: -159, z: 0}, {x: 360, y: 18, z: 300}, armVizState.azimuth, armVizState.elevation, 'rgba(239, 68, 68, 0.95)', 'rgba(239, 68, 68, 0.08)');
+  var satSize = {x: armVizGeometry.satWidth, y: armVizGeometry.satHeight, z: armVizGeometry.satLength};
+  var floorSpan = armVizGeometry.base + armVizGeometry.upper + armVizGeometry.forearm + armVizGeometry.wristA + armVizGeometry.tool;
+  var floorSize = {x: armVizGeometry.satWidth + (floorSpan * 2), y: 18, z: armVizGeometry.satLength + (floorSpan * 2)};
+  armVizDrawBox(ctx, width, height, {x: 0, y: 0, z: 0}, satSize, armVizState.azimuth, armVizState.elevation, 'rgba(148, 163, 184, 0.9)', 'rgba(148, 163, 184, 0.08)');
+  armVizDrawBox(ctx, width, height, {x: 0, y: (-armVizGeometry.satHeight / 2) - (floorSize.y / 2), z: 0}, floorSize, armVizState.azimuth, armVizState.elevation, 'rgba(239, 68, 68, 0.95)', 'rgba(239, 68, 68, 0.08)');
 
   var arms = [armVizBuildArm('left'), armVizBuildArm('right')];
   var ikTarget = armVizIkTargetPoint();
@@ -690,6 +780,7 @@ function armVizResetView() {
 }
 
 function armVizStart() {
+  armVizLoadGeometry();
   armVizBindPointer();
   armVizUpdateModeUI();
   if (armVizState.rafId != null) return;

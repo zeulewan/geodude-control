@@ -476,6 +476,59 @@ select {
   font-size: 12px;
   line-height: 1.45;
 }
+.armviz-geometry-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid #233146;
+}
+.armviz-geometry-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.armviz-geometry-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #e2e8f0;
+}
+.armviz-geometry-subtitle {
+  font-size: 12px;
+  line-height: 1.45;
+  color: #94a3b8;
+}
+.armviz-geometry-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+.armviz-geometry-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.armviz-geometry-field span {
+  font-size: 11px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.armviz-geometry-field input {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+.armviz-geometry-readback {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+}
 .servo-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.9fr);
@@ -534,9 +587,18 @@ select {
     grid-template-columns: 1fr;
   }
 }
+@media (max-width: 980px) {
+  .armviz-geometry-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 @media (max-width: 780px) {
   .armviz-toolbar,
-  .armviz-stats {
+  .armviz-stats,
+  .armviz-geometry-readback {
+    grid-template-columns: 1fr;
+  }
+  .armviz-geometry-grid {
     grid-template-columns: 1fr;
   }
   .armviz-canvas {
@@ -793,6 +855,57 @@ input[type="range"]::-moz-range-thumb {
   font-size: 12px;
   color: #9ca3af;
   line-height: 1.45;
+}
+.ik-status-grid .controller-stat-wide {
+  grid-column: span 2;
+}
+.ik-target-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+.ik-target-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.ik-target-field input {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+}
+.ik-solution-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 12px;
+  margin-top: 10px;
+}
+.ik-solution-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  padding: 2px 0;
+}
+.ik-solution-line span:first-child {
+  color: #6b7280;
+}
+.ik-solution-line span:last-child {
+  font-family: "SF Mono", "Fira Code", monospace;
+  font-weight: 600;
+}
+.ik-note {
+  margin-top: 10px;
+  font-size: 12px;
+  color: #9ca3af;
+  line-height: 1.5;
+}
+.ik-note.error {
+  color: #ef4444;
 }
 .controller-error {
   color: #ef4444;

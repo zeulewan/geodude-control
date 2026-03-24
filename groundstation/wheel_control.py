@@ -6,6 +6,7 @@ import os
 import select
 import struct
 import urllib.request
+import math
 
 app = Flask(__name__)
 
@@ -17,6 +18,9 @@ RAMP_HZ = 20  # ramp loop tick rate
 CONTROLLER_HZ = 20
 CONTROLLER_SCAN_INTERVAL = 2.0
 CONTROLLER_LIMIT_US = 450
+DEFAULT_PORT = int(os.environ.get("WHEEL_CONTROL_PORT", "8080"))
+DRY_RUN = os.environ.get("WHEEL_CONTROL_DRY_RUN", "0").lower() in ("1", "true", "yes", "on")
+RESTORE_ON_START = os.environ.get("WHEEL_CONTROL_RESTORE_ON_START", "1").lower() not in ("0", "false", "no", "off")
 CONTROLLER_DEADZONE = 0.12
 CONTROLLER_ACTIVE_THRESHOLD = 0.2
 JS_EVENT_BUTTON = 0x01
@@ -103,6 +107,46 @@ controller_state = {
     "selected_arm": "left",
 }
 
+IK_LINKS_MM = {
+    "base": 103.0,
+    "upper": 310.0,
+    "forearm": 230.0,
+    "wrist_a": 55.0,
+    "tool": 75.0,
+}
+IK_SOLVER_NOTES = [
+    "Cartesian IK solves the base roll plus shoulder and elbow pitch against the measured link lengths.",
+    "Wrist roll stays at its current value and wrist pitch is held at neutral for positional solves.",
+    "PWM-angle calibration is approximate and should be tuned on hardware before merge.",
+]
+IK_ARM_CONFIG = {
+    "left": {
+        "side_bias": -1.0,
+        "anchor": {"x": -120.0, "y": 50.0, "z": -55.0},
+        "joints": {
+            "base": {"channel": "B1", "sign": 1.0, "us_per_rad": 320.0, "min_angle": -1.35, "max_angle": 1.35},
+            "shoulder": {"channel": "S1", "sign": -1.0, "us_per_rad": 320.0, "min_angle": -1.2, "max_angle": 1.35},
+            "elbow": {"channel": "E1", "sign": -1.0, "us_per_rad": 320.0, "min_angle": -0.2, "max_angle": 2.9},
+            "wrist_roll": {"channel": "W1A", "sign": 1.0, "us_per_rad": 320.0, "min_angle": -1.5, "max_angle": 1.5},
+            "wrist_pitch": {"channel": "W1B", "sign": -1.0, "us_per_rad": 320.0, "min_angle": -1.5, "max_angle": 1.5},
+        },
+    },
+    "right": {
+        "side_bias": 1.0,
+        "anchor": {"x": 120.0, "y": 50.0, "z": -55.0},
+        "joints": {
+            "base": {"channel": "B2", "sign": -1.0, "us_per_rad": 320.0, "min_angle": -1.35, "max_angle": 1.35},
+            "shoulder": {"channel": "S2", "sign": -1.0, "us_per_rad": 320.0, "min_angle": -1.2, "max_angle": 1.35},
+            "elbow": {"channel": "E2", "sign": -1.0, "us_per_rad": 320.0, "min_angle": -0.2, "max_angle": 2.9},
+            "wrist_roll": {"channel": "W2A", "sign": -1.0, "us_per_rad": 320.0, "min_angle": -1.5, "max_angle": 1.5},
+            "wrist_pitch": {"channel": "W2B", "sign": 1.0, "us_per_rad": 320.0, "min_angle": -1.5, "max_angle": 1.5},
+        },
+    },
+}
+ik_state = {
+    "last_solution": None,
+}
+
 SERVO_SETTINGS = {"speed": 50, "ramp": 20}
 controller_channel_velocity = {name: 0.0 for name in CHANNELS if name != "MACE"}
 # Server-side servo position tracking — persisted to disk, survives reboots
@@ -159,6 +203,8 @@ last_heartbeat = time.monotonic()
 
 def send_motor(pw):
     """Send PWM to MACE channel via legacy /motor endpoint."""
+    if DRY_RUN:
+        return True
     try:
         req = urllib.request.Request(
             f"{GEODUDE_URL}/motor",
@@ -177,6 +223,8 @@ def send_motor(pw):
 
 def send_pwm(channel, pw):
     """Send PWM pulse width to a named PCA9685 channel."""
+    if DRY_RUN:
+        return True
     try:
         req = urllib.request.Request(
             f"{GEODUDE_URL}/pwm",
@@ -191,6 +239,8 @@ def send_pwm(channel, pw):
 
 def send_all_off():
     """Turn all PCA9685 channels off."""
+    if DRY_RUN:
+        return True
     try:
         req = urllib.request.Request(f"{GEODUDE_URL}/pwm/off", method="POST")
         urllib.request.urlopen(req, timeout=3)
@@ -220,6 +270,260 @@ def controller_limits(channel):
         clamp(center - CONTROLLER_LIMIT_US, 500, 2500),
         clamp(center + CONTROLLER_LIMIT_US, 500, 2500),
     )
+
+
+def ik_joint_names():
+    return ("base", "shoulder", "elbow", "wrist_roll", "wrist_pitch")
+
+
+def ik_arm_name(selected_arm):
+    return "right" if selected_arm == "right" else "left"
+
+
+def ik_joint_config(selected_arm, joint_name):
+    return IK_ARM_CONFIG[ik_arm_name(selected_arm)]["joints"][joint_name]
+
+
+def ik_joint_neutral(channel):
+    neutral = servo_neutral.get(channel)
+    if neutral is None:
+        neutral = servo_positions.get(channel, 1000)
+    return int(neutral)
+
+
+def ik_angle_from_pwm(selected_arm, joint_name, pw=None):
+    config = ik_joint_config(selected_arm, joint_name)
+    channel = config["channel"]
+    neutral = ik_joint_neutral(channel)
+    if pw is None:
+        pw = servo_positions.get(channel, neutral)
+    pw = int(pw)
+    angle = ((pw - neutral) / float(config["us_per_rad"])) * float(config["sign"])
+    return clamp(angle, config["min_angle"], config["max_angle"])
+
+
+def ik_pwm_from_angle(selected_arm, joint_name, angle):
+    config = ik_joint_config(selected_arm, joint_name)
+    angle = clamp(float(angle), config["min_angle"], config["max_angle"])
+    neutral = ik_joint_neutral(config["channel"])
+    target = neutral + int(round(angle * float(config["us_per_rad"]) * float(config["sign"])))
+    return clamp(target, 500, 2500)
+
+
+def ik_pose_from_angles(selected_arm, angles):
+    arm = IK_ARM_CONFIG[ik_arm_name(selected_arm)]
+    side_bias = float(arm["side_bias"])
+    anchor = dict(arm["anchor"])
+    base = float(angles["base"])
+    shoulder = float(angles["shoulder"])
+    elbow = float(angles["elbow"])
+    wrist_roll = float(angles["wrist_roll"])
+    wrist_pitch = float(angles["wrist_pitch"])
+
+    def rotate_base_axis(vec, roll):
+        return {
+            "x": vec["x"],
+            "y": vec["y"] * math.cos(roll) - vec["z"] * math.sin(roll),
+            "z": vec["y"] * math.sin(roll) + vec["z"] * math.cos(roll),
+        }
+
+    def add_point(a, b):
+        return {"x": a["x"] + b["x"], "y": a["y"] + b["y"], "z": a["z"] + b["z"]}
+
+    def scale_vec(vec, scale):
+        return {"x": vec["x"] * scale, "y": vec["y"] * scale, "z": vec["z"] * scale}
+
+    def normalize_vec(vec):
+        mag = math.sqrt(vec["x"] * vec["x"] + vec["y"] * vec["y"] + vec["z"] * vec["z"]) or 1.0
+        return {"x": vec["x"] / mag, "y": vec["y"] / mag, "z": vec["z"] / mag}
+
+    def cross_vec(a, b):
+        return {
+            "x": a["y"] * b["z"] - a["z"] * b["y"],
+            "y": a["z"] * b["x"] - a["x"] * b["z"],
+            "z": a["x"] * b["y"] - a["y"] * b["x"],
+        }
+
+    def rotate_around_axis(vec, axis, angle):
+        unit = normalize_vec(axis)
+        cos_a = math.cos(angle)
+        sin_a = math.sin(angle)
+        dot = vec["x"] * unit["x"] + vec["y"] * unit["y"] + vec["z"] * unit["z"]
+        cross = cross_vec(unit, vec)
+        return {
+            "x": vec["x"] * cos_a + cross["x"] * sin_a + unit["x"] * dot * (1.0 - cos_a),
+            "y": vec["y"] * cos_a + cross["y"] * sin_a + unit["y"] * dot * (1.0 - cos_a),
+            "z": vec["z"] * cos_a + cross["z"] * sin_a + unit["z"] * dot * (1.0 - cos_a),
+        }
+
+    def pitch_direction(pitch, roll):
+        return rotate_base_axis({
+            "x": math.cos(pitch) * side_bias,
+            "y": math.sin(pitch),
+            "z": 0.0,
+        }, roll)
+
+    shoulder_mount = add_point(anchor, rotate_base_axis({"x": IK_LINKS_MM["base"] * side_bias, "y": 0.0, "z": 0.0}, base))
+    upper_dir = pitch_direction(shoulder, base)
+    elbow_point = add_point(shoulder_mount, scale_vec(upper_dir, IK_LINKS_MM["upper"]))
+    fore_dir = pitch_direction(shoulder + elbow, base)
+    wrist_a_point = add_point(elbow_point, scale_vec(fore_dir, IK_LINKS_MM["forearm"]))
+    wrist_b_point = add_point(wrist_a_point, scale_vec(fore_dir, IK_LINKS_MM["wrist_a"]))
+    final_dir = pitch_direction(shoulder + elbow + wrist_pitch, base)
+    tool_dir = rotate_around_axis(final_dir, fore_dir, wrist_roll)
+    tip_point = add_point(wrist_b_point, scale_vec(normalize_vec(tool_dir), IK_LINKS_MM["tool"]))
+    return {
+        "anchor": anchor,
+        "shoulder_mount": shoulder_mount,
+        "elbow": elbow_point,
+        "wrist_a": wrist_a_point,
+        "wrist_b": wrist_b_point,
+        "tip": tip_point,
+    }
+
+
+def ik_current_angles(selected_arm):
+    return {joint: ik_angle_from_pwm(selected_arm, joint) for joint in ik_joint_names()}
+
+
+def ik_current_pose(selected_arm):
+    return ik_pose_from_angles(selected_arm, ik_current_angles(selected_arm))
+
+
+def ik_config_payload():
+    return {
+        "links_mm": dict(IK_LINKS_MM),
+        "notes": list(IK_SOLVER_NOTES),
+        "arms": {
+            arm_name: {
+                "anchor": dict(config["anchor"]),
+                "joints": {
+                    joint_name: {
+                        "channel": joint_cfg["channel"],
+                        "sign": joint_cfg["sign"],
+                        "us_per_rad": joint_cfg["us_per_rad"],
+                        "min_angle": joint_cfg["min_angle"],
+                        "max_angle": joint_cfg["max_angle"],
+                    }
+                    for joint_name, joint_cfg in config["joints"].items()
+                },
+            }
+            for arm_name, config in IK_ARM_CONFIG.items()
+        },
+    }
+
+
+def ik_status_payload():
+    with lock:
+        selected_arm = controller_state["selected_arm"]
+        last_solution = ik_state["last_solution"]
+    arms = {}
+    for arm_name in IK_ARM_CONFIG:
+        angles = ik_current_angles(arm_name)
+        pose = ik_pose_from_angles(arm_name, angles)
+        target_pwms = {
+            ik_joint_config(arm_name, joint_name)["channel"]: int(servo_positions.get(ik_joint_config(arm_name, joint_name)["channel"], ik_joint_neutral(ik_joint_config(arm_name, joint_name)["channel"])))
+            for joint_name in ik_joint_names()
+        }
+        arms[arm_name] = {
+            "angles_rad": {joint: round(value, 5) for joint, value in angles.items()},
+            "tip_mm": {axis: round(pose["tip"][axis], 2) for axis in ("x", "y", "z")},
+            "target_pwms": target_pwms,
+        }
+    return {
+        "selected_arm": selected_arm,
+        "arms": arms,
+        "config": ik_config_payload(),
+        "last_solution": last_solution,
+    }
+
+
+def ik_solve_arm(selected_arm, target_xyz):
+    arm_name = ik_arm_name(selected_arm)
+    arm = IK_ARM_CONFIG[arm_name]
+    side_bias = float(arm["side_bias"])
+    anchor = arm["anchor"]
+    target = {axis: float(target_xyz[axis]) for axis in ("x", "y", "z")}
+    rel_x = target["x"] - float(anchor["x"])
+    rel_y = target["y"] - float(anchor["y"])
+    rel_z = target["z"] - float(anchor["z"])
+    upper_len = IK_LINKS_MM["upper"]
+    fore_len = IK_LINKS_MM["forearm"] + IK_LINKS_MM["wrist_a"] + IK_LINKS_MM["tool"]
+    shoulder_x = side_bias * IK_LINKS_MM["base"]
+    plane_x = side_bias * rel_x - IK_LINKS_MM["base"]
+    base_limits = ik_joint_config(arm_name, "base")
+    desired_base = math.atan2(rel_z, rel_y) if abs(rel_y) > 1e-9 or abs(rel_z) > 1e-9 else ik_angle_from_pwm(arm_name, "base")
+    base_angle = clamp(desired_base, base_limits["min_angle"], base_limits["max_angle"])
+    plane_y = rel_y * math.cos(base_angle) + rel_z * math.sin(base_angle)
+    plane_side_error = -rel_y * math.sin(base_angle) + rel_z * math.cos(base_angle)
+    planar_distance = math.hypot(plane_x, plane_y)
+    max_reach = upper_len + fore_len - 1e-6
+    min_reach = abs(upper_len - fore_len) + 1e-6
+    if planar_distance > max_reach or planar_distance < min_reach:
+        return {
+            "ok": False,
+            "arm": arm_name,
+            "reason": "unreachable",
+            "distance_mm": round(planar_distance, 3),
+            "reachable_range_mm": [round(min_reach, 3), round(max_reach, 3)],
+            "target_mm": {axis: round(target[axis], 3) for axis in ("x", "y", "z")},
+        }
+
+    cos_elbow = (planar_distance * planar_distance - upper_len * upper_len - fore_len * fore_len) / (2.0 * upper_len * fore_len)
+    cos_elbow = clamp(cos_elbow, -1.0, 1.0)
+    elbow_candidates = [math.acos(cos_elbow), -math.acos(cos_elbow)]
+    wrist_roll_angle = ik_angle_from_pwm(arm_name, "wrist_roll")
+    wrist_pitch_angle = 0.0
+    best = None
+
+    def within_limits(joint_name, angle):
+        cfg = ik_joint_config(arm_name, joint_name)
+        return cfg["min_angle"] - 1e-6 <= angle <= cfg["max_angle"] + 1e-6
+
+    for elbow_angle in elbow_candidates:
+        shoulder_angle = math.atan2(plane_y, plane_x) - math.atan2(fore_len * math.sin(elbow_angle), upper_len + fore_len * math.cos(elbow_angle))
+        candidate = {
+            "base": base_angle,
+            "shoulder": shoulder_angle,
+            "elbow": elbow_angle,
+            "wrist_roll": clamp(wrist_roll_angle, ik_joint_config(arm_name, "wrist_roll")["min_angle"], ik_joint_config(arm_name, "wrist_roll")["max_angle"]),
+            "wrist_pitch": wrist_pitch_angle,
+        }
+        if not all(within_limits(joint_name, candidate[joint_name]) for joint_name in ("base", "shoulder", "elbow", "wrist_roll", "wrist_pitch")):
+            continue
+        pose = ik_pose_from_angles(arm_name, candidate)
+        error = math.sqrt(sum((pose["tip"][axis] - target[axis]) ** 2 for axis in ("x", "y", "z")))
+        result = {"angles": candidate, "pose": pose, "tip_error": error}
+        if best is None or result["tip_error"] < best["tip_error"]:
+            best = result
+
+    if best is None:
+        return {
+            "ok": False,
+            "arm": arm_name,
+            "reason": "joint_limits",
+            "target_mm": {axis: round(target[axis], 3) for axis in ("x", "y", "z")},
+            "notes": list(IK_SOLVER_NOTES),
+        }
+
+    angles = best["angles"]
+    pose = best["pose"]
+    target_pwms = {
+        ik_joint_config(arm_name, joint_name)["channel"]: ik_pwm_from_angle(arm_name, joint_name, angle)
+        for joint_name, angle in angles.items()
+    }
+    return {
+        "ok": True,
+        "arm": arm_name,
+        "angles_rad": {joint: round(value, 6) for joint, value in angles.items()},
+        "angles_deg": {joint: round(math.degrees(value), 3) for joint, value in angles.items()},
+        "target_mm": {axis: round(target[axis], 3) for axis in ("x", "y", "z")},
+        "tip_mm": {axis: round(pose["tip"][axis], 3) for axis in ("x", "y", "z")},
+        "target_pwms": target_pwms,
+        "tip_error_mm": round(best["tip_error"], 3),
+        "plane_side_error_mm": round(plane_side_error, 3),
+        "notes": list(IK_SOLVER_NOTES),
+    }
 
 
 def controller_status_payload():
@@ -638,6 +942,45 @@ def controller_select_arm():
     return jsonify(controller_status_payload())
 
 
+@app.route('/api/ik/status')
+def ik_status():
+    return jsonify(ik_status_payload())
+
+
+@app.route('/api/ik/solve', methods=['POST'])
+def ik_solve():
+    data = request.json or {}
+    with lock:
+        selected_arm = controller_state["selected_arm"]
+    arm_name = ik_arm_name(data.get("arm", selected_arm))
+    target_xyz = {
+        "x": float(data.get("x", 0.0)),
+        "y": float(data.get("y", 0.0)),
+        "z": float(data.get("z", 0.0)),
+    }
+    result = ik_solve_arm(arm_name, target_xyz)
+    apply_move = bool(data.get("apply", False))
+    if result.get("ok") and apply_move:
+        applied = {}
+        ok = True
+        for channel, target in result["target_pwms"].items():
+            sent = send_pwm(channel, target)
+            applied[channel] = sent
+            if sent:
+                servo_positions[channel] = target
+            ok = ok and sent
+        if ok:
+            mark_positions_dirty()
+        result["applied"] = applied
+        result["ok"] = ok
+        if not ok:
+            result["reason"] = "send_failed"
+    result["selected_arm"] = arm_name
+    with lock:
+        ik_state["last_solution"] = result
+    return jsonify(result)
+
+
 @app.route('/api/all_off', methods=['POST'])
 def all_off():
     """Turn all PCA9685 channels off."""
@@ -972,5 +1315,6 @@ if __name__ == '__main__':
     threading.Thread(target=ramp_loop, daemon=True).start()
     threading.Thread(target=watchdog_loop, daemon=True).start()
     threading.Thread(target=positions_flush_loop, daemon=True).start()
-    threading.Thread(target=restore_positions_loop, daemon=True).start()
-    app.run(host='0.0.0.0', port=8080, threaded=True)
+    if RESTORE_ON_START:
+        threading.Thread(target=restore_positions_loop, daemon=True).start()
+    app.run(host='0.0.0.0', port=DEFAULT_PORT, threaded=True)
