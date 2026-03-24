@@ -26,9 +26,7 @@ busbar: "V+ Bus Bar (250A, 5/16\" stud)" {
 
 psu -> busbar: "16 AWG (fork connectors)" {style.stroke: "#1565C0"; style.stroke-width: 2}
 
-# === THREE BRANCHES FROM BUS BAR ===
-
-# Branch 1: Servo path (fused + switched)
+# === Branch 1: Servo path (fused + switched) ===
 fuse_main: "40A Blade Fuse (10 AWG pigtails)" {
   shape: diamond
   style.fill: "#BBDEFB"
@@ -44,7 +42,12 @@ toggle: "Jtron 40A Toggle Switch (manual)" {
 busbar -> fuse_main: "10 AWG (ring terminal)" {style.stroke: "#1565C0"; style.stroke-width: 2}
 fuse_main -> toggle: "10 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
 
-# Branch 2: MACE (direct, no fuse)
+# === POST-TOGGLE: Single Wago ===
+wago: "Wago (distribution)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+
+toggle -> wago: "10 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
+
+# === Branch 2: MACE (direct from bus bar, no fuse) ===
 mace: "MACE Reaction Wheel" {
   style.fill: "#E8EAF6"
   style.stroke: "#3949AB"
@@ -62,65 +65,60 @@ mace: "MACE Reaction Wheel" {
 
 busbar -> mace.esc: "12 AWG (ring terminal, XT60 to ESC)" {style.stroke: "#3949AB"; style.stroke-width: 2}
 
-# Branch 3: Pi (always on, no fuse)
+# === Branch 3: Pi (always on, no fuse) ===
 buck2: "Buck 2: 12V to 5V" {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"}
 pi: "Raspberry Pi (2.5A) + Screw Terminal HAT | 1000-2200uF 10V cap on 5V input" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"; style.stroke-width: 2}
-pca: "PCA9685 16-Ch PWM Driver | VCC: 5V | V+: not connected" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
 
 busbar -> buck2: "18 AWG (ring terminal, always on)" {style.stroke: "#2E7D32"}
 buck2 -> pi: "5V, 18 AWG" {style.stroke: "#43A047"}
-pi -> pca: "I2C + 5V power" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 
-# === POST-TOGGLE: SOLDER SPLIT + WAGOS ===
-split: "Solder Split (10 AWG to 3x 16 AWG)" {
-  shape: hexagon
-  style.fill: "#BBDEFB"
-  style.stroke: "#1565C0"
-}
-
-wago_arm: "Wago (x2, one per arm) | splits to 2x wires for 12V+ screw terminals" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
-wago_bucks: "Wago (Buck 1 + Buck 3)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
-
-toggle -> split: "10 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
-split -> wago_arm: "16 AWG each" {style.stroke: "#1565C0"; style.stroke-width: 2}
-split -> wago_bucks: "16 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
-
-# === BUCK CONVERTERS ===
+# === BUCK CONVERTERS (from Wago) ===
 buck1: "Buck 1: 12V to 7.4V" {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"; style.stroke-width: 2}
 buck3: "Buck 3: 12V to 5V" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"; style.stroke-width: 2}
 
-wago_bucks -> buck1: "18 AWG" {style.stroke: "#1565C0"}
-wago_bucks -> buck3: "18 AWG" {style.stroke: "#1565C0"}
+wago -> buck1: "18 AWG" {style.stroke: "#1565C0"}
+wago -> buck3: "18 AWG" {style.stroke: "#1565C0"}
 
-# === ARM FUSE BOARD (x2, identical) ===
-arm: "Arm Fuse Board (x2, one per arm)" {
+# === SERVO FUSE BOARD (single board, both arms) ===
+board: "Servo Fuse Board (1 board, 10 servos)" {
   style.fill: "#E3F2FD"
   style.stroke: "#1565C0"
   style.stroke-width: 2
   style.border-radius: 8
   direction: right
 
-  screw_in: "11x Screw Terminals (in) | 2x 12V+ | 2x GND | 1x 7.4V | 1x 5V | 5x PWM" {
+  screw_in: "~20x Screw Terminals (in) | 4x 12V+ | 4x GND | 1x 7.4V | 1x 5V | 10x PWM" {
     shape: rectangle
     style.fill: "#B0BEC5"
     style.stroke: "#546E7A"
     style.stroke-width: 2
     width: 80
     height: 500
+  }
+
+  pca: "PCA9685 16-Ch PWM Driver | VCC: 5V from Pi | V+: not connected" {
+    shape: rectangle
+    style.fill: "#F3E5F5"
+    style.stroke: "#7B1FA2"
   }
 
   fuses: "" {
     style.fill: transparent
     style.stroke: transparent
 
-    base: "Base (8A, 12V)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"; width: 150}
-    shld: "Shoulder (8A, 12V)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"; width: 150}
-    elbow: "Elbow (5A, 7.4V)" {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"; width: 150}
-    wr: "Wrist Rot (3A, 5V)" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"; width: 150}
-    wp: "Wrist Pan (3A, 5V)" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"; width: 150}
+    base1: "Arm1 Base (8A, 12V)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"; width: 150}
+    shld1: "Arm1 Shoulder (8A, 12V)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"; width: 150}
+    elbow1: "Arm1 Elbow (5A, 7.4V)" {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"; width: 150}
+    wr1: "Arm1 Wrist Rot (3A, 5V)" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"; width: 150}
+    wp1: "Arm1 Wrist Pan (3A, 5V)" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"; width: 150}
+    base2: "Arm2 Base (8A, 12V)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"; width: 150}
+    shld2: "Arm2 Shoulder (8A, 12V)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"; width: 150}
+    elbow2: "Arm2 Elbow (5A, 7.4V)" {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"; width: 150}
+    wr2: "Arm2 Wrist Rot (3A, 5V)" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"; width: 150}
+    wp2: "Arm2 Wrist Pan (3A, 5V)" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"; width: 150}
   }
 
-  headers_out: "5x Male 3-pin Headers (out)" {
+  headers_out: "10x Male 3-pin Headers (out)" {
     shape: rectangle
     style.fill: "#B0BEC5"
     style.stroke: "#546E7A"
@@ -129,23 +127,30 @@ arm: "Arm Fuse Board (x2, one per arm)" {
     height: 500
   }
 
-  screw_in -> fuses.base -> headers_out {style.stroke: "#1565C0"}
-  screw_in -> fuses.shld -> headers_out {style.stroke: "#1565C0"}
-  screw_in -> fuses.elbow -> headers_out {style.stroke: "#2E7D32"}
-  screw_in -> fuses.wr -> headers_out {style.stroke: "#43A047"}
-  screw_in -> fuses.wp -> headers_out {style.stroke: "#43A047"}
+  screw_in -> pca: "PWM signal" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+  pca -> fuses.base1 {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+  screw_in -> fuses.base1 -> headers_out {style.stroke: "#1565C0"}
+  screw_in -> fuses.shld1 -> headers_out {style.stroke: "#1565C0"}
+  screw_in -> fuses.elbow1 -> headers_out {style.stroke: "#2E7D32"}
+  screw_in -> fuses.wr1 -> headers_out {style.stroke: "#43A047"}
+  screw_in -> fuses.wp1 -> headers_out {style.stroke: "#43A047"}
+  screw_in -> fuses.base2 -> headers_out {style.stroke: "#1565C0"}
+  screw_in -> fuses.shld2 -> headers_out {style.stroke: "#1565C0"}
+  screw_in -> fuses.elbow2 -> headers_out {style.stroke: "#2E7D32"}
+  screw_in -> fuses.wr2 -> headers_out {style.stroke: "#43A047"}
+  screw_in -> fuses.wp2 -> headers_out {style.stroke: "#43A047"}
 }
 
-# Power to arm board
-wago_arm -> arm.screw_in: "2x 16 AWG (12V, split for 10A screw terminals)" {style.stroke: "#1565C0"}
-buck1 -> arm.screw_in: "7.4V, 18 AWG" {style.stroke: "#2E7D32"}
-buck3 -> arm.screw_in: "5V, 18 AWG" {style.stroke: "#43A047"}
+# Power to fuse board
+wago -> board.screw_in: "12V, 16 AWG (to 4x 12V+ screw terminals)" {style.stroke: "#1565C0"}
+buck1 -> board.screw_in: "7.4V, 18 AWG" {style.stroke: "#2E7D32"}
+buck3 -> board.screw_in: "5V, 18 AWG" {style.stroke: "#43A047"}
 
-# PWM signal
-pca -> arm.screw_in: "Ch 0-4 / Ch 5-9 PWM" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+# Pi to PCA and board
+pi -> board.pca: "I2C + 5V power" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 
 # MACE signal + sensors
-pca -> mace.esc: "Ch 14 PWM + GND only (no 5V)" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+board.pca -> mace.esc: "Ch 14 PWM + GND only (no 5V)" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 pi -> mace.encoder: "I2C + 3.3V" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 pi -> mace.imu: "I2C + 3.3V" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
 
@@ -161,7 +166,7 @@ limits: "10x Limit Switches | GPIO 4-6, 17, 22-27 | Pi pull-ups, 22 AWG" {
 pi -> limits: "GPIO, 22 AWG" {style.stroke: "#EF6C00"; style.stroke-dash: 3}
 
 # === GND ===
-gnd: "GND Bus Bar (250A, 5/16\" stud) | PSU GND -> 16 AWG -> bus bar | 16 AWG to each fuse board | 18 AWG to each buck | 12 AWG to MACE ESC" {
+gnd: "GND Bus Bar (250A, 5/16\" stud) | PSU GND -> 16 AWG -> bus bar | 16 AWG to fuse board | 18 AWG to each buck | 12 AWG to MACE ESC" {
   shape: rectangle
   style.fill: "#ECEFF1"
   style.stroke: "#546E7A"
