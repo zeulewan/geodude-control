@@ -131,7 +131,12 @@ var armVizState = {
   elevation: 18,
   autoOrbit: false,
   orbitTick: 0,
-  rafId: null
+  rafId: null,
+  dragging: false,
+  dragStartX: 0,
+  dragStartY: 0,
+  startAzimuth: 28,
+  startElevation: 18
 };
 
 function armVizChannelValue(name) {
@@ -330,13 +335,63 @@ function armVizSetView() {
   var el = document.getElementById('armVizElevation');
   if (az) armVizState.azimuth = parseInt(az.value, 10);
   if (el) armVizState.elevation = parseInt(el.value, 10);
+  armVizSyncControls();
   armVizDrawScene();
+}
+
+function armVizSyncControls() {
+  var az = document.getElementById('armVizAzimuth');
+  var el = document.getElementById('armVizElevation');
+  if (az) az.value = Math.round(armVizState.azimuth);
+  if (el) el.value = Math.round(armVizState.elevation);
+}
+
+function armVizPointerDown(event) {
+  var canvas = document.getElementById('armVizCanvas');
+  if (!canvas) return;
+  armVizState.dragging = true;
+  armVizState.autoOrbit = false;
+  armVizState.dragStartX = event.clientX;
+  armVizState.dragStartY = event.clientY;
+  armVizState.startAzimuth = armVizState.azimuth;
+  armVizState.startElevation = armVizState.elevation;
+  canvas.classList.add('dragging');
+  var btn = document.getElementById('armVizOrbitBtn');
+  if (btn) btn.textContent = 'AUTO ORBIT';
+}
+
+function armVizPointerMove(event) {
+  if (!armVizState.dragging) return;
+  var dx = event.clientX - armVizState.dragStartX;
+  var dy = event.clientY - armVizState.dragStartY;
+  armVizState.azimuth = Math.max(-180, Math.min(180, armVizState.startAzimuth + dx * 0.45));
+  armVizState.elevation = Math.max(-10, Math.min(70, armVizState.startElevation - dy * 0.22));
+  armVizSyncControls();
+  armVizDrawScene();
+}
+
+function armVizPointerUp() {
+  if (!armVizState.dragging) return;
+  armVizState.dragging = false;
+  var canvas = document.getElementById('armVizCanvas');
+  if (canvas) canvas.classList.remove('dragging');
+}
+
+function armVizBindPointer() {
+  var canvas = document.getElementById('armVizCanvas');
+  if (!canvas || canvas.dataset.bound === '1') return;
+  canvas.dataset.bound = '1';
+  canvas.addEventListener('pointerdown', armVizPointerDown);
+  window.addEventListener('pointermove', armVizPointerMove);
+  window.addEventListener('pointerup', armVizPointerUp);
+  window.addEventListener('pointercancel', armVizPointerUp);
 }
 
 function armVizToggleOrbit() {
   armVizState.autoOrbit = !armVizState.autoOrbit;
   var btn = document.getElementById('armVizOrbitBtn');
   if (btn) btn.textContent = armVizState.autoOrbit ? 'STOP ORBIT' : 'AUTO ORBIT';
+  armVizDrawScene();
 }
 
 function armVizResetView() {
@@ -353,6 +408,7 @@ function armVizResetView() {
 }
 
 function armVizStart() {
+  armVizBindPointer();
   if (armVizState.rafId != null) return;
   armVizResetView();
   armVizState.rafId = window.requestAnimationFrame(armVizLoop);
