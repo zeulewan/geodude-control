@@ -610,7 +610,32 @@
         </div>
         <div class="mission-step" id="missionStep8" data-step-index="8">
           <div class="mission-step-head"><span class="mission-step-index">8</span><span>AOCS Module Attach</span></div>
-          <div class="mission-subflow"><div class="mission-subflow-title">Substeps</div><button class="mission-substep mission-action-substep" id="missionSubstep-8-default" type="button" onclick="missionCompleteSubstep(8, 'default')">Pending</button></div>
+          <div class="mission-subflow">
+            <div class="mission-subflow-title">Substeps</div>
+            <button class="mission-substep mission-action-substep" id="missionSubstep-8-aocs-pose-ready" type="button" onclick="missionCompleteSubstep(8, 'aocs-pose-ready')">AOCS attach pose ready</button>
+            <div class="mission-substep mission-checkpoint-substep" id="missionAocsNominalCheckpoint">
+              <div class="mission-substep-label">Everything nominal</div>
+              <div class="mission-checkpoint-actions">
+                <button class="btn btn-dark mission-inline-btn" type="button" onclick="missionRespondAocsNominal(true)">Yes</button>
+                <button class="btn btn-dark mission-inline-btn" type="button" onclick="missionRespondAocsNominal(false)">No</button>
+              </div>
+            </div>
+            <div class="mission-substep mission-checkpoint-substep" id="missionAocsSlideOutCheckpoint">
+              <div class="mission-substep-label">AOCS slide out</div>
+              <div class="mission-checkpoint-actions">
+                <button class="btn btn-dark mission-inline-btn" type="button" onclick="missionRespondAocsSlideOut(true)">Yes</button>
+                <button class="btn btn-dark mission-inline-btn" type="button" onclick="missionRespondAocsSlideOut(false)">No</button>
+              </div>
+            </div>
+            <button class="mission-substep mission-action-substep" id="missionSubstep-8-aocs-attach" type="button" onclick="missionCompleteSubstep(8, 'aocs-attach')">AOCS attach</button>
+            <div class="mission-substep mission-checkpoint-substep" id="missionAocsArmDetachCheckpoint">
+              <div class="mission-substep-label">Arm detach</div>
+              <div class="mission-checkpoint-actions">
+                <button class="btn btn-dark mission-inline-btn" type="button" onclick="missionRespondAocsArmDetach(true)">Yes</button>
+                <button class="btn btn-dark mission-inline-btn" type="button" onclick="missionRespondAocsArmDetach(false)">No</button>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="mission-step" id="missionStep9" data-step-index="9">
           <div class="mission-step-head"><span class="mission-step-index">9</span><span>Back Away</span></div>
