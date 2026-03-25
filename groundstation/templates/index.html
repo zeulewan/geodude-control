@@ -568,14 +568,23 @@
         </div>
         <div class="mission-step" id="missionStep4" data-step-index="4">
           <div class="mission-step-head"><span class="mission-step-index">4</span><span>All Identified Check</span></div>
-          <div class="mission-subflow"><div class="mission-subflow-title">Substeps</div><button class="mission-substep mission-action-substep" id="missionSubstep-4-default" type="button" onclick="missionCompleteSubstep(4, 'default')">Pending</button></div>
+          <div class="mission-subflow">
+            <div class="mission-subflow-title">Substeps</div>
+            <button class="mission-substep mission-action-substep" id="missionSubstep-4-client-rotation" type="button" onclick="missionCompleteSubstep(4, 'client-rotation')">Identify client rotation</button>
+            <button class="mission-substep mission-action-substep" id="missionSubstep-4-docking-point" type="button" onclick="missionCompleteSubstep(4, 'docking-point')">Identify docking point</button>
+            <div class="mission-substep mission-checkpoint-substep" id="missionAllIdentifiedCheckpoint">
+              <div class="mission-substep-label">All identified</div>
+              <div class="mission-checkpoint-actions">
+                <button class="btn btn-dark mission-inline-btn" type="button" onclick="missionRespondAllIdentified(true)">Yes</button>
+                <button class="btn btn-dark mission-inline-btn" type="button" onclick="missionRespondAllIdentified(false)">No</button>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="mission-step" id="missionStep5" data-step-index="5">
           <div class="mission-step-head"><span class="mission-step-index">5</span><span>Approach</span></div>
           <div class="mission-subflow">
             <div class="mission-subflow-title">Substeps</div>
-            <button class="mission-substep mission-action-substep" id="missionSubstep-5-client-rotation" type="button" onclick="missionCompleteSubstep(5, 'client-rotation')">Identify client rotation</button>
-            <button class="mission-substep mission-action-substep" id="missionSubstep-5-docking-point" type="button" onclick="missionCompleteSubstep(5, 'docking-point')">Identify docking point</button>
             <button class="mission-substep mission-action-substep" id="missionSubstep-5-docking-arm-position" type="button" onclick="missionCompleteSubstep(5, 'docking-arm-position')">Move docking arm into position</button>
             <button class="mission-substep mission-action-substep" id="missionSubstep-5-aocs-arm-position" type="button" onclick="missionCompleteSubstep(5, 'aocs-arm-position')">Move AOCS arm into position</button>
             <button class="mission-substep mission-action-substep" id="missionSubstep-5-approach-started" type="button" onclick="missionCompleteSubstep(5, 'approach-started')">Approach started</button>
