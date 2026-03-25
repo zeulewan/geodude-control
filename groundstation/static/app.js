@@ -162,6 +162,14 @@ function missionIsStepComplete(step) {
   return keys.length > 0 && keys.every(function(key) { return !!substeps[key]; });
 }
 
+function missionSetCheckpointActions(actionsEl, enabled) {
+  if (!actionsEl) return;
+  actionsEl.style.display = 'flex';
+  actionsEl.querySelectorAll('button').forEach(function(btn) {
+    btn.disabled = !enabled;
+  });
+}
+
 function missionRenderFlow() {
   var checkpoint = document.getElementById('missionStartCheckpoint');
   var label = checkpoint ? checkpoint.querySelector('.mission-substep-label') : null;
@@ -214,7 +222,7 @@ function missionRenderFlow() {
     checkpoint.classList.toggle('completed', !!missionFlowState.nominalCheckResolved);
     checkpoint.classList.toggle('blocked', missionFlowState.halted && missionFlowState.currentStep === 1);
   }
-  if (actions) actions.style.display = missionFlowState.currentStep === 1 && !missionFlowState.nominalCheckResolved && !missionFlowState.halted ? 'flex' : 'none';
+  missionSetCheckpointActions(actions, missionFlowState.currentStep === 1 && !missionFlowState.nominalCheckResolved && !missionFlowState.halted);
   if (labelTwo) {
     if (missionFlowState.halted && missionFlowState.currentStep === 3) labelTwo.textContent = 'Everything nominal check failed';
     else if (missionFlowState.everythingNominalResolved) labelTwo.textContent = 'Everything nominal check cleared';
@@ -225,7 +233,7 @@ function missionRenderFlow() {
     checkpointTwo.classList.toggle('completed', !!missionFlowState.everythingNominalResolved);
     checkpointTwo.classList.toggle('blocked', missionFlowState.halted && missionFlowState.currentStep === 3);
   }
-  if (actionsTwo) actionsTwo.style.display = missionFlowState.currentStep === 3 && !missionFlowState.everythingNominalResolved && !missionFlowState.halted ? 'flex' : 'none';
+  missionSetCheckpointActions(actionsTwo, missionFlowState.currentStep === 3 && !missionFlowState.everythingNominalResolved && !missionFlowState.halted);
   if (labelThree) {
     if (missionFlowState.halted && missionFlowState.currentStep === 6) labelThree.textContent = 'Docking arm pose confirmation failed';
     else if (missionFlowState.dockingPoseResolved) labelThree.textContent = 'Docking arm pose confirmed';
@@ -236,7 +244,7 @@ function missionRenderFlow() {
     checkpointThree.classList.toggle('completed', !!missionFlowState.dockingPoseResolved);
     checkpointThree.classList.toggle('blocked', missionFlowState.halted && missionFlowState.currentStep === 6);
   }
-  if (actionsThree) actionsThree.style.display = missionFlowState.currentStep === 6 && missionFlowState.substeps[6]['relative-motion-stabilized'] && missionFlowState.substeps[6]['nozzle-position-found'] && missionFlowState.substeps[6]['nozzle-ik-solved'] && !missionFlowState.dockingPoseResolved && !missionFlowState.halted ? 'flex' : 'none';
+  missionSetCheckpointActions(actionsThree, missionFlowState.currentStep === 6 && missionFlowState.substeps[6]['relative-motion-stabilized'] && missionFlowState.substeps[6]['nozzle-position-found'] && missionFlowState.substeps[6]['nozzle-ik-solved'] && !missionFlowState.dockingPoseResolved && !missionFlowState.halted);
   if (labelFour) {
     if (missionFlowState.halted && missionFlowState.currentStep === 7) labelFour.textContent = 'Undocking readiness failed';
     else if (missionFlowState.undockingReadyResolved) labelFour.textContent = 'Ready to undock';
@@ -247,7 +255,7 @@ function missionRenderFlow() {
     checkpointFour.classList.toggle('completed', !!missionFlowState.undockingReadyResolved);
     checkpointFour.classList.toggle('blocked', missionFlowState.halted && missionFlowState.currentStep === 7);
   }
-  if (actionsFour) actionsFour.style.display = missionFlowState.currentStep === 7 && missionFlowState.substeps[7]['client-brought-to-geo'] && !missionFlowState.undockingReadyResolved && !missionFlowState.halted ? 'flex' : 'none';
+  missionSetCheckpointActions(actionsFour, missionFlowState.currentStep === 7 && missionFlowState.substeps[7]['client-brought-to-geo'] && !missionFlowState.undockingReadyResolved && !missionFlowState.halted);
   if (labelFive) {
     if (missionFlowState.halted && missionFlowState.currentStep === 8) labelFive.textContent = 'AOCS nominal check failed';
     else labelFive.textContent = 'Everything nominal';
@@ -257,7 +265,7 @@ function missionRenderFlow() {
     checkpointFive.classList.toggle('completed', !!missionFlowState.aocsNominalResolved);
     checkpointFive.classList.toggle('blocked', missionFlowState.halted && missionFlowState.currentStep === 8);
   }
-  if (actionsFive) actionsFive.style.display = missionFlowState.currentStep === 8 && missionFlowState.substeps[8]['aocs-pose-ready'] && !missionFlowState.aocsNominalResolved && !missionFlowState.halted ? 'flex' : 'none';
+  missionSetCheckpointActions(actionsFive, missionFlowState.currentStep === 8 && missionFlowState.substeps[8]['aocs-pose-ready'] && !missionFlowState.aocsNominalResolved && !missionFlowState.halted);
   if (labelSix) {
     if (missionFlowState.halted && missionFlowState.currentStep === 8) labelSix.textContent = 'AOCS slide out failed';
     else labelSix.textContent = 'AOCS slide out';
@@ -267,7 +275,7 @@ function missionRenderFlow() {
     checkpointSix.classList.toggle('completed', !!missionFlowState.aocsSlideOutResolved);
     checkpointSix.classList.toggle('blocked', missionFlowState.halted && missionFlowState.currentStep === 8);
   }
-  if (actionsSix) actionsSix.style.display = missionFlowState.currentStep === 8 && missionFlowState.aocsNominalResolved && !missionFlowState.aocsSlideOutResolved && !missionFlowState.halted ? 'flex' : 'none';
+  missionSetCheckpointActions(actionsSix, missionFlowState.currentStep === 8 && missionFlowState.aocsNominalResolved && !missionFlowState.aocsSlideOutResolved && !missionFlowState.halted);
   if (labelSeven) {
     if (missionFlowState.halted && missionFlowState.currentStep === 8) labelSeven.textContent = 'Arm detach failed';
     else labelSeven.textContent = 'Arm detach';
@@ -277,7 +285,7 @@ function missionRenderFlow() {
     checkpointSeven.classList.toggle('completed', !!missionFlowState.aocsArmDetachResolved);
     checkpointSeven.classList.toggle('blocked', missionFlowState.halted && missionFlowState.currentStep === 8);
   }
-  if (actionsSeven) actionsSeven.style.display = missionFlowState.currentStep === 8 && missionFlowState.substeps[8]['aocs-attach'] && !missionFlowState.aocsArmDetachResolved && !missionFlowState.halted ? 'flex' : 'none';
+  missionSetCheckpointActions(actionsSeven, missionFlowState.currentStep === 8 && missionFlowState.substeps[8]['aocs-attach'] && !missionFlowState.aocsArmDetachResolved && !missionFlowState.halted);
   Object.keys(missionFlowState.substeps).forEach(function(stepKey) {
     var stepNum = parseInt(stepKey, 10);
     var substeps = missionFlowState.substeps[stepNum];

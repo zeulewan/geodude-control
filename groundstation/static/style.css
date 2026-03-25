@@ -1708,3 +1708,9 @@ input[type="number"]::-webkit-outer-spin-button {
   .mission-hero, .mission-wide, .mission-flow-card, .mission-compact-card, .mission-camera-card, .mission-stack-card { grid-column: span 1; }
   .mission-flow { grid-template-columns: repeat(10, minmax(86px, 1fr)); overflow-x: auto; }
 }
+
+.mission-checkpoint-actions .btn:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  pointer-events: none;
+}
