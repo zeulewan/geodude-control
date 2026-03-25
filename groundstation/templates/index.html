@@ -578,7 +578,20 @@
         </div>
         <div class="mission-step" id="missionStep6" data-step-index="6">
           <div class="mission-step-head"><span class="mission-step-index">6</span><span>Docking</span></div>
-          <div class="mission-subflow"><div class="mission-subflow-title">Substeps</div><button class="mission-substep mission-action-substep" id="missionSubstep-6-default" type="button" onclick="missionCompleteSubstep(6, 'default')">Pending</button></div>
+          <div class="mission-subflow">
+            <div class="mission-subflow-title">Substeps</div>
+            <button class="mission-substep mission-action-substep" id="missionSubstep-6-relative-motion-stabilized" type="button" onclick="missionCompleteSubstep(6, 'relative-motion-stabilized')">Relative motion stabilized</button>
+            <button class="mission-substep mission-action-substep" id="missionSubstep-6-nozzle-position-found" type="button" onclick="missionCompleteSubstep(6, 'nozzle-position-found')">Nozzle position found</button>
+            <button class="mission-substep mission-action-substep" id="missionSubstep-6-nozzle-ik-solved" type="button" onclick="missionCompleteSubstep(6, 'nozzle-ik-solved')">Nozzle inverse kinematics solved</button>
+            <div class="mission-substep mission-checkpoint-substep" id="missionDockingPoseCheckpoint">
+              <div class="mission-substep-label">Docking arm pose confirmed</div>
+              <div class="mission-checkpoint-actions">
+                <button class="btn btn-dark mission-inline-btn" type="button" onclick="missionRespondDockingPose(true)">Yes</button>
+                <button class="btn btn-dark mission-inline-btn" type="button" onclick="missionRespondDockingPose(false)">No</button>
+              </div>
+            </div>
+            <button class="mission-substep mission-action-substep" id="missionSubstep-6-docked" type="button" onclick="missionCompleteSubstep(6, 'docked')">Docked</button>
+          </div>
         </div>
         <div class="mission-step" id="missionStep7" data-step-index="7">
           <div class="mission-step-head"><span class="mission-step-index">7</span><span>Undocking</span></div>

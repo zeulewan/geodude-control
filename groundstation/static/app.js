@@ -76,7 +76,7 @@ var chNeutral = {};
 
 var controllerStatus = {enabled: false};
 var activePageTab = 'manual';
-var missionFlowState = { currentStep: 1, started: false, halted: false, armed: false, nominalCheckResolved: false, everythingNominalResolved: false, substeps: { 2: { 'sat-detect': false, 'gimbal': false, 'mace': false }, 4: { 'default': false }, 5: { 'client-rotation': false, 'docking-point': false, 'docking-arm-position': false, 'aocs-arm-position': false, 'approach-started': false }, 6: { 'default': false }, 7: { 'default': false }, 8: { 'default': false }, 9: { 'default': false }, 10: { 'default': false } } };
+var missionFlowState = { currentStep: 1, started: false, halted: false, armed: false, nominalCheckResolved: false, everythingNominalResolved: false, dockingPoseResolved: false, substeps: { 2: { 'sat-detect': false, 'gimbal': false, 'mace': false }, 4: { 'default': false }, 5: { 'client-rotation': false, 'docking-point': false, 'docking-arm-position': false, 'aocs-arm-position': false, 'approach-started': false }, 6: { 'relative-motion-stabilized': false, 'nozzle-position-found': false, 'nozzle-ik-solved': false, 'docked': false }, 7: { 'default': false }, 8: { 'default': false }, 9: { 'default': false }, 10: { 'default': false } } };
 
 function showPageTab(tab) {
   activePageTab = tab === 'mission' ? 'mission' : 'manual';
@@ -154,6 +154,7 @@ function missionEmergencyStop() {
 function missionIsStepComplete(step) {
   if (step === 1) return !!missionFlowState.nominalCheckResolved;
   if (step === 3) return !!missionFlowState.everythingNominalResolved;
+  if (step === 6) return !!missionFlowState.dockingPoseResolved && missionFlowState.substeps[6]['relative-motion-stabilized'] && missionFlowState.substeps[6]['nozzle-position-found'] && missionFlowState.substeps[6]['nozzle-ik-solved'] && missionFlowState.substeps[6]['docked'];
   var substeps = missionFlowState.substeps[step] || {};
   var keys = Object.keys(substeps);
   return keys.length > 0 && keys.every(function(key) { return !!substeps[key]; });
@@ -166,6 +167,9 @@ function missionRenderFlow() {
   var checkpointTwo = document.getElementById('missionEverythingNominalCheckpoint');
   var labelTwo = checkpointTwo ? checkpointTwo.querySelector('.mission-substep-label') : null;
   var actionsTwo = checkpointTwo ? checkpointTwo.querySelector('.mission-checkpoint-actions') : null;
+  var checkpointThree = document.getElementById('missionDockingPoseCheckpoint');
+  var labelThree = checkpointThree ? checkpointThree.querySelector('.mission-substep-label') : null;
+  var actionsThree = checkpointThree ? checkpointThree.querySelector('.mission-checkpoint-actions') : null;
   var missionStateEl = document.getElementById('missionState');
   var missionActiveVisionModelEl = document.getElementById('missionActiveVisionModel');
   var missionLeftArmStatusEl = document.getElementById('missionLeftArmStatus');
@@ -208,6 +212,17 @@ function missionRenderFlow() {
     checkpointTwo.classList.toggle('blocked', missionFlowState.halted && missionFlowState.currentStep === 3);
   }
   if (actionsTwo) actionsTwo.style.display = missionFlowState.currentStep === 3 && !missionFlowState.everythingNominalResolved && !missionFlowState.halted ? 'flex' : 'none';
+  if (labelThree) {
+    if (missionFlowState.halted && missionFlowState.currentStep === 6) labelThree.textContent = 'Docking arm pose confirmation failed';
+    else if (missionFlowState.dockingPoseResolved) labelThree.textContent = 'Docking arm pose confirmed';
+    else labelThree.textContent = 'Docking arm pose confirmed';
+  }
+  if (checkpointThree) {
+    checkpointThree.classList.toggle('active', missionFlowState.currentStep === 6 && missionFlowState.substeps[6]['relative-motion-stabilized'] && missionFlowState.substeps[6]['nozzle-position-found'] && missionFlowState.substeps[6]['nozzle-ik-solved'] && !missionFlowState.dockingPoseResolved && !missionFlowState.halted);
+    checkpointThree.classList.toggle('completed', !!missionFlowState.dockingPoseResolved);
+    checkpointThree.classList.toggle('blocked', missionFlowState.halted && missionFlowState.currentStep === 6);
+  }
+  if (actionsThree) actionsThree.style.display = missionFlowState.currentStep === 6 && missionFlowState.substeps[6]['relative-motion-stabilized'] && missionFlowState.substeps[6]['nozzle-position-found'] && missionFlowState.substeps[6]['nozzle-ik-solved'] && !missionFlowState.dockingPoseResolved && !missionFlowState.halted ? 'flex' : 'none';
   Object.keys(missionFlowState.substeps).forEach(function(stepKey) {
     var stepNum = parseInt(stepKey, 10);
     var substeps = missionFlowState.substeps[stepNum];
@@ -216,6 +231,7 @@ function missionRenderFlow() {
       if (!el) return;
       var complete = !!substeps[subKey];
       var active = missionFlowState.currentStep === stepNum && !missionFlowState.halted && !complete;
+      if (stepNum === 6 && subKey === 'docked' && !missionFlowState.dockingPoseResolved) active = false;
       el.classList.toggle('active', active);
       el.classList.toggle('completed', complete);
       el.disabled = !active && !complete;
@@ -268,6 +284,19 @@ function missionRespondEverythingNominal(approved) {
     missionFlowState.halted = false;
     missionSetState('STEP 4 READY');
     missionGoToStep(4);
+  } else {
+    missionFlowState.halted = true;
+    missionSetState('STOPPED');
+    missionRenderFlow();
+  }
+}
+
+function missionRespondDockingPose(approved) {
+  missionFlowState.started = true;
+  if (approved) {
+    missionFlowState.dockingPoseResolved = true;
+    missionFlowState.halted = false;
+    missionRenderFlow();
   } else {
     missionFlowState.halted = true;
     missionSetState('STOPPED');
