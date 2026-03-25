@@ -1110,6 +1110,22 @@ function armVizDrawTargetMarker(ctx, width, height, point) {
   ctx.restore();
 }
 
+function missionArmVizShouldShowSolvedPose() {
+  var step = missionFlowState.currentStep;
+  if (step === 5) return missionFlowState.substeps[5]['docking-arm-position'] || missionFlowState.substeps[5]['aocs-arm-position'] || !missionIsStepComplete(5);
+  if (step === 6) return missionFlowState.substeps[6]['nozzle-ik-solved'] || missionFlowState.dockingPoseResolved || missionFlowState.substeps[6]['docked'];
+  if (step === 8) return missionFlowState.substeps[8]['aocs-pose-ready'] || missionFlowState.aocsNominalResolved || missionFlowState.aocsSlideOutResolved || missionFlowState.substeps[8]['aocs-attach'] || missionFlowState.aocsArmDetachResolved;
+  return false;
+}
+
+function missionArmVizSolvedArm() {
+  if (!missionArmVizShouldShowSolvedPose()) return null;
+  if (ikLastResult && ikLastResult.ok && ikLastResult.arm && ikLastResult.angles_rad) {
+    return armVizBuildArm(ikLastResult.arm, ikLastResult.angles_rad);
+  }
+  return null;
+}
+
 function armVizRenderCanvas(canvas, options) {
   if (!canvas) return null;
   var rect = canvas.getBoundingClientRect();
@@ -1129,6 +1145,11 @@ function armVizRenderCanvas(canvas, options) {
     var azEl = document.getElementById('armVizAzimuth');
     if (azEl) azEl.value = Math.round(armVizState.azimuth);
   }
+  var renderZoom = armVizState.zoom * (options && options.zoomMultiplier ? options.zoomMultiplier : 1);
+  var showTarget = !(options && options.showTarget === false);
+  var showLegend = !(options && options.showLegend === false);
+  var originalZoom = armVizState.zoom;
+  armVizState.zoom = renderZoom;
   var ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, width, height);
 
@@ -1162,9 +1183,9 @@ function armVizRenderCanvas(canvas, options) {
   armVizDrawBox(ctx, width, height, {x: 0, y: (-armVizGeometry.satHeight / 2) - (floorSize.y / 2), z: 0}, floorSize, armVizState.azimuth, armVizState.elevation, 'rgba(239, 68, 68, 0.95)', 'rgba(239, 68, 68, 0.08)');
 
   var arms = [armVizBuildArm('left'), armVizBuildArm('right')];
-  var ikTarget = armVizIkTargetPoint();
-  var solvedArm = null;
-  if (ikLastResult && ikLastResult.ok && ikLastResult.arm && ikLastResult.angles_rad) {
+  var ikTarget = showTarget ? armVizIkTargetPoint() : null;
+  var solvedArm = options && Object.prototype.hasOwnProperty.call(options, 'solvedArm') ? options.solvedArm : null;
+  if (solvedArm == null && ikLastResult && ikLastResult.ok && ikLastResult.arm && ikLastResult.angles_rad) {
     solvedArm = armVizBuildArm(ikLastResult.arm, ikLastResult.angles_rad);
   }
 
@@ -1186,38 +1207,36 @@ function armVizRenderCanvas(canvas, options) {
   }
   armVizDrawTargetMarker(ctx, width, height, ikTarget);
 
-  ctx.fillStyle = '#cbd5e1';
-  ctx.font = '12px "SF Mono", "Fira Code", monospace';
-  ctx.fillText('SAT KEEP-OUT', 18, 24);
-  ctx.fillStyle = 'rgba(239, 68, 68, 0.95)';
-  ctx.fillText('FLOOR KEEP-OUT', 18, 42);
-  ctx.fillStyle = 'rgba(34, 197, 94, 0.95)';
-  ctx.fillText('IK TARGET', 18, 60);
-  if (solvedArm) {
-    ctx.fillStyle = 'rgba(226, 232, 240, 0.82)';
-    ctx.fillText('SOLVED POSE', 18, 78);
+  if (showLegend) {
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '12px "SF Mono", "Fira Code", monospace';
+    ctx.fillText('SAT KEEP-OUT', 18, 24);
+    ctx.fillStyle = 'rgba(239, 68, 68, 0.95)';
+    ctx.fillText('FLOOR KEEP-OUT', 18, 42);
+    if (showTarget) {
+      ctx.fillStyle = 'rgba(34, 197, 94, 0.95)';
+      ctx.fillText('IK TARGET', 18, 60);
+    }
+    if (solvedArm) {
+      ctx.fillStyle = 'rgba(226, 232, 240, 0.82)';
+      ctx.fillText('SOLVED POSE', 18, showTarget ? 78 : 60);
+    }
   }
 
+  armVizState.zoom = originalZoom;
   return arms;
 }
 
 function armVizDrawScene() {
   var arms = armVizRenderCanvas(document.getElementById('armVizCanvas'), {fallbackWidth: 960, fallbackHeight: 420, minWidth: 320, minHeight: 260});
-  armVizRenderCanvas(document.getElementById('missionArmVizCanvas'), {fallbackWidth: 720, fallbackHeight: 320, minWidth: 260, minHeight: 184});
+  armVizRenderCanvas(document.getElementById('missionArmVizCanvas'), {fallbackWidth: 720, fallbackHeight: 320, minWidth: 260, minHeight: 184, zoomMultiplier: 0.72, showTarget: false, showLegend: false, solvedArm: missionArmVizSolvedArm()});
   if (!arms) return;
   var leftTip = document.getElementById('armVizLeftTip');
   var rightTip = document.getElementById('armVizRightTip');
-  var missionLeftTip = document.getElementById('missionArmVizLeftTip');
-  var missionRightTip = document.getElementById('missionArmVizRightTip');
-  var modeText = armVizState.mode === 'live' ? 'LIVE' : 'TEST MOVES';
-  var missionMode = document.getElementById('missionArmVizMode');
   var leftText = ['x','y','z'].map(function(axis) { return axis + ':' + Math.round(arms[0].tip[axis]); }).join(' ');
   var rightText = ['x','y','z'].map(function(axis) { return axis + ':' + Math.round(arms[1].tip[axis]); }).join(' ');
   if (leftTip) leftTip.textContent = leftText;
   if (rightTip) rightTip.textContent = rightText;
-  if (missionLeftTip) missionLeftTip.textContent = leftText;
-  if (missionRightTip) missionRightTip.textContent = rightText;
-  if (missionMode) missionMode.textContent = modeText;
 }
 
 function armVizLoop() {
