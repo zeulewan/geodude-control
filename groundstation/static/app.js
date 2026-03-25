@@ -763,7 +763,8 @@ var armVizState = {
   startElevation: 18,
   zoom: 1,
   startZoom: 1,
-  mode: 'live'
+  mode: 'live',
+  activeCanvasId: null
 };
 
 function armVizGeometryFields() {
@@ -1297,9 +1298,10 @@ function armVizSetMode(mode) {
 }
 
 function armVizPointerDown(event) {
-  var canvas = document.getElementById('armVizCanvas');
+  var canvas = event.currentTarget;
   if (!canvas) return;
   armVizState.dragging = true;
+  armVizState.activeCanvasId = canvas.id || null;
   armVizState.autoOrbit = false;
   armVizState.dragStartX = event.clientX;
   armVizState.dragStartY = event.clientY;
@@ -1332,19 +1334,28 @@ function armVizWheel(event) {
 function armVizPointerUp() {
   if (!armVizState.dragging) return;
   armVizState.dragging = false;
-  var canvas = document.getElementById('armVizCanvas');
-  if (canvas) canvas.classList.remove('dragging');
+  var canvases = ['armVizCanvas', 'missionArmVizCanvas'];
+  canvases.forEach(function(id) {
+    var canvas = document.getElementById(id);
+    if (canvas) canvas.classList.remove('dragging');
+  });
+  armVizState.activeCanvasId = null;
 }
 
 function armVizBindPointer() {
-  var canvas = document.getElementById('armVizCanvas');
-  if (!canvas || canvas.dataset.bound === '1') return;
-  canvas.dataset.bound = '1';
-  canvas.addEventListener('pointerdown', armVizPointerDown);
-  canvas.addEventListener('wheel', armVizWheel, {passive: false});
-  window.addEventListener('pointermove', armVizPointerMove);
-  window.addEventListener('pointerup', armVizPointerUp);
-  window.addEventListener('pointercancel', armVizPointerUp);
+  ['armVizCanvas', 'missionArmVizCanvas'].forEach(function(id) {
+    var canvas = document.getElementById(id);
+    if (!canvas || canvas.dataset.bound === '1') return;
+    canvas.dataset.bound = '1';
+    canvas.addEventListener('pointerdown', armVizPointerDown);
+    canvas.addEventListener('wheel', armVizWheel, {passive: false});
+  });
+  if (!window.__armVizPointerBound) {
+    window.__armVizPointerBound = true;
+    window.addEventListener('pointermove', armVizPointerMove);
+    window.addEventListener('pointerup', armVizPointerUp);
+    window.addEventListener('pointercancel', armVizPointerUp);
+  }
 }
 
 function armVizToggleOrbit() {
