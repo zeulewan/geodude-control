@@ -80,6 +80,22 @@ var missionPanelModes = {
   mission: {title: 'Mission Simulation', subtitle: 'Dev-only autonomous workflow sandbox.', badge: 'mizi-dev only'},
   competition: {title: 'MACE Competition', subtitle: 'Competition-mode autonomous workflow sandbox.', badge: 'mizi-dev only'}
 };
+
+function missionFlowSequence() {
+  return activePageTab === 'competition' ? [1,2,3,4,10] : [1,2,3,4,5,6,7,8,9,10];
+}
+
+function missionNextStep(step) {
+  var seq = missionFlowSequence();
+  var idx = seq.indexOf(step);
+  if (idx === -1) return seq[0];
+  return seq[Math.min(seq.length - 1, idx + 1)];
+}
+
+function missionStepVisible(step) {
+  return missionFlowSequence().indexOf(step) !== -1;
+}
+
 var missionFlowState = { currentStep: 1, started: false, halted: false, armed: false, nominalCheckResolved: false, everythingNominalResolved: false, allIdentifiedResolved: false, dockingPoseResolved: false, undockingReadyResolved: false, aocsNominalResolved: false, aocsSlideOutResolved: false, aocsArmDetachResolved: false, substeps: { 2: { 'sat-detect': false, 'gimbal': false, 'mace': false }, 4: { 'client-rotation-model': false, 'client-rotation': false, 'docking-point': false, 'nozzle-identify-model': false }, 5: { 'docking-arm-position': false, 'aocs-arm-position': false, 'approach-started': false }, 6: { 'relative-motion-stabilized': false, 'nozzle-position-found': false, 'nozzle-ik-solved': false, 'docked': false }, 7: { 'client-brought-to-geo': false, 'undocked': false }, 8: { 'aocs-pose-ready': false, 'aocs-attach': false }, 9: { 'backed-away': false }, 10: { } } };
 
 function showPageTab(tab) {
@@ -95,6 +111,9 @@ function showPageTab(tab) {
   if (manualPanel) manualPanel.classList.toggle('active', activePageTab === 'manual');
   if (missionPanel) missionPanel.classList.toggle('active', activePageTab === 'mission' || activePageTab === 'competition');
   var mode = missionPanelModes[activePageTab] || missionPanelModes.mission;
+  var modelRow3 = document.getElementById('missionModelRow3');
+  if (modelRow3) modelRow3.style.display = activePageTab === 'competition' ? 'none' : '';
+  if (activePageTab === 'competition' && missionFlowSequence().indexOf(missionFlowState.currentStep) === -1) missionFlowState.currentStep = 1;
   var title = document.getElementById('missionPanelTitle');
   var subtitle = document.getElementById('missionPanelSubtitle');
   var badge = document.getElementById('missionPanelBadge');
@@ -123,6 +142,10 @@ function missionStepName(step) {
 function missionCurrentModelLabel() {
   var modelEls = [1,2,3].map(function(i) { return document.getElementById('missionModel' + i); });
   var models = modelEls.map(function(el) { return el ? el.textContent : 'UNSET'; });
+  if (activePageTab === 'competition') {
+    if (missionFlowState.currentStep <= 3) return models[0] && models[0] !== 'UNSET' ? models[0] : 'MODEL 1 STANDBY';
+    return models[1] && models[1] !== 'UNSET' ? models[1] : 'MODEL 2 UNSET';
+  }
   if (missionFlowState.currentStep <= 3) return models[0] && models[0] !== 'UNSET' ? models[0] : 'MODEL 1 STANDBY';
   if (missionFlowState.currentStep <= 5) return models[0] && models[0] !== 'UNSET' ? models[0] : 'MODEL 1 UNSET';
   if (missionFlowState.currentStep <= 7) return models[1] && models[1] !== 'UNSET' ? models[1] : 'MODEL 2 UNSET';
@@ -171,7 +194,7 @@ function missionIsStepComplete(step) {
   if (step === 6) return !!missionFlowState.dockingPoseResolved && missionFlowState.substeps[6]['relative-motion-stabilized'] && missionFlowState.substeps[6]['nozzle-position-found'] && missionFlowState.substeps[6]['nozzle-ik-solved'] && missionFlowState.substeps[6]['docked'];
   if (step === 7) return !!missionFlowState.undockingReadyResolved && missionFlowState.substeps[7]['client-brought-to-geo'] && missionFlowState.substeps[7]['undocked'];
   if (step === 8) return !!missionFlowState.aocsNominalResolved && !!missionFlowState.aocsSlideOutResolved && !!missionFlowState.aocsArmDetachResolved && missionFlowState.substeps[8]['aocs-pose-ready'] && missionFlowState.substeps[8]['aocs-attach'];
-  if (step === 10) return missionIsStepComplete(9);
+  if (step === 10) return activePageTab === 'competition' ? missionIsStepComplete(4) : missionIsStepComplete(9);
   var substeps = missionFlowState.substeps[step] || {};
   var keys = Object.keys(substeps);
   return keys.length > 0 && keys.every(function(key) { return !!substeps[key]; });
@@ -225,10 +248,12 @@ function missionRenderFlow() {
   for (var i = 1; i <= 10; i += 1) {
     var step = document.getElementById('missionStep' + i);
     if (!step) continue;
+    var visible = missionStepVisible(i);
     var isComplete = missionIsStepComplete(i);
-    step.classList.toggle('active', i === missionFlowState.currentStep && !missionFlowState.halted && !isComplete);
-    step.classList.toggle('completed', isComplete);
-    step.classList.toggle('blocked', missionFlowState.halted && i === missionFlowState.currentStep);
+    step.style.display = visible ? '' : 'none';
+    step.classList.toggle('active', visible && i === missionFlowState.currentStep && !missionFlowState.halted && !isComplete);
+    step.classList.toggle('completed', visible && isComplete);
+    step.classList.toggle('blocked', visible && missionFlowState.halted && i === missionFlowState.currentStep);
   }
   if (label) {
     if (missionFlowState.halted) label.textContent = 'Nominal environment check failed';
@@ -337,7 +362,7 @@ function missionRenderFlow() {
 }
 
 function missionAdvanceFrom(step) {
-  var next = Math.min(10, step + 1);
+  var next = missionNextStep(step);
   missionFlowState.currentStep = next;
   if (next === 10 && missionIsStepComplete(10)) {
     missionSetState('MISSION COMPLETE');
