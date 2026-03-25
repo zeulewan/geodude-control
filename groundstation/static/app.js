@@ -76,7 +76,7 @@ var chNeutral = {};
 
 var controllerStatus = {enabled: false};
 var activePageTab = 'manual';
-var missionFlowState = { currentStep: 1, started: false, halted: false, armed: false, nominalCheckResolved: false, everythingNominalResolved: false, dockingPoseResolved: false, substeps: { 2: { 'sat-detect': false, 'gimbal': false, 'mace': false }, 4: { 'default': false }, 5: { 'client-rotation': false, 'docking-point': false, 'docking-arm-position': false, 'aocs-arm-position': false, 'approach-started': false }, 6: { 'relative-motion-stabilized': false, 'nozzle-position-found': false, 'nozzle-ik-solved': false, 'docked': false }, 7: { 'default': false }, 8: { 'default': false }, 9: { 'default': false }, 10: { 'default': false } } };
+var missionFlowState = { currentStep: 1, started: false, halted: false, armed: false, nominalCheckResolved: false, everythingNominalResolved: false, dockingPoseResolved: false, undockingReadyResolved: false, substeps: { 2: { 'sat-detect': false, 'gimbal': false, 'mace': false }, 4: { 'default': false }, 5: { 'client-rotation': false, 'docking-point': false, 'docking-arm-position': false, 'aocs-arm-position': false, 'approach-started': false }, 6: { 'relative-motion-stabilized': false, 'nozzle-position-found': false, 'nozzle-ik-solved': false, 'docked': false }, 7: { 'client-brought-to-geo': false }, 8: { 'default': false }, 9: { 'default': false }, 10: { 'default': false } } };
 
 function showPageTab(tab) {
   activePageTab = tab === 'mission' ? 'mission' : 'manual';
@@ -155,6 +155,7 @@ function missionIsStepComplete(step) {
   if (step === 1) return !!missionFlowState.nominalCheckResolved;
   if (step === 3) return !!missionFlowState.everythingNominalResolved;
   if (step === 6) return !!missionFlowState.dockingPoseResolved && missionFlowState.substeps[6]['relative-motion-stabilized'] && missionFlowState.substeps[6]['nozzle-position-found'] && missionFlowState.substeps[6]['nozzle-ik-solved'] && missionFlowState.substeps[6]['docked'];
+  if (step === 7) return !!missionFlowState.undockingReadyResolved && missionFlowState.substeps[7]['client-brought-to-geo'];
   var substeps = missionFlowState.substeps[step] || {};
   var keys = Object.keys(substeps);
   return keys.length > 0 && keys.every(function(key) { return !!substeps[key]; });
@@ -170,6 +171,9 @@ function missionRenderFlow() {
   var checkpointThree = document.getElementById('missionDockingPoseCheckpoint');
   var labelThree = checkpointThree ? checkpointThree.querySelector('.mission-substep-label') : null;
   var actionsThree = checkpointThree ? checkpointThree.querySelector('.mission-checkpoint-actions') : null;
+  var checkpointFour = document.getElementById('missionUndockingReadyCheckpoint');
+  var labelFour = checkpointFour ? checkpointFour.querySelector('.mission-substep-label') : null;
+  var actionsFour = checkpointFour ? checkpointFour.querySelector('.mission-checkpoint-actions') : null;
   var missionStateEl = document.getElementById('missionState');
   var missionActiveVisionModelEl = document.getElementById('missionActiveVisionModel');
   var missionLeftArmStatusEl = document.getElementById('missionLeftArmStatus');
@@ -223,6 +227,17 @@ function missionRenderFlow() {
     checkpointThree.classList.toggle('blocked', missionFlowState.halted && missionFlowState.currentStep === 6);
   }
   if (actionsThree) actionsThree.style.display = missionFlowState.currentStep === 6 && missionFlowState.substeps[6]['relative-motion-stabilized'] && missionFlowState.substeps[6]['nozzle-position-found'] && missionFlowState.substeps[6]['nozzle-ik-solved'] && !missionFlowState.dockingPoseResolved && !missionFlowState.halted ? 'flex' : 'none';
+  if (labelFour) {
+    if (missionFlowState.halted && missionFlowState.currentStep === 7) labelFour.textContent = 'Undocking readiness failed';
+    else if (missionFlowState.undockingReadyResolved) labelFour.textContent = 'Ready to undock';
+    else labelFour.textContent = 'Ready to undock';
+  }
+  if (checkpointFour) {
+    checkpointFour.classList.toggle('active', missionFlowState.currentStep === 7 && missionFlowState.substeps[7]['client-brought-to-geo'] && !missionFlowState.undockingReadyResolved && !missionFlowState.halted);
+    checkpointFour.classList.toggle('completed', !!missionFlowState.undockingReadyResolved);
+    checkpointFour.classList.toggle('blocked', missionFlowState.halted && missionFlowState.currentStep === 7);
+  }
+  if (actionsFour) actionsFour.style.display = missionFlowState.currentStep === 7 && missionFlowState.substeps[7]['client-brought-to-geo'] && !missionFlowState.undockingReadyResolved && !missionFlowState.halted ? 'flex' : 'none';
   Object.keys(missionFlowState.substeps).forEach(function(stepKey) {
     var stepNum = parseInt(stepKey, 10);
     var substeps = missionFlowState.substeps[stepNum];
@@ -232,6 +247,7 @@ function missionRenderFlow() {
       var complete = !!substeps[subKey];
       var active = missionFlowState.currentStep === stepNum && !missionFlowState.halted && !complete;
       if (stepNum === 6 && subKey === 'docked' && !missionFlowState.dockingPoseResolved) active = false;
+      if (stepNum === 7 && subKey === 'client-brought-to-geo' && missionFlowState.undockingReadyResolved) active = false;
       el.classList.toggle('active', active);
       el.classList.toggle('completed', complete);
       el.disabled = !active && !complete;
@@ -295,6 +311,19 @@ function missionRespondDockingPose(approved) {
   missionFlowState.started = true;
   if (approved) {
     missionFlowState.dockingPoseResolved = true;
+    missionFlowState.halted = false;
+    missionRenderFlow();
+  } else {
+    missionFlowState.halted = true;
+    missionSetState('STOPPED');
+    missionRenderFlow();
+  }
+}
+
+function missionRespondUndockingReady(approved) {
+  missionFlowState.started = true;
+  if (approved) {
+    missionFlowState.undockingReadyResolved = true;
     missionFlowState.halted = false;
     missionRenderFlow();
   } else {

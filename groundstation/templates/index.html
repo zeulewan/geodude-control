@@ -595,7 +595,17 @@
         </div>
         <div class="mission-step" id="missionStep7" data-step-index="7">
           <div class="mission-step-head"><span class="mission-step-index">7</span><span>Undocking</span></div>
-          <div class="mission-subflow"><div class="mission-subflow-title">Substeps</div><button class="mission-substep mission-action-substep" id="missionSubstep-7-default" type="button" onclick="missionCompleteSubstep(7, 'default')">Pending</button></div>
+          <div class="mission-subflow">
+            <div class="mission-subflow-title">Substeps</div>
+            <button class="mission-substep mission-action-substep" id="missionSubstep-7-client-brought-to-geo" type="button" onclick="missionCompleteSubstep(7, 'client-brought-to-geo')">Client brought to GEO</button>
+            <div class="mission-substep mission-checkpoint-substep" id="missionUndockingReadyCheckpoint">
+              <div class="mission-substep-label">Ready to undock</div>
+              <div class="mission-checkpoint-actions">
+                <button class="btn btn-dark mission-inline-btn" type="button" onclick="missionRespondUndockingReady(true)">Yes</button>
+                <button class="btn btn-dark mission-inline-btn" type="button" onclick="missionRespondUndockingReady(false)">No</button>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="mission-step" id="missionStep8" data-step-index="8">
           <div class="mission-step-head"><span class="mission-step-index">8</span><span>AOCS Module Attach</span></div>
