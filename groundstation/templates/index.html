@@ -25,309 +25,229 @@
 
 <div class="container">
 
-<div class="dashboard-grid">
-  <!-- Camera -->
-  <div class="card dashboard-card dashboard-camera">
-    <div class="camera-head">
+<div class="two-col">
+  <!-- Left Column -->
+  <div>
+    <!-- Camera -->
+    <div class="card">
       <h3>Camera</h3>
-      <div class="camera-toggle-row">
-        <span class="camera-toggle-label" id="cameraStatusLabel">STREAM ON</span>
-        <button class="btn btn-sm btn-dark" id="cameraToggleBtn" onclick="toggleCameraStream()">TURN OFF</button>
+      <div class="cam-wrapper">
+        <img id="camFeed" src="/api/camera" alt="Camera Feed" crossorigin="anonymous">
       </div>
+      <button class="btn btn-sm btn-dark" style="margin-top:6px" onclick="takeSnapshot()">Snapshot</button>
     </div>
-    <div class="cam-wrapper" id="camWrapper">
-      <img id="camFeed" src="/api/camera" alt="Camera Feed" crossorigin="anonymous">
-      <div class="cam-off-overlay" id="camOffOverlay">CAMERA STREAM OFF</div>
-    </div>
-    <button class="btn btn-sm btn-dark" style="margin-top:6px" id="snapshotBtn" onclick="takeSnapshot()">Snapshot</button>
-  </div>
 
-  <!-- ML Vision -->
-  <div class="card dashboard-card dashboard-ml">
-    <h3>ML Vision</h3>
-    <div class="vision-shell">
-      <div class="vision-model-list">
-        <div class="vision-model-slot">
-          <div class="vision-model-head">
-            <div class="vision-model-title">Model 1</div>
-            <div class="vision-model-role">Primary Vision</div>
-          </div>
-          <div class="vision-upload-row">
-            <label class="vision-file-btn" for="visionModelFile1">Select Model</label>
-            <input type="file" id="visionModelFile1" accept=".pt,.onnx,.engine,.tflite,.pb,.bin" onchange="visionModelChanged(0, this)">
-            <div class="vision-file-name" id="visionModelName1">No model selected</div>
-          </div>
-        </div>
-        <div class="vision-model-slot">
-          <div class="vision-model-head">
-            <div class="vision-model-title">Model 2</div>
-            <div class="vision-model-role">Support Vision</div>
-          </div>
-          <div class="vision-upload-row">
-            <label class="vision-file-btn" for="visionModelFile2">Select Model</label>
-            <input type="file" id="visionModelFile2" accept=".pt,.onnx,.engine,.tflite,.pb,.bin" onchange="visionModelChanged(1, this)">
-            <div class="vision-file-name" id="visionModelName2">No model selected</div>
-          </div>
-        </div>
-        <div class="vision-model-slot">
-          <div class="vision-model-head">
-            <div class="vision-model-title">Model 3</div>
-            <div class="vision-model-role">Autonomy Vision</div>
-          </div>
-          <div class="vision-upload-row">
-            <label class="vision-file-btn" for="visionModelFile3">Select Model</label>
-            <input type="file" id="visionModelFile3" accept=".pt,.onnx,.engine,.tflite,.pb,.bin" onchange="visionModelChanged(2, this)">
-            <div class="vision-file-name" id="visionModelName3">No model selected</div>
-          </div>
-        </div>
-      </div>
-      <div class="vision-grid">
-        <div class="vision-stat"><span class="label">Status</span><span class="value" id="visionModelStatus">STANDBY</span></div>
-        <div class="vision-stat"><span class="label">Models</span><span class="value" id="visionModelCount">0 / 3</span></div>
-        <div class="vision-stat"><span class="label">Profile</span><span class="value" id="visionProfileStatus">Docking</span></div>
-        <div class="vision-stat"><span class="label">Camera</span><span class="value">Pi Camera</span></div>
-        <div class="vision-stat"><span class="label">Backend</span><span class="value">UI ONLY</span></div>
-        <div class="vision-stat"><span class="label">Pipeline</span><span class="value" id="visionPipelineStatus">UNASSIGNED</span></div>
-      </div>
-      <div class="vision-controls">
-        <div class="vision-select-wrap">
-          <label for="visionProfileSelect">Autonomy Profile</label>
-          <select id="visionProfileSelect" onchange="visionProfileChanged(this.value)">
-            <option value="Docking">Docking</option>
-            <option value="Target Tracking">Target Tracking</option>
-            <option value="Pose Estimation">Pose Estimation</option>
-            <option value="Segmentation">Segmentation</option>
-          </select>
-        </div>
-        <div class="vision-select-wrap">
-          <label for="visionRunMode">Run Mode</label>
-          <select id="visionRunMode" onchange="visionModeChanged(this.value)">
-            <option value="Observe">Observe</option>
-            <option value="Assist">Assist</option>
-            <option value="Autonomous">Autonomous</option>
-          </select>
-        </div>
-      </div>
-      <div class="btn-row vision-btn-row">
-        <button class="btn btn-dark" id="visionLoadBtn" onclick="visionLoadModel()">Load Model</button>
-        <button class="btn btn-dark" id="visionPreviewBtn" onclick="visionPreviewPipeline()">Preview Pipeline</button>
-        <button class="btn btn-dark" id="visionArmBtn" onclick="visionStageAutonomy()">Stage Autonomy</button>
-        <button class="btn btn-dark" onclick="visionReset()">Reset</button>
-      </div>
-      <div class="vision-note" id="visionNote">Frontend placeholder only. Choose up to three model files to stage the UI for future autonomous vision tools.</div>
-    </div>
-  </div>
+    <!-- Sensors -->
+    <div class="card">
+      <h3>Sensors</h3>
 
-  <!-- Sensors -->
-  <div class="card dashboard-card dashboard-sensors">
-    <h3>Sensors</h3>
-    <div class="sensor-mini-grid">
-      <div class="inner sensor-panel">
-        <div class="sensor-panel-title">Gyroscope (deg/s)</div>
+      <div class="inner">
+        <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Gyroscope (deg/s)</div>
         <div class="sensor-row">
-          <div class="sensor-val"><div class="label">X</div><div class="value red" id="gx">0.0</div></div>
-          <div class="sensor-val"><div class="label">Y</div><div class="value green" id="gy">0.0</div></div>
-          <div class="sensor-val"><div class="label">Z</div><div class="value blue" id="gz">0.0</div></div>
+          <div class="sensor-val">
+            <div class="label">X</div>
+            <div class="value red" id="gx">0.0</div>
+          </div>
+          <div class="sensor-val">
+            <div class="label">Y</div>
+            <div class="value green" id="gy">0.0</div>
+          </div>
+          <div class="sensor-val">
+            <div class="label">Z</div>
+            <div class="value blue" id="gz">0.0</div>
+          </div>
         </div>
       </div>
-      <div class="inner sensor-panel">
-        <div class="sensor-panel-title">Accelerometer (g)</div>
+
+      <div class="inner">
+        <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Accelerometer (g)</div>
         <div class="sensor-row">
-          <div class="sensor-val"><div class="label">X</div><div class="value red" id="ax">0.0</div></div>
-          <div class="sensor-val"><div class="label">Y</div><div class="value green" id="ay">0.0</div></div>
-          <div class="sensor-val"><div class="label">Z</div><div class="value blue" id="az">0.0</div></div>
+          <div class="sensor-val">
+            <div class="label">X</div>
+            <div class="value red" id="ax">0.0</div>
+          </div>
+          <div class="sensor-val">
+            <div class="label">Y</div>
+            <div class="value green" id="ay">0.0</div>
+          </div>
+          <div class="sensor-val">
+            <div class="label">Z</div>
+            <div class="value blue" id="az">0.0</div>
+          </div>
         </div>
       </div>
-      <div class="inner sensor-panel sensor-panel-encoder">
-        <div class="sensor-panel-title">Encoder</div>
-        <div class="encoder-section compact-encoder">
-          <div class="dial-wrapper"><div class="dial-ring"><div id="needle"></div><div class="dial-center"></div></div></div>
+
+      <div class="inner">
+        <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Encoder</div>
+        <div class="encoder-section">
+          <div class="dial-wrapper">
+            <div class="dial-ring">
+              <div id="needle"></div>
+              <div class="dial-center"></div>
+            </div>
+          </div>
           <div class="encoder-text">
             <div class="value" id="angleText">0.0&deg;</div>
-            <div class="sub"><span id="rpmText">0</span> RPM / <span id="radsText">0.0</span> rad/s</div>
+            <div class="sub"><span id="rpmText">0</span> RPM</div>
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- System Stats -->
-  <div class="card dashboard-card">
-    <h3>System Stats</h3>
-    <div class="sys-grid">
-      <div class="inner">
-        <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Groundstation</div>
-        <div class="sys-item"><span class="label">CPU</span><span class="value" id="gsCpu">--</span></div>
-        <div class="sys-item"><span class="label">Temp</span><span class="value" id="gsTemp">--</span></div>
-        <div class="sys-item"><span class="label">Load</span><span class="value" id="gsLoad">--</span></div>
-        <div class="sys-item"><span class="label">Uptime</span><span class="value" id="gsUptime">--</span></div>
-      </div>
-      <div class="inner">
-        <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">GEO-DUDe</div>
-        <div class="sys-item"><span class="label">CPU</span><span class="value" id="gdCpu">--</span></div>
-        <div class="sys-item"><span class="label">Temp</span><span class="value" id="gdTemp">--</span></div>
-        <div class="sys-item"><span class="label">Load</span><span class="value" id="gdLoad">--</span></div>
-        <div class="sys-item"><span class="label">Uptime</span><span class="value" id="gdUptime">--</span></div>
+  <!-- Right Column -->
+  <div>
+    <!-- System Stats -->
+    <div class="card">
+      <h3>System Stats</h3>
+      <div class="sys-grid">
+        <div class="inner">
+          <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Groundstation</div>
+          <div class="sys-item"><span class="label">CPU</span><span class="value" id="gsCpu">--</span></div>
+          <div class="sys-item"><span class="label">Temp</span><span class="value" id="gsTemp">--</span></div>
+          <div class="sys-item"><span class="label">Load</span><span class="value" id="gsLoad">--</span></div>
+        </div>
+        <div class="inner">
+          <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">GEO-DUDe</div>
+          <div class="sys-item"><span class="label">CPU</span><span class="value" id="gdCpu">--</span></div>
+          <div class="sys-item"><span class="label">Temp</span><span class="value" id="gdTemp">--</span></div>
+          <div class="sys-item"><span class="label">Load</span><span class="value" id="gdLoad">--</span></div>
+        </div>
       </div>
     </div>
-  </div>
 
     <!-- MACE Status -->
     <div class="card">
       <h3>MACE Status</h3>
       <div class="status-grid">
         <div class="status-row"><span class="label">Pico USB</span><span class="value" id="picoConnected">--</span></div>
-        <div class="status-row"><span class="label">Fault</span><span class="value" id="maceFault">--</span></div>
-        <div class="status-row"><span class="label">Sleep (nSP)</span><span class="value" id="maceSleep">--</span></div>
-        <div class="status-row"><span class="label">Reset (nRT)</span><span class="value" id="maceReset">--</span></div>
-        <div class="status-row"><span class="label">Motor Enabled</span><span class="value" id="maceMotorEnabled">NO</span></div>
-        <div class="status-row"><span class="label">EN Pin</span><span class="value" id="maceEnPin">--</span></div>
         <div class="status-row"><span class="label">Enabled</span><span class="value" id="maceEnabled">NO</span></div>
         <div class="status-row"><span class="label">Target</span><span class="value" id="maceTarget">0.0 rad/s</span></div>
         <div class="status-row"><span class="label">Velocity</span><span class="value" id="maceVelocity">0.0 rad/s</span></div>
-        <div class="status-row"><span class="label">Encoder</span><span class="value" id="maceEncoderAngle">0.0 deg</span></div>
-        <div class="status-row"><span class="label">RPM / rad/s</span><span class="value" id="maceRpm">0 / 0.0</span></div>
-        <div class="status-row"><span class="label">Phase Values</span><span class="value" id="macePhase">P1=0.0 P2=0.0 P3=0.0</span></div>
+        <div class="status-row"><span class="label">Wheel RPM</span><span class="value" id="maceRpm">0</span></div>
       </div>
       <div id="maceError"></div>
     </div>
-    <div id="motorError"></div>
-  </div>
-
-<!-- Attitude Control -->
-<div class="card">
-  <h3>Attitude Control</h3>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-    <button class="btn btn-green" id="attEnableBtn" onclick="attEnable()">ENABLE</button>
-    <button class="btn btn-red" onclick="attDisable()">DISABLE</button>
-    <button class="btn btn-red" onclick="attStop()" style="font-weight:700;">STOP</button>
-    <button class="btn btn-dark" onclick="attZero()">ZERO ANGLE</button>
-  </div>
-  <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;">
-    <div><span style="color:#6b7280;font-size:11px;">Status</span><br><span id="attStatus" style="font-weight:600;">DISABLED</span></div>
-    <div><span style="color:#6b7280;font-size:11px;">Body Angle</span><br><span id="attAngle" style="font-family:monospace;">0.0 deg</span></div>
-    <div><span style="color:#6b7280;font-size:11px;">Setpoint</span><br><span id="attSetpoint" style="font-family:monospace;">0.0 deg</span></div>
-    <div><span style="color:#6b7280;font-size:11px;">Error</span><br><span id="attError" style="font-family:monospace;">0.0 deg</span></div>
-    <div><span style="color:#6b7280;font-size:11px;">Voltage Cmd</span><br><span id="attOutput" style="font-family:monospace;">0.0 V</span></div>
-    <div><span style="color:#6b7280;font-size:11px;">Gyro Z</span><br><span id="attGz" style="font-family:monospace;">0.0 deg/s</span></div>
-    <div><span style="color:#6b7280;font-size:11px;">Wheel RPM</span><br><span id="attWheelRpm" style="font-family:monospace;">0</span></div>
-  </div>
-  <div style="margin-bottom:10px;">
-    <span style="color:#6b7280;font-size:11px;">Setpoint (deg)</span>
-    <div style="display:flex;gap:6px;align-items:center;margin-top:4px;">
-      <button class="btn btn-sm btn-dark" onclick="attNudge(-45)">-45</button>
-      <button class="btn btn-sm btn-dark" onclick="attNudge(-10)">-10</button>
-      <button class="btn btn-sm btn-dark" onclick="attNudge(-5)">-5</button>
-      <input type="number" class="tune-input" id="attSetpointInput" value="0" step="1" style="width:80px;" onchange="attSetSetpoint(this.value)">
-      <button class="btn btn-sm" onclick="attNudge(5)">+5</button>
-      <button class="btn btn-sm" onclick="attNudge(10)">+10</button>
-      <button class="btn btn-sm" onclick="attNudge(45)">+45</button>
-    </div>
-  </div>
-  <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">PID Gains</div>
-  <div style="display:flex;gap:12px;flex-wrap:wrap;">
-    <div class="tune-row"><span class="label">Kp</span><input type="number" class="tune-input" id="attKp" value="0.5" step="any" onchange="attSetGains()"></div>
-    <div class="tune-row"><span class="label">Ki</span><input type="number" class="tune-input" id="attKi" value="0.02" step="any" onchange="attSetGains()"></div>
-    <div class="tune-row"><span class="label">Kd</span><input type="number" class="tune-input" id="attKd" value="0.3" step="any" onchange="attSetGains()"></div>
-  </div>
-</div>
-
-<!-- Attitude Plot -->
-<div class="card">
-  <h3>Attitude Plot</h3>
-  <canvas id="attitudeChart" width="800" height="300" style="width:100%;height:300px;background:#111827;border-radius:6px;"></canvas>
-  <div style="margin-top:4px;font-size:11px;color:#6b7280;">
-    <span style="color:#3b82f6;">&#9644; Commanded (deg)</span> &nbsp;
-    <span style="color:#10b981;">&#9644; Body Angle (deg)</span> &nbsp;
-    <span style="color:#f59e0b;">&#9644; Error (deg)</span>
-  </div>
-</div>
-
-<!-- Wheel Speed Plot -->
-<div class="card">
-  <h3>Wheel Speed Plot</h3>
-  <canvas id="rateChart" width="800" height="300" style="width:100%;height:300px;background:#111827;border-radius:6px;"></canvas>
-  <div style="margin-top:4px;font-size:11px;color:#6b7280;">
-    <span style="color:#3b82f6;">&#9644; Voltage Cmd (V)</span> &nbsp;
-    <span style="color:#10b981;">&#9644; Wheel RPM</span>
-  </div>
-</div>
-
-<!-- MACE Speed Plot -->
-<div class="card">
-  <h3>Speed Plot</h3>
-  <canvas id="speedChart" width="800" height="400" style="width:100%;height:400px;background:#111827;border-radius:6px;"></canvas>
-  <div style="margin-top:4px;font-size:11px;color:#6b7280;">
-    <span style="color:#3b82f6;">&#9644; Target RPM</span> &nbsp;
-    <span style="color:#10b981;">&#9644; Actual RPM</span>
   </div>
 </div>
 
 <!-- MACE Reaction Wheel (full width) -->
-<div class="card" id="maceSection">
-  <h3>MACE Reaction Wheel <button class="btn btn-sm btn-dark" id="maceSectionToggle" onclick="maceSectionToggle()" style="float:right;font-size:10px;">DISABLE SECTION</button></h3>
-  <div id="maceSectionContent">
+<div class="card">
+  <h3>MACE Reaction Wheel</h3>
+
   <div class="slider-group">
     <div class="slider-label">
-      <span class="label">Target Speed</span>
+      <span class="label">Target Velocity</span>
       <span class="value" id="velSliderVal">0.0 rad/s</span>
     </div>
-    <input type="range" id="velSlider" min="-450" max="450" step="5" value="0"
+    <input type="range" id="velSlider" min="-20" max="20" step="0.5" value="0"
            oninput="maceUpdateSliderLabel(this.value)">
-    <div class="slider-scale"><span>-450 RPM</span><span>0</span><span>+450 RPM</span></div>
+    <div class="slider-scale"><span>-20 rad/s</span><span>0</span><span>+20 rad/s</span></div>
   </div>
 
   <div style="margin-top:14px;">
     <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Quick Presets (rad/s)</div>
     <div class="btn-row">
-      <button class="btn btn-sm btn-dark" onclick="maceSetPreset(-2000)">-2000</button>
-      <button class="btn btn-sm btn-dark" onclick="maceSetPreset(-1000)">-1000</button>
-      <button class="btn btn-sm btn-dark" onclick="maceSetPreset(-500)">-500</button>
-      <button class="btn btn-sm btn-dark" onclick="maceSetPreset(-200)">-200</button>
-      <button class="btn btn-sm btn-dark" onclick="maceSetPreset(-100)">-100</button>
-      <button class="btn btn-sm btn-dark" onclick="maceSetPreset(-50)">-50</button>
       <button class="btn btn-sm btn-dark" onclick="maceSetPreset(-10)">-10</button>
+      <button class="btn btn-sm btn-dark" onclick="maceSetPreset(-5)">-5</button>
+      <button class="btn btn-sm btn-dark" onclick="maceSetPreset(-2)">-2</button>
+      <button class="btn btn-sm btn-dark" onclick="maceSetPreset(-1)">-1</button>
       <button class="btn btn-sm btn-dark" onclick="maceSetPreset(0)">0</button>
-      <button class="btn btn-sm" onclick="maceSetPreset(200)">+200</button>
-      <button class="btn btn-sm" onclick="maceSetPreset(1000)">+1000</button>
-      <button class="btn btn-sm" onclick="maceSetPreset(2000)">+2000</button>
-      <button class="btn btn-sm" onclick="maceSetPreset(200)">+200</button>
-      <button class="btn btn-sm" onclick="maceSetPreset(500)">+500</button>
-      <button class="btn btn-sm" onclick="maceSetPreset(1000)">+1000</button>
-      <button class="btn btn-sm" onclick="maceSetPreset(2000)">+2000</button>
+      <button class="btn btn-sm" onclick="maceSetPreset(1)">+1</button>
+      <button class="btn btn-sm" onclick="maceSetPreset(2)">+2</button>
+      <button class="btn btn-sm" onclick="maceSetPreset(5)">+5</button>
+      <button class="btn btn-sm" onclick="maceSetPreset(10)">+10</button>
     </div>
   </div>
 
   <div class="btn-row" style="margin-top:14px;">
-  <div class="btn-row">
     <button class="btn btn-green" id="maceToggleBtn" onclick="maceToggle()">ENABLE</button>
     <button class="btn disabled" id="maceSetVelBtn" onclick="maceSetVelocity(parseFloat(document.getElementById('velSlider').value))">SET VELOCITY</button>
     <button class="btn btn-red" onclick="maceStop()">STOP</button>
-    <button class="btn btn-amber" onclick="maceResetFault()">RESET FAULT</button>
-    <button class="btn btn-amber" onclick="maceCalibrate()">CALIBRATE</button>
   </div>
-  <div style="margin-top:12px;">
-    <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Motor Tuning</div>
-    <div class="tune-row"><span class="label">Voltage Limit</span><input type="number" class="tune-input" id="tuneVlVal" value="2" step="any" onchange="maceTune('V',this.value)"></div>
-    <div class="tune-row"><span class="label">Velocity Limit</span><input type="number" class="tune-input" id="tuneSlVal" value="300" step="any" onchange="maceTune('L',this.value)"></div>
-    <div class="tune-row"><span class="label">Kp</span><input type="number" class="tune-input" id="tuneKpVal" value="0.2" step="any" onchange="maceTune('P',this.value)"></div>
-    <div class="tune-row"><span class="label">Ki</span><input type="number" class="tune-input" id="tuneKiVal" value="2" step="any" onchange="maceTune('I',this.value)"></div>
-    <div class="tune-row"><span class="label">Kd</span><input type="number" class="tune-input" id="tuneKdVal" value="0" step="any" onchange="maceTune('W',this.value)"></div>
-    <div class="tune-row"><span class="label">Output Ramp</span><input type="number" class="tune-input" id="tuneRmpVal" value="1000" step="any" onchange="maceTune('A',this.value)"></div>
-    <div class="tune-row"><span class="label">LPF Tf</span><input type="number" class="tune-input" id="tuneLpfVal" value="0.01" step="any" onchange="maceTune('F',this.value)"></div>
-  </div>
-
-  </div>
-  </div><!-- end maceSectionContent -->
 </div>
 
+<!-- Attitude Control (full width) -->
+<div class="card" id="attitudeCard">
+  <h3>Attitude Control</h3>
+  <div id="attitudeBanner" style="display:none"></div>
+
+  <div class="att-cols">
+    <!-- Left: dial -->
+    <div class="att-dial-section">
+      <svg id="attDial" width="160" height="160" viewBox="0 0 160 160">
+        <circle cx="80" cy="80" r="70" fill="none" stroke="#1e2433" stroke-width="4"/>
+        <circle cx="80" cy="80" r="3" fill="#6b7280"/>
+        <!-- Setpoint needle (amber) -->
+        <line id="attSetpointNeedle" x1="80" y1="80" x2="80" y2="16" stroke="#f59e0b" stroke-width="2" stroke-linecap="round"/>
+        <!-- Angle needle (blue) -->
+        <line id="attAngleNeedle" x1="80" y1="80" x2="80" y2="16" stroke="#3b82f6" stroke-width="3" stroke-linecap="round"/>
+        <text id="attRevs" x="80" y="125" text-anchor="middle" fill="#6b7280" font-size="11" font-family="'SF Mono','Fira Code',monospace">0 rev</text>
+      </svg>
+      <div style="margin-top:8px;">
+        <div style="font-family:'SF Mono','Fira Code',monospace;font-size:20px;font-weight:700;" id="attAngleText">0.0&deg;</div>
+        <div style="font-size:12px;color:#9ca3af;margin-top:2px;">Setpoint: <span id="attSetpointText">0.0&deg;</span></div>
+      </div>
+    </div>
+
+    <!-- Right: stats -->
+    <div>
+      <div class="att-stats">
+        <div class="att-stat"><span class="label">Error</span><span class="value" id="attError">--</span></div>
+        <div class="att-stat"><span class="label">Output</span><span class="value" id="attOutput">--</span></div>
+        <div class="att-stat"><span class="label">Motor</span><span class="value" id="attMotor">--</span></div>
+        <div class="att-stat"><span class="label">PWM</span><span class="value" id="attPwm">--</span></div>
+        <div class="att-stat"><span class="label">Wheel RPM</span><span class="value" id="attRpm">--</span></div>
+        <div class="att-stat"><span class="label">Gz</span><span class="value" id="attGz">--</span></div>
+        <div class="att-stat"><span class="label">Bias</span><span class="value" id="attBias">--</span></div>
+        <div class="att-stat"><span class="label">Saturation</span><span class="value" id="attSat">--</span></div>
+      </div>
+
+      <div class="att-setpoint-row">
+        <input type="number" id="attSetpointInput" placeholder="Angle" step="1" value="0">
+        <button class="btn btn-sm" onclick="attSetpoint()">SET</button>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-sm btn-dark" onclick="attNudge(-90)">-90</button>
+        <button class="btn btn-sm btn-dark" onclick="attNudge(-10)">-10</button>
+        <button class="btn btn-sm btn-dark" onclick="attNudge(10)">+10</button>
+        <button class="btn btn-sm btn-dark" onclick="attNudge(90)">+90</button>
+      </div>
+
+      <div style="margin-top:6px;">
+        <div class="slider-group">
+          <div class="slider-label"><span class="label">Kp</span><span class="value" id="attKpVal">0</span></div>
+          <input type="range" id="attKp" min="0" max="50" step="0.1" value="0" oninput="attUpdateGain()">
+        </div>
+        <div class="slider-group">
+          <div class="slider-label"><span class="label">Ki</span><span class="value" id="attKiVal">0</span></div>
+          <input type="range" id="attKi" min="0" max="10" step="0.01" value="0" oninput="attUpdateGain()">
+        </div>
+        <div class="slider-group">
+          <div class="slider-label"><span class="label">Kd</span><span class="value" id="attKdVal">0</span></div>
+          <input type="range" id="attKd" min="0" max="50" step="0.1" value="0" oninput="attUpdateGain()">
+        </div>
+        <div class="slider-group">
+          <div class="slider-label"><span class="label">Max %</span><span class="value" id="attMaxVal">0</span></div>
+          <input type="range" id="attMaxThrottle" min="0" max="100" step="1" value="0" oninput="attUpdateGain()">
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-green" id="attEnableBtn" onclick="attToggleEnable()">ENABLE</button>
+        <button class="btn btn-red" onclick="attStop()">STOP</button>
+        <button class="btn btn-dark" onclick="attZero()">ZERO</button>
+        <button class="btn btn-dark" onclick="attRecalibrate()">RECALIBRATE</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <div class="section-title">Gimbal</div>
 
-<div class="wide-two-col">
-
 <!-- Gimbal Global Controls -->
-<div class="card compact-wide-card">
+<div class="card">
   <h3>Gimbal Controls</h3>
   <div class="gimbal-global-bar">
     <button class="btn btn-sm" onclick="gimbalSetup()">SETUP DRIVERS</button>
@@ -376,100 +296,34 @@
   </div>
   <div class="seq-status" id="seqStatus"></div>
 </div>
-</div>
 
 <div class="section-title">Servos</div>
 
-<div class="servo-layout">
-  <div class="servo-controls-col">
-    <div class="card servo-compact-card">
-      <h3>Controller Mode</h3>
-      <div class="controller-grid">
-        <div class="controller-stat"><span class="label">Mode</span><span class="value" id="controllerMode">OFF</span></div>
-        <div class="controller-stat"><span class="label">Link</span><span class="value" id="controllerLink">DISCONNECTED</span></div>
-        <div class="controller-stat"><span class="label">Arm</span><span class="value" id="controllerArm">LEFT</span></div>
-        <div class="controller-stat"><span class="label">Deadman</span><span class="value" id="controllerDeadman">RELEASED</span></div>
-        <div class="controller-stat"><span class="label">Activity</span><span class="value" id="controllerActivity">IDLE</span></div>
-      </div>
-      <div class="controller-help">Select one arm at a time. Hold L1 or R1 as the deadman. Left stick controls base and shoulder. Right stick controls wrist X and elbow Y.</div>
-      <div class="btn-row" style="margin-top:8px;">
-        <button class="btn btn-dark" id="controllerArmLeftBtn" onclick="setControllerArm('left')">LEFT ARM</button>
-        <button class="btn btn-dark" id="controllerArmRightBtn" onclick="setControllerArm('right')">RIGHT ARM</button>
-      </div>
-      <div class="btn-row" style="margin-top:6px;">
-        <button class="btn btn-dark" id="controllerToggleBtn" onclick="toggleControllerMode()">ENABLE CONTROLLER</button>
-      </div>
-      <div class="controller-error" id="controllerError"></div>
+<div class="card">
+  <h3>PCA9685 Channels</h3>
+  <div class="slider-group" style="margin-bottom:4px;">
+    <div class="slider-label">
+      <span class="label">Servo Speed</span>
+      <span class="value" id="servoSpeedVal">50 us/tick (1500 us/s)</span>
     </div>
-
-    <div class="card servo-compact-card">
-      <h3>PCA9685 Channels</h3>
-      <div class="slider-group servo-tight-group" style="margin-bottom:4px;">
-        <div class="slider-label">
-          <span class="label">Servo Speed</span>
-          <span class="value" id="servoSpeedVal">50 us/tick (1500 us/s)</span>
-        </div>
-        <input type="range" id="servoSpeed" min="1" max="200" step="1" value="50"
-               oninput="updateServoSpeedLabel(this.value); saveServoSettings(); sendServoSettings()">
-        <div class="servo-mini-scale"><span>Slow</span><span>Fast</span></div>
-      </div>
-      <div class="slider-group servo-tight-group" style="margin-bottom:6px;">
-        <div class="slider-label">
-          <span class="label">Ramp Rate</span>
-          <span class="value" id="servoRampVal">20 us/tick (600 us/s)</span>
-        </div>
-        <input type="range" id="servoRampRate" min="1" max="100" step="1" value="20"
-               oninput="updateServoRampLabel(this.value); saveServoSettings(); sendServoSettings()">
-        <div class="servo-mini-scale"><span>Gentle</span><span>Snappy</span></div>
-      </div>
-      <div class="btn-row servo-action-row" style="margin-bottom:6px;margin-top:0;">
-        <button class="btn btn-green" onclick="startupNeutral()">STARTUP</button>
-        <button class="btn" onclick="allChannelsNeutral()">ALL NEUTRAL</button>
-      </div>
-      <div class="ch-grid ch-grid-compact" id="chGrid"></div>
-    </div>
+    <input type="range" id="servoSpeed" min="1" max="200" step="1" value="50"
+           oninput="updateServoSpeedLabel(this.value); saveServoSettings()">
+    <div style="display:flex;justify-content:space-between;font-size:10px;color:#6b7280;margin-top:2px;"><span>Slow</span><span>Fast</span></div>
   </div>
-
-  <div class="card armviz-card">
-    <h3>Arm Workspace View</h3>
-    <div class="armviz-shell">
-      <canvas id="armVizCanvas" class="armviz-canvas" width="960" height="420"></canvas>
-      <div class="armviz-toolbar">
-        <div class="armviz-slider-wrap">
-          <label for="armVizAzimuth">Orbit</label>
-          <input type="range" id="armVizAzimuth" min="-180" max="180" value="28" oninput="armVizSetView()">
-        </div>
-        <div class="armviz-slider-wrap">
-          <label for="armVizElevation">Elevation</label>
-          <input type="range" id="armVizElevation" min="-10" max="70" value="18" oninput="armVizSetView()">
-        </div>
-        <div class="armviz-slider-wrap">
-          <label for="armVizZoom">Zoom</label>
-          <input type="range" id="armVizZoom" min="60" max="180" value="100" oninput="armVizSetView()">
-        </div>
-        <div class="armviz-mode-block">
-          <div class="armviz-mode-label">Visualization Source</div>
-          <div class="btn-row armviz-mode-row">
-            <button class="btn btn-sm btn-dark" id="armVizLiveBtn" onclick="armVizSetMode('live')">LIVE</button>
-            <button class="btn btn-sm btn-dark" id="armVizTestBtn" onclick="armVizSetMode('test')">TEST MOVES</button>
-          </div>
-        </div>
-        <div class="btn-row armviz-btn-row">
-          <button class="btn btn-sm btn-dark" id="armVizOrbitBtn" onclick="armVizToggleOrbit()">AUTO ORBIT</button>
-          <button class="btn btn-sm btn-dark" onclick="armVizResetView()">RESET VIEW</button>
-        </div>
-      </div>
-      <div class="armviz-stats">
-        <div class="armviz-stat"><span class="label">Left Tip</span><span class="value" id="armVizLeftTip">x:0 y:0 z:0</span></div>
-        <div class="armviz-stat"><span class="label">Right Tip</span><span class="value" id="armVizRightTip">x:0 y:0 z:0</span></div>
-        <div class="armviz-stat"><span class="label">Keep-Out Zones</span><span class="value">SAT + FLOOR</span></div>
-        <div class="armviz-stat"><span class="label">Scene</span><span class="value">ARMS + WORKSPACE</span></div>
-        <div class="armviz-stat"><span class="label">Source</span><span class="value" id="armVizModeStatus">LIVE</span></div>
-        <div class="armviz-stat"><span class="label">Truth</span><span class="value">SUBSCALE PI</span></div>
-      </div>
-      <div class="armviz-note">Frontend visualization only. `LIVE` follows actual servo output from the subscale Pi and remains the source of truth. `TEST MOVES` only changes the browser visualization from slider motion for staging; the control pipeline will need a later backend update if you want that mode reflected outside the GUI.</div>
+  <div class="slider-group" style="margin-bottom:8px;">
+    <div class="slider-label">
+      <span class="label">Ramp Rate</span>
+      <span class="value" id="servoRampVal">20 us/tick (600 us/s)</span>
     </div>
+    <input type="range" id="servoRampRate" min="1" max="100" step="1" value="20"
+           oninput="updateServoRampLabel(this.value); saveServoSettings()">
+    <div style="display:flex;justify-content:space-between;font-size:10px;color:#6b7280;margin-top:2px;"><span>Gentle</span><span>Snappy</span></div>
   </div>
+  <div class="btn-row" style="margin-bottom:8px;margin-top:0;">
+    <button class="btn btn-green" onclick="startupNeutral()">STARTUP</button>
+    <button class="btn" onclick="allChannelsNeutral()">ALL NEUTRAL</button>
+  </div>
+  <div class="ch-grid" id="chGrid"></div>
 </div>
 
 </div><!-- end container -->
