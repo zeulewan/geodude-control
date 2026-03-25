@@ -76,7 +76,7 @@ var chNeutral = {};
 
 var controllerStatus = {enabled: false};
 var activePageTab = 'manual';
-var missionFlowState = { currentStep: 1, started: false, halted: false, armed: false, nominalCheckResolved: false, everythingNominalResolved: false, substeps: { 2: { 'sat-detect': false, 'gimbal': false, 'mace': false }, 4: { 'default': false }, 5: { 'client-rotation': false, 'docking-point': false }, 6: { 'default': false }, 7: { 'default': false }, 8: { 'default': false }, 9: { 'default': false }, 10: { 'default': false } } };
+var missionFlowState = { currentStep: 1, started: false, halted: false, armed: false, nominalCheckResolved: false, everythingNominalResolved: false, substeps: { 2: { 'sat-detect': false, 'gimbal': false, 'mace': false }, 4: { 'default': false }, 5: { 'client-rotation': false, 'docking-point': false, 'docking-arm-position': false, 'aocs-arm-position': false }, 6: { 'default': false }, 7: { 'default': false }, 8: { 'default': false }, 9: { 'default': false }, 10: { 'default': false } } };
 
 function showPageTab(tab) {
   activePageTab = tab === 'mission' ? 'mission' : 'manual';
