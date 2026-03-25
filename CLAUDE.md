@@ -91,49 +91,49 @@ Pushes to GitHub happen from zmac periodically. The Pi will pull from GitHub dir
 
 ## MACE Reaction Wheel (SimpleFOC / Pi Pico)
 
-The reaction wheel uses a Pi Pico running SimpleFOC firmware, connected to the GEO-DUDe Pi via USB serial (`/dev/ttyACM0`, 115200 baud). This replaces the old ESC + PCA9685 PWM system.
+The reaction wheel uses an STM32 Nucleo F446RE with SimpleFOC Shield V2.0.4, connected to the GEO-DUDe Pi via USB serial (`/dev/ttyACM0`, 115200 baud).
 
-### Hardware
-- **Motor:** 2804 hollow shaft BLDC gimbal motor (7 pole pairs)
-- **Driver:** SimpleFOC Mini v1.0 (DRV8313)
-- **Encoder:** AS5600 magnetic encoder (I2C, on motor shaft)
-- **Controller:** Raspberry Pi Pico (RP2040)
-- **Connection:** Pico USB to GEO-DUDe Pi USB port
+### Hardware (Current - Nucleo + SimpleFOC Shield)
+- **Controller:** STM32 Nucleo F446RE (ARM Cortex-M4, 180MHz, 512KB flash, 128KB SRAM)
+- **Driver:** SimpleFOC Shield V2.0.4 (clone) - 3x IR2104 half-bridge, 2x INA240 current sensors, 12-35V input
+- **Motor:** 4015 BLDC with MT6701 encoder (hollow shaft, robot joint motor)
+- **Encoder:** MT6701 magnetic encoder (ABZ mode, 1024 PPR, on motor shaft)
+- **IMU:** ICM20948 9DoF (I2C, address 0x69)
+- **Connection:** Nucleo USB (ST-LINK virtual COM) to GEO-DUDe Pi
+- **Flashing:** `st-flash write firmware.bin 0x08000000` via ST-LINK/V2.1 onboard
+- **Power:** Nucleo powered from Pi USB (5V), Shield powered from external PSU (12-35V)
 
-### Pico GPIO (current perfboard wiring)
-- GP10 = IN1 (PWM)
-- GP11 = IN2 (PWM)
-- GP12 = IN3 (PWM)
-- GP14 = EN (enable)
-- GP4 = SDA (I2C, for AS5600 encoder)
-- GP5 = SCL (I2C, for AS5600 encoder)
-- GP6 = Bootloader entry (emergency, active low)
+### Previous Hardware (Pi Pico + DRV8313) - Retired
+See `site/docs/electrical/geodude/mace-development-log.md` for full Pico development history.
 
 ### Firmware
-- Source: `~/tmp/pico-simplefoc/pico-simplefoc.ino` (on zmac)
-- Framework: Arduino (earlephilhower rp2040 core) + SimpleFOC library
-- Mode: Open-loop velocity (no encoder connected yet)
-- Serial protocol: SimpleFOC Commander (`T<vel>\n` = set velocity, `T\n` = read)
-- Compile: `arduino-cli compile --fqbn rp2040:rp2040:rpipico`
+- Source: `nucleo/nucleo-simplefoc.ino` (in repo), compiled on zmac
+- Framework: Arduino (STM32duino core) + SimpleFOC library
+- Compile: `arduino-cli compile --fqbn "STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F446RE,upload_method=swdMethod"`
+- Two modes: velocity (M0, MACE manual) and torque (M1, attitude control)
+- Motor disabled on boot, initFOC skippable (send G to run when motor connected)
+- 50Hz JSON telemetry stream over ST-LINK virtual COM
+- Serial commands: T (velocity), U (voltage), V (voltage limit), P/I/W (PID), L (velocity limit), A (output ramp), F (LPF), M0/M1 (mode), G (initFOC), C (calibrate+enable), D (disable), E (enable)
 
-### Flashing the Pico (no button needed)
+### Flashing the Nucleo
 ```bash
-# From GEO-DUDe Pi: trigger BOOTSEL via 1200 baud touch
-python3 -c "import serial; s=serial.Serial('/dev/ttyACM0',1200); s.close()"
-# Wait 3 seconds, then mount and copy UF2
-sudo mkdir -p /mnt/pico && sudo mount /dev/sda1 /mnt/pico
-sudo cp firmware.uf2 /mnt/pico/ && sudo sync && sudo umount /mnt/pico
+# From GEO-DUDe Pi:
+st-flash write /tmp/nucleo.bin 0x08000000
+st-flash reset
 ```
 
-### API (sensor_server.py on GEO-DUDe)
-- `POST /simplefoc` with `{"velocity": 5.0}` or `{"command": "T5"}` - sends command to Pico
-- Legacy `POST /motor` still works but translates PWM to velocity
+### Attitude Controller (`geodude/attitude_controller.py`)
+- Runs on GEO-DUDe Pi, port 5001
+- Single PID: angle error (deg) -> voltage command (1.5V-12V)
+- D term uses gyro rate (derivative on measurement, not error)
+- Auto-calibrates gyro bias on enable (2s stationary)
+- Switches Nucleo to torque mode (M1) on enable, disables motor (D) on disable
+- Mutual exclusion with MACE manual controls
 
-### Ground station UI
-- Velocity slider (-20 to +20 rad/s)
-- Quick preset buttons
-- Enable/disable toggle (instant, no ESC arming)
-- Ramp rate control (rad/s/s)
+### API (sensor_server.py on GEO-DUDe)
+- `GET /simplefoc/status` - cached telemetry from Nucleo serial stream
+- `POST /simplefoc` with `{"command": "T5"}` or `{"velocity": 5.0}` - sends command
+- `GET /sensors` - sensor data (accel, gyro, encoder, rpm)
 
 ## Gimbal (ESP32 + TMC2209)
 
