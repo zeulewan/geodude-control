@@ -624,7 +624,7 @@ def send_velocity(velocity):
     try:
         req = urllib.request.Request(
             f"{GEODUDE_URL}/simplefoc",
-            data=json.dumps({"velocity": round(float(velocity), 4)}).encode(),
+            data=json.dumps({"command": "T" + str(round(float(velocity), 4))}).encode(),
             headers={"Content-Type": "application/json"},
         )
         urllib.request.urlopen(req, timeout=3)
@@ -632,6 +632,20 @@ def send_velocity(velocity):
         return True
     except Exception as e:
         mace["error"] = str(e)
+        return False
+
+
+def send_simplefoc_cmd(cmd):
+    """Send raw command to Nucleo via GEO-DUDe /simplefoc endpoint."""
+    try:
+        req = urllib.request.Request(
+            f"{GEODUDE_URL}/simplefoc",
+            data=json.dumps({"command": cmd}).encode(),
+            headers={"Content-Type": "application/json"},
+        )
+        urllib.request.urlopen(req, timeout=3)
+        return True
+    except Exception:
         return False
 
 
@@ -728,6 +742,7 @@ def mace_status():
 @app.route('/api/mace/enable', methods=['POST'])
 def mace_enable():
     """Enable the reaction wheel motor."""
+    send_simplefoc_cmd("E")
     with lock:
         mace["enabled"] = True
         mace["error"] = None
@@ -737,11 +752,11 @@ def mace_enable():
 @app.route('/api/mace/disable', methods=['POST'])
 def mace_disable():
     """Disable the reaction wheel motor and stop it."""
+    send_simplefoc_cmd("D")
     with lock:
         mace["enabled"] = False
         mace["target"] = 0.0
         mace["velocity"] = 0.0
-    send_velocity(0.0)
     return jsonify({"ok": True, "enabled": False})
 
 
@@ -768,6 +783,24 @@ def mace_stop():
         mace["velocity"] = 0.0
         mace["enabled"] = False
     send_velocity(0.0)
+    return jsonify({"ok": True})
+
+
+@app.route('/api/mace/calibrate', methods=['POST'])
+def mace_calibrate():
+    """Run initFOC on Nucleo (motor must be connected)."""
+    send_simplefoc_cmd("G")
+    return jsonify({"ok": True})
+
+
+@app.route('/api/mace/tune', methods=['POST'])
+def mace_tune():
+    """Send tuning command to Nucleo."""
+    data = request.json
+    param = data.get('param', '')
+    value = data.get('value', 0)
+    cmd = '%s%s' % (param, value)
+    send_simplefoc_cmd(cmd)
     return jsonify({"ok": True})
 
 
