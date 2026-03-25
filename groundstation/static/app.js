@@ -3055,3 +3055,19 @@ function seqRun() {
   loadCameraStreamState();
   armVizStart();
 })();
+
+/* === MACE SimpleFOC Controls === */
+function maceSetRpm() {
+  var rpm = parseFloat(document.getElementById('maceRpmInput').value) || 0;
+  var rads = rpm * 2 * Math.PI / 60;
+  fetch('/api/mace/velocity', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({target:rads})});
+}
+function maceSetRpmVal(rpm) {
+  document.getElementById('maceRpmInput').value = rpm;
+  maceSetRpm();
+}
+function maceEnable() { fetch('/api/mace/enable', {method:'POST'}); }
+function maceDisable() { fetch('/api/mace/disable', {method:'POST'}); }
+function maceStop() { fetch('/api/mace/stop', {method:'POST'}); }
+function maceCalibrate() { fetch('/api/mace/calibrate', {method:'POST'}); }
+function maceTuneVal(param, value) { fetch('/api/mace/tune', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({param:param, value:parseFloat(value)})}); }

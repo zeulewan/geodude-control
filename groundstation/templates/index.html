@@ -195,23 +195,26 @@
   <!-- MACE Reaction Wheel -->
   <div class="card dashboard-card compact-wide-card">
     <h3>MACE Reaction Wheel</h3>
-    <div class="slider-group">
-      <div class="slider-label"><span class="label">Power</span><span class="value" id="holdPowerVal">10%</span></div>
-      <input type="range" id="holdPower" min="10" max="100" value="10" oninput="document.getElementById('holdPowerVal').textContent = this.value + '%'">
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
+      <span style="color:#6b7280;font-size:12px;">RPM:</span>
+      <input type="number" id="maceRpmInput" value="0" step="10" style="width:100px;background:#1f2937;border:1px solid #374151;border-radius:4px;color:#e0e6f0;font-family:monospace;font-size:14px;padding:4px 8px;text-align:right;">
+      <button class="btn btn-sm" onclick="maceSetRpm()">SET</button>
+      <button class="btn btn-sm btn-dark" onclick="maceSetRpmVal(0)">0</button>
+      <button class="btn btn-sm btn-dark" onclick="maceSetRpmVal(100)">100</button>
+      <button class="btn btn-sm btn-dark" onclick="maceSetRpmVal(200)">200</button>
+      <button class="btn btn-sm btn-dark" onclick="maceSetRpmVal(-200)">-200</button>
     </div>
-    <div class="slider-group">
-      <div class="slider-label"><span class="label">Ramp Rate</span><span class="value" id="rampVal">0.1%/s (1000.0s)</span></div>
-      <input type="range" id="rampRate" min="0.1" max="100" step="0.1" value="0.1" oninput="updateRampLabel(this.value); sendRampRate(this.value)">
-    </div>
-    <div class="throttle-bar-bg"><div id="targetBar" style="width:0%"></div><div id="currentBar" style="width:0%"></div></div>
-    <button class="btn btn-hold disabled" id="holdBtn" onmousedown="holdStart()" onmouseup="holdStop()" onmouseleave="holdStop()" ontouchstart="holdStart(event)" ontouchend="holdStop()" ontouchcancel="holdStop()">HOLD TO SPIN</button>
     <div class="btn-row">
-      <button class="btn btn-green" id="armBtn" onclick="toggleArm()">ARM</button>
-      <button class="btn btn-amber" onclick="brake()">BRAKE</button>
-      <button class="btn btn-dark" onclick="toggleReverse()">REVERSE</button>
-      <button class="btn btn-dark" onclick="startCalibrate()">CALIBRATE ESC</button>
+      <button class="btn btn-green" onclick="maceEnable()">ENABLE</button>
+      <button class="btn btn-red" onclick="maceDisable()">DISABLE</button>
+      <button class="btn btn-red" style="font-weight:700;" onclick="maceStop()">STOP</button>
+      <button class="btn btn-amber" onclick="maceCalibrate()">CALIBRATE FOC</button>
     </div>
-    <div id="calPanel" style="display:none"><div id="calStep"></div><div id="calBtns" class="btn-row"></div></div>
+    <div style="margin-top:8px;font-size:11px;color:#6b7280;">
+      <span>Voltage Limit: </span>
+      <input type="number" id="maceVlInput" value="2" step="0.5" style="width:60px;background:#1f2937;border:1px solid #374151;border-radius:4px;color:#e0e6f0;font-family:monospace;font-size:11px;padding:2px 4px;text-align:right;" onchange="maceTuneVal('V',this.value)">
+    </div>
+  </div>
   </div>
 
   <!-- Attitude Control -->
