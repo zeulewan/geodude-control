@@ -2,6 +2,7 @@ __pycache__/
 *.pyc
 .env
 .venv/
+*.log
 site/_build/
 groundstation/servo_neutral.json
 groundstation/servo_positions.json
