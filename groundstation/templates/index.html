@@ -144,7 +144,7 @@
           <div class="dial-wrapper"><div class="dial-ring"><div id="needle"></div><div class="dial-center"></div></div></div>
           <div class="encoder-text">
             <div class="value" id="angleText">0.0&deg;</div>
-            <div class="sub"><span id="rpmText">0</span> RPM</div>
+            <div class="sub"><span id="rpmText">0</span> RPM / <span id="radsText">0.0</span> rad/s</div>
           </div>
         </div>
       </div>
@@ -160,12 +160,14 @@
         <div class="sys-item"><span class="label">CPU</span><span class="value" id="gsCpu">--</span></div>
         <div class="sys-item"><span class="label">Temp</span><span class="value" id="gsTemp">--</span></div>
         <div class="sys-item"><span class="label">Load</span><span class="value" id="gsLoad">--</span></div>
+        <div class="sys-item"><span class="label">Uptime</span><span class="value" id="gsUptime">--</span></div>
       </div>
       <div class="inner">
         <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">GEO-DUDe</div>
         <div class="sys-item"><span class="label">CPU</span><span class="value" id="gdCpu">--</span></div>
         <div class="sys-item"><span class="label">Temp</span><span class="value" id="gdTemp">--</span></div>
         <div class="sys-item"><span class="label">Load</span><span class="value" id="gdLoad">--</span></div>
+        <div class="sys-item"><span class="label">Uptime</span><span class="value" id="gdUptime">--</span></div>
       </div>
     </div>
   </div>
@@ -175,56 +177,148 @@
       <h3>MACE Status</h3>
       <div class="status-grid">
         <div class="status-row"><span class="label">Pico USB</span><span class="value" id="picoConnected">--</span></div>
+        <div class="status-row"><span class="label">Fault</span><span class="value" id="maceFault">--</span></div>
+        <div class="status-row"><span class="label">Sleep (nSP)</span><span class="value" id="maceSleep">--</span></div>
+        <div class="status-row"><span class="label">Reset (nRT)</span><span class="value" id="maceReset">--</span></div>
         <div class="status-row"><span class="label">Motor Enabled</span><span class="value" id="maceMotorEnabled">NO</span></div>
         <div class="status-row"><span class="label">EN Pin</span><span class="value" id="maceEnPin">--</span></div>
         <div class="status-row"><span class="label">Enabled</span><span class="value" id="maceEnabled">NO</span></div>
         <div class="status-row"><span class="label">Target</span><span class="value" id="maceTarget">0.0 rad/s</span></div>
         <div class="status-row"><span class="label">Velocity</span><span class="value" id="maceVelocity">0.0 rad/s</span></div>
         <div class="status-row"><span class="label">Encoder</span><span class="value" id="maceEncoderAngle">0.0 deg</span></div>
-        <div class="status-row"><span class="label">RPM</span><span class="value" id="maceRpm">0</span></div>
+        <div class="status-row"><span class="label">RPM / rad/s</span><span class="value" id="maceRpm">0 / 0.0</span></div>
         <div class="status-row"><span class="label">Phase Values</span><span class="value" id="macePhase">P1=0.0 P2=0.0 P3=0.0</span></div>
-        <div class="status-row"><span class="label">Accel (g)</span><span class="value" id="maceAccel">0.00 0.00 0.00</span></div>
-        <div class="status-row"><span class="label">Gyro (deg/s)</span><span class="value" id="maceGyro">0.0 0.0 0.0</span></div>
       </div>
       <div id="maceError"></div>
     </div>
     <div id="motorError"></div>
   </div>
 
-<!-- MACE Reaction Wheel (full width) -->
+<!-- Attitude Control -->
 <div class="card">
-  <h3>MACE Reaction Wheel</h3>
+  <h3>Attitude Control</h3>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+    <button class="btn btn-green" id="attEnableBtn" onclick="attEnable()">ENABLE</button>
+    <button class="btn btn-red" onclick="attDisable()">DISABLE</button>
+    <button class="btn btn-red" onclick="attStop()" style="font-weight:700;">STOP</button>
+    <button class="btn btn-dark" onclick="attZero()">ZERO ANGLE</button>
+  </div>
+  <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;">
+    <div><span style="color:#6b7280;font-size:11px;">Status</span><br><span id="attStatus" style="font-weight:600;">DISABLED</span></div>
+    <div><span style="color:#6b7280;font-size:11px;">Body Angle</span><br><span id="attAngle" style="font-family:monospace;">0.0 deg</span></div>
+    <div><span style="color:#6b7280;font-size:11px;">Setpoint</span><br><span id="attSetpoint" style="font-family:monospace;">0.0 deg</span></div>
+    <div><span style="color:#6b7280;font-size:11px;">Error</span><br><span id="attError" style="font-family:monospace;">0.0 deg</span></div>
+    <div><span style="color:#6b7280;font-size:11px;">Voltage Cmd</span><br><span id="attOutput" style="font-family:monospace;">0.0 V</span></div>
+    <div><span style="color:#6b7280;font-size:11px;">Gyro Z</span><br><span id="attGz" style="font-family:monospace;">0.0 deg/s</span></div>
+    <div><span style="color:#6b7280;font-size:11px;">Wheel RPM</span><br><span id="attWheelRpm" style="font-family:monospace;">0</span></div>
+  </div>
+  <div style="margin-bottom:10px;">
+    <span style="color:#6b7280;font-size:11px;">Setpoint (deg)</span>
+    <div style="display:flex;gap:6px;align-items:center;margin-top:4px;">
+      <button class="btn btn-sm btn-dark" onclick="attNudge(-45)">-45</button>
+      <button class="btn btn-sm btn-dark" onclick="attNudge(-10)">-10</button>
+      <button class="btn btn-sm btn-dark" onclick="attNudge(-5)">-5</button>
+      <input type="number" class="tune-input" id="attSetpointInput" value="0" step="1" style="width:80px;" onchange="attSetSetpoint(this.value)">
+      <button class="btn btn-sm" onclick="attNudge(5)">+5</button>
+      <button class="btn btn-sm" onclick="attNudge(10)">+10</button>
+      <button class="btn btn-sm" onclick="attNudge(45)">+45</button>
+    </div>
+  </div>
+  <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">PID Gains</div>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;">
+    <div class="tune-row"><span class="label">Kp</span><input type="number" class="tune-input" id="attKp" value="0.5" step="any" onchange="attSetGains()"></div>
+    <div class="tune-row"><span class="label">Ki</span><input type="number" class="tune-input" id="attKi" value="0.02" step="any" onchange="attSetGains()"></div>
+    <div class="tune-row"><span class="label">Kd</span><input type="number" class="tune-input" id="attKd" value="0.3" step="any" onchange="attSetGains()"></div>
+  </div>
+</div>
 
+<!-- Attitude Plot -->
+<div class="card">
+  <h3>Attitude Plot</h3>
+  <canvas id="attitudeChart" width="800" height="300" style="width:100%;height:300px;background:#111827;border-radius:6px;"></canvas>
+  <div style="margin-top:4px;font-size:11px;color:#6b7280;">
+    <span style="color:#3b82f6;">&#9644; Commanded (deg)</span> &nbsp;
+    <span style="color:#10b981;">&#9644; Body Angle (deg)</span> &nbsp;
+    <span style="color:#f59e0b;">&#9644; Error (deg)</span>
+  </div>
+</div>
+
+<!-- Wheel Speed Plot -->
+<div class="card">
+  <h3>Wheel Speed Plot</h3>
+  <canvas id="rateChart" width="800" height="300" style="width:100%;height:300px;background:#111827;border-radius:6px;"></canvas>
+  <div style="margin-top:4px;font-size:11px;color:#6b7280;">
+    <span style="color:#3b82f6;">&#9644; Voltage Cmd (V)</span> &nbsp;
+    <span style="color:#10b981;">&#9644; Wheel RPM</span>
+  </div>
+</div>
+
+<!-- MACE Speed Plot -->
+<div class="card">
+  <h3>Speed Plot</h3>
+  <canvas id="speedChart" width="800" height="400" style="width:100%;height:400px;background:#111827;border-radius:6px;"></canvas>
+  <div style="margin-top:4px;font-size:11px;color:#6b7280;">
+    <span style="color:#3b82f6;">&#9644; Target RPM</span> &nbsp;
+    <span style="color:#10b981;">&#9644; Actual RPM</span>
+  </div>
+</div>
+
+<!-- MACE Reaction Wheel (full width) -->
+<div class="card" id="maceSection">
+  <h3>MACE Reaction Wheel <button class="btn btn-sm btn-dark" id="maceSectionToggle" onclick="maceSectionToggle()" style="float:right;font-size:10px;">DISABLE SECTION</button></h3>
+  <div id="maceSectionContent">
   <div class="slider-group">
     <div class="slider-label">
-      <span class="label">Target Velocity</span>
+      <span class="label">Target Speed</span>
       <span class="value" id="velSliderVal">0.0 rad/s</span>
     </div>
-    <input type="range" id="velSlider" min="-20" max="20" step="0.5" value="0"
+    <input type="range" id="velSlider" min="-450" max="450" step="5" value="0"
            oninput="maceUpdateSliderLabel(this.value)">
-    <div class="slider-scale"><span>-20 rad/s</span><span>0</span><span>+20 rad/s</span></div>
+    <div class="slider-scale"><span>-450 RPM</span><span>0</span><span>+450 RPM</span></div>
   </div>
 
   <div style="margin-top:14px;">
     <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Quick Presets (rad/s)</div>
     <div class="btn-row">
+      <button class="btn btn-sm btn-dark" onclick="maceSetPreset(-2000)">-2000</button>
+      <button class="btn btn-sm btn-dark" onclick="maceSetPreset(-1000)">-1000</button>
+      <button class="btn btn-sm btn-dark" onclick="maceSetPreset(-500)">-500</button>
+      <button class="btn btn-sm btn-dark" onclick="maceSetPreset(-200)">-200</button>
+      <button class="btn btn-sm btn-dark" onclick="maceSetPreset(-100)">-100</button>
+      <button class="btn btn-sm btn-dark" onclick="maceSetPreset(-50)">-50</button>
       <button class="btn btn-sm btn-dark" onclick="maceSetPreset(-10)">-10</button>
-      <button class="btn btn-sm btn-dark" onclick="maceSetPreset(-5)">-5</button>
-      <button class="btn btn-sm btn-dark" onclick="maceSetPreset(-2)">-2</button>
-      <button class="btn btn-sm btn-dark" onclick="maceSetPreset(-1)">-1</button>
       <button class="btn btn-sm btn-dark" onclick="maceSetPreset(0)">0</button>
-      <button class="btn btn-sm" onclick="maceSetPreset(1)">+1</button>
-      <button class="btn btn-sm" onclick="maceSetPreset(2)">+2</button>
-      <button class="btn btn-sm" onclick="maceSetPreset(5)">+5</button>
-      <button class="btn btn-sm" onclick="maceSetPreset(10)">+10</button>
+      <button class="btn btn-sm" onclick="maceSetPreset(200)">+200</button>
+      <button class="btn btn-sm" onclick="maceSetPreset(1000)">+1000</button>
+      <button class="btn btn-sm" onclick="maceSetPreset(2000)">+2000</button>
+      <button class="btn btn-sm" onclick="maceSetPreset(200)">+200</button>
+      <button class="btn btn-sm" onclick="maceSetPreset(500)">+500</button>
+      <button class="btn btn-sm" onclick="maceSetPreset(1000)">+1000</button>
+      <button class="btn btn-sm" onclick="maceSetPreset(2000)">+2000</button>
     </div>
   </div>
 
   <div class="btn-row" style="margin-top:14px;">
+  <div class="btn-row">
     <button class="btn btn-green" id="maceToggleBtn" onclick="maceToggle()">ENABLE</button>
     <button class="btn disabled" id="maceSetVelBtn" onclick="maceSetVelocity(parseFloat(document.getElementById('velSlider').value))">SET VELOCITY</button>
     <button class="btn btn-red" onclick="maceStop()">STOP</button>
+    <button class="btn btn-amber" onclick="maceResetFault()">RESET FAULT</button>
+    <button class="btn btn-amber" onclick="maceCalibrate()">CALIBRATE</button>
   </div>
+  <div style="margin-top:12px;">
+    <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Motor Tuning</div>
+    <div class="tune-row"><span class="label">Voltage Limit</span><input type="number" class="tune-input" id="tuneVlVal" value="2" step="any" onchange="maceTune('V',this.value)"></div>
+    <div class="tune-row"><span class="label">Velocity Limit</span><input type="number" class="tune-input" id="tuneSlVal" value="300" step="any" onchange="maceTune('L',this.value)"></div>
+    <div class="tune-row"><span class="label">Kp</span><input type="number" class="tune-input" id="tuneKpVal" value="0.2" step="any" onchange="maceTune('P',this.value)"></div>
+    <div class="tune-row"><span class="label">Ki</span><input type="number" class="tune-input" id="tuneKiVal" value="2" step="any" onchange="maceTune('I',this.value)"></div>
+    <div class="tune-row"><span class="label">Kd</span><input type="number" class="tune-input" id="tuneKdVal" value="0" step="any" onchange="maceTune('W',this.value)"></div>
+    <div class="tune-row"><span class="label">Output Ramp</span><input type="number" class="tune-input" id="tuneRmpVal" value="1000" step="any" onchange="maceTune('A',this.value)"></div>
+    <div class="tune-row"><span class="label">LPF Tf</span><input type="number" class="tune-input" id="tuneLpfVal" value="0.01" step="any" onchange="maceTune('F',this.value)"></div>
+  </div>
+
+  </div>
+  </div><!-- end maceSectionContent -->
 </div>
 
 

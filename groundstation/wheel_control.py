@@ -39,11 +39,11 @@ CHANNELS = {
 }
 
 # SimpleFOC velocity limits (rad/s)
-MAX_VELOCITY = 20.0
+MAX_VELOCITY = 300.0
 
 mace = {
     "enabled": False,
-    "target": 0.0,      # target velocity rad/s
+    "target": 0.0, "ft": 0, "lpf": 0, "rmp": 0, "kd": 0, "ki": 0, "kp": 0, "sl": 0, "vl": 0, "sp": 0, "rt": 0,      # target velocity rad/s
     "velocity": 0.0,    # current velocity rad/s (reported by Pico)
     "connected": False, # Pico USB serial connected
     "error": None,
@@ -168,8 +168,39 @@ def save_neutral(data):
 
 servo_neutral = load_neutral()
 
+# MACE tuning values — persisted to disk, re-sent to Pico on reconnect
+TUNING_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mace_tuning.json")
+TUNING_PARAM_MAP = {"V": "vl", "L": "sl", "P": "kp", "I": "ki", "W": "kd", "A": "rmp", "F": "lpf"}
+
+def load_tuning():
+    try:
+        with open(TUNING_FILE) as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+def save_tuning():
+    with open(TUNING_FILE, "w") as f:
+        json.dump(mace_tuning, f)
+
+mace_tuning = load_tuning()
+_mace_was_connected = False
+
 lock = threading.Lock()
 last_heartbeat = time.monotonic()
+
+
+def send_velocity_cmd(cmd):
+    """Send a raw command to Pico."""
+    try:
+        req = urllib.request.Request(
+            f"{GEODUDE_URL}/simplefoc",
+            data=json.dumps({"command": cmd}).encode(),
+            headers={"Content-Type": "application/json"},
+        )
+        urllib.request.urlopen(req, timeout=3)
+    except Exception:
+        pass
 
 
 def send_velocity(velocity):
@@ -426,11 +457,35 @@ def watchdog_loop():
                 send_velocity(0.0)
 
 
+def _restore_mace_tuning():
+    """Re-send saved tuning values to Pico after reconnect."""
+    inv_map = {v: k for k, v in TUNING_PARAM_MAP.items()}
+    for key, value in mace_tuning.items():
+        param = inv_map.get(key)
+        if param:
+            cmd = '%s%s' % (param, value)
+            try:
+                req = urllib.request.Request(
+                    f"{GEODUDE_URL}/simplefoc",
+                    data=json.dumps({"command": cmd}).encode(),
+                    headers={"Content-Type": "application/json"},
+                )
+                urllib.request.urlopen(req, timeout=3)
+            except Exception:
+                pass
+            time.sleep(0.05)
+
 def sensor_loop():
+    global _mace_was_connected
     while True:
         try:
             resp = urllib.request.urlopen(f"{GEODUDE_URL}/simplefoc/status", timeout=2)
             sfoc = json.loads(resp.read().decode())
+            is_connected = sfoc.get("connected", False)
+            # Restore tuning values on reconnect
+            if is_connected and not _mace_was_connected and mace_tuning:
+                threading.Thread(target=_restore_mace_tuning, daemon=True).start()
+            _mace_was_connected = is_connected
             with lock:
                 # Update sensor state for the Sensors card
                 state["gyro"] = {"x": sfoc.get("gx", 0), "y": sfoc.get("gy", 0), "z": sfoc.get("gz", 0)}
@@ -445,6 +500,16 @@ def sensor_loop():
                     mace["velocity"] = round(float(t), 4)
                 mace["en"] = sfoc.get("en", 0)
                 mace["me"] = sfoc.get("me", 0)
+                mace["ft"] = sfoc.get("ft", 0)
+                mace["lpf"] = sfoc.get("lpf", 0)
+                mace["rmp"] = sfoc.get("rmp", 0)
+                mace["kd"] = sfoc.get("kd", 0)
+                mace["ki"] = sfoc.get("ki", 0)
+                mace["kp"] = sfoc.get("kp", 0)
+                mace["sl"] = sfoc.get("sl", 0)
+                mace["vl"] = sfoc.get("vl", 0)
+                mace["sp"] = sfoc.get("sp", 0)
+                mace["rt"] = sfoc.get("rt", 0)
                 mace["p1"] = sfoc.get("p1", 0.0)
                 mace["p2"] = sfoc.get("p2", 0.0)
                 mace["p3"] = sfoc.get("p3", 0.0)
@@ -455,6 +520,7 @@ def sensor_loop():
                 mace["gy"] = sfoc.get("gy", 0.0)
                 mace["gz"] = sfoc.get("gz", 0.0)
         except Exception:
+            _mace_was_connected = False
             with lock:
                 state["connected"] = False
                 mace["connected"] = False
@@ -488,9 +554,12 @@ def mace_status():
 @app.route('/api/mace/enable', methods=['POST'])
 def mace_enable():
     """Enable the reaction wheel motor."""
+    if mace_section_disabled:
+        return jsonify({"ok": False, "reason": "attitude control active"})
     with lock:
         mace["enabled"] = True
         mace["error"] = None
+    send_velocity_cmd("E")
     return jsonify({"ok": True, "enabled": True})
 
 
@@ -501,13 +570,15 @@ def mace_disable():
         mace["enabled"] = False
         mace["target"] = 0.0
         mace["velocity"] = 0.0
-    send_velocity(0.0)
+    send_velocity_cmd("D")
     return jsonify({"ok": True, "enabled": False})
 
 
 @app.route('/api/mace/velocity', methods=['POST'])
 def mace_velocity():
     """Set target velocity in rad/s. Only works if motor is enabled."""
+    if mace_section_disabled:
+        return jsonify({"ok": False, "reason": "attitude control active"})
     global last_heartbeat
     last_heartbeat = time.monotonic()
     data = request.json
@@ -519,6 +590,59 @@ def mace_velocity():
     ok = send_velocity(v)
     return jsonify({"ok": ok})
 
+
+
+
+
+@app.route('/api/mace/tune', methods=['POST'])
+def mace_tune():
+    data = request.json
+    param = data.get('param', '')
+    value = data.get('value', 0)
+    cmd = '%s%s' % (param, value)
+    # Save tuning value for persistence
+    key = TUNING_PARAM_MAP.get(param)
+    if key:
+        mace_tuning[key] = float(value)
+        save_tuning()
+    try:
+        req = urllib.request.Request(
+            f"{GEODUDE_URL}/simplefoc",
+            data=json.dumps({"command": cmd}).encode(),
+            headers={"Content-Type": "application/json"},
+        )
+        urllib.request.urlopen(req, timeout=3)
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+@app.route('/api/mace/calibrate', methods=['POST'])
+def mace_calibrate():
+    if mace_section_disabled:
+        return jsonify({"ok": False, "reason": "attitude control active"})
+    try:
+        req = urllib.request.Request(
+            GEODUDE_URL + '/simplefoc',
+            data=json.dumps({'command': 'C'}).encode(),
+            headers={'Content-Type': 'application/json'},
+        )
+        urllib.request.urlopen(req, timeout=5)
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)})
+
+@app.route('/api/mace/reset_fault', methods=['POST'])
+def mace_reset_fault():
+    try:
+        req = urllib.request.Request(
+            GEODUDE_URL + '/simplefoc',
+            data=json.dumps({'command': 'R'}).encode(),
+            headers={'Content-Type': 'application/json'},
+        )
+        urllib.request.urlopen(req, timeout=3)
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)})
 
 @app.route('/api/mace/stop', methods=['POST'])
 def mace_stop():
@@ -642,6 +766,12 @@ def system_stats():
         system_stats._gs_prev = (total, idle)
     except Exception:
         gs["cpu"] = 0
+    # Groundstation uptime
+    try:
+        with open("/proc/uptime") as f:
+            gs["uptime"] = round(float(f.read().split()[0]))
+    except Exception:
+        gs["uptime"] = 0
     # GEO-DUDe stats
     gd = {}
     try:
@@ -649,6 +779,13 @@ def system_stats():
         gd = json.loads(resp.read().decode())
     except Exception:
         gd = {"temp": 0, "cpu": 0, "load": 0}
+    # GEO-DUDe uptime
+    try:
+        resp2 = urllib.request.urlopen(f"{GEODUDE_URL}/uptime", timeout=2)
+        gd["uptime"] = json.loads(resp2.read().decode()).get("uptime", 0)
+    except Exception:
+        if "uptime" not in gd:
+            gd["uptime"] = 0
     return jsonify({"groundstation": gs, "geodude": gd})
 
 
@@ -820,6 +957,50 @@ def restore_positions_loop():
         if name in CHANNELS:
             send_pwm(name, pw)
             time.sleep(0.05)
+
+
+ATTITUDE_URL = "http://192.168.4.166:5001"
+mace_section_disabled = False
+
+@app.route('/api/mace/section_disable', methods=['POST'])
+def mace_section_disable():
+    global mace_section_disabled
+    data = request.json
+    mace_section_disabled = bool(data.get("disabled", False))
+    return jsonify({"ok": True, "disabled": mace_section_disabled})
+
+@app.route('/api/mace/section_status')
+def mace_section_status():
+    return jsonify({"disabled": mace_section_disabled})
+
+@app.route('/api/attitude/status')
+def attitude_status():
+    try:
+        resp = urllib.request.urlopen(f"{ATTITUDE_URL}/attitude/status", timeout=2)
+        return jsonify(json.loads(resp.read().decode()))
+    except Exception as e:
+        return jsonify({"error": str(e), "enabled": False})
+
+@app.route('/api/attitude/<action>', methods=['POST'])
+def attitude_action(action):
+    global mace_section_disabled
+    try:
+        data = request.get_data() or b'{}'
+        req = urllib.request.Request(
+            f"{ATTITUDE_URL}/attitude/{action}",
+            data=data,
+            headers={"Content-Type": "application/json"},
+        )
+        resp = urllib.request.urlopen(req, timeout=5)
+        result = json.loads(resp.read().decode())
+        # Auto-manage MACE section: lock when attitude enables, unlock when it disables
+        if action == "enable" and result.get("ok"):
+            mace_section_disabled = True
+        elif action in ("disable", "stop"):
+            mace_section_disabled = False
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
 
 
 if __name__ == '__main__':

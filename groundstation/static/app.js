@@ -1,3 +1,85 @@
+/* ========== Speed Chart ========== */
+var _speedChartTarget = [];
+var _speedChartActual = [];
+var _speedChartMax = 200;  // rolling window (200 samples at 250ms = 50s)
+
+function speedChartPush(targetRpm, actualRpm) {
+  _speedChartTarget.push(targetRpm);
+  _speedChartActual.push(actualRpm);
+  if (_speedChartTarget.length > _speedChartMax) {
+    _speedChartTarget.shift();
+    _speedChartActual.shift();
+  }
+  speedChartDraw();
+}
+
+function speedChartDraw() {
+  var canvas = document.getElementById('speedChart');
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  var n = _speedChartTarget.length;
+  if (n < 2) return;
+
+  // Find y range from both arrays
+  var all = _speedChartTarget.concat(_speedChartActual);
+  var yMin = Math.min.apply(null, all);
+  var yMax = Math.max.apply(null, all);
+  // Add padding
+  var yPad = Math.max(Math.abs(yMax - yMin) * 0.1, 50);
+  yMin -= yPad;
+  yMax += yPad;
+  if (yMin === yMax) { yMin -= 100; yMax += 100; }
+
+  var xStep = w / (_speedChartMax - 1);
+
+  // Zero line
+  var zeroY = h - ((0 - yMin) / (yMax - yMin)) * h;
+  ctx.strokeStyle = '#374151';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(0, zeroY);
+  ctx.lineTo(w, zeroY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Y-axis labels
+  ctx.fillStyle = '#6b7280';
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(Math.round(yMax) + ' RPM', 4, 14);
+  ctx.fillText(Math.round(yMin) + ' RPM', 4, h - 4);
+  if (zeroY > 20 && zeroY < h - 20) {
+    ctx.fillText('0', 4, zeroY - 4);
+  }
+
+  // Draw target line (blue)
+  var offset = _speedChartMax - n;
+  ctx.strokeStyle = '#3b82f6';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (var i = 0; i < n; i++) {
+    var x = (offset + i) * xStep;
+    var y = h - ((_speedChartTarget[i] - yMin) / (yMax - yMin)) * h;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Draw actual line (green)
+  ctx.strokeStyle = '#10b981';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (var i = 0; i < n; i++) {
+    var x = (offset + i) * xStep;
+    var y = h - ((_speedChartActual[i] - yMin) / (yMax - yMin)) * h;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+}
+
 /* ========== Snapshot ========== */
 var cameraStreamEnabled = true;
 var CAMERA_STREAM_STORAGE_KEY = 'cameraStreamEnabled';
@@ -806,6 +888,10 @@ var _maceEnabled = false;
 
 function maceUpdateSliderLabel(val) {
   val = parseFloat(val);
+  document.getElementById("velSliderVal").textContent = Math.round(val) + " RPM";
+  return;
+// old code below
+  val = parseFloat(val);
   document.getElementById('velSliderVal').textContent = val.toFixed(1) + ' rad/s';
 }
 
@@ -822,6 +908,8 @@ function maceDisable() {
 }
 
 function maceSetVelocity(v) {
+  // Convert RPM to rad/s for Pico
+  v = parseFloat(v) * 2 * Math.PI / 60;
   v = parseFloat(v) || 0;
   fetch('/api/mace/velocity', {
     method: 'POST',
@@ -835,6 +923,7 @@ function maceStop() {
 }
 
 function maceSetPreset(v) {
+  // v is in RPM
   var slider = document.getElementById('velSlider');
   if (slider) { slider.value = v; maceUpdateSliderLabel(v); }
   maceSetVelocity(v);
@@ -862,6 +951,25 @@ function macePoll() {
       meEl.style.color = me ? '#22c55e' : '#ef4444';
     }
     // EN pin state
+    var spEl = document.getElementById("maceSleep");
+    if (spEl) { spEl.textContent = (d.sp != null ? d.sp : 0) ? "AWAKE" : "SLEEP"; spEl.style.color = (d.sp != null ? d.sp : 0) ? "#22c55e" : "#ef4444"; }
+    var rtEl = document.getElementById("maceReset");
+    if (rtEl) { rtEl.textContent = (d.rt != null ? d.rt : 0) ? "OK" : "IN RESET"; rtEl.style.color = (d.rt != null ? d.rt : 0) ? "#22c55e" : "#ef4444"; }
+    // Sync tuning inputs with Pico values (skip if focused or recently changed)
+    var fields = {tuneVlVal:'vl',tuneSlVal:'sl',tuneKpVal:'kp',tuneKiVal:'ki',tuneKdVal:'kd',tuneRmpVal:'rmp',tuneLpfVal:'lpf'};
+    for (var id in fields) {
+      var el = document.getElementById(id);
+      var val = d[fields[id]];
+      if (el && val != null && document.activeElement !== el && !(_tuneLockout[id] && Date.now() < _tuneLockout[id])) {
+        el.value = val;
+      }
+    }
+    var ftEl = document.getElementById("maceFault");
+    if (ftEl) {
+      var ft = d.ft != null ? d.ft : 0;
+      ftEl.textContent = ft ? "OK" : "FAULT";
+      ftEl.style.color = ft ? "#22c55e" : "#ef4444";
+    }
     var enPinEl = document.getElementById('maceEnPin');
     if (enPinEl) {
       var en = d.en != null ? d.en : 0;
@@ -883,7 +991,10 @@ function macePoll() {
     // Wheel RPM
     var rpm = d.rpm != null ? d.rpm : Math.round(vel * 60 / (2 * Math.PI));
     var rpmEl = document.getElementById('maceRpm');
-    if (rpmEl) rpmEl.textContent = Math.round(rpm);
+    if (rpmEl) rpmEl.textContent = Math.round(rpm) + " / " + (rpm * 2 * Math.PI / 60).toFixed(1);
+    // Push to speed chart
+    var targetRpm = tgt * 60 / (2 * Math.PI);
+    speedChartPush(targetRpm, rpm);
     // Phase values (p1, p2, p3)
     var phaseEl = document.getElementById('macePhase');
     if (phaseEl) {
@@ -1030,7 +1141,7 @@ function poll() {
     /* Encoder */
     var angle = d.encoder_angle;
     document.getElementById('angleText').innerHTML = angle.toFixed(1) + '&deg;';
-    document.getElementById('rpmText').textContent = d.rpm;
+    document.getElementById('rpmText').textContent = d.rpm; var radsEl = document.getElementById('radsText'); if (radsEl) radsEl.textContent = (d.rpm * 2 * Math.PI / 60).toFixed(1);
     var needleAngle = (angle % 360);
     document.getElementById('needle').style.transform = 'rotate(' + needleAngle + 'deg)';
     /* GEO-DUDe connection dot */
@@ -1056,6 +1167,16 @@ function sysPoll() {
     document.getElementById('gdCpu').textContent = (gd.cpu || 0) + '%';
     document.getElementById('gdTemp').textContent = (gd.temp || 0) + ' C';
     document.getElementById('gdLoad').textContent = (gd.load || 0);
+    // Uptime
+    function fmtUptime(s) {
+      if (!s) return '--';
+      var h = Math.floor(s/3600); var m = Math.floor((s%3600)/60);
+      return h > 0 ? h+'h '+m+'m' : m+'m';
+    }
+    var gsUp = document.getElementById('gsUptime');
+    if (gsUp) gsUp.textContent = fmtUptime(gs.uptime);
+    var gdUp = document.getElementById('gdUptime');
+    if (gdUp) gdUp.textContent = fmtUptime(gd.uptime);
   }).catch(function() {});
 }
 
@@ -1483,6 +1604,7 @@ function seqRun() {
   /* Start polling */
   setInterval(poll, 100);
   setInterval(macePoll, 250);
+  setInterval(attPoll, 500);
   setInterval(sysPoll, 2000);
   setInterval(gimbalPoll, 1000);
   setInterval(servoSyncPoll, 500);
@@ -1497,3 +1619,184 @@ function seqRun() {
   loadCameraStreamState();
   armVizStart();
 })();
+
+function maceResetFault() {
+  fetch('/api/mace/reset_fault', {method: 'POST'});
+}
+
+function maceCalibrate() {
+  fetch('/api/mace/calibrate', {method: 'POST'});
+}
+
+var _tuneLockout = {};
+function maceTuneFromInput(param, sliderId, value) {
+  var v = parseFloat(value);
+  if (isNaN(v)) return;
+  var slider = document.getElementById(sliderId);
+  if (slider) slider.value = v;
+  maceTune(param, v);
+}
+function maceTune(param, value) {
+  // Map param letter to slider ID to lock out sync
+  var paramMap = {V:'tuneVlVal',L:'tuneSlVal',P:'tuneKpVal',I:'tuneKiVal',W:'tuneKdVal',A:'tuneRmpVal',F:'tuneLpfVal'};
+  var id = paramMap[param];
+  if (id) _tuneLockout[id] = Date.now() + 2000;  // lock sync for 2s
+  fetch('/api/mace/tune', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({param: param, value: parseFloat(value)})
+  });
+}
+
+/* ========== MACE Section Toggle ========== */
+var _maceSectionDisabled = false;
+function maceSectionToggle() {
+  _maceSectionDisabled = !_maceSectionDisabled;
+  fetch('/api/mace/section_disable', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({disabled: _maceSectionDisabled})
+  });
+  var content = document.getElementById('maceSectionContent');
+  var btn = document.getElementById('maceSectionToggle');
+  if (_maceSectionDisabled) {
+    if (content) { content.style.opacity = '0.3'; content.style.pointerEvents = 'none'; }
+    if (btn) { btn.textContent = 'ENABLE SECTION'; btn.className = 'btn btn-sm btn-green'; }
+  } else {
+    if (content) { content.style.opacity = '1'; content.style.pointerEvents = 'auto'; }
+    if (btn) { btn.textContent = 'DISABLE SECTION'; btn.className = 'btn btn-sm btn-dark'; }
+  }
+}
+
+/* ========== Attitude Charts ========== */
+var _attChartCmd = [], _attChartBody = [], _attChartErr = [];
+var _rateChartRef = [], _rateChartBody = [], _rateChartVolt = [];
+var _attChartMax = 200;
+
+function attChartPush(cmd, body, err) {
+  _attChartCmd.push(cmd); _attChartBody.push(body); _attChartErr.push(err);
+  if (_attChartCmd.length > _attChartMax) { _attChartCmd.shift(); _attChartBody.shift(); _attChartErr.shift(); }
+  drawChart('attitudeChart', [
+    {data: _attChartCmd, color: '#3b82f6'},
+    {data: _attChartBody, color: '#10b981'},
+    {data: _attChartErr, color: '#f59e0b'}
+  ], _attChartMax);
+}
+
+function rateChartPush(volt, rpm, unused) {
+  _rateChartRef.push(volt); _rateChartBody.push(rpm);
+  if (_rateChartRef.length > _attChartMax) { _rateChartRef.shift(); _rateChartBody.shift(); }
+  drawChart('rateChart', [
+    {data: _rateChartRef, color: '#3b82f6'},
+    {data: _rateChartBody, color: '#10b981'}
+  ], _attChartMax);
+}
+
+function drawChart(canvasId, traces, maxLen) {
+  var canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+  var n = traces[0].data.length;
+  if (n < 2) return;
+  var all = [];
+  for (var t = 0; t < traces.length; t++) all = all.concat(traces[t].data);
+  var yMin = Math.min.apply(null, all), yMax = Math.max.apply(null, all);
+  var yPad = Math.max(Math.abs(yMax - yMin) * 0.1, 1);
+  yMin -= yPad; yMax += yPad;
+  if (yMin === yMax) { yMin -= 5; yMax += 5; }
+  var xStep = w / (maxLen - 1);
+  var offset = maxLen - n;
+  // Zero line
+  var zeroY = h - ((0 - yMin) / (yMax - yMin)) * h;
+  ctx.strokeStyle = '#374151'; ctx.lineWidth = 1; ctx.setLineDash([4,4]);
+  ctx.beginPath(); ctx.moveTo(0, zeroY); ctx.lineTo(w, zeroY); ctx.stroke();
+  ctx.setLineDash([]);
+  // Y labels
+  ctx.fillStyle = '#6b7280'; ctx.font = '11px monospace'; ctx.textAlign = 'left';
+  ctx.fillText(yMax.toFixed(1), 4, 14);
+  ctx.fillText(yMin.toFixed(1), 4, h - 4);
+  // Traces
+  for (var t = 0; t < traces.length; t++) {
+    ctx.strokeStyle = traces[t].color; ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (var i = 0; i < n; i++) {
+      var x = (offset + i) * xStep;
+      var y = h - ((traces[t].data[i] - yMin) / (yMax - yMin)) * h;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+}
+
+/* ========== Attitude Control ========== */
+function attPoll() {
+  fetch('/api/attitude/status').then(function(r) { return r.json(); }).then(function(d) {
+    var s = document.getElementById('attStatus');
+    if (s) {
+      if (d.calibrating) { s.textContent = 'CALIBRATING'; s.style.color = '#f59e0b'; }
+      else if (d.enabled) { s.textContent = 'ACTIVE'; s.style.color = '#22c55e'; }
+      else { s.textContent = 'DISABLED'; s.style.color = '#94a3b8'; }
+    }
+    var el;
+    el = document.getElementById('attAngle'); if (el) el.textContent = (d.body_angle||0).toFixed(1) + ' deg';
+    el = document.getElementById('attSetpoint'); if (el) el.textContent = (d.setpoint||0).toFixed(1) + ' deg';
+    el = document.getElementById('attError'); if (el) el.textContent = (d.error||0).toFixed(1) + ' deg';
+    el = document.getElementById('attOutput'); if (el) el.textContent = (d.voltage_cmd||0).toFixed(2) + ' V';
+    el = document.getElementById('attGz'); if (el) el.textContent = (d.gz||0).toFixed(1) + ' deg/s';
+    el = document.getElementById('attWheelRpm'); if (el) el.textContent = Math.round(d.wheel_rpm||0);
+    // Sync gains
+    var fields = {attKp:'Kp', attKi:'Ki', attKd:'Kd'};
+    for (var id in fields) {
+      var inp = document.getElementById(id);
+      if (inp && document.activeElement !== inp && d[fields[id]] != null) inp.value = d[fields[id]];
+    }
+    var spInp = document.getElementById('attSetpointInput');
+    if (spInp && document.activeElement !== spInp) spInp.value = d.setpoint || 0;
+    // Push to charts
+    attChartPush(d.setpoint||0, d.body_angle||0, d.error||0);
+    rateChartPush(d.voltage_cmd||0, d.wheel_rpm||0, 0);
+  }).catch(function(){});
+}
+
+function attEnable() {
+  fetch('/api/attitude/enable', {method:'POST'}).then(function() {
+    // Backend auto-locks MACE section
+    if (!_maceSectionDisabled) maceSectionToggle();
+  });
+}
+function attDisable() {
+  fetch('/api/attitude/disable', {method:'POST'}).then(function() {
+    // Backend auto-unlocks MACE section
+    if (_maceSectionDisabled) maceSectionToggle();
+  });
+}
+function attStop() { fetch('/api/attitude/stop', {method:'POST'}); }
+function attZero() { fetch('/api/attitude/zero', {method:'POST'}); }
+
+function attSetSetpoint(val) {
+  fetch('/api/attitude/setpoint', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({angle: parseFloat(val)})
+  });
+}
+
+function attNudge(delta) {
+  fetch('/api/attitude/nudge', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({delta: delta})
+  });
+}
+
+function attSetGains() {
+  var data = {};
+  var fields = {attKp:'Kp', attKi:'Ki', attKd:'Kd'};
+  for (var id in fields) {
+    var el = document.getElementById(id);
+    if (el) data[fields[id]] = parseFloat(el.value);
+  }
+  fetch('/api/attitude/gains', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(data)
+  });
+}

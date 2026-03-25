@@ -780,6 +780,31 @@ input[type="range"]::-moz-range-thumb {
   font-family: 'SF Mono', 'Fira Code', monospace;
   color: #e0e6f0;
 }
+.tune-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.tune-row .label {
+  color: #6b7280;
+  font-size: 12px;
+}
+.tune-input {
+  width: 100px;
+  background: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 4px;
+  color: #e0e6f0;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 13px;
+  padding: 4px 8px;
+  text-align: right;
+}
+.tune-input:focus {
+  border-color: #3b82f6;
+  outline: none;
+}
 
 /* Slider scale labels */
 .slider-scale {
