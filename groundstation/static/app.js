@@ -76,7 +76,7 @@ var chNeutral = {};
 
 var controllerStatus = {enabled: false};
 var activePageTab = 'manual';
-var missionFlowState = { currentStep: 1, started: false, halted: false, armed: false, nominalCheckResolved: false, everythingNominalResolved: false, allIdentifiedResolved: false, dockingPoseResolved: false, undockingReadyResolved: false, aocsNominalResolved: false, aocsSlideOutResolved: false, aocsArmDetachResolved: false, substeps: { 2: { 'sat-detect': false, 'gimbal': false, 'mace': false }, 4: { 'client-rotation': false, 'docking-point': false }, 5: { 'docking-arm-position': false, 'aocs-arm-position': false, 'approach-started': false }, 6: { 'relative-motion-stabilized': false, 'nozzle-position-found': false, 'nozzle-ik-solved': false, 'docked': false }, 7: { 'client-brought-to-geo': false, 'undocked': false }, 8: { 'aocs-pose-ready': false, 'aocs-attach': false }, 9: { 'backed-away': false }, 10: { } } };
+var missionFlowState = { currentStep: 1, started: false, halted: false, armed: false, nominalCheckResolved: false, everythingNominalResolved: false, allIdentifiedResolved: false, dockingPoseResolved: false, undockingReadyResolved: false, aocsNominalResolved: false, aocsSlideOutResolved: false, aocsArmDetachResolved: false, substeps: { 2: { 'sat-detect': false, 'gimbal': false, 'mace': false }, 4: { 'client-rotation-model': false, 'client-rotation': false, 'docking-point': false, 'nozzle-identify-model': false }, 5: { 'docking-arm-position': false, 'aocs-arm-position': false, 'approach-started': false }, 6: { 'relative-motion-stabilized': false, 'nozzle-position-found': false, 'nozzle-ik-solved': false, 'docked': false }, 7: { 'client-brought-to-geo': false, 'undocked': false }, 8: { 'aocs-pose-ready': false, 'aocs-attach': false }, 9: { 'backed-away': false }, 10: { } } };
 
 function showPageTab(tab) {
   activePageTab = tab === 'mission' ? 'mission' : 'manual';
@@ -154,7 +154,7 @@ function missionEmergencyStop() {
 function missionIsStepComplete(step) {
   if (step === 1) return !!missionFlowState.nominalCheckResolved;
   if (step === 3) return !!missionFlowState.everythingNominalResolved;
-  if (step === 4) return !!missionFlowState.allIdentifiedResolved && missionFlowState.substeps[4]['client-rotation'] && missionFlowState.substeps[4]['docking-point'];
+  if (step === 4) return !!missionFlowState.allIdentifiedResolved && missionFlowState.substeps[4]['client-rotation-model'] && missionFlowState.substeps[4]['client-rotation'] && missionFlowState.substeps[4]['docking-point'] && missionFlowState.substeps[4]['nozzle-identify-model'];
   if (step === 6) return !!missionFlowState.dockingPoseResolved && missionFlowState.substeps[6]['relative-motion-stabilized'] && missionFlowState.substeps[6]['nozzle-position-found'] && missionFlowState.substeps[6]['nozzle-ik-solved'] && missionFlowState.substeps[6]['docked'];
   if (step === 7) return !!missionFlowState.undockingReadyResolved && missionFlowState.substeps[7]['client-brought-to-geo'] && missionFlowState.substeps[7]['undocked'];
   if (step === 8) return !!missionFlowState.aocsNominalResolved && !!missionFlowState.aocsSlideOutResolved && !!missionFlowState.aocsArmDetachResolved && missionFlowState.substeps[8]['aocs-pose-ready'] && missionFlowState.substeps[8]['aocs-attach'];
@@ -245,11 +245,11 @@ function missionRenderFlow() {
     else labelIdent.textContent = 'All identified';
   }
   if (checkpointIdent) {
-    checkpointIdent.classList.toggle('active', missionFlowState.currentStep === 4 && missionFlowState.substeps[4]['client-rotation'] && missionFlowState.substeps[4]['docking-point'] && !missionFlowState.allIdentifiedResolved && !missionFlowState.halted);
+    checkpointIdent.classList.toggle('active', missionFlowState.currentStep === 4 && missionFlowState.substeps[4]['client-rotation-model'] && missionFlowState.substeps[4]['client-rotation'] && missionFlowState.substeps[4]['docking-point'] && missionFlowState.substeps[4]['nozzle-identify-model'] && !missionFlowState.allIdentifiedResolved && !missionFlowState.halted);
     checkpointIdent.classList.toggle('completed', !!missionFlowState.allIdentifiedResolved);
     checkpointIdent.classList.toggle('blocked', missionFlowState.halted && missionFlowState.currentStep === 4);
   }
-  missionSetCheckpointActions(actionsIdent, missionFlowState.currentStep === 4 && missionFlowState.substeps[4]['client-rotation'] && missionFlowState.substeps[4]['docking-point'] && !missionFlowState.allIdentifiedResolved && !missionFlowState.halted);
+  missionSetCheckpointActions(actionsIdent, missionFlowState.currentStep === 4 && missionFlowState.substeps[4]['client-rotation-model'] && missionFlowState.substeps[4]['client-rotation'] && missionFlowState.substeps[4]['docking-point'] && missionFlowState.substeps[4]['nozzle-identify-model'] && !missionFlowState.allIdentifiedResolved && !missionFlowState.halted);
   if (labelThree) {
     if (missionFlowState.halted && missionFlowState.currentStep === 6) labelThree.textContent = 'Docking arm pose confirmation failed';
     else if (missionFlowState.dockingPoseResolved) labelThree.textContent = 'Docking arm pose confirmed';
