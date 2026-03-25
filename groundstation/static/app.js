@@ -1110,12 +1110,15 @@ function armVizDrawTargetMarker(ctx, width, height, point) {
   ctx.restore();
 }
 
-function armVizDrawScene() {
-  var canvas = document.getElementById('armVizCanvas');
-  if (!canvas) return;
+function armVizRenderCanvas(canvas, options) {
+  if (!canvas) return null;
   var rect = canvas.getBoundingClientRect();
-  var width = Math.max(320, Math.round(rect.width || 960));
-  var height = Math.max(260, Math.round(rect.height || 360));
+  var fallbackWidth = options && options.fallbackWidth ? options.fallbackWidth : 960;
+  var fallbackHeight = options && options.fallbackHeight ? options.fallbackHeight : 360;
+  var minWidth = options && options.minWidth ? options.minWidth : 320;
+  var minHeight = options && options.minHeight ? options.minHeight : 260;
+  var width = Math.max(minWidth, Math.round(rect.width || fallbackWidth));
+  var height = Math.max(minHeight, Math.round(rect.height || fallbackHeight));
   if (canvas.width !== width || canvas.height !== height) {
     canvas.width = width;
     canvas.height = height;
@@ -1195,10 +1198,26 @@ function armVizDrawScene() {
     ctx.fillText('SOLVED POSE', 18, 78);
   }
 
+  return arms;
+}
+
+function armVizDrawScene() {
+  var arms = armVizRenderCanvas(document.getElementById('armVizCanvas'), {fallbackWidth: 960, fallbackHeight: 420, minWidth: 320, minHeight: 260});
+  armVizRenderCanvas(document.getElementById('missionArmVizCanvas'), {fallbackWidth: 720, fallbackHeight: 320, minWidth: 260, minHeight: 184});
+  if (!arms) return;
   var leftTip = document.getElementById('armVizLeftTip');
   var rightTip = document.getElementById('armVizRightTip');
-  if (leftTip) leftTip.textContent = ['x','y','z'].map(function(axis) { return axis + ':' + Math.round(arms[0].tip[axis]); }).join(' ');
-  if (rightTip) rightTip.textContent = ['x','y','z'].map(function(axis) { return axis + ':' + Math.round(arms[1].tip[axis]); }).join(' ');
+  var missionLeftTip = document.getElementById('missionArmVizLeftTip');
+  var missionRightTip = document.getElementById('missionArmVizRightTip');
+  var modeText = armVizState.mode === 'live' ? 'LIVE' : 'TEST MOVES';
+  var missionMode = document.getElementById('missionArmVizMode');
+  var leftText = ['x','y','z'].map(function(axis) { return axis + ':' + Math.round(arms[0].tip[axis]); }).join(' ');
+  var rightText = ['x','y','z'].map(function(axis) { return axis + ':' + Math.round(arms[1].tip[axis]); }).join(' ');
+  if (leftTip) leftTip.textContent = leftText;
+  if (rightTip) rightTip.textContent = rightText;
+  if (missionLeftTip) missionLeftTip.textContent = leftText;
+  if (missionRightTip) missionRightTip.textContent = rightText;
+  if (missionMode) missionMode.textContent = modeText;
 }
 
 function armVizLoop() {

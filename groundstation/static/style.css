@@ -1437,13 +1437,15 @@ input[type="number"]::-webkit-outer-spin-button {
 .page-panel.active { display: block; }
 .mission-grid {
   display: grid;
-  grid-template-columns: 1.45fr 1.45fr 0.95fr 0.95fr;
+  grid-template-columns: minmax(240px, 0.9fr) minmax(280px, 1.05fr) minmax(340px, 1.2fr) minmax(220px, 0.9fr);
   gap: 10px;
+  align-items: start;
 }
 .mission-card { min-width: 0; }
-.mission-hero,
 .mission-wide { grid-column: span 2; }
-.mission-camera-card { grid-column: 3; }
+.mission-summary-card { grid-column: 1; }
+.mission-camera-card { grid-column: 2; }
+.mission-armviz-card { grid-column: 3; }
 .mission-stack-card { grid-column: 4; }
 .mission-compact-card { grid-column: span 1; }
 .mission-flow-card { grid-column: 1 / -1; }
@@ -1713,4 +1715,47 @@ input[type="number"]::-webkit-outer-spin-button {
   opacity: 0.38;
   cursor: not-allowed;
   pointer-events: none;
+}
+
+.mission-head-compact {
+  gap: 8px;
+}
+.mission-actions-tight .btn {
+  padding: 7px 10px;
+  font-size: 11px;
+}
+.mission-summary-card .mission-subtitle {
+  font-size: 12px;
+  margin-top: 2px;
+}
+.mission-summary-card .mission-note {
+  display: none;
+}
+.mission-armviz-shell {
+  min-height: 184px;
+}
+.mission-armviz-canvas {
+  min-height: 184px;
+  height: 184px;
+}
+.mission-armviz-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+.mission-armviz-stats .armviz-stat {
+  min-width: 0;
+}
+.mission-camera-card .mission-note,
+.mission-stack-card .mission-note,
+.mission-armviz-card .mission-note {
+  margin-top: 6px;
+}
+@media (max-width: 1400px) {
+  .mission-grid { grid-template-columns: minmax(220px, 0.9fr) minmax(250px, 1fr) minmax(300px, 1.1fr) minmax(210px, 0.9fr); }
+}
+@media (max-width: 1200px) {
+  .mission-grid { grid-template-columns: repeat(2, minmax(240px, 1fr)); }
+  .mission-summary-card, .mission-camera-card, .mission-armviz-card, .mission-stack-card { grid-column: span 1; }
 }
