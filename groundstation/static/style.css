@@ -203,13 +203,7 @@ body {
   font-family: 'SF Mono', 'Fira Code', monospace;
   font-weight: 600;
 }
-#motorError {
-  color: #ef4444;
-  font-size: 12px;
-  margin-top: 8px;
-  font-family: 'SF Mono', 'Fira Code', monospace;
-  word-break: break-all;
-}
+
 
 /* Buttons */
 .btn {
@@ -244,31 +238,7 @@ body {
   margin-top: 8px;
 }
 
-/* Hold button */
-.btn-hold {
-  width: 100%;
-  padding: 10px;
-  font-size: 14px;
-  letter-spacing: 2px;
-  background: #1e293b;
-  color: #6b7280;
-  border: 2px solid #1e2433;
-  margin-top: 10px;
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: none;
-}
-.btn-hold.armed {
-  background: #1e3a5f;
-  color: #3b82f6;
-  border-color: #3b82f6;
-}
-.btn-hold.armed:hover { background: #1e4a7f; }
-.btn-hold.active-spin {
-  background: #3b82f6;
-  color: #fff;
-  border-color: #60a5fa;
-}
+/* (hold-button styles removed — replaced by SET VELOCITY + STOP pattern) */
 
 /* Sliders */
 input[type="range"] {
@@ -313,45 +283,23 @@ input[type="range"]::-moz-range-thumb {
   color: #e0e6f0;
 }
 
-/* Throttle bar */
-.throttle-bar-bg {
-  width: 100%;
-  height: 24px;
-  background: #1e293b;
-  border-radius: 6px;
-  position: relative;
-  overflow: hidden;
-  margin: 12px 0;
-}
-#targetBar {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
-  background: rgba(59, 130, 246, 0.25);
-  border-radius: 6px;
-  transition: width 0.1s;
-}
-#currentBar {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
-  background: #3b82f6;
-  border-radius: 6px;
-  transition: width 0.15s;
+/* Slider scale labels */
+.slider-scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #6b7280;
+  margin-top: 2px;
 }
 
-/* Calibration panel */
-#calPanel {
-  background: #1e293b;
-  border-radius: 8px;
-  padding: 16px;
-  margin-top: 12px;
-}
-#calPanel p {
-  font-size: 14px;
-  margin-bottom: 12px;
+/* MACE error display */
+#maceError {
+  color: #ef4444;
+  font-size: 12px;
+  margin-top: 8px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  word-break: break-all;
+  display: none;
 }
 
 /* Attitude control */
