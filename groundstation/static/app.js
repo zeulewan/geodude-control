@@ -76,18 +76,31 @@ var chNeutral = {};
 
 var controllerStatus = {enabled: false};
 var activePageTab = 'manual';
+var missionPanelModes = {
+  mission: {title: 'Mission Simulation', subtitle: 'Dev-only autonomous workflow sandbox.', badge: 'mizi-dev only'},
+  competition: {title: 'MACE Competition', subtitle: 'Competition-mode autonomous workflow sandbox.', badge: 'mizi-dev only'}
+};
 var missionFlowState = { currentStep: 1, started: false, halted: false, armed: false, nominalCheckResolved: false, everythingNominalResolved: false, allIdentifiedResolved: false, dockingPoseResolved: false, undockingReadyResolved: false, aocsNominalResolved: false, aocsSlideOutResolved: false, aocsArmDetachResolved: false, substeps: { 2: { 'sat-detect': false, 'gimbal': false, 'mace': false }, 4: { 'client-rotation-model': false, 'client-rotation': false, 'docking-point': false, 'nozzle-identify-model': false }, 5: { 'docking-arm-position': false, 'aocs-arm-position': false, 'approach-started': false }, 6: { 'relative-motion-stabilized': false, 'nozzle-position-found': false, 'nozzle-ik-solved': false, 'docked': false }, 7: { 'client-brought-to-geo': false, 'undocked': false }, 8: { 'aocs-pose-ready': false, 'aocs-attach': false }, 9: { 'backed-away': false }, 10: { } } };
 
 function showPageTab(tab) {
-  activePageTab = tab === 'mission' ? 'mission' : 'manual';
+  activePageTab = (tab === 'mission' || tab === 'competition') ? tab : 'manual';
   var manualBtn = document.getElementById('pageTabManual');
   var missionBtn = document.getElementById('pageTabMission');
+  var competitionBtn = document.getElementById('pageTabCompetition');
   var manualPanel = document.getElementById('pagePanelManual');
   var missionPanel = document.getElementById('pagePanelMission');
   if (manualBtn) manualBtn.classList.toggle('active', activePageTab === 'manual');
   if (missionBtn) missionBtn.classList.toggle('active', activePageTab === 'mission');
+  if (competitionBtn) competitionBtn.classList.toggle('active', activePageTab === 'competition');
   if (manualPanel) manualPanel.classList.toggle('active', activePageTab === 'manual');
-  if (missionPanel) missionPanel.classList.toggle('active', activePageTab === 'mission');
+  if (missionPanel) missionPanel.classList.toggle('active', activePageTab === 'mission' || activePageTab === 'competition');
+  var mode = missionPanelModes[activePageTab] || missionPanelModes.mission;
+  var title = document.getElementById('missionPanelTitle');
+  var subtitle = document.getElementById('missionPanelSubtitle');
+  var badge = document.getElementById('missionPanelBadge');
+  if (title) title.textContent = mode.title;
+  if (subtitle) subtitle.textContent = mode.subtitle;
+  if (badge) badge.textContent = mode.badge;
   missionSyncSummary();
 }
 
