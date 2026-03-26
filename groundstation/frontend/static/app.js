@@ -2188,9 +2188,12 @@ var isHolding = false;
 
 function updateRampLabel(val) {
   val = parseFloat(val);
-  var power = parseInt(document.getElementById('holdPower').value);
+  var holdPower = document.getElementById('holdPower');
+  var rampVal = document.getElementById('rampVal');
+  if (!holdPower || !rampVal) return;
+  var power = parseInt(holdPower.value);
   var t = val > 0 ? (power / val).toFixed(1) : 'inf';
-  document.getElementById('rampVal').textContent = val + '%/s (' + t + 's)';
+  rampVal.textContent = val + '%/s (' + t + 's)';
 }
 
 function sendRampRate(val) {
@@ -2204,8 +2207,10 @@ function sendRampRate(val) {
 function holdStart(e) {
   if (e && e.preventDefault) e.preventDefault();
   isHolding = true;
-  var power = parseInt(document.getElementById('holdPower').value);
+  var holdPower = document.getElementById('holdPower');
   var btn = document.getElementById('holdBtn');
+  if (!holdPower || !btn) return;
+  var power = parseInt(holdPower.value);
   btn.classList.add('active-spin');
   fetch('/api/throttle', {
     method: 'POST',
@@ -2218,6 +2223,7 @@ function holdStop() {
   if (!isHolding) return;
   isHolding = false;
   var btn = document.getElementById('holdBtn');
+  if (!btn) return;
   btn.classList.remove('active-spin');
   fetch('/api/throttle', {
     method: 'POST',
@@ -2254,6 +2260,7 @@ function toggleReverse() {
 function updateArmUI(armed, arming) {
   var armBtn = document.getElementById('armBtn');
   var holdBtn = document.getElementById('holdBtn');
+  if (!armBtn || !holdBtn) return;
   if (arming) {
     armBtn.textContent = 'ARMING...';
     armBtn.className = 'btn btn-amber';
@@ -2275,9 +2282,12 @@ function updateArmUI(armed, arming) {
 /* ========== Calibration ========== */
 function startCalibrate() {
   var panel = document.getElementById('calPanel');
+  var calStep = document.getElementById('calStep');
+  var calBtns = document.getElementById('calBtns');
+  if (!panel || !calStep || !calBtns) return;
   panel.style.display = 'block';
-  document.getElementById('calStep').innerHTML = '<p><strong>Step 1:</strong> Disconnect ESC power, then click SEND MAX.</p>';
-  document.getElementById('calBtns').innerHTML = '<button class="btn btn-sm" onclick="calStep2()">SEND MAX</button>' +
+  calStep.innerHTML = '<p><strong>Step 1:</strong> Disconnect ESC power, then click SEND MAX.</p>';
+  calBtns.innerHTML = '<button class="btn btn-sm" onclick="calStep2()">SEND MAX</button>' +
     '<button class="btn btn-sm btn-dark" onclick="calCancel()">Cancel</button>';
 }
 
@@ -2287,8 +2297,11 @@ function calStep2() {
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({step: 'max'})
   });
-  document.getElementById('calStep').innerHTML = '<p><strong>Step 2:</strong> Connect ESC power. Wait for beeps, then click SEND MIN.</p>';
-  document.getElementById('calBtns').innerHTML = '<button class="btn btn-sm" onclick="calStep3()">SEND MIN</button>' +
+  var calStep = document.getElementById('calStep');
+  var calBtns = document.getElementById('calBtns');
+  if (!calStep || !calBtns) return;
+  calStep.innerHTML = '<p><strong>Step 2:</strong> Connect ESC power. Wait for beeps, then click SEND MIN.</p>';
+  calBtns.innerHTML = '<button class="btn btn-sm" onclick="calStep3()">SEND MIN</button>' +
     '<button class="btn btn-sm btn-dark" onclick="calCancel()">Cancel</button>';
 }
 
@@ -2298,13 +2311,17 @@ function calStep3() {
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({step: 'min'})
   });
-  document.getElementById('calStep').innerHTML = '<p><strong>Step 3:</strong> Wait for confirmation beeps, then click DONE.</p>';
-  document.getElementById('calBtns').innerHTML = '<button class="btn btn-sm btn-green" onclick="calDone()">DONE</button>' +
+  var calStep = document.getElementById('calStep');
+  var calBtns = document.getElementById('calBtns');
+  if (!calStep || !calBtns) return;
+  calStep.innerHTML = '<p><strong>Step 3:</strong> Wait for confirmation beeps, then click DONE.</p>';
+  calBtns.innerHTML = '<button class="btn btn-sm btn-green" onclick="calDone()">DONE</button>' +
     '<button class="btn btn-sm btn-dark" onclick="calCancel()">Cancel</button>';
 }
 
 function calDone() {
-  document.getElementById('calPanel').style.display = 'none';
+  var panel = document.getElementById('calPanel');
+  if (panel) panel.style.display = 'none';
 }
 
 function calCancel() {
@@ -2313,7 +2330,8 @@ function calCancel() {
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({step: 'cancel'})
   });
-  document.getElementById('calPanel').style.display = 'none';
+  var panel = document.getElementById('calPanel');
+  if (panel) panel.style.display = 'none';
 }
 
 /* ========== Polling ========== */
@@ -2405,24 +2423,35 @@ function poll() {
     document.getElementById('rpmText').textContent = d.rpm;
     var needleAngle = (angle % 360);
     document.getElementById('needle').style.transform = 'rotate(' + needleAngle + 'deg)';
+    var analog = d.analog_encoder || {};
+    var analogVa = document.getElementById('analogVaText');
+    var analogVb = document.getElementById('analogVbText');
+    if (analogVa) analogVa.textContent = Number(analog.va || 0).toFixed(3);
+    if (analogVb) analogVb.textContent = Number(analog.vb || 0).toFixed(3);
     /* Arm state */
     updateArmUI(d.armed, d.arming);
     /* Status */
-    document.getElementById('armedStatus').textContent = d.armed ? 'YES' : 'NO';
-    document.getElementById('armedStatus').style.color = d.armed ? '#22c55e' : '#ef4444';
-    document.getElementById('targetStatus').textContent = d.target.toFixed(1) + '%';
-    document.getElementById('throttleStatus').textContent = d.throttle.toFixed(1) + '%';
-    var pw = d.reverse ? (1000 - Math.round(d.throttle) * 10) : (1000 + Math.round(d.throttle) * 10);
+    var armed = !!d.armed;
+    var target = Number(d.target || 0);
+    var throttle = Number(d.throttle || 0);
+    var reverse = !!d.reverse;
+    document.getElementById('armedStatus').textContent = armed ? 'YES' : 'NO';
+    document.getElementById('armedStatus').style.color = armed ? '#22c55e' : '#ef4444';
+    document.getElementById('targetStatus').textContent = target.toFixed(1) + '%';
+    document.getElementById('throttleStatus').textContent = throttle.toFixed(1) + '%';
+    var pw = reverse ? (1000 - Math.round(throttle) * 10) : (1000 + Math.round(throttle) * 10);
     document.getElementById('pwmStatus').textContent = pw + ' us';
-    document.getElementById('dirStatus').textContent = d.reverse ? 'REV' : 'FWD';
-    document.getElementById('dirStatus').style.color = d.reverse ? '#f59e0b' : '#22c55e';
+    document.getElementById('dirStatus').textContent = reverse ? 'REV' : 'FWD';
+    document.getElementById('dirStatus').style.color = reverse ? '#f59e0b' : '#22c55e';
     document.getElementById('maceRpm').textContent = d.rpm;
     var sat = d.rpm >= 600;
     document.getElementById('maceSat').textContent = sat ? 'YES' : 'NO';
     document.getElementById('maceSat').style.color = sat ? '#ef4444' : '#22c55e';
     /* Throttle bars */
-    document.getElementById('targetBar').style.width = d.target + '%';
-    document.getElementById('currentBar').style.width = d.throttle + '%';
+    var targetBar = document.getElementById('targetBar');
+    var currentBar = document.getElementById('currentBar');
+    if (targetBar) targetBar.style.width = target + '%';
+    if (currentBar) currentBar.style.width = throttle + '%';
     /* Motor error */
     var errDiv = document.getElementById('motorError');
     if (d.motor_error) {
@@ -2529,6 +2558,7 @@ function attUpdateGain() {
 
 var attLastPoll = 0;
 function attPoll() {
+  if (!document.getElementById('attitudeCard')) return;
   fetch('/api/attitude/status').then(function(r) { return r.json(); }).then(function(d) {
     if (d.error) {
       document.getElementById('attitudeBanner').style.display = 'block';

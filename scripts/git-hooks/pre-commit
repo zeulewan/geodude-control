@@ -1,0 +1,10 @@
+#!/bin/sh
+branch="$(git branch --show-current)"
+merge_head="$(git rev-parse --git-path MERGE_HEAD 2>/dev/null)"
+
+if [ "$branch" = "main" ] && [ ! -f "$merge_head" ] && [ -z "$GEODUDE_ALLOW_MAIN_COMMIT" ]; then
+  echo "Direct commits to main are blocked." >&2
+  echo "Commit on a branch, then merge --no-ff into main." >&2
+  echo "Emergency override: GEODUDE_ALLOW_MAIN_COMMIT=1 git commit ..." >&2
+  exit 1
+fi
