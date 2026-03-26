@@ -112,6 +112,10 @@ function missionDefaultState() {
     aocsArmDetachResolved: false,
     maceState: 'SAFE',
     searchRotationSpeed: 1.5,
+    searchMinConfidence: 0.5,
+    searchClassWhitelist: ['snoopy'],
+    searchLockFramesRequired: 5,
+    searchLockCenteredFrames: 0,
     searchLockMarginPx: 32,
     searchFrameWidthPx: 640,
     searchFrameHeightPx: 480,
@@ -243,6 +247,10 @@ function competitionSyncState(state) {
   missionFlowState.aocsArmDetachResolved = !!state.aocsArmDetachResolved;
   missionFlowState.maceState = state.maceState || 'SAFE';
   missionFlowState.searchRotationSpeed = state.searchRotationSpeed != null ? state.searchRotationSpeed : 1.5;
+  missionFlowState.searchMinConfidence = state.searchMinConfidence != null ? state.searchMinConfidence : 0.5;
+  missionFlowState.searchClassWhitelist = Array.isArray(state.searchClassWhitelist) ? state.searchClassWhitelist : ['snoopy'];
+  missionFlowState.searchLockFramesRequired = state.searchLockFramesRequired != null ? state.searchLockFramesRequired : 5;
+  missionFlowState.searchLockCenteredFrames = state.searchLockCenteredFrames != null ? state.searchLockCenteredFrames : 0;
   missionFlowState.searchLockMarginPx = state.searchLockMarginPx != null ? state.searchLockMarginPx : 32;
   missionFlowState.searchFrameWidthPx = state.searchFrameWidthPx != null ? state.searchFrameWidthPx : 640;
   missionFlowState.searchFrameHeightPx = state.searchFrameHeightPx != null ? state.searchFrameHeightPx : 480;
@@ -925,6 +933,14 @@ function missionSyncSummary() {
   if (maceStateEl) maceStateEl.textContent = (missionFlowState.maceState || 'SAFE').toUpperCase();
   var searchSpeedEl = document.getElementById('missionSearchRotationSpeed');
   if (searchSpeedEl && document.activeElement !== searchSpeedEl) searchSpeedEl.value = (missionFlowState.searchRotationSpeed != null ? missionFlowState.searchRotationSpeed : 1.5);
+  var searchMinConfEl = document.getElementById('missionSearchMinConfidence');
+  if (searchMinConfEl && document.activeElement !== searchMinConfEl) searchMinConfEl.value = (missionFlowState.searchMinConfidence != null ? missionFlowState.searchMinConfidence : 0.5);
+  missionSetGainLabelPair('missionSearchMinConfidenceVal', 'missionSearchMinConfidenceVal', (missionFlowState.searchMinConfidence != null ? missionFlowState.searchMinConfidence : 0.5).toFixed(2));
+  var searchWhitelistEl = document.getElementById('missionSearchClassWhitelist');
+  if (searchWhitelistEl && document.activeElement !== searchWhitelistEl) searchWhitelistEl.value = (missionFlowState.searchClassWhitelist || ['snoopy']).join(', ');
+  var searchFramesEl = document.getElementById('missionSearchLockFramesRequired');
+  if (searchFramesEl && document.activeElement !== searchFramesEl) searchFramesEl.value = (missionFlowState.searchLockFramesRequired != null ? missionFlowState.searchLockFramesRequired : 5);
+  missionSetGainLabelPair('missionSearchLockFramesRequiredVal', 'missionSearchLockFramesRequiredVal', String(missionFlowState.searchLockFramesRequired != null ? missionFlowState.searchLockFramesRequired : 5));
   var searchMarginEl = document.getElementById('missionSearchLockMargin');
   if (searchMarginEl && document.activeElement !== searchMarginEl) searchMarginEl.value = (missionFlowState.searchLockMarginPx != null ? missionFlowState.searchLockMarginPx : 32);
   missionSetGainLabelPair('missionSearchLockMarginVal', 'missionSearchLockMarginVal', Math.round(missionFlowState.searchLockMarginPx != null ? missionFlowState.searchLockMarginPx : 32) + ' px');
@@ -936,6 +952,7 @@ function missionSyncSummary() {
   if (searchMaxEl && document.activeElement !== searchMaxEl) searchMaxEl.value = (missionFlowState.searchLockMaxCommand != null ? missionFlowState.searchLockMaxCommand : 2);
   missionSetTelemetryValue('missionSearchLockError', missionFlowState.searchLockError != null ? missionFlowState.searchLockError.toFixed(1) + ' px' : '--');
   missionSetTelemetryValue('missionSearchLockCommand', missionFlowState.searchLockCommand != null ? missionFlowState.searchLockCommand.toFixed(3) + ' rad/s' : '--');
+  missionSetTelemetryValue('missionSearchLockFrames', String(missionFlowState.searchLockCenteredFrames != null ? missionFlowState.searchLockCenteredFrames : 0) + ' / ' + String(missionFlowState.searchLockFramesRequired != null ? missionFlowState.searchLockFramesRequired : 5));
   missionSetTelemetryValue('missionRotationEstimate', missionFlowState.rotationEstimateRpm != null ? missionFlowState.rotationEstimateRpm.toFixed(2) + ' rpm' : '--');
   missionSetTelemetryValue('missionRotationStableWindow', missionFlowState.rotationStableSeconds.toFixed(1) + ' s / ' + missionFlowState.rotationStableToleranceRpm.toFixed(1) + ' rpm');
   missionSetTelemetryValue('missionDemoPhase', (missionFlowState.demoSequenceState || 'IDLE').toUpperCase());
@@ -948,11 +965,17 @@ function missionSyncSummary() {
 function missionCompetitionConfigChanged() {
   if (activePageTab !== 'competition') return;
   var searchSpeedEl = document.getElementById('missionSearchRotationSpeed');
+  var searchMinConfEl = document.getElementById('missionSearchMinConfidence');
+  var searchWhitelistEl = document.getElementById('missionSearchClassWhitelist');
+  var searchFramesEl = document.getElementById('missionSearchLockFramesRequired');
   var searchMarginEl = document.getElementById('missionSearchLockMargin');
   var searchKpEl = document.getElementById('missionSearchLockKp');
   var searchMaxEl = document.getElementById('missionSearchLockMaxCommand');
   competitionPost('/api/competition/config', {
     searchRotationSpeed: searchSpeedEl ? parseFloat(searchSpeedEl.value || '1.5') : 1.5,
+    searchMinConfidence: searchMinConfEl ? parseFloat(searchMinConfEl.value || '0.5') : 0.5,
+    searchClassWhitelist: searchWhitelistEl ? searchWhitelistEl.value.split(',').map(function(label) { return label.trim().toLowerCase(); }).filter(function(label) { return !!label; }) : ['snoopy'],
+    searchLockFramesRequired: searchFramesEl ? parseInt(searchFramesEl.value || '5', 10) : 5,
     searchLockMarginPx: searchMarginEl ? parseFloat(searchMarginEl.value || '32') : 32,
     searchLockKp: searchKpEl ? parseFloat(searchKpEl.value || '6.0') : 6.0,
     searchLockMaxCommand: searchMaxEl ? parseFloat(searchMaxEl.value || '2.0') : 2.0

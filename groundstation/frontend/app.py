@@ -139,6 +139,10 @@ def competition_default_state():
         "aocsArmDetachResolved": False,
         "maceState": "SAFE",
         "searchRotationSpeed": 1.5,
+        "searchMinConfidence": 0.5,
+        "searchClassWhitelist": ["snoopy"],
+        "searchLockFramesRequired": 5,
+        "searchLockCenteredFrames": 0,
         "searchLockMarginPx": 32.0,
         "searchFrameWidthPx": 640.0,
         "searchFrameHeightPx": 480.0,
@@ -273,6 +277,10 @@ def _competition_snapshot():
         "aocsArmDetachResolved": competition_state["aocsArmDetachResolved"],
         "maceState": competition_state["maceState"],
         "searchRotationSpeed": competition_state["searchRotationSpeed"],
+        "searchMinConfidence": competition_state["searchMinConfidence"],
+        "searchClassWhitelist": list(competition_state["searchClassWhitelist"]),
+        "searchLockFramesRequired": competition_state["searchLockFramesRequired"],
+        "searchLockCenteredFrames": competition_state["searchLockCenteredFrames"],
         "searchLockMarginPx": competition_state["searchLockMarginPx"],
         "searchFrameWidthPx": competition_state["searchFrameWidthPx"],
         "searchFrameHeightPx": competition_state["searchFrameHeightPx"],
@@ -313,6 +321,7 @@ def _competition_fail(reason):
     competition_state["maceState"] = "SAFE"
     competition_state["searchLockError"] = None
     competition_state["searchLockCommand"] = 0.0
+    competition_state["searchLockCenteredFrames"] = 0
     competition_state["model1AngleSetpointDeg"] = None
     competition_state["rotationEstimateRpm"] = None
     competition_state["rotationStableSince"] = None
@@ -362,6 +371,7 @@ def _competition_reset_detection_tracking():
     }
     competition_state["searchLockError"] = None
     competition_state["searchLockCommand"] = 0.0
+    competition_state["searchLockCenteredFrames"] = 0
     competition_state["model1AngleSetpointDeg"] = None
 
 
@@ -480,10 +490,24 @@ def _competition_apply_detection(payload):
     confidence = payload.get("confidence")
     center = payload.get("bbox_center") or {}
     size = payload.get("bbox_size") or {}
-    if class_label != "snoopy":
-        return False, "unsupported class label"
-    if confidence is None or float(confidence) <= 0:
+    whitelist = [str(label).strip().lower() for label in competition_state.get("searchClassWhitelist", []) if str(label).strip()]
+    if whitelist and class_label not in whitelist:
+        return False, "class label not in whitelist"
+    if confidence is None:
         return False, "invalid confidence"
+    confidence = float(confidence)
+    if confidence <= 0:
+        return False, "invalid confidence"
+    min_confidence = float(competition_state.get("searchMinConfidence", 0.5))
+    if confidence < min_confidence:
+        competition_state["searchLockCenteredFrames"] = 0
+        if competition_state["substeps"]["4"].get("snoopy-lock"):
+            competition_state["substeps"]["4"]["snoopy-lock"] = False
+            competition_state["visionState"] = "SEARCHING"
+            competition_state["maceState"] = "SEARCHING"
+            competition_state["searchScanActive"] = True
+            _competition_apply_mace_velocity(competition_state["searchRotationSpeed"])
+        return False, "confidence below threshold"
     if center.get("x") is None or center.get("y") is None:
         return False, "missing bbox center"
     if size.get("w") is None or size.get("h") is None:
@@ -537,8 +561,8 @@ def _competition_apply_detection(payload):
         "bbox_center_px": bbox_center_px,
         "bbox_size_px": bbox_size_px,
         "frame_size_px": {"w": frame_width_px, "h": frame_height_px},
-        "confidence": float(confidence),
-        "class_label": "snoopy",
+        "confidence": confidence,
+        "class_label": class_label,
     }
 
     if not competition_state["substeps"]["4"]["snoopy-found"]:
@@ -552,17 +576,29 @@ def _competition_apply_detection(payload):
     competition_state["model1AngleSetpointDeg"] = None
     deadband_px = float(competition_state["searchLockMarginPx"])
     if abs(center_error_px) <= deadband_px:
-        competition_state["substeps"]["4"]["snoopy-lock"] = True
-        competition_state["visionState"] = "LOCKED"
-        competition_state["maceState"] = "LOCKED"
-        competition_state["searchLockCommand"] = 0.0
-        competition_state["searchScanActive"] = False
-        _competition_apply_mace_velocity(0.0)
+        competition_state["searchLockCenteredFrames"] = int(competition_state.get("searchLockCenteredFrames", 0)) + 1
+        required_frames = max(1, int(competition_state.get("searchLockFramesRequired", 5)))
+        if competition_state["searchLockCenteredFrames"] >= required_frames:
+            competition_state["substeps"]["4"]["snoopy-lock"] = True
+            competition_state["visionState"] = "LOCKED"
+            competition_state["maceState"] = "LOCKED"
+            competition_state["searchLockCommand"] = 0.0
+            competition_state["searchScanActive"] = False
+            _competition_apply_mace_velocity(0.0)
+        else:
+            competition_state["substeps"]["4"]["snoopy-lock"] = False
+            competition_state["visionState"] = "CENTERING"
+            competition_state["maceState"] = "CENTERING"
+            competition_state["searchLockCommand"] = 0.0
+            competition_state["searchScanActive"] = False
+            _competition_apply_mace_velocity(0.0)
     else:
+        competition_state["searchLockCenteredFrames"] = 0
         kp = float(competition_state["searchLockKp"])
         max_cmd = float(competition_state["searchLockMaxCommand"])
         correction = max(-max_cmd, min(max_cmd, -kp * (center_error_px / max(frame_width_px, 1.0))))
         competition_state["searchLockCommand"] = round(correction, 4)
+        competition_state["substeps"]["4"]["snoopy-lock"] = False
         competition_state["visionState"] = "CENTERING"
         competition_state["maceState"] = "CENTERING"
         competition_state["searchScanActive"] = False
@@ -1032,6 +1068,16 @@ def competition_config():
             competition_state["searchRotationSpeed"] = max(0.0, min(12.0, float(data.get("searchRotationSpeed", 0.0))))
             if competition_state["searchScanActive"] and competition_state["currentStep"] in (2, 3, 4):
                 _competition_apply_mace_velocity(competition_state["searchRotationSpeed"])
+        if "searchMinConfidence" in data:
+            competition_state["searchMinConfidence"] = max(0.0, min(1.0, float(data.get("searchMinConfidence", 0.5))))
+        if "searchLockFramesRequired" in data:
+            competition_state["searchLockFramesRequired"] = max(1, min(60, int(float(data.get("searchLockFramesRequired", 5)))))
+        if "searchClassWhitelist" in data:
+            raw_whitelist = data.get("searchClassWhitelist", [])
+            if isinstance(raw_whitelist, str):
+                raw_whitelist = raw_whitelist.split(',')
+            whitelist = [str(label).strip().lower() for label in raw_whitelist if str(label).strip()]
+            competition_state["searchClassWhitelist"] = whitelist or ["snoopy"]
         if "searchLockMarginPx" in data:
             competition_state["searchLockMarginPx"] = max(2.0, min(200.0, float(data.get("searchLockMarginPx", 32.0))))
         if "searchFrameWidthPx" in data:

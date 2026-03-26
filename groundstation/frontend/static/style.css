@@ -1982,3 +1982,11 @@ input[type="number"]::-webkit-outer-spin-button {
   .mission-summary-card, .mission-camera-card, .mission-ml-camera-card, .mission-armviz-card, .mission-stack-card { grid-column: span 1; }
   .mission-mace-card { grid-column: span 2; }
 }
+
+.mission-inline-field-wide {
+  flex: 1 1 100%;
+}
+
+.mission-inline-field-wide input {
+  width: 100%;
+}
