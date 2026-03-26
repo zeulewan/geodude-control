@@ -705,6 +705,22 @@ def send_simplefoc_cmd(cmd):
         return False
 
 
+def proxy_simplefoc_profile(path, payload=None, method="GET"):
+    """Proxy MACE tuning/profile requests to GEO-DUDe's hardware-owning backend."""
+    try:
+        url = f"{GEODUDE_URL}/simplefoc/profile/{path.lstrip('/')}"
+        data = None
+        headers = {}
+        if payload is not None:
+            data = json.dumps(payload).encode()
+            headers["Content-Type"] = "application/json"
+        req = urllib.request.Request(url, data=data, headers=headers, method=method)
+        resp = urllib.request.urlopen(req, timeout=60)
+        return json.loads(resp.read().decode()), resp.status
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}, 502
+
+
 def send_pwm(channel, pw):
     """Send PWM pulse width to a named PCA9685 channel."""
     try:
@@ -869,6 +885,36 @@ def mace_tune():
     cmd = '%s%s' % (param, value)
     send_simplefoc_cmd(cmd)
     return jsonify({"ok": True})
+
+
+@app.route('/api/mace/test/state')
+def mace_test_state():
+    data, status = proxy_simplefoc_profile("state")
+    return jsonify(data), status
+
+
+@app.route('/api/mace/test/run', methods=['POST'])
+def mace_test_run():
+    data, status = proxy_simplefoc_profile("run", request.json or {}, method="POST")
+    return jsonify(data), status
+
+
+@app.route('/api/mace/test/calibrate', methods=['POST'])
+def mace_test_calibrate():
+    data, status = proxy_simplefoc_profile("calibrate", {}, method="POST")
+    return jsonify(data), status
+
+
+@app.route('/api/mace/test/stop', methods=['POST'])
+def mace_test_stop():
+    data, status = proxy_simplefoc_profile("stop", {}, method="POST")
+    return jsonify(data), status
+
+
+@app.route('/api/mace/test/dump', methods=['POST'])
+def mace_test_dump():
+    data, status = proxy_simplefoc_profile("dump", {}, method="POST")
+    return jsonify(data), status
 
 
 @app.route('/api/pwm', methods=['POST'])
