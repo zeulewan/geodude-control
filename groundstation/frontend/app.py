@@ -139,7 +139,9 @@ def competition_default_state():
         "aocsArmDetachResolved": False,
         "maceState": "SAFE",
         "searchRotationSpeed": 1.5,
+        "searchScanDirection": 1,
         "searchMinConfidence": 0.5,
+        "modelSlots": {"1": False, "2": False, "3": False},
         "searchClassWhitelist": ["snoopy"],
         "searchLockFramesRequired": 5,
         "searchLockCenteredFrames": 0,
@@ -256,6 +258,46 @@ def _competition_refresh_current_step():
             return
     competition_state["currentStep"] = 8
 
+def _competition_readiness():
+    sensors_connected = bool(state.get("connected"))
+    gyro = state.get("gyro") or {}
+    accel = state.get("accel") or {}
+    imu_healthy = sensors_connected and any(abs(float(gyro.get(axis, 0) or 0)) > 0 or abs(float(accel.get(axis, 0) or 0)) > 0 for axis in ("x", "y", "z"))
+    encoder_angle = state.get("encoder_angle")
+    encoder_healthy = sensors_connected and encoder_angle is not None
+    mace_ready = bool(mace.get("connected")) and bool(mace.get("enabled"))
+    model_slots = competition_state.get("modelSlots", {"1": False, "2": False, "3": False})
+    step = int(competition_state.get("currentStep", 1))
+    active_required_model = None
+    if step <= 4:
+        active_required_model = "1"
+    elif step == 5:
+        active_required_model = "2"
+    model_ready = bool(model_slots.get(active_required_model, False)) if active_required_model else True
+    return {
+        "maceReady": mace_ready,
+        "imuHealthy": imu_healthy,
+        "encoderHealthy": encoder_healthy,
+        "modelReady": model_ready,
+        "activeRequiredModel": active_required_model,
+        "modelSlots": dict(model_slots),
+    }
+
+
+def _competition_require_readiness(*required):
+    readiness = _competition_readiness()
+    reasons = []
+    if "mace" in required and not readiness["maceReady"]:
+        reasons.append("MACE not armed/enabled")
+    if "imu" in required and not readiness["imuHealthy"]:
+        reasons.append("IMU not healthy")
+    if "encoder" in required and not readiness["encoderHealthy"]:
+        reasons.append("encoder not healthy")
+    if "model" in required and not readiness["modelReady"]:
+        model_name = readiness.get("activeRequiredModel") or "required"
+        reasons.append(f"model {model_name} not loaded")
+    return readiness, reasons
+
 
 def _competition_snapshot():
     _competition_tick()
@@ -277,7 +319,9 @@ def _competition_snapshot():
         "aocsArmDetachResolved": competition_state["aocsArmDetachResolved"],
         "maceState": competition_state["maceState"],
         "searchRotationSpeed": competition_state["searchRotationSpeed"],
+        "searchScanDirection": competition_state["searchScanDirection"],
         "searchMinConfidence": competition_state["searchMinConfidence"],
+        "readiness": _competition_readiness(),
         "searchClassWhitelist": list(competition_state["searchClassWhitelist"]),
         "searchLockFramesRequired": competition_state["searchLockFramesRequired"],
         "searchLockCenteredFrames": competition_state["searchLockCenteredFrames"],
@@ -352,6 +396,12 @@ def _competition_apply_mace_velocity(target_velocity):
     mace["target"] = target_velocity
     mace["velocity"] = target_velocity
     send_velocity(target_velocity)
+
+
+def _competition_scan_velocity():
+    direction = int(competition_state.get("searchScanDirection", 1))
+    direction = -1 if direction < 0 else 1
+    return float(competition_state["searchRotationSpeed"]) * direction
 
 
 def _competition_reset_detection_tracking():
@@ -506,7 +556,7 @@ def _competition_apply_detection(payload):
             competition_state["visionState"] = "SEARCHING"
             competition_state["maceState"] = "SEARCHING"
             competition_state["searchScanActive"] = True
-            _competition_apply_mace_velocity(competition_state["searchRotationSpeed"])
+            _competition_apply_mace_velocity(_competition_scan_velocity())
         return False, "confidence below threshold"
     if center.get("x") is None or center.get("y") is None:
         return False, "missing bbox center"
@@ -625,26 +675,42 @@ def _competition_complete_substep(step, substep):
         return False, "substep is controlled by model detections"
     if step == "5" and substep == "rotation-found":
         return False, "substep is controlled by model estimates"
+    if step == "2" and substep == "snoopy-detect":
+        _, reasons = _competition_require_readiness("model")
+        if reasons:
+            return False, reasons[0]
+    if step == "2" and substep == "mace":
+        if not mace.get("connected"):
+            return False, "MACE controller offline"
+    if step == "4" and substep == "search-snoopy":
+        _, reasons = _competition_require_readiness("mace", "imu", "encoder", "model")
+        if reasons:
+            return False, "; ".join(reasons)
+    if step == "5" and substep == "rotation-finder-model":
+        competition_state["currentStep"] = 5
+        _, reasons = _competition_require_readiness("model")
+        if reasons:
+            return False, reasons[0]
     competition_state["started"] = True
     competition_state["running"] = True
     competition_state["substeps"][step][substep] = True
     if step == "2" and substep == "mace":
         mace["enabled"] = True
-        mace["target"] = float(competition_state["searchRotationSpeed"])
-        mace["velocity"] = float(competition_state["searchRotationSpeed"])
+        mace["target"] = _competition_scan_velocity()
+        mace["velocity"] = _competition_scan_velocity()
         mace["error"] = None
         competition_state["maceState"] = "SCANNING"
         competition_state["visionState"] = "SEARCHING"
         competition_state["searchScanActive"] = True
         competition_state["activeVisionModel"] = 1
-        send_velocity(float(competition_state["searchRotationSpeed"]))
+        send_velocity(_competition_scan_velocity())
     elif step == "4" and substep == "search-snoopy":
         competition_state["activeVisionModel"] = 1
         competition_state["visionState"] = "SEARCHING"
         competition_state["maceState"] = "SEARCHING"
         competition_state["searchScanActive"] = True
         _competition_reset_detection_tracking()
-        _competition_apply_mace_velocity(competition_state["searchRotationSpeed"])
+        _competition_apply_mace_velocity(_competition_scan_velocity())
     elif step == "5" and substep == "rotation-finder-model":
         competition_state["activeVisionModel"] = 2
         competition_state["visionState"] = "ROTATION_SEARCHING"
@@ -674,6 +740,9 @@ def _competition_respond(checkpoint, approved):
         competition_state["visionState"] = "MODEL_READY"
         _competition_reset_detection_tracking()
     elif checkpoint == "everything-nominal":
+        _, reasons = _competition_require_readiness("mace", "imu", "encoder", "model")
+        if reasons:
+            return False, "; ".join(reasons)
         competition_state["everythingNominalResolved"] = True
         competition_state["substeps"]["4"]["search-snoopy"] = True
         competition_state["activeVisionModel"] = 1
@@ -681,7 +750,7 @@ def _competition_respond(checkpoint, approved):
         competition_state["maceState"] = "SEARCHING"
         competition_state["searchScanActive"] = True
         if competition_state["substeps"]["2"]["mace"]:
-            _competition_apply_mace_velocity(competition_state["searchRotationSpeed"])
+            _competition_apply_mace_velocity(_competition_scan_velocity())
     elif checkpoint == "proceed":
         competition_state["allIdentifiedResolved"] = True
     elif checkpoint == "rotation-satisfied":
@@ -1067,7 +1136,13 @@ def competition_config():
         if "searchRotationSpeed" in data:
             competition_state["searchRotationSpeed"] = max(0.0, min(12.0, float(data.get("searchRotationSpeed", 0.0))))
             if competition_state["searchScanActive"] and competition_state["currentStep"] in (2, 3, 4):
-                _competition_apply_mace_velocity(competition_state["searchRotationSpeed"])
+                _competition_apply_mace_velocity(_competition_scan_velocity())
+        if "model1Loaded" in data:
+            competition_state["modelSlots"]["1"] = bool(data.get("model1Loaded"))
+        if "model2Loaded" in data:
+            competition_state["modelSlots"]["2"] = bool(data.get("model2Loaded"))
+        if "model3Loaded" in data:
+            competition_state["modelSlots"]["3"] = bool(data.get("model3Loaded"))
         if "searchMinConfidence" in data:
             competition_state["searchMinConfidence"] = max(0.0, min(1.0, float(data.get("searchMinConfidence", 0.5))))
         if "searchLockFramesRequired" in data:

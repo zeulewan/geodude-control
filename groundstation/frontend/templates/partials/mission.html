@@ -233,6 +233,10 @@
           <div class="mission-subflow-title">Telemetry</div>
           <div class="mission-summary-grid mission-summary-grid-compact">
             <div class="mission-stat"><span class="label">MACE State</span><span class="value" id="missionMaceState">SAFE</span></div>
+            <div class="mission-stat"><span class="label">MACE Ready</span><span class="value" id="missionReadinessMace">NO</span></div>
+            <div class="mission-stat"><span class="label">IMU Healthy</span><span class="value" id="missionReadinessImu">NO</span></div>
+            <div class="mission-stat"><span class="label">Encoder Healthy</span><span class="value" id="missionReadinessEncoder">NO</span></div>
+            <div class="mission-stat"><span class="label">Model Ready</span><span class="value" id="missionReadinessModel">NO</span></div>
             <div class="mission-stat"><span class="label">Wheel RPM</span><span class="value" id="missionMaceRpm">--</span></div>
             <div class="mission-stat"><span class="label">Encoder Angle</span><span class="value" id="missionMaceEncoderAngle">--</span></div>
             <div class="mission-stat"><span class="label">IMU Angle</span><span class="value" id="missionMaceImuAngle">--</span></div>
@@ -246,6 +250,10 @@
             <div class="mission-stat"><span class="label">Demo Phase</span><span class="value" id="missionDemoPhase">--</span></div>
             <div class="mission-stat"><span class="label">Demo Angle Cmd</span><span class="value" id="missionDemoAngle">--</span></div>
             <div class="mission-stat"><span class="label">RPM Match Target</span><span class="value" id="missionRotationMatchTarget">--</span></div>
+            <div class="mission-stat"><span class="label">MACE Ready</span><span class="value" id="missionReadinessMace">NO</span></div>
+            <div class="mission-stat"><span class="label">IMU Healthy</span><span class="value" id="missionReadinessImu">NO</span></div>
+            <div class="mission-stat"><span class="label">Encoder Healthy</span><span class="value" id="missionReadinessEncoder">NO</span></div>
+            <div class="mission-stat"><span class="label">Model Ready</span><span class="value" id="missionReadinessModel">NO</span></div>
           </div>
         </div>
         <div class="mission-mace-panel">
@@ -254,6 +262,13 @@
             <label class="mission-inline-field">
               <span>Search Rotational Speed</span>
               <input type="number" id="missionSearchRotationSpeed" step="0.1" min="0" max="12" value="1.5" onchange="missionCompetitionConfigChanged()">
+            </label>
+            <label class="mission-inline-field">
+              <span>Scan Direction</span>
+              <select id="missionSearchScanDirection" onchange="missionCompetitionConfigChanged()">
+                <option value="1">Positive</option>
+                <option value="-1">Negative</option>
+              </select>
             </label>
           </div>
           <div class="slider-group mission-slider-group">
