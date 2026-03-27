@@ -175,20 +175,27 @@ lock = threading.Lock()
 
 
 def send_all_off():
-    """Emergency disable of every PCA channel. Sets _servo_disarmed so the
-    arms cannot be re-energized by a racing /api/pwm POST; operator must
-    explicitly /api/arm to resume."""
+    """Emergency disable of every PCA channel.
+
+    Returns (ok_all, failures) where failures is a list of channel names
+    that did NOT confirm zero. The disarm flag is only raised if every
+    channel was successfully stopped; a partial failure leaves the system
+    in its previous armed state and the operator is expected to deal with
+    it (power-cycle the PCA rail).
+    """
     global _servo_disarmed
-    ok_all = True
+    failures = []
     for name in CHANNELS:
         ok, _ = _servo_send_to_geodude(name, 0, bypass_clamp=True)
-        ok_all = ok_all and ok
+        if not ok:
+            failures.append(name)
     with _servo_state_lock:
-        for name in CHANNELS:
-            _servo_target_pw[name] = 0
-            _servo_actual_pw[name] = 0
-        _servo_disarmed = True
-    return ok_all
+        if not failures:
+            for name in CHANNELS:
+                _servo_target_pw[name] = 0
+                _servo_actual_pw[name] = 0
+            _servo_disarmed = True
+    return (len(failures) == 0, failures)
 
 
 # --- Servo safety state ---
@@ -205,7 +212,7 @@ _servo_last_heartbeat = 0.0
 _servo_ramp_last_tick_mono = 0.0
 _servo_disarmed = False  # H2: reject /api/pwm after emergency stop
 _servo_state_lock = threading.Lock()
-_servo_seq_locks = {}  # C1: per-channel lock around _servo_seq read/modify/write
+_servo_seq_locks = {name: threading.Lock() for name in CHANNELS}  # C1/N1: per-channel seq locks, built at import
 
 
 def _servo_init_state():
@@ -217,7 +224,6 @@ def _servo_init_state():
         _servo_actual_pw[name] = pw
         _servo_target_pw[name] = pw
         _servo_seq[name] = 0
-        _servo_seq_locks[name] = threading.Lock()
     _servo_last_heartbeat = time.monotonic()
 
 
@@ -285,6 +291,13 @@ def _servo_ramp_loop():
         try:
             _servo_ramp_last_tick_mono = start
             with _servo_state_lock:
+                # L1: if disarmed, skip this tick entirely. send_all_off
+                # already zeroed target/actual; belt and suspenders.
+                if _servo_disarmed:
+                    elapsed = time.monotonic() - start
+                    if elapsed < period:
+                        time.sleep(period - elapsed)
+                    continue
                 # Heartbeat watchdog.
                 if start - _servo_last_heartbeat > SERVO_HEARTBEAT_TIMEOUT_S:
                     for name in CHANNELS:
@@ -337,13 +350,22 @@ def _servo_ramp_loop():
                 elif abs(ap - prev_actual) > abs(new_actual - prev_actual) + 1:
                     bad = True; reason = f"echo={ap} > requested={new_actual}"
                 elif ap != 0:
-                    # Envelope check only if we were already inside the envelope.
-                    # Ramping up from pw=0 (post-disarm/post-startup) legitimately
-                    # passes through the under-envelope range at 10 us/tick; the
-                    # 50us/tick hardware clamp is the real safety net there.
                     lim = servo_limits.get(name)
-                    if lim and prev_actual != 0 and (ap < lim["min"] or ap > lim["max"]):
-                        bad = True; reason = f"echo={ap} outside envelope [{lim['min']}..{lim['max']}]"
+                    if lim:
+                        # Allow echoes below envelope.min while we are ramping
+                        # up from below (post-disarm or first startup), and allow
+                        # echoes above envelope.max while ramping down from above
+                        # (envelope narrowed mid-motion). In both cases the
+                        # 50us/tick hardware clamp bounds travel speed, so the
+                        # groundstation-side envelope check is redundant until
+                        # we re-enter the envelope.
+                        lo, hi = lim["min"], lim["max"]
+                        was_below = prev_actual < lo
+                        was_above = prev_actual > hi
+                        if ap < lo and not was_below:
+                            bad = True; reason = f"echo={ap} below envelope min={lo}"
+                        elif ap > hi and not was_above:
+                            bad = True; reason = f"echo={ap} above envelope max={hi}"
                 if bad:
                     print(f"[servo] {name} remote echo looks wrong: {reason}; holding actual at {prev_actual}", flush=True)
                     # Do not advance _servo_actual_pw. Next tick retries the
@@ -455,13 +477,17 @@ def pwm():
     pw = int(data.get("pw", 0))
     if name not in CHANNELS:
         return jsonify({"ok": False, "error": "unknown channel"}), 400
+    # M1: set target and heartbeat in a single critical section so the
+    # ramp thread cannot tick between them and freeze the just-posted
+    # target based on a stale heartbeat.
+    global _servo_last_heartbeat
+    pw = max(0, min(2500, int(pw)))
+    pw = _clamp_to_envelope(name, pw)
     with _servo_state_lock:
         if _servo_disarmed:
             return jsonify({"ok": False, "error": "disarmed; POST /api/arm first"}), 409
-    # M3: set target first so a racing ramp tick cannot freeze the target
-    # based on a stale heartbeat. Then mark heartbeat.
-    _servo_set_target(name, pw)
-    _servo_heartbeat()
+        _servo_target_pw[name] = pw
+        _servo_last_heartbeat = time.monotonic()
     return jsonify({"ok": True})
 
 
@@ -545,15 +571,28 @@ def set_servo_neutral():
         save_neutral(servo_neutral)
     # M2: neutral changed -> envelope may be re-centered; reload limits.
     global servo_limits
-    servo_limits = _load_servo_limits()
+    try:
+        servo_limits = _load_servo_limits()
+    except Exception as e:
+        print(f"[servo] servo_limits reload after neutral edit failed: {e}", flush=True)
     return jsonify({"ok": True})
 
 
 @app.route('/api/all_off', methods=['POST'])
 def all_off():
-    """Turn all PCA9685 channels off."""
-    ok = send_all_off()
-    return jsonify({"ok": ok})
+    """Emergency stop. Returns 503 with the list of failed channels if
+    any channel did not confirm zero. The client MUST surface this to the
+    operator; a partial failure means the physical servos may still be
+    energized even though /api/all_off returned.
+    """
+    ok, failures = send_all_off()
+    if not ok:
+        return jsonify({
+            "ok": False,
+            "error": "partial failure; power-cycle PCA rail",
+            "failures": failures,
+        }), 503
+    return jsonify({"ok": True, "disarmed": True})
 
 
 @app.route('/api/system')
