@@ -974,11 +974,15 @@ function servoSyncPoll() {
     // C5: alarm if the ramp thread is not ticking. ramp_age > 1s means the
     // daemon thread has stopped; any slider move would be silently ignored.
     var rampDead = rampAge > 1.0;
+    var disarmed = !!state.disarmed;
     var statusDot = document.getElementById('statusDot');
     if (statusDot) {
       if (rampDead) {
         statusDot.className = 'status-dot';
         statusDot.title = 'Servo ramp thread stopped - sliders disabled';
+      } else if (disarmed) {
+        statusDot.className = 'status-dot';
+        statusDot.title = 'Servos DISARMED - POST /api/arm to resume';
       } else if (nowFrozen) {
         statusDot.className = 'status-dot warn';
         statusDot.title = 'Heartbeat lost - targets frozen';
@@ -986,12 +990,11 @@ function servoSyncPoll() {
         statusDot.title = '';
       }
     }
-    // M-F: disable servo sliders when the ramp is dead so the user cannot
-    // pile up targets that would slew the arm on recovery.
+    // Disable sliders when the ramp is dead OR the arms are disarmed.
     chOrder.forEach(function(name) {
       if (name === 'MACE') return;
       var sl = document.getElementById('ch_' + name);
-      if (sl) sl.disabled = rampDead;
+      if (sl) sl.disabled = (rampDead || disarmed);
     });
 
     chOrder.forEach(function(name) {

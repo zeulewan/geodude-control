@@ -69,6 +69,8 @@ def save_positions():
 
 servo_positions = load_positions()
 _servo_positions_lock = threading.Lock()
+_positions_dirty = False
+_positions_last_change = 0.0
 
 def mark_positions_dirty():
     global _positions_dirty, _positions_last_change
@@ -173,8 +175,10 @@ lock = threading.Lock()
 
 
 def send_all_off():
-    """Emergency: disable every PCA channel immediately via bypass_clamp=True,
-    and reset ramp state so the ramp thread does not re-energize them."""
+    """Emergency disable of every PCA channel. Sets _servo_disarmed so the
+    arms cannot be re-energized by a racing /api/pwm POST; operator must
+    explicitly /api/arm to resume."""
+    global _servo_disarmed
     ok_all = True
     for name in CHANNELS:
         ok, _ = _servo_send_to_geodude(name, 0, bypass_clamp=True)
@@ -183,6 +187,7 @@ def send_all_off():
         for name in CHANNELS:
             _servo_target_pw[name] = 0
             _servo_actual_pw[name] = 0
+        _servo_disarmed = True
     return ok_all
 
 
@@ -198,7 +203,9 @@ _servo_seq = {}
 _servo_speed_per_tick = SERVO_MAX_STEP_US_PER_TICK
 _servo_last_heartbeat = 0.0
 _servo_ramp_last_tick_mono = 0.0
+_servo_disarmed = False  # H2: reject /api/pwm after emergency stop
 _servo_state_lock = threading.Lock()
+_servo_seq_locks = {}  # C1: per-channel lock around _servo_seq read/modify/write
 
 
 def _servo_init_state():
@@ -210,55 +217,51 @@ def _servo_init_state():
         _servo_actual_pw[name] = pw
         _servo_target_pw[name] = pw
         _servo_seq[name] = 0
+        _servo_seq_locks[name] = threading.Lock()
     _servo_last_heartbeat = time.monotonic()
 
 
 def _servo_send_to_geodude(name, pw, bypass_clamp=False):
-    """Send one PWM to GEO-DUDe, returns (ok, accepted_pw).
+    """Send one PWM to GEO-DUDe with the next seq number for this channel.
 
-    Uses a monotonic per-channel seq. If GEO-DUDe replies 409 stale-seq,
-    we parse its last_seq from the response and jump our local counter
-    past it. This prevents the permanent-lockout failure mode where
-    the groundstation restarts and starts at seq=1 while GEO-DUDe still
-    has last_seq=50000.
+    Returns (ok, accepted_pw). Seq read/modify/write is serialized per
+    channel via _servo_seq_locks[name] so concurrent callers (ramp thread,
+    send_all_off, or a future path) cannot mint duplicate seqs and
+    mutually lock each other out of GEO-DUDe.
     """
-    seq = _servo_seq[name] + 1
-    if seq > SERVO_MAX_SEQ:
-        # H-C: unreachable at 30 Hz operations but kept as defensive guard.
-        # Resetting the counter would race with GEO-DUDe's _servo_last_seq.
-        # Log and stall this channel; operator must restart both sides.
-        print(f"[servo] {name} seq overflow; refusing to send", flush=True)
+    with _servo_seq_locks[name]:
+        seq = _servo_seq[name] + 1
+        if seq > SERVO_MAX_SEQ:
+            print(f"[servo] {name} seq overflow; refusing to send", flush=True)
+            return False, None
+        payload = {"channel": name, "pw": pw, "seq": seq}
+        if bypass_clamp:
+            payload["bypass_clamp"] = True
+        try:
+            body = json.dumps(payload).encode()
+            req = urllib.request.Request(
+                f"{GEODUDE_URL}/pwm",
+                data=body,
+                headers={"Content-Type": "application/json"},
+            )
+            resp = urllib.request.urlopen(req, timeout=1.0)
+            result = json.loads(resp.read().decode()) if resp.status == 200 else None
+            if result and result.get("ok"):
+                _servo_seq[name] = seq
+                return True, int(result.get("pw", pw))
+        except urllib.error.HTTPError as e:
+            if e.code == 409:
+                try:
+                    err = json.loads(e.read().decode())
+                    server_last = int(err.get("last_seq", -1))
+                    if server_last > _servo_seq[name]:
+                        _servo_seq[name] = server_last
+                        print(f"[servo] {name} seq resync to {server_last}", flush=True)
+                except Exception:
+                    pass
+        except Exception:
+            pass
         return False, None
-    payload = {"channel": name, "pw": pw, "seq": seq}
-    if bypass_clamp:
-        payload["bypass_clamp"] = True
-    try:
-        body = json.dumps(payload).encode()
-        req = urllib.request.Request(
-            f"{GEODUDE_URL}/pwm",
-            data=body,
-            headers={"Content-Type": "application/json"},
-        )
-        resp = urllib.request.urlopen(req, timeout=1.0)
-        result = json.loads(resp.read().decode()) if resp.status == 200 else None
-        if result and result.get("ok"):
-            _servo_seq[name] = seq
-            # accepted_pw may differ from requested if GEO-DUDe clamped
-            return True, int(result.get("pw", pw))
-    except urllib.error.HTTPError as e:
-        if e.code == 409:
-            try:
-                err = json.loads(e.read().decode())
-                server_last = int(err.get("last_seq", -1))
-                # Jump our counter past the server. Next attempt will succeed.
-                if server_last > _servo_seq[name]:
-                    _servo_seq[name] = server_last
-                    print(f"[servo] {name} seq resync to {server_last}", flush=True)
-            except Exception:
-                pass
-    except Exception:
-        pass
-    return False, None
 
 
 def _servo_ramp_loop():
@@ -314,26 +317,44 @@ def _servo_ramp_loop():
             # Send outside the state lock (slow HTTP must not block targets).
             for name, prev_actual, new_actual in moves:
                 ok, accepted_pw = _servo_send_to_geodude(name, new_actual)
-                if ok:
-                    # C-A: GEO-DUDe should never return a pw larger than we
-                    # requested (it only clamps downward by 50us). If it ever
-                    # does, something is wrong; clamp to what we asked for
-                    # and to [0..2500]. Also clamp to envelope: accepted_pw
-                    # should never leave the safe range regardless of the
-                    # remote's reply.
-                    safe_pw = max(0, min(2500, int(accepted_pw)))
-                    # Don't let the remote push us further than one step
-                    # beyond where we asked to go.
-                    if abs(safe_pw - prev_actual) > abs(new_actual - prev_actual) + 1:
-                        print(f"[servo] {name} accepted_pw={accepted_pw} > requested={new_actual}, clamping", flush=True)
-                        safe_pw = new_actual
-                    safe_pw = _clamp_to_envelope(name, safe_pw) if safe_pw != 0 else 0
-                    with _servo_state_lock:
-                        _servo_actual_pw[name] = safe_pw
-                    with _servo_positions_lock:
-                        servo_positions[name] = safe_pw
-                    mark_positions_dirty()
-                # else: _servo_actual_pw stays at prev_actual; retry next tick.
+                if not ok:
+                    # _servo_actual_pw stays at prev_actual; retry next tick.
+                    continue
+                # Sanity-check GEO-DUDes echo. Three ways it can be bad:
+                #   1. Outside [0..2500] range                -> reject, alarm.
+                #   2. Further from prev_actual than we asked -> reject (this
+                #      is the C-A case: the remote cannot legitimately push
+                #      the servo past where we requested).
+                #   3. Outside our per-channel envelope       -> reject. We
+                #      do NOT silently clamp into the envelope because that
+                #      would make groundstations belief diverge from the
+                #      physical servo state (H1). Instead: alarm and stall.
+                bad = False
+                reason = ""
+                ap = int(accepted_pw)
+                if ap < 0 or ap > 2500:
+                    bad = True; reason = f"out of range [{ap}]"
+                elif abs(ap - prev_actual) > abs(new_actual - prev_actual) + 1:
+                    bad = True; reason = f"echo={ap} > requested={new_actual}"
+                elif ap != 0:
+                    # Envelope check only if we were already inside the envelope.
+                    # Ramping up from pw=0 (post-disarm/post-startup) legitimately
+                    # passes through the under-envelope range at 10 us/tick; the
+                    # 50us/tick hardware clamp is the real safety net there.
+                    lim = servo_limits.get(name)
+                    if lim and prev_actual != 0 and (ap < lim["min"] or ap > lim["max"]):
+                        bad = True; reason = f"echo={ap} outside envelope [{lim['min']}..{lim['max']}]"
+                if bad:
+                    print(f"[servo] {name} remote echo looks wrong: {reason}; holding actual at {prev_actual}", flush=True)
+                    # Do not advance _servo_actual_pw. Next tick retries the
+                    # same step honestly and GEO-DUDes 50us clamp is still
+                    # the physical safety net.
+                    continue
+                with _servo_state_lock:
+                    _servo_actual_pw[name] = ap
+                with _servo_positions_lock:
+                    servo_positions[name] = ap
+                mark_positions_dirty()
         except Exception as e:
             print(f"[servo ramp] exception: {e!r}", flush=True)
 
@@ -373,6 +394,7 @@ def _servo_snapshot():
             "heartbeat_age_s": now - _servo_last_heartbeat,
             "ramp_age_s": now - _servo_ramp_last_tick_mono,
             "seq": dict(_servo_seq),
+            "disarmed": _servo_disarmed,
         }
 
 
@@ -424,15 +446,22 @@ def pwm():
     safely, step-capped, sequence-numbered, and heartbeat-gated.
 
     Body: {"channel": "B1", "pw": 1500}
-    pw=0 is a special case that disables the PCA channel immediately.
+
+    Rejected with 409 while the arms are disarmed (after /api/all_off).
+    Operator must POST /api/arm to resume.
     """
     data = request.json or {}
     name = data.get("channel", "")
     pw = int(data.get("pw", 0))
     if name not in CHANNELS:
         return jsonify({"ok": False, "error": "unknown channel"}), 400
-    _servo_heartbeat()
+    with _servo_state_lock:
+        if _servo_disarmed:
+            return jsonify({"ok": False, "error": "disarmed; POST /api/arm first"}), 409
+    # M3: set target first so a racing ramp tick cannot freeze the target
+    # based on a stale heartbeat. Then mark heartbeat.
     _servo_set_target(name, pw)
+    _servo_heartbeat()
     return jsonify({"ok": True})
 
 
@@ -472,6 +501,19 @@ def servo_limits_route():
     bounds so a user can never drag outside a mechanically-safe range."""
     return jsonify(servo_limits)
 
+@app.route('/api/arm', methods=['POST'])
+def servo_arm():
+    """Clear the disarmed flag after an all_off. Targets and actuals have
+    already been reset to 0 by send_all_off, so nothing moves on re-arm;
+    the operator must set new targets explicitly. This is the only way to
+    resume motion after an emergency stop."""
+    global _servo_disarmed
+    with _servo_state_lock:
+        _servo_disarmed = False
+    _servo_heartbeat()
+    return jsonify({"ok": True, "disarmed": False})
+
+
 @app.route('/api/heartbeat', methods=['POST'])
 def heartbeat():
     """Client heartbeat. If this stops arriving for SERVO_HEARTBEAT_TIMEOUT_S,
@@ -501,6 +543,9 @@ def set_servo_neutral():
     if name in CHANNELS:
         servo_neutral[name] = pw
         save_neutral(servo_neutral)
+    # M2: neutral changed -> envelope may be re-centered; reload limits.
+    global servo_limits
+    servo_limits = _load_servo_limits()
     return jsonify({"ok": True})
 
 
