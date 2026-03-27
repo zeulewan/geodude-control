@@ -92,6 +92,7 @@ SERVO_MAX_DELTA_US = 50
 _servo_last_pw = {name: None for name in CHANNELS}  # last successfully written
 _servo_last_seq = {name: -1 for name in CHANNELS}   # highest seq accepted
 _servo_locks = {name: threading.Lock() for name in CHANNELS}
+_servo_health_lock = threading.Lock()  # H-D/M-E: covers PCA counters + snapshot reads
 
 
 def pca_init(freq=50):
@@ -104,15 +105,21 @@ def pca_init(freq=50):
     time.sleep(0.005)
     bus.write_byte_data(PCA9685_ADDR, MODE1, 0xA0)  # RESTART + AI
 
-_pca_write_errors = 0         # cumulative I2C write failures
-_pca_readback_mismatches = 0  # cumulative times the PCA did not echo what we wrote
+_pca_write_errors = 0         # H-D: protected by _servo_health_lock
+_pca_readback_mismatches = 0
+
+def _pca_bump(counter_name):
+    """H-D: atomic counter increment. CPython += on int is NOT atomic."""
+    global _pca_write_errors, _pca_readback_mismatches
+    with _servo_health_lock:
+        if counter_name == "write":
+            _pca_write_errors += 1
+        else:
+            _pca_readback_mismatches += 1
+
 
 def pca_set_pulse_us(channel, pulse_us, freq=50):
-    """Write + verify. If the readback disagrees with what we wrote, bump a
-    counter and retry once; on persistent mismatch leave the counter up so
-    callers can see something is wrong via /pwm_health.
-    """
-    global _pca_write_errors, _pca_readback_mismatches
+    """Write + verify. Returns True on verified write, False on failure."""
     period_us = 1_000_000 / freq
     counts = int(pulse_us / period_us * 4096)
     counts = max(0, min(4095, counts))
@@ -121,16 +128,18 @@ def pca_set_pulse_us(channel, pulse_us, freq=50):
     for attempt in range(2):
         try:
             with lock:
+                # H-E: reassert MODE1 = RESTART+AI so multi-byte readback
+                # auto-increments. If the chip browned out and lost this bit,
+                # readback would return the same register byte 4x and a
+                # pw=0 write would falsely pass verification.
+                bus.write_byte_data(PCA9685_ADDR, MODE1, 0xA0)
                 bus.write_i2c_block_data(PCA9685_ADDR, reg, payload)
-                # Read the 4 bytes back and compare. If the chip dropped the
-                # write (bus glitch, chip reset, wrong address), the values
-                # will not match.
                 got = bus.read_i2c_block_data(PCA9685_ADDR, reg, 4)
             if list(got) == payload:
                 return True
-            _pca_readback_mismatches += 1
+            _pca_bump("mismatch")
         except Exception:
-            _pca_write_errors += 1
+            _pca_bump("write")
     return False
 
 def pca_off(channel):
@@ -143,6 +152,27 @@ def pca_all_off():
         for ch in range(16):
             reg = LED0_ON_L + 4 * ch
             bus.write_i2c_block_data(PCA9685_ADDR, reg, [0, 0, 0, 0])
+
+def _servo_seed_last_pw_from_pca(freq=50):
+    """L-E: on boot, seed _servo_last_pw from whatever the PCA9685 is actually
+    outputting right now. This closes the "first write bypasses clamp" hole
+    where _servo_last_pw[name] was None so the 50us delta clamp was skipped.
+
+    Must be called after pca_init so MODE1 auto-increment is on.
+    """
+    period_us = 1_000_000 / freq
+    for name, ch in CHANNELS.items():
+        reg = LED0_ON_L + 4 * ch
+        try:
+            with lock:
+                got = bus.read_i2c_block_data(PCA9685_ADDR, reg, 4)
+            counts = ((got[3] & 0x0F) << 8) | got[2]
+            pw = int(round(counts * period_us / 4096))
+            _servo_last_pw[name] = pw if 0 <= pw <= 2500 else 0
+        except Exception:
+            # Leave as None; first write will have no clamp — but log.
+            print(f"[servo] seed_last_pw failed for {name}", flush=True)
+
 
 # --- Sensor reading ---
 
@@ -1536,10 +1566,26 @@ def pwm():
                 pw_to_write = last_pw - SERVO_MAX_DELTA_US
                 clamped = True
 
+        write_ok = True
         if pw_to_write == 0:
-            pca_off(ch)
+            try:
+                pca_off(ch)
+            except Exception:
+                _pca_bump("write")
+                write_ok = False
         else:
-            pca_set_pulse_us(ch, pw_to_write)
+            write_ok = pca_set_pulse_us(ch, pw_to_write)
+
+        if not write_ok:
+            # M-D: hardware did not accept the write. Do NOT update last_pw
+            # or last_seq; the caller's next attempt will be rejected unless
+            # it retries with the same seq. Return 503 so upstream retries.
+            return jsonify({
+                "ok": False,
+                "error": "hardware write failed",
+                "channel": name,
+                "last_seq": _servo_last_seq[name],
+            }), 503
 
         _servo_last_pw[name] = pw_to_write
         if seq != -1:
@@ -1565,15 +1611,23 @@ def pwm_all_off():
 
 @app.route("/pwm_health")
 def pwm_health():
-    """Telemetry for the servo write path. A non-zero mismatch counter
-    means the PCA9685 did not echo back what we wrote, which implies an
-    I2C glitch or partial bus failure. Groundstation polls this so the UI
-    can raise an alarm."""
+    """Telemetry for the servo write path. Snapshots taken under the health
+    lock so the reader sees coherent counters + state."""
+    with _servo_health_lock:
+        we = _pca_write_errors
+        rm = _pca_readback_mismatches
+    # Per-channel state: take each channel's lock briefly to snapshot.
+    snap_pw = {}
+    snap_seq = {}
+    for name in CHANNELS:
+        with _servo_locks[name]:
+            snap_pw[name] = _servo_last_pw[name]
+            snap_seq[name] = _servo_last_seq[name]
     return jsonify({
-        "write_errors": _pca_write_errors,
-        "readback_mismatches": _pca_readback_mismatches,
-        "last_pw": dict(_servo_last_pw),
-        "last_seq": dict(_servo_last_seq),
+        "write_errors": we,
+        "readback_mismatches": rm,
+        "last_pw": snap_pw,
+        "last_seq": snap_seq,
     })
 
 @app.route("/channels")
@@ -1649,6 +1703,7 @@ def camera():
 if __name__ == "__main__":
     try:
         pca_init(freq=50)
+        _servo_seed_last_pw_from_pca()  # L-E: seed last_pw from current registers
     except Exception as e:
         print("PCA9685 init failed; continuing without PCA init: %s" % e, flush=True)
     # No pca_all_off() — groundstation sends neutral positions on connect

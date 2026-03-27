@@ -978,12 +978,21 @@ function servoSyncPoll() {
     if (statusDot) {
       if (rampDead) {
         statusDot.className = 'status-dot';
-        statusDot.title = 'Servo ramp thread stopped - do not touch sliders';
+        statusDot.title = 'Servo ramp thread stopped - sliders disabled';
       } else if (nowFrozen) {
         statusDot.className = 'status-dot warn';
         statusDot.title = 'Heartbeat lost - targets frozen';
+      } else {
+        statusDot.title = '';
       }
     }
+    // M-F: disable servo sliders when the ramp is dead so the user cannot
+    // pile up targets that would slew the arm on recovery.
+    chOrder.forEach(function(name) {
+      if (name === 'MACE') return;
+      var sl = document.getElementById('ch_' + name);
+      if (sl) sl.disabled = rampDead;
+    });
 
     chOrder.forEach(function(name) {
       if (name === 'MACE') return;
