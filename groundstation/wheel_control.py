@@ -116,6 +116,150 @@ def send_all_off():
     except Exception:
         return False
 
+# --- Server-side servo ramp (safety-critical authoritative state) ---
+#
+# Client sets per-channel TARGETS only. A background thread ramps the
+# ACTUAL pulse-width toward the target at a capped rate and sends one PWM
+# to GEO-DUDe per tick per moving channel. Safety properties:
+#
+#   - Network drops between browser<->groundstation cannot cause jumps;
+#     the ramp just keeps stepping locally.
+#   - Drops between groundstation<->GEO-DUDe are also bounded because
+#     GEO-DUDe re-clamps any delta > SERVO_MAX_DELTA_US.
+#   - Two tabs cannot fight: both update the same target; the ramp always
+#     moves toward the latest one.
+#   - If the frontend goes silent (no heartbeat) for SERVO_HEARTBEAT_TIMEOUT,
+#     the target is frozen to the current actual so motion stops and stays
+#     stopped until the client comes back.
+#   - Each command to GEO-DUDe has a monotonic seq so late-arriving retries
+#     cannot revert the servo to a stale pw.
+SERVO_RAMP_HZ = 30
+SERVO_MAX_STEP_US_PER_TICK = 10    # hard cap; GEO-DUDe clamps at 50
+SERVO_HEARTBEAT_TIMEOUT_S = 5.0
+
+_servo_target_pw = {}    # user-requested target per channel
+_servo_actual_pw = {}    # what we've ramped to and sent to GEO-DUDe
+_servo_seq = {}          # monotonic per-channel sequence number
+_servo_speed_per_tick = SERVO_MAX_STEP_US_PER_TICK
+_servo_last_heartbeat = 0.0
+_servo_state_lock = threading.Lock()
+
+
+def _servo_init_state():
+    """Seed ramp state from last-known positions on disk. Must be called
+    before the ramp thread starts. Actual==Target so nothing moves."""
+    global _servo_last_heartbeat
+    for name in CHANNELS:
+        pw = servo_positions.get(name, servo_neutral.get(name, 1500))
+        _servo_actual_pw[name] = pw
+        _servo_target_pw[name] = pw
+        _servo_seq[name] = 0
+    _servo_last_heartbeat = time.monotonic()
+
+
+def _servo_send_to_geodude(name, pw):
+    """Send one PWM to GEO-DUDe with the next seq number for this channel.
+    Returns True on success. Uses the safety-hardened /pwm endpoint."""
+    seq = _servo_seq[name] + 1
+    try:
+        body = json.dumps({"channel": name, "pw": pw, "seq": seq}).encode()
+        req = urllib.request.Request(
+            f"{GEODUDE_URL}/pwm",
+            data=body,
+            headers={"Content-Type": "application/json"},
+        )
+        resp = urllib.request.urlopen(req, timeout=1.0)
+        _servo_seq[name] = seq
+        return True
+    except Exception:
+        return False
+
+
+def _servo_ramp_loop():
+    """Authoritative ramp: runs at SERVO_RAMP_HZ, steps each channel's
+    actual toward its target by at most _servo_speed_per_tick us/tick, and
+    sends one PWM per moving channel per tick."""
+    period = 1.0 / SERVO_RAMP_HZ
+    while True:
+        start = time.monotonic()
+        with _servo_state_lock:
+            # Heartbeat watchdog: if the frontend has gone quiet, freeze
+            # targets at wherever the servos actually are. This stops any
+            # in-flight motion cleanly.
+            if start - _servo_last_heartbeat > SERVO_HEARTBEAT_TIMEOUT_S:
+                for name in CHANNELS:
+                    _servo_target_pw[name] = _servo_actual_pw[name]
+
+            step_cap = max(1, min(_servo_speed_per_tick, SERVO_MAX_STEP_US_PER_TICK))
+            moves = []
+            for name in CHANNELS:
+                target = _servo_target_pw[name]
+                actual = _servo_actual_pw[name]
+                if target == actual:
+                    continue
+                delta = target - actual
+                step = step_cap if delta > 0 else -step_cap
+                if abs(delta) < step_cap:
+                    step = delta
+                new_actual = actual + step
+                _servo_actual_pw[name] = new_actual
+                moves.append((name, new_actual))
+
+        # Send outside the state lock so slow HTTP doesn't block target updates.
+        for name, pw in moves:
+            ok = _servo_send_to_geodude(name, pw)
+            if ok:
+                servo_positions[name] = pw
+                mark_positions_dirty()
+            else:
+                # Send failed. Leave actual at the new value; the next tick
+                # will try again to advance further. If GEO-DUDe comes back
+                # and our state has drifted more than SERVO_MAX_DELTA_US
+                # ahead, GEO-DUDe's clamp will cap the catch-up rate.
+                pass
+
+        elapsed = time.monotonic() - start
+        if elapsed < period:
+            time.sleep(period - elapsed)
+
+
+def _servo_set_target(name, pw):
+    """Set the target for a channel. Clamped to 0..2500. pw=0 means "off"
+    and goes straight through without ramping (PCA channel disable)."""
+    pw = max(0, min(2500, int(pw)))
+    with _servo_state_lock:
+        _servo_target_pw[name] = pw
+        if pw == 0:
+            _servo_actual_pw[name] = 0
+    if pw == 0:
+        # Send off immediately, bypassing the clamp on GEO-DUDe.
+        try:
+            body = json.dumps({"channel": name, "pw": 0, "bypass_clamp": True}).encode()
+            req = urllib.request.Request(
+                f"{GEODUDE_URL}/pwm", data=body,
+                headers={"Content-Type": "application/json"},
+            )
+            urllib.request.urlopen(req, timeout=1.0)
+        except Exception:
+            pass
+
+
+def _servo_heartbeat():
+    global _servo_last_heartbeat
+    _servo_last_heartbeat = time.monotonic()
+
+
+def _servo_snapshot():
+    with _servo_state_lock:
+        return {
+            "target": dict(_servo_target_pw),
+            "actual": dict(_servo_actual_pw),
+            "speed_per_tick": _servo_speed_per_tick,
+            "heartbeat_age_s": time.monotonic() - _servo_last_heartbeat,
+        }
+
+
+
 
 def sensor_loop():
     while True:
@@ -159,15 +303,44 @@ def sensors():
 
 @app.route('/api/pwm', methods=['POST'])
 def pwm():
-    """Proxy per-channel PWM to GEO-DUDe."""
-    data = request.json
+    """Set a servo TARGET. The background ramp thread moves toward it
+    safely, step-capped, sequence-numbered, and heartbeat-gated.
+
+    Body: {"channel": "B1", "pw": 1500}
+    pw=0 is a special case that disables the PCA channel immediately.
+    """
+    data = request.json or {}
     name = data.get("channel", "")
     pw = int(data.get("pw", 0))
-    ok = send_pwm(name, pw)
-    if ok and name in CHANNELS:
-        servo_positions[name] = pw
-        mark_positions_dirty()
-    return jsonify({"ok": ok})
+    if name not in CHANNELS:
+        return jsonify({"ok": False, "error": "unknown channel"}), 400
+    _servo_heartbeat()
+    _servo_set_target(name, pw)
+    return jsonify({"ok": True})
+
+
+@app.route('/api/servo_state')
+def servo_state():
+    """Live ramp state for the UI (target, actual, speed, heartbeat age)."""
+    return jsonify(_servo_snapshot())
+
+
+@app.route('/api/servo_speed', methods=['POST'])
+def servo_speed():
+    """Set ramp step size (us/tick, capped at SERVO_MAX_STEP_US_PER_TICK)."""
+    global _servo_speed_per_tick
+    data = request.json or {}
+    step = int(data.get("us_per_tick", SERVO_MAX_STEP_US_PER_TICK))
+    _servo_speed_per_tick = max(1, min(step, SERVO_MAX_STEP_US_PER_TICK))
+    return jsonify({"ok": True, "us_per_tick": _servo_speed_per_tick})
+
+
+@app.route('/api/heartbeat', methods=['POST'])
+def heartbeat():
+    """Client heartbeat. If this stops arriving for SERVO_HEARTBEAT_TIMEOUT_S,
+    the ramp freezes targets wherever the servos actually are."""
+    _servo_heartbeat()
+    return jsonify({"ok": True})
 
 
 @app.route('/api/servo_positions')
@@ -414,6 +587,8 @@ def restore_positions_loop():
 
 
 def start_background_threads():
+    _servo_init_state()
+    threading.Thread(target=_servo_ramp_loop, daemon=True).start()
     threading.Thread(target=sensor_loop, daemon=True).start()
     threading.Thread(target=positions_flush_loop, daemon=True).start()
     threading.Thread(target=restore_positions_loop, daemon=True).start()

@@ -68,17 +68,31 @@ LED0_ON_L = 0x06
 # Channel mapping (pin - 1 = 0-indexed)
 # MACE reaction wheel is no longer on PCA9685 — it is driven by Pi Pico via SimpleFOC
 CHANNELS = {
-    "B1":   0,   # SV1
-    "S1":   1,   # SV2
-    "B2":   2,   # SV3
-    "S2":   3,   # SV4
-    "E1":   4,   # SV5
-    "E2":   5,   # SV6
-    "W1A":  6,   # SV7
-    "W1B":  7,   # SV8
-    "W2A":  8,   # SV9
-    "W2B":  9,   # SV10
+    "B1":   0,
+    "S1":   1,
+    "B2":   2,
+    "S2":   3,
+    "E1":   4,
+    "E2":   5,
+    "W1A":  6,
+    "W1B":  7,
+    "W2A":  8,
+    "W2B":  9,
 }
+
+# --- Servo safety state ---
+# Max change in pulse-width allowed per single /pwm request.
+# Prevents servo jumps if the client-side ramp loses packets. Tune carefully:
+#   - Too small: legitimate moves get clamped and feel laggy.
+#   - Too large: big jumps can slip past.
+# With client ramp at 30 Hz and max 10 us/tick, normal delta is <= 10 us.
+# 50 us is a safe cap: legitimate ramp fits, jumps from lost commands get clipped.
+SERVO_MAX_DELTA_US = 50
+
+_servo_last_pw = {name: None for name in CHANNELS}  # last successfully written
+_servo_last_seq = {name: -1 for name in CHANNELS}   # highest seq accepted
+_servo_locks = {name: threading.Lock() for name in CHANNELS}
+
 
 def pca_init(freq=50):
     # Sleep to change prescale
@@ -1448,21 +1462,70 @@ def simplefoc_torque_run_route():
 
 @app.route("/pwm", methods=["POST"])
 def pwm():
-    """Set PWM pulse width on any named channel.
-    Body: {"channel": "B1", "pw": 1500} or {"channel": "B1", "pw": 0} to turn off.
+    """Set PWM pulse width on any named channel, with safety clamps.
+
+    Body: {
+        "channel": "B1",
+        "pw": 1500,
+        "seq": 42,            # optional monotonic sequence number
+        "bypass_clamp": false # optional: used by startup/all_off
+    }
+
+    Safety layers:
+      1. Per-channel lock serializes concurrent writes.
+      2. Sequence number rejects out-of-order or duplicate commands.
+      3. Max-delta clamp caps how far pw can jump from the last write.
     """
-    data = request.json
+    data = request.json or {}
     name = data.get("channel", "").upper()
-    pw = int(data.get("pw", 0))
+    requested_pw = int(data.get("pw", 0))
+    seq = int(data.get("seq", -1))
+    bypass = bool(data.get("bypass_clamp", False))
+
     if name not in CHANNELS:
         return jsonify({"ok": False, "error": f"unknown channel: {name}"}), 400
     ch = CHANNELS[name]
-    pw = max(0, min(2500, pw))
-    if pw == 0:
-        pca_off(ch)
-    else:
-        pca_set_pulse_us(ch, pw)
-    return jsonify({"ok": True, "channel": name, "ch": ch, "pw": pw})
+    requested_pw = max(0, min(2500, requested_pw))
+
+    with _servo_locks[name]:
+        if seq != -1 and seq <= _servo_last_seq[name]:
+            return jsonify({
+                "ok": False,
+                "error": "stale sequence",
+                "channel": name,
+                "last_seq": _servo_last_seq[name],
+            }), 409
+
+        last_pw = _servo_last_pw[name]
+        clamped = False
+        pw_to_write = requested_pw
+        if not bypass and last_pw is not None and requested_pw != 0 and last_pw != 0:
+            delta = requested_pw - last_pw
+            if delta > SERVO_MAX_DELTA_US:
+                pw_to_write = last_pw + SERVO_MAX_DELTA_US
+                clamped = True
+            elif delta < -SERVO_MAX_DELTA_US:
+                pw_to_write = last_pw - SERVO_MAX_DELTA_US
+                clamped = True
+
+        if pw_to_write == 0:
+            pca_off(ch)
+        else:
+            pca_set_pulse_us(ch, pw_to_write)
+
+        _servo_last_pw[name] = pw_to_write
+        if seq != -1:
+            _servo_last_seq[name] = seq
+
+    return jsonify({
+        "ok": True,
+        "channel": name,
+        "ch": ch,
+        "pw": pw_to_write,
+        "requested_pw": requested_pw,
+        "clamped": clamped,
+        "last_seq": _servo_last_seq[name],
+    })
 
 @app.route("/pwm/off", methods=["POST"])
 def pwm_all_off():
