@@ -997,9 +997,22 @@ function servoSyncPoll() {
       if (sl) sl.disabled = (rampDead || disarmed);
     });
 
+    var hw = state.hardware || {};
     chOrder.forEach(function(name) {
       if (name === 'MACE') return;
       if (actual[name] != null) chActual[name] = actual[name];
+      var hwLabel = document.getElementById('chhw_' + name);
+      if (hwLabel) {
+        var hwVal = hw[name];
+        if (hwVal == null) {
+          hwLabel.textContent = 'HW: ?';
+          hwLabel.style.color = '#f59e0b';
+        } else {
+          hwLabel.textContent = 'HW: ' + hwVal + ' us';
+          var mismatch = actual[name] != null && Math.abs(hwVal - actual[name]) > 5;
+          hwLabel.style.color = mismatch ? '#dc2626' : '#6b7280';
+        }
+      }
       if (target[name] == null) return;
       var slider = document.getElementById('ch_' + name);
       if (!slider) return;
@@ -1080,6 +1093,7 @@ function preventSliderJump(slider) {
       '<button class="btn btn-sm" onclick="chGoNeutral(&quot;' + name + '&quot;)">Go to Neutral</button>' +
       '<button class="btn btn-sm btn-red" onclick="chSetNeutral(&quot;' + name + '&quot;)" title="Save current position as neutral">Set Neutral</button>' +
       '<span style="font-size:11px;color:#6b7280;margin-left:4px;">N: <span id="chn_' + name + '">' + neutralVal + ' us</span></span>' +
+      '<span id="chhw_' + name + '" style="font-size:11px;color:#6b7280;margin-left:8px;">HW: -</span>' +
       '</div>';
     grid.appendChild(item);
 

@@ -1601,6 +1601,45 @@ def pwm():
         "last_seq": _servo_last_seq[name],
     })
 
+
+@app.route("/pwm_seed", methods=["POST"])
+def pwm_seed():
+    """Seed _servo_last_pw for an unpowered channel.
+
+    Intended for groundstation boot: after a PCA power-cycle the register
+    reads 0 (no PWM output -> servo unpowered). The ordinary /pwm path
+    would 50us-staircase from 0, slamming the servo to an extreme before
+    reaching neutral. /pwm_seed writes the requested pw directly to the
+    PCA and sets last_pw in one step.
+
+    Safety: rejected if the channel already has a live signal
+    (_servo_last_pw not in (None, 0)). That prevents the seed path from
+    being used to bypass the 50us clamp on a moving servo.
+
+    Body: {"channel": "B1", "pw": 1160}
+    """
+    data = request.json or {}
+    name = data.get("channel", "").upper()
+    pw = int(data.get("pw", 0))
+    if name not in CHANNELS:
+        return jsonify({"ok": False, "error": f"unknown channel: {name}"}), 400
+    if pw <= 0 or pw > 2500:
+        return jsonify({"ok": False, "error": "pw must be in (0, 2500]"}), 400
+    ch = CHANNELS[name]
+    with _servo_locks[name]:
+        current = _servo_last_pw[name]
+        if current not in (None, 0):
+            return jsonify({
+                "ok": False,
+                "error": "channel already has a live signal; use /pwm instead",
+                "last_pw": current,
+            }), 409
+        ok = pca_set_pulse_us(ch, pw)
+        if not ok:
+            return jsonify({"ok": False, "error": "pca write failed"}), 503
+        _servo_last_pw[name] = pw
+    return jsonify({"ok": True, "channel": name, "pw": pw})
+
 @app.route("/pwm/off", methods=["POST"])
 def pwm_all_off():
     """Turn all PCA9685 channels off."""
