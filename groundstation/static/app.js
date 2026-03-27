@@ -827,7 +827,7 @@ function getNeutral(name) {
 
 function getServoSpeed() {
   var el = document.getElementById('servoSpeed');
-  return el ? parseInt(el.value) : 50;
+  return el ? parseInt(el.value) : 10;
 }
 
 function getServoRampRate() {
@@ -842,7 +842,9 @@ function loadServoSettings() {
       var s = JSON.parse(saved);
       if (s.speed != null) {
         var el = document.getElementById('servoSpeed');
-        if (el) { el.value = s.speed; updateServoSpeedLabel(s.speed); }
+        // Clamp to current slider max (was 200, now 10)
+        var v = Math.min(parseInt(s.speed) || 10, 10);
+        if (el) { el.value = v; updateServoSpeedLabel(v); }
       }
       if (s.ramp != null) {
         var el = document.getElementById('servoRampRate');
@@ -862,10 +864,11 @@ function saveServoSettings() {
 }
 
 function sendServoSettings() {
-  fetch('/api/servo_settings', {
+  // Server-side ramp cares only about step-size-per-tick (getServoSpeed).
+  fetch('/api/servo_speed', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({speed: getServoSpeed(), ramp: getServoRampRate()})
+    body: JSON.stringify({us_per_tick: getServoSpeed()})
   }).catch(function() {});
 }
 
@@ -889,7 +892,7 @@ function chSendPwm(name, val) {
 function chSliderInput(name, val) {
   val = parseInt(val);
   chUpdateLabel(name, val);
-  // Actual PWM is sent by the servo ramp loop, not here
+  chSendPwm(name, val);  // server-side ramp handles step-capping
 }
 
 function chGoNeutral(name) {
@@ -944,77 +947,34 @@ function updateServoRampLabel(val) {
 
 var chVelocity = {};  // current velocity per channel (us/tick, signed)
 
-/* Sync servo sliders from server (multi-client support) */
+/* Sync servo sliders from authoritative server-side ramp state.
+   Reads /api/servo_state which returns {target, actual, ...}. If another
+   client has set a different target, update our slider (unless user is
+   actively dragging). chActual mirrors the live ramp position for display. */
 function servoSyncPoll() {
-  fetch('/api/servo_positions').then(function(r) { return r.json(); }).then(function(positions) {
+  fetch('/api/servo_state').then(function(r) { return r.json(); }).then(function(state) {
+    var target = state.target || {};
+    var actual = state.actual || {};
     chOrder.forEach(function(name) {
       if (name === 'MACE') return;
-      if (positions[name] == null) return;
-      var serverPw = positions[name];
+      if (actual[name] != null) chActual[name] = actual[name];
+      if (target[name] == null) return;
       var slider = document.getElementById('ch_' + name);
       if (!slider) return;
-      // Don't override if user is actively dragging
-      if (slider.matches(':active')) return;
-      var localTarget = parseInt(slider.value);
-      var localActual = chActual[name] != null ? chActual[name] : 1500;
-      // If our local actual matches server, nothing to do
-      if (localActual === serverPw) return;
-      // If we're ramping toward a target, don't interrupt
-      if (localTarget !== localActual) return;
-      // Server has a different position than us — another client moved it
-      slider.value = serverPw;
-      chActual[name] = serverPw;
-      chUpdateLabel(name, serverPw);
+      if (slider.matches(':active')) return;  // user dragging
+      var localVal = parseInt(slider.value);
+      if (localVal !== target[name]) {
+        slider.value = target[name];
+        chUpdateLabel(name, target[name]);
+      }
     });
   }).catch(function() {});
 }
 
-/* Servo ramp loop: trapezoidal velocity profile
-   - Accelerates at ramp rate toward max servo speed
-   - Decelerates as it approaches the target
-*/
-function startServoRampLoop() {
-  setInterval(function() {
-    var maxSpeed = getServoSpeed();
-    var accel = getServoRampRate();
-    chOrder.forEach(function(name) {
-      if (name === 'MACE') return;
-      var slider = document.getElementById('ch_' + name);
-      if (!slider) return;
-      var target = parseInt(slider.value);
-      var actual = chActual[name] != null ? chActual[name] : 1500;
-      if (actual === target) {
-        chVelocity[name] = 0;
-        return;
-      }
-      var diff = target - actual;
-      var dir = diff > 0 ? 1 : -1;
-      var dist = Math.abs(diff);
-      var vel = chVelocity[name] || 0;
-
-      // Decel distance: how far it takes to stop from current speed
-      var absVel = Math.abs(vel);
-      var decelDist = (absVel * (absVel + accel)) / (2 * accel);
-
-      if (dist <= decelDist || dist <= accel) {
-        // Decelerate
-        absVel = Math.max(absVel - accel, 1);
-      } else {
-        // Accelerate toward max speed
-        absVel = Math.min(absVel + accel, maxSpeed);
-      }
-
-      vel = dir * absVel;
-      var step = Math.round(Math.abs(vel));
-      if (step > dist) step = dist;
-
-      actual += dir * step;
-      chVelocity[name] = vel;
-      chActual[name] = actual;
-      chSendPwm(name, actual);
-    });
-  }, 1000 / CH_RAMP_HZ);
-}
+/* Client-side ramp loop removed: the ramp now runs on the groundstation
+   backend so network drops between browser and groundstation cannot cause
+   servo jumps. The client only publishes slider targets via chSendPwm. */
+function startServoRampLoop() { /* server-side now; stub kept for compatibility */ }
 
 function preventSliderJump(slider) {
   function handler(e) {
@@ -1645,6 +1605,11 @@ function seqRun() {
   /* Restore speed settings from localStorage */
   loadServoSettings();
   sendServoSettings();
+
+  /* Server-side ramp heartbeat. Without it, the ramp freezes in place. */
+  setInterval(function() {
+    fetch('/api/heartbeat', {method: 'POST'}).catch(function() {});
+  }, 1000);
 
   /* Start servo ramp loop (rate-limits all servo movements) */
   startServoRampLoop();

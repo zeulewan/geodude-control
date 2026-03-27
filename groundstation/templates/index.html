@@ -174,9 +174,9 @@
       <div class="slider-group servo-tight-group" style="margin-bottom:4px;">
         <div class="slider-label">
           <span class="label">Servo Speed</span>
-          <span class="value" id="servoSpeedVal">50 us/tick (1500 us/s)</span>
+          <span class="value" id="servoSpeedVal">10 us/tick (300 us/s)</span>
         </div>
-        <input type="range" id="servoSpeed" min="1" max="200" step="1" value="50"
+        <input type="range" id="servoSpeed" min="1" max="10" step="1" value="10"
                oninput="updateServoSpeedLabel(this.value); saveServoSettings(); sendServoSettings()">
         <div class="servo-mini-scale"><span>Slow</span><span>Fast</span></div>
       </div>
