@@ -1162,7 +1162,6 @@ function poll() {
     if (analogVa) analogVa.textContent = Number(analog.va || 0).toFixed(3);
     if (analogVb) analogVb.textContent = Number(analog.vb || 0).toFixed(3);
     /* Arm state */
-    updateArmUI(d.armed, d.arming);
     /* Status */
     var armed = !!d.armed;
     var target = Number(d.target || 0);
