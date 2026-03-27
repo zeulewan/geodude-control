@@ -1,3 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOOS-1 Control</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <h1>SOOS-1 Control</h1>
+  <div class="header-status">
+    <div class="status-indicator">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">GEO-DUDe</span>
+    </div>
+    <div class="status-indicator">
+      <div class="status-dot" id="gimbalDot"></div>
+      <span id="gimbalDotText">Gimbal</span>
+    </div>
+  </div>
+</div>
+
+<div class="container">
 <div class="page-panel active" id="pagePanelManual">
 
 <div class="dashboard-grid">
@@ -59,59 +85,6 @@
         <div class="sys-item"><span class="label">Load</span><span class="value" id="gdLoad">--</span></div>
       </div>
     </div>
-  </div>
-
-  <!-- MACE Reaction Wheel -->
-  <div class="card dashboard-card" style="grid-column: 1 / -1;">
-    <h3>MACE Reaction Wheel</h3>
-    <div class="mace-live-controls">
-      <label>Body Rate (deg/s) <input id="maceCompRate" type="number" step="5" value="50"></label>
-      <label>Kp <input id="maceBodyRateKp" type="number" step="0.05" value="0.1"></label>
-      <label>Ki <input id="maceBodyRateKi" type="number" step="0.05" value="0.8"></label>
-      <label>Max Uq <input id="maceBodyRateMaxUq" type="number" step="0.5" value="18"></label>
-      <label>Voltage <input id="maceBodyRateVoltage" type="number" step="1" value="24"></label>
-      <label>Prime RPM <input id="macePrimeRpm" type="number" step="50" value="500"></label>
-      <label>Finish RPM <input id="maceFinishRpm" type="number" step="50" value="-500"></label>
-      <label>Prime Ramp <input id="macePrimeRamp" type="number" step="0.5" value="2.0"></label>
-    </div>
-    <div class="btn-row">
-      <button class="btn btn-sm btn-dark" onclick="maceCompPrime()">PRIME</button>
-      <button class="btn btn-sm" onclick="maceCompRun()">RUN</button>
-      <button class="btn btn-sm btn-red" onclick="maceCompStop()">STOP</button>
-    </div>
-    <div class="mace-test-status" id="maceCompStatus">Idle</div>
-    <div class="mace-plot-title">Body Rate (deg/s)</div>
-    <canvas class="mace-test-plot" id="maceCompRatePlot"></canvas>
-    <div class="mace-plot-title">Wheel RPM</div>
-    <canvas class="mace-test-plot" id="maceCompWheelPlot"></canvas>
-    <div class="mace-plot-title">Uq (V)</div>
-    <canvas class="mace-test-plot" id="maceCompUqPlot"></canvas>
-  </div>
-
-  
-  <!-- Angle Control -->
-  <div class="card dashboard-card" style="grid-column: 1 / -1;">
-    <h3>Angle Control</h3>
-    <div class="mace-live-controls">
-      <label>Target (deg) <input id="maceAngleTarget" type="number" step="5" value="0"></label>
-      <label>Kp <input id="maceAngleKp" type="number" step="0.05" value="0.8"></label>
-      <label>Ki <input id="maceAngleKi" type="number" step="0.05" value="0.2"></label>
-      <label>Kd <input id="maceAngleKd" type="number" step="0.05" value="0.10"></label>
-      <label>Min Uq <input id="maceAngleMinUq" type="number" step="0.5" value="3.0"></label>
-      <label>Max Uq <input id="maceAngleMaxUq" type="number" step="0.5" value="8.0"></label>
-      <label>Tolerance (deg) <input id="maceAngleTolerance" type="number" step="1" value="5"></label>
-    </div>
-    <div class="btn-row">
-      <button class="btn btn-sm" onclick="maceAngleStart()">START</button>
-      <button class="btn btn-sm btn-dark" onclick="maceAngleGo()">GO TO</button>
-      <button class="btn btn-sm btn-dark" onclick="maceAngleZero()">ZERO</button>
-      <button class="btn btn-sm btn-red" onclick="maceAngleStop()">STOP</button>
-    </div>
-    <div class="mace-test-status" id="maceAngleStatus">Idle</div>
-    <div class="mace-plot-title">Angle (deg)</div>
-    <canvas class="mace-test-plot" id="maceAnglePlot"></canvas>
-    <div class="mace-plot-title">Wheel RPM</div>
-    <canvas class="mace-test-plot" id="maceAngleWheelPlot"></canvas>
   </div>
 
   </div>
@@ -194,43 +167,6 @@
         <button class="btn btn-dark" id="controllerToggleBtn" onclick="toggleControllerMode()">ENABLE CONTROLLER</button>
       </div>
       <div class="controller-error" id="controllerError"></div>
-    </div>
-
-    <div class="card servo-compact-card">
-      <h3>Inverse Kinematics</h3>
-      <div class="controller-grid ik-status-grid">
-        <div class="controller-stat"><span class="label">Arm</span><span class="value" id="ikArmLabel">LEFT</span></div>
-        <div class="controller-stat"><span class="label">Solver</span><span class="value" id="ikSolverState">IDLE</span></div>
-        <div class="controller-stat controller-stat-wide"><span class="label">Current Tip</span><span class="value" id="ikCurrentTip">x:0 y:0 z:0</span></div>
-        <div class="controller-stat controller-stat-wide"><span class="label">Solved Tip</span><span class="value" id="ikSolvedTip">x:0 y:0 z:0</span></div>
-      </div>
-      <div class="ik-target-grid">
-        <label class="ik-target-field" for="ikTargetX"><span>X (mm)</span><input type="number" id="ikTargetX" value="-250" step="5"></label>
-        <label class="ik-target-field" for="ikTargetY"><span>Y (mm)</span><input type="number" id="ikTargetY" value="220" step="5"></label>
-        <label class="ik-target-field" for="ikTargetZ"><span>Z (mm)</span><input type="number" id="ikTargetZ" value="40" step="5"></label>
-        <label class="ik-target-field" for="ikTargetWristRoll"><span>Wrist Roll (deg)</span><input type="number" id="ikTargetWristRoll" value="0" step="5"></label>
-      </div>
-      <div class="slider-group servo-tight-group" style="margin-top:8px;margin-bottom:6px;">
-        <div class="slider-label">
-          <span class="label">Stiffness Optimizer</span>
-          <span class="value" id="ikOptimizerVal">70 / 100</span>
-        </div>
-        <input type="range" id="ikOptimizerBias" min="0" max="100" step="1" value="70" oninput="updateIkOptimizerLabel(this.value)">
-        <div class="servo-mini-scale"><span>Exact Reach</span><span>Min Shoulder/Elbow</span></div>
-      </div>
-      <div class="btn-row" style="margin-top:8px;">
-        <button class="btn btn-dark" onclick="ikLoadCurrentTip()">LOAD CURRENT TIP</button>
-        <button class="btn btn-dark" onclick="ikSolve(false)">SOLVE</button>
-        <button class="btn btn-amber" onclick="ikSolve(true)">MOVE SOLVED POSE</button>
-      </div>
-      <div class="ik-solution-grid">
-        <div class="ik-solution-line"><span>Base</span><span id="ikBaseResult">--</span></div>
-        <div class="ik-solution-line"><span>Shoulder</span><span id="ikShoulderResult">--</span></div>
-        <div class="ik-solution-line"><span>Elbow</span><span id="ikElbowResult">--</span></div>
-        <div class="ik-solution-line"><span>Wrist Roll</span><span id="ikWristRollResult">--</span></div>
-        <div class="ik-solution-line"><span>Wrist Pitch</span><span id="ikWristPitchResult">--</span></div>
-      </div>
-      <div class="ik-note" id="ikNote">Solver uses the measured arm lengths in this branch. On the dev page, MOVE SOLVED POSE reuses the dashed solution and stays dry-run only until you explicitly choose otherwise.</div>
     </div>
 
     <div class="card servo-compact-card">
@@ -328,3 +264,9 @@
 </div>
 
 </div>
+
+</div><!-- end container -->
+
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
