@@ -55,7 +55,7 @@ def load_positions():
 def save_positions():
     """Persist servo positions atomically (tmp-file + fsync + rename)."""
     try:
-        tmp = POSITIONS_FILE + ".tmp"
+        tmp = f"{POSITIONS_FILE}.{os.getpid()}.tmp"
         # H5: snapshot under the state lock so we don't iterate a mutating dict.
         with _servo_positions_lock:
             snapshot = dict(servo_positions)
@@ -99,6 +99,13 @@ def save_neutral(data):
         json.dump(data, f)
 
 servo_neutral = load_neutral()
+if os.path.exists(NEUTRAL_FILE) and not servo_neutral:
+    # L-D: file exists but parsed to empty; fail fast rather than silently
+    # default every servo to 1500us (which the docs flag as DANGEROUS).
+    raise RuntimeError(
+        f"{NEUTRAL_FILE} exists but is empty/corrupt. Refuse to start with"
+        " default 1500us neutrals -- operator must fix the file."
+    )
 
 # --- L6: Per-channel servo PW envelope (mechanical safety) ---
 #
@@ -161,18 +168,8 @@ def _clamp_to_envelope(name, pw):
 lock = threading.Lock()
 
 
-def send_pwm(channel, pw):
-    """Send PWM pulse width to a named PCA9685 channel."""
-    try:
-        req = urllib.request.Request(
-            f"{GEODUDE_URL}/pwm",
-            data=json.dumps({"channel": channel, "pw": pw}).encode(),
-            headers={"Content-Type": "application/json"},
-        )
-        urllib.request.urlopen(req, timeout=3)
-        return True
-    except Exception:
-        return False
+# L-B: legacy send_pwm removed. All servo traffic must go through the
+# server-side ramp and /api/pwm (which calls _servo_set_target).
 
 
 def send_all_off():
@@ -191,7 +188,7 @@ def send_all_off():
 
 # --- Servo safety state ---
 SERVO_RAMP_HZ = 30
-SERVO_MAX_SEQ = 10**12  # L5: sanity cap
+SERVO_MAX_SEQ = 2**53  # L5: JS-safe integer max; unreachable at 30 Hz
 SERVO_MAX_STEP_US_PER_TICK = 10
 SERVO_HEARTBEAT_TIMEOUT_S = 1.0
 
@@ -227,7 +224,11 @@ def _servo_send_to_geodude(name, pw, bypass_clamp=False):
     """
     seq = _servo_seq[name] + 1
     if seq > SERVO_MAX_SEQ:
-        seq = 0  # wrap rather than overflow; remote side resyncs via 409 path
+        # H-C: unreachable at 30 Hz operations but kept as defensive guard.
+        # Resetting the counter would race with GEO-DUDe's _servo_last_seq.
+        # Log and stall this channel; operator must restart both sides.
+        print(f"[servo] {name} seq overflow; refusing to send", flush=True)
+        return False, None
     payload = {"channel": name, "pw": pw, "seq": seq}
     if bypass_clamp:
         payload["bypass_clamp"] = True
@@ -284,7 +285,14 @@ def _servo_ramp_loop():
                 # Heartbeat watchdog.
                 if start - _servo_last_heartbeat > SERVO_HEARTBEAT_TIMEOUT_S:
                     for name in CHANNELS:
-                        _servo_target_pw[name] = _servo_actual_pw[name]
+                        # H-B: clamp to envelope so we never freeze to an
+                        # out-of-envelope value (if actual drifted or limits
+                        # were narrowed post-startup).
+                        frozen = _servo_actual_pw[name]
+                        if frozen != 0:
+                            frozen = _clamp_to_envelope(name, frozen)
+                        _servo_target_pw[name] = frozen
+                        _servo_actual_pw[name] = frozen
 
                 # H1: read step cap under the lock.
                 step_cap = max(1, min(_servo_speed_per_tick, SERVO_MAX_STEP_US_PER_TICK))
@@ -307,11 +315,23 @@ def _servo_ramp_loop():
             for name, prev_actual, new_actual in moves:
                 ok, accepted_pw = _servo_send_to_geodude(name, new_actual)
                 if ok:
-                    # Trust GEO-DUDe's accepted_pw (may be clamped below us).
+                    # C-A: GEO-DUDe should never return a pw larger than we
+                    # requested (it only clamps downward by 50us). If it ever
+                    # does, something is wrong; clamp to what we asked for
+                    # and to [0..2500]. Also clamp to envelope: accepted_pw
+                    # should never leave the safe range regardless of the
+                    # remote's reply.
+                    safe_pw = max(0, min(2500, int(accepted_pw)))
+                    # Don't let the remote push us further than one step
+                    # beyond where we asked to go.
+                    if abs(safe_pw - prev_actual) > abs(new_actual - prev_actual) + 1:
+                        print(f"[servo] {name} accepted_pw={accepted_pw} > requested={new_actual}, clamping", flush=True)
+                        safe_pw = new_actual
+                    safe_pw = _clamp_to_envelope(name, safe_pw) if safe_pw != 0 else 0
                     with _servo_state_lock:
-                        _servo_actual_pw[name] = accepted_pw
+                        _servo_actual_pw[name] = safe_pw
                     with _servo_positions_lock:
-                        servo_positions[name] = accepted_pw
+                        servo_positions[name] = safe_pw
                     mark_positions_dirty()
                 # else: _servo_actual_pw stays at prev_actual; retry next tick.
         except Exception as e:
@@ -338,7 +358,9 @@ def _servo_set_target(name, pw):
 
 def _servo_heartbeat():
     global _servo_last_heartbeat
-    _servo_last_heartbeat = time.monotonic()
+    # C-B: take the state lock so the ramp thread cannot tear-read this.
+    with _servo_state_lock:
+        _servo_last_heartbeat = time.monotonic()
 
 
 def _servo_snapshot():
@@ -432,6 +454,16 @@ def servo_speed():
     return jsonify({"ok": True, "us_per_tick": new_val})
 
 
+
+
+@app.route('/api/servo_limits/reload', methods=['POST'])
+def servo_limits_reload():
+    """H-A: reload servo_limits.json from disk. Operators tighten the
+    envelope by editing the file and hitting this endpoint; new limits
+    are applied to targets going forward."""
+    global servo_limits
+    servo_limits = _load_servo_limits()
+    return jsonify({"ok": True, "limits": servo_limits})
 
 
 @app.route('/api/servo_limits')
