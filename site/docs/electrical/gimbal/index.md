@@ -124,13 +124,35 @@ The ESP32 runs a web server with:
 - **Speed control** - slow (5ms), medium (2ms), fast (500us) step delay
 - **Driver setup** - one-click configuration (400mA default, 16 microsteps, StealthChop)
 - **OTA updates** - flash new firmware wirelessly via `espota.py`
-- **UART debug** endpoint at `/debug`
+- **HTTP /reboot** - `POST http://192.168.4.222/reboot` to soft-reset without power cycling
+- **OTA resilience** - `WiFi.onEvent(STA_GOT_IP)` re-inits ArduinoOTA on every WiFi reconnect so OTA survives AP reboots
 
-To flash OTA:
+### Flashing OTA
+
+Standard workflow (compile on zmac, flash from the groundstation Pi because the Pi network has no internet):
+
 ```bash
-python3 ~/Library/Arduino15/packages/esp32/hardware/esp32/3.3.7/tools/espota.py \
-  -i 192.168.4.222 -p 3232 -f build/tmc2209_read.ino.bin
+# On zmac
+cp firmware/esp32/gimbal_controller.ino ~/tmp/tmc2209_read/tmc2209_read.ino
+arduino-cli compile --fqbn esp32:esp32:esp32doit-devkit-v1 \
+  --output-dir ~/tmp/tmc2209_read/build ~/tmp/tmc2209_read/
+scp ~/tmp/tmc2209_read/build/tmc2209_read.ino.bin zeul@192.168.50.2:/tmp/
+ssh zeul@192.168.50.2 "python3 /tmp/espota.py -i 192.168.4.222 -p 3232 \
+  -f /tmp/tmc2209_read.ino.bin"
 ```
+
+`espota.py` lives at `~/Library/Arduino15/packages/esp32/hardware/esp32/<version>/tools/espota.py` on zmac — copy it to the groundstation `/tmp/` if missing.
+
+### If OTA times out
+
+If `espota.py` prints "No response from the ESP", the ESP32 is still reachable over HTTP but the OTA UDP listener is wedged. Soft-reboot via HTTP:
+
+```bash
+ssh zeul@192.168.50.2 "curl -sS -X POST http://192.168.4.222/reboot"
+# wait ~5 s, then retry the espota.py command
+```
+
+Only physically power-cycle the gimbal if HTTP itself stops responding (firmware has crashed into a busy loop). The current firmware re-initializes OTA on every WiFi reconnect, so an AP reboot no longer orphans the UDP socket.
 
 ---
 

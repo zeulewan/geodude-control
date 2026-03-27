@@ -81,6 +81,10 @@ ssh zeul@192.168.4.166 'sudo systemctl restart sensor-server.service'
 ```
 
 ### ESP32 Gimbal (compile on zmac, flash via groundstation)
+
+The ESP32 gimbal controller at `192.168.4.222` takes firmware updates over WiFi via ArduinoOTA on UDP port 3232.
+
+**Normal flash workflow:**
 ```bash
 # On zmac:
 cp firmware/esp32/gimbal_controller.ino ~/tmp/tmc2209_read/tmc2209_read.ino
@@ -89,7 +93,19 @@ scp ~/tmp/tmc2209_read/build/tmc2209_read.ino.bin zeul@192.168.50.2:/tmp/
 ssh zeul@192.168.50.2 'python3 /tmp/espota.py -i 192.168.4.222 -p 3232 -f /tmp/tmc2209_read.ino.bin'
 ```
 
-Note: zmac needs `arduino-cli` (homebrew) with esp32 board package and TMCStepper library. `espota.py` is at `/Users/zeul/Library/Arduino15/packages/esp32/hardware/esp32/3.3.7/tools/espota.py` (copy to groundstation `/tmp/` if missing).
+Notes:
+- Arduino CLI path on zmac: current version is `esp32:esp32@3.3.8`, so `espota.py` lives at `/Users/zeul/Library/Arduino15/packages/esp32/hardware/esp32/3.3.8/tools/espota.py` (adjust for your installed version; copy to groundstation `/tmp/` if missing).
+- zmac needs `arduino-cli` (homebrew) with the esp32 core and TMCStepper library installed.
+
+**If OTA times out with "No response from the ESP":**
+
+The firmware now auto-recovers OTA when WiFi reconnects (`WiFi.onEvent` handler re-runs `ArduinoOTA.begin`). If it still gets stuck, reboot it via HTTP:
+```bash
+ssh zeul@192.168.50.2 'curl -sS -X POST http://192.168.4.222/reboot'
+# wait ~5s for boot, then retry flash
+```
+
+Only power-cycle the gimbal physically if the ESP32 is wedged beyond HTTP reach (e.g. crashed into a busy loop). Older firmware (before the WiFi-event fix) had a latent bug where a groundstation WiFi-AP reboot would orphan the OTA UDP socket until the ESP32 itself rebooted.
 
 ### GitHub
 Pushes to GitHub happen from zmac periodically. Keep it simple for now: bundle/scp between the groundstation and zmac, then push to GitHub from zmac. The Pi network currently has no internet.

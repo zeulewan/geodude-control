@@ -1209,9 +1209,9 @@ function poll() {
         errDiv.style.display = 'none';
       }
     }
-    /* Connection dot - green if we got a response */
+    /* Connection dot - green only if GEO-DUDe Pi is actually reachable */
     var dot = document.getElementById('statusDot');
-    if (dot) dot.className = 'status-dot ok';
+    if (dot) dot.className = d.connected ? 'status-dot ok' : 'status-dot';
   }).catch(function() {
     document.getElementById('statusDot').className = 'status-dot';
   });
