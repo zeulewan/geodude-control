@@ -273,6 +273,17 @@ void handleMotorIhold() {
     return;
   }
   motorIholdMA[d] = ma;
+  // If enabled and idle, apply the new hold current immediately WITHOUT touching IRUN.
+  // rms_current(run_ma, hold_ratio) sets IRUN for run_ma and IHOLD = IRUN * hold_ratio.
+  if (motorEnabled[d] && !motorRunning[d]) {
+    if (ma > 0 && motorCurrentMA[d] > 0) {
+      float hold_ratio = (float)ma / (float)motorCurrentMA[d];
+      if (hold_ratio > 1.0f) hold_ratio = 1.0f;
+      drivers[d]->rms_current(motorCurrentMA[d], hold_ratio);
+    } else {
+      drivers[d]->toff(0);
+    }
+  }
   sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"ihold_ma\":" + String(ma) + "}");
 }
 
