@@ -1,1 +1,0 @@
-"""Groundstation frontend package."""

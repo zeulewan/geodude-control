@@ -1,1 +1,0 @@
-"""Groundstation backend hub package."""
