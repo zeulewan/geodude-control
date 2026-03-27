@@ -104,15 +104,34 @@ def pca_init(freq=50):
     time.sleep(0.005)
     bus.write_byte_data(PCA9685_ADDR, MODE1, 0xA0)  # RESTART + AI
 
+_pca_write_errors = 0         # cumulative I2C write failures
+_pca_readback_mismatches = 0  # cumulative times the PCA did not echo what we wrote
+
 def pca_set_pulse_us(channel, pulse_us, freq=50):
+    """Write + verify. If the readback disagrees with what we wrote, bump a
+    counter and retry once; on persistent mismatch leave the counter up so
+    callers can see something is wrong via /pwm_health.
+    """
+    global _pca_write_errors, _pca_readback_mismatches
     period_us = 1_000_000 / freq
     counts = int(pulse_us / period_us * 4096)
     counts = max(0, min(4095, counts))
     reg = LED0_ON_L + 4 * channel
-    with lock:
-        bus.write_i2c_block_data(PCA9685_ADDR, reg, [
-            0, 0, counts & 0xFF, (counts >> 8) & 0xFF,
-        ])
+    payload = [0, 0, counts & 0xFF, (counts >> 8) & 0xFF]
+    for attempt in range(2):
+        try:
+            with lock:
+                bus.write_i2c_block_data(PCA9685_ADDR, reg, payload)
+                # Read the 4 bytes back and compare. If the chip dropped the
+                # write (bus glitch, chip reset, wrong address), the values
+                # will not match.
+                got = bus.read_i2c_block_data(PCA9685_ADDR, reg, 4)
+            if list(got) == payload:
+                return True
+            _pca_readback_mismatches += 1
+        except Exception:
+            _pca_write_errors += 1
+    return False
 
 def pca_off(channel):
     reg = LED0_ON_L + 4 * channel
@@ -1541,6 +1560,21 @@ def pwm_all_off():
     """Turn all PCA9685 channels off."""
     pca_all_off()
     return jsonify({"ok": True})
+
+
+
+@app.route("/pwm_health")
+def pwm_health():
+    """Telemetry for the servo write path. A non-zero mismatch counter
+    means the PCA9685 did not echo back what we wrote, which implies an
+    I2C glitch or partial bus failure. Groundstation polls this so the UI
+    can raise an alarm."""
+    return jsonify({
+        "write_errors": _pca_write_errors,
+        "readback_mismatches": _pca_readback_mismatches,
+        "last_pw": dict(_servo_last_pw),
+        "last_seq": dict(_servo_last_seq),
+    })
 
 @app.route("/channels")
 def channels():
