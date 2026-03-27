@@ -100,6 +100,64 @@ def save_neutral(data):
 
 servo_neutral = load_neutral()
 
+# --- L6: Per-channel servo PW envelope (mechanical safety) ---
+#
+# Commands that would drive a joint past its envelope are clamped to the
+# edge before even reaching the ramp. This prevents a buggy UI or a
+# typo from driving a servo into a mechanical stop.
+#
+# Defaults = neutral +/- 600 us, clamped to [500, 2500]. Override per joint
+# by placing groundstation/servo_limits.json with {"B1": {"min": 1000, "max": 2000}, ...}.
+
+LIMITS_FILE = os.path.join(GROUNDSTATION_DIR, "servo_limits.json")
+
+
+def _default_servo_limits():
+    limits = {}
+    for name in CHANNELS:
+        neutral = servo_neutral.get(name, 1500)
+        limits[name] = {
+            "min": max(500, neutral - 600),
+            "max": min(2500, neutral + 600),
+        }
+    return limits
+
+
+def _load_servo_limits():
+    defaults = _default_servo_limits()
+    try:
+        with open(LIMITS_FILE) as f:
+            user_limits = json.load(f)
+        for name, bounds in (user_limits or {}).items():
+            if name not in defaults:
+                continue
+            lo = int(bounds.get("min", defaults[name]["min"]))
+            hi = int(bounds.get("max", defaults[name]["max"]))
+            lo = max(500, min(lo, 2500))
+            hi = max(500, min(hi, 2500))
+            if lo <= hi:
+                defaults[name] = {"min": lo, "max": hi}
+    except FileNotFoundError:
+        pass
+    except Exception as e:
+        print(f"[servo] servo_limits.json parse failed, using defaults: {e}", flush=True)
+    return defaults
+
+
+servo_limits = _load_servo_limits()
+
+
+def _clamp_to_envelope(name, pw):
+    """Clamp a requested pw to the channel's envelope. pw=0 (off) passes through."""
+    if pw == 0:
+        return 0
+    lim = servo_limits.get(name)
+    if not lim:
+        return pw
+    return max(lim["min"], min(lim["max"], pw))
+
+
+
 lock = threading.Lock()
 
 
@@ -133,6 +191,7 @@ def send_all_off():
 
 # --- Servo safety state ---
 SERVO_RAMP_HZ = 30
+SERVO_MAX_SEQ = 10**12  # L5: sanity cap
 SERVO_MAX_STEP_US_PER_TICK = 10
 SERVO_HEARTBEAT_TIMEOUT_S = 1.0
 
@@ -167,6 +226,8 @@ def _servo_send_to_geodude(name, pw, bypass_clamp=False):
     has last_seq=50000.
     """
     seq = _servo_seq[name] + 1
+    if seq > SERVO_MAX_SEQ:
+        seq = 0  # wrap rather than overflow; remote side resyncs via 409 path
     payload = {"channel": name, "pw": pw, "seq": seq}
     if bypass_clamp:
         payload["bypass_clamp"] = True
@@ -262,14 +323,15 @@ def _servo_ramp_loop():
 
 
 def _servo_set_target(name, pw):
-    """Set the target for a channel. Clamped to 0..2500.
+    """Set the target for a channel. Clamped to 0..2500 then to the per-
+    channel envelope (L6).
 
     No special off-path: pw=0 just sets target=0 and the ramp drives
     actual down through GEO-DUDe's 50 us/tick clamp. If the operator
     really needs instant disable, they must go through /api/all_off.
-    This eliminates the race where a bypass-off raced the ramp (C4).
     """
     pw = max(0, min(2500, int(pw)))
+    pw = _clamp_to_envelope(name, pw)
     with _servo_state_lock:
         _servo_target_pw[name] = pw
 
@@ -369,6 +431,14 @@ def servo_speed():
         _servo_speed_per_tick = new_val
     return jsonify({"ok": True, "us_per_tick": new_val})
 
+
+
+
+@app.route('/api/servo_limits')
+def servo_limits_route():
+    """Per-channel {min, max} PW envelope. The UI uses this to set slider
+    bounds so a user can never drag outside a mechanically-safe range."""
+    return jsonify(servo_limits)
 
 @app.route('/api/heartbeat', methods=['POST'])
 def heartbeat():

@@ -899,6 +899,8 @@ function chGoNeutral(name) {
   var target = getNeutral(name);
   var slider = document.getElementById('ch_' + name);
   if (slider) { slider.value = target; chUpdateLabel(name, target); }
+  // L3: assigning .value does not fire the input event, so publish explicitly.
+  chSendPwm(name, target);
 }
 
 function chSetNeutral(name) {
@@ -951,22 +953,66 @@ var chVelocity = {};  // current velocity per channel (us/tick, signed)
    Reads /api/servo_state which returns {target, actual, ...}. If another
    client has set a different target, update our slider (unless user is
    actively dragging). chActual mirrors the live ramp position for display. */
+var chFrozenState = false;
+var chFreezeThresholdS = 0.8;  // matches server's 1.0s heartbeat timeout with headroom
+
 function servoSyncPoll() {
   fetch('/api/servo_state').then(function(r) { return r.json(); }).then(function(state) {
     var target = state.target || {};
     var actual = state.actual || {};
+    var hbAge = state.heartbeat_age_s || 0;
+    var rampAge = state.ramp_age_s || 0;
+
+    // H2: detect freeze/recovery edges. If we were frozen and the heartbeat
+    // came back, force every slider to the current server target regardless
+    // of whether the user was dragging. This prevents a mid-drag slider
+    // from causing the arm to jump to the pre-freeze value on release.
+    var nowFrozen = hbAge > chFreezeThresholdS;
+    var recovering = chFrozenState && !nowFrozen;
+    chFrozenState = nowFrozen;
+
+    // C5: alarm if the ramp thread is not ticking. ramp_age > 1s means the
+    // daemon thread has stopped; any slider move would be silently ignored.
+    var rampDead = rampAge > 1.0;
+    var statusDot = document.getElementById('statusDot');
+    if (statusDot) {
+      if (rampDead) {
+        statusDot.className = 'status-dot';
+        statusDot.title = 'Servo ramp thread stopped - do not touch sliders';
+      } else if (nowFrozen) {
+        statusDot.className = 'status-dot warn';
+        statusDot.title = 'Heartbeat lost - targets frozen';
+      }
+    }
+
     chOrder.forEach(function(name) {
       if (name === 'MACE') return;
       if (actual[name] != null) chActual[name] = actual[name];
       if (target[name] == null) return;
       var slider = document.getElementById('ch_' + name);
       if (!slider) return;
-      if (slider.matches(':active')) return;  // user dragging
+      var isActive = slider.matches(':active');
+      // During recovery we force-update even if the user is dragging.
+      if (isActive && !recovering) return;
       var localVal = parseInt(slider.value);
       if (localVal !== target[name]) {
         slider.value = target[name];
         chUpdateLabel(name, target[name]);
       }
+    });
+  }).catch(function() {});
+}
+
+// L6: pull per-channel min/max PW envelope from the server and apply to the
+// UI sliders so the user cannot drag into a physically unsafe range.
+function applyServoLimits() {
+  fetch('/api/servo_limits').then(function(r) { return r.json(); }).then(function(limits) {
+    Object.keys(limits || {}).forEach(function(name) {
+      var slider = document.getElementById('ch_' + name);
+      if (!slider) return;
+      var lim = limits[name];
+      if (lim && lim.min != null) slider.min = lim.min;
+      if (lim && lim.max != null) slider.max = lim.max;
     });
   }).catch(function() {});
 }
@@ -1618,6 +1664,7 @@ function seqRun() {
   setInterval(poll, 100);
   setInterval(sysPoll, 2000);
   setInterval(gimbalPoll, 1000);
+  applyServoLimits();
   setInterval(servoSyncPoll, 500);
   setInterval(controllerPoll, 250);
   setInterval(ikRefreshStatus, 1000);
