@@ -20,32 +20,22 @@
   <!-- Sensors -->
   <div class="card dashboard-card dashboard-sensors">
     <h3>Sensors</h3>
-    <div class="sensor-mini-grid">
-      <div class="inner sensor-panel">
-        <div class="sensor-panel-title">Gyroscope (deg/s)</div>
+    <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
+      <div>
+        <div class="sensor-panel-title">Gyro (deg/s)</div>
         <div class="sensor-row">
           <div class="sensor-val"><div class="label">X</div><div class="value red" id="gx">0.0</div></div>
           <div class="sensor-val"><div class="label">Y</div><div class="value green" id="gy">0.0</div></div>
           <div class="sensor-val"><div class="label">Z</div><div class="value blue" id="gz">0.0</div></div>
         </div>
       </div>
-      <div class="inner sensor-panel">
-        <div class="sensor-panel-title">Accelerometer (g)</div>
-        <div class="sensor-row">
-          <div class="sensor-val"><div class="label">X</div><div class="value red" id="ax">0.0</div></div>
-          <div class="sensor-val"><div class="label">Y</div><div class="value green" id="ay">0.0</div></div>
-          <div class="sensor-val"><div class="label">Z</div><div class="value blue" id="az">0.0</div></div>
-        </div>
-      </div>
-      <div class="inner sensor-panel sensor-panel-encoder">
+      <div>
         <div class="sensor-panel-title">Encoder</div>
-        <div class="encoder-section compact-encoder">
-          <div class="dial-wrapper"><div class="dial-ring"><div id="needle"></div><div class="dial-center"></div></div></div>
-          <div class="encoder-text">
-            <div class="value" id="angleText">0.0&deg;</div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <div class="dial-wrapper" style="width:40px;height:40px;"><div class="dial-ring" style="width:40px;height:40px;"><div id="needle" style="height:20px;"></div><div class="dial-center"></div></div></div>
+          <div>
+            <div class="value" id="angleText" style="font-size:16px;">0.0&deg;</div>
             <div class="sub"><span id="rpmText">0</span> RPM</div>
-            <div class="sub">ADS A <span id="analogVaText">0.000</span> V</div>
-            <div class="sub">ADS B <span id="analogVbText">0.000</span> V</div>
           </div>
         </div>
       </div>
@@ -71,31 +61,57 @@
     </div>
   </div>
 
-  <!-- MACE Testing -->
-  <div class="card dashboard-card dashboard-mace-tuner">
-    <h3>MACE Testing</h3>
-    <div class="mace-test-note">Closed-loop SimpleFOC profile runner. It stays serial-quiet during motion, then dumps the STM32 RAM log after the run.</div>
-    <div class="mace-test-controls">
-      <label>P <input id="maceTestP" type="number" step="0.01" value="0.2"></label>
-      <label>I <input id="maceTestI" type="number" step="0.05" value="1.0"></label>
-      <label>LPF <input id="maceTestLpf" type="number" step="0.005" value="0.05"></label>
-      <label>Voltage <input id="maceTestVoltage" type="number" step="0.5" value="4"></label>
-      <label>RPM <input id="maceTestRpm" type="number" step="25" value="100"></label>
-      <label>Ramp <input id="maceTestRamp" type="number" step="0.5" value="2.0"></label>
-      <label>Hold <input id="maceTestHold" type="number" step="1" value="5"></label>
+  <!-- MACE Reaction Wheel -->
+  <div class="card dashboard-card" style="grid-column: 1 / -1;">
+    <h3>MACE Reaction Wheel</h3>
+    <div class="mace-live-controls">
+      <label>Body Rate (deg/s) <input id="maceCompRate" type="number" step="5" value="50"></label>
+      <label>Kp <input id="maceBodyRateKp" type="number" step="0.05" value="0.1"></label>
+      <label>Ki <input id="maceBodyRateKi" type="number" step="0.05" value="0.8"></label>
+      <label>Max Uq <input id="maceBodyRateMaxUq" type="number" step="0.5" value="18"></label>
+      <label>Voltage <input id="maceBodyRateVoltage" type="number" step="1" value="24"></label>
+      <label>Prime RPM <input id="macePrimeRpm" type="number" step="50" value="500"></label>
+      <label>Finish RPM <input id="maceFinishRpm" type="number" step="50" value="-500"></label>
+      <label>Prime Ramp <input id="macePrimeRamp" type="number" step="0.5" value="2.0"></label>
     </div>
     <div class="btn-row">
-      <button class="btn btn-sm btn-red" onclick="maceTestStop()">STOP</button>
-      <button class="btn btn-sm btn-dark" onclick="maceTestCalibrate()">CALIBRATE G</button>
-      <button class="btn btn-sm" onclick="maceTestRun()">RUN + DUMP</button>
-      <button class="btn btn-sm btn-dark" onclick="maceTestDump()">DUMP</button>
+      <button class="btn btn-sm btn-dark" onclick="maceCompPrime()">PRIME</button>
+      <button class="btn btn-sm" onclick="maceCompRun()">RUN</button>
+      <button class="btn btn-sm btn-red" onclick="maceCompStop()">STOP</button>
     </div>
-    <div class="mace-test-status" id="maceTestStatus">Idle</div>
-    <div class="mace-test-summary" id="maceTestSummary"></div>
-    <div class="mace-plot-title">RPM Tracking</div>
-    <canvas class="mace-test-plot" id="maceTestRpmPlot"></canvas>
-    <div class="mace-plot-title">Uq / Current / Error</div>
-    <canvas class="mace-test-plot" id="maceTestUqPlot"></canvas>
+    <div class="mace-test-status" id="maceCompStatus">Idle</div>
+    <div class="mace-plot-title">Body Rate (deg/s)</div>
+    <canvas class="mace-test-plot" id="maceCompRatePlot"></canvas>
+    <div class="mace-plot-title">Wheel RPM</div>
+    <canvas class="mace-test-plot" id="maceCompWheelPlot"></canvas>
+    <div class="mace-plot-title">Uq (V)</div>
+    <canvas class="mace-test-plot" id="maceCompUqPlot"></canvas>
+  </div>
+
+  
+  <!-- Angle Control -->
+  <div class="card dashboard-card" style="grid-column: 1 / -1;">
+    <h3>Angle Control</h3>
+    <div class="mace-live-controls">
+      <label>Target (deg) <input id="maceAngleTarget" type="number" step="5" value="0"></label>
+      <label>Kp <input id="maceAngleKp" type="number" step="0.05" value="0.8"></label>
+      <label>Ki <input id="maceAngleKi" type="number" step="0.05" value="0.2"></label>
+      <label>Kd <input id="maceAngleKd" type="number" step="0.05" value="0.10"></label>
+      <label>Min Uq <input id="maceAngleMinUq" type="number" step="0.5" value="3.0"></label>
+      <label>Max Uq <input id="maceAngleMaxUq" type="number" step="0.5" value="8.0"></label>
+      <label>Tolerance (deg) <input id="maceAngleTolerance" type="number" step="1" value="5"></label>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-sm" onclick="maceAngleStart()">START</button>
+      <button class="btn btn-sm btn-dark" onclick="maceAngleGo()">GO TO</button>
+      <button class="btn btn-sm btn-dark" onclick="maceAngleZero()">ZERO</button>
+      <button class="btn btn-sm btn-red" onclick="maceAngleStop()">STOP</button>
+    </div>
+    <div class="mace-test-status" id="maceAngleStatus">Idle</div>
+    <div class="mace-plot-title">Angle (deg)</div>
+    <canvas class="mace-test-plot" id="maceAnglePlot"></canvas>
+    <div class="mace-plot-title">Wheel RPM</div>
+    <canvas class="mace-test-plot" id="maceAngleWheelPlot"></canvas>
   </div>
 
   </div>

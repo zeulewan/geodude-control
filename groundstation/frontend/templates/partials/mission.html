@@ -240,6 +240,7 @@
             <div class="mission-stat"><span class="label">Attitude State</span><span class="value" id="missionMaceAttState">--</span></div>
             <div class="mission-stat"><span class="label">Search Lock Error</span><span class="value" id="missionSearchLockError">--</span></div>
             <div class="mission-stat"><span class="label">Search Command</span><span class="value" id="missionSearchLockCommand">--</span></div>
+            <div class="mission-stat"><span class="label">Centered Frames</span><span class="value" id="missionSearchLockFrames">0 / 5</span></div>
             <div class="mission-stat"><span class="label">Rotation Estimate</span><span class="value" id="missionRotationEstimate">--</span></div>
             <div class="mission-stat"><span class="label">Rotation Stable</span><span class="value" id="missionRotationStableWindow">3.0 s / 3.0 rpm</span></div>
             <div class="mission-stat"><span class="label">Demo Phase</span><span class="value" id="missionDemoPhase">--</span></div>
@@ -254,6 +255,20 @@
               <span>Search Rotational Speed</span>
               <input type="number" id="missionSearchRotationSpeed" step="0.1" min="0" max="12" value="1.5" onchange="missionCompetitionConfigChanged()">
             </label>
+          </div>
+          <div class="slider-group mission-slider-group">
+            <div class="slider-label"><span class="label">Min Snoopy Confidence</span><span class="value" id="missionSearchMinConfidenceVal">0.50</span></div>
+            <input type="range" id="missionSearchMinConfidence" min="0" max="1" step="0.01" value="0.5" oninput="missionCompetitionConfigChanged()">
+          </div>
+          <div class="mission-att-row">
+            <label class="mission-inline-field mission-inline-field-wide">
+              <span>Class Whitelist</span>
+              <input type="text" id="missionSearchClassWhitelist" value="snoopy" placeholder="snoopy" onchange="missionCompetitionConfigChanged()">
+            </label>
+          </div>
+          <div class="slider-group mission-slider-group">
+            <div class="slider-label"><span class="label">Centered Frames Required</span><span class="value" id="missionSearchLockFramesRequiredVal">5</span></div>
+            <input type="range" id="missionSearchLockFramesRequired" min="1" max="30" step="1" value="5" oninput="missionCompetitionConfigChanged()">
           </div>
           <div class="slider-group mission-slider-group">
             <div class="slider-label"><span class="label">Center Margin</span><span class="value" id="missionSearchLockMarginVal">32 px</span></div>
