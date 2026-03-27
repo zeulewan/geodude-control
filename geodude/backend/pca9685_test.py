@@ -16,17 +16,17 @@ LED0_ON_L = 0x06  # each channel is 4 registers: ON_L, ON_H, OFF_L, OFF_H
 
 # Channel mapping (pin - 1 = 0-indexed channel)
 CHANNELS = {
-    "B1":   15,  # pin 16
-    "S1":   14,  # pin 15
-    "B2":   13,  # pin 14
-    "S2":   12,  # pin 13
-    "MACE": 11,  # pin 12
-    "E1":    6,  # pin 7
-    "E2":    4,  # pin 5
-    "W1A":   3,  # pin 4
-    "W1B":   2,  # pin 3
-    "W2A":   1,  # pin 2
-    "W2B":   0,  # pin 1
+    "B1":   0,   # SV1
+    "S1":   1,   # SV2
+    "B2":   2,   # SV3
+    "S2":   3,   # SV4
+    "E1":   4,   # SV5
+    "E2":   5,   # SV6
+    "W1A":  6,   # SV7
+    "W1B":  7,   # SV8
+    "W2A":  8,   # SV9
+    "W2B":  9,   # SV10
+    "MACE": 11,  # ESC header
 }
 
 
