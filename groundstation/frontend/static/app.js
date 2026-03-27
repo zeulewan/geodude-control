@@ -112,6 +112,10 @@ function missionDefaultState() {
     aocsArmDetachResolved: false,
     maceState: 'SAFE',
     searchRotationSpeed: 1.5,
+    searchMinConfidence: 0.5,
+    searchClassWhitelist: ['snoopy'],
+    searchLockFramesRequired: 5,
+    searchLockCenteredFrames: 0,
     searchLockMarginPx: 32,
     searchFrameWidthPx: 640,
     searchFrameHeightPx: 480,
@@ -243,6 +247,10 @@ function competitionSyncState(state) {
   missionFlowState.aocsArmDetachResolved = !!state.aocsArmDetachResolved;
   missionFlowState.maceState = state.maceState || 'SAFE';
   missionFlowState.searchRotationSpeed = state.searchRotationSpeed != null ? state.searchRotationSpeed : 1.5;
+  missionFlowState.searchMinConfidence = state.searchMinConfidence != null ? state.searchMinConfidence : 0.5;
+  missionFlowState.searchClassWhitelist = Array.isArray(state.searchClassWhitelist) ? state.searchClassWhitelist : ['snoopy'];
+  missionFlowState.searchLockFramesRequired = state.searchLockFramesRequired != null ? state.searchLockFramesRequired : 5;
+  missionFlowState.searchLockCenteredFrames = state.searchLockCenteredFrames != null ? state.searchLockCenteredFrames : 0;
   missionFlowState.searchLockMarginPx = state.searchLockMarginPx != null ? state.searchLockMarginPx : 32;
   missionFlowState.searchFrameWidthPx = state.searchFrameWidthPx != null ? state.searchFrameWidthPx : 640;
   missionFlowState.searchFrameHeightPx = state.searchFrameHeightPx != null ? state.searchFrameHeightPx : 480;
@@ -925,6 +933,14 @@ function missionSyncSummary() {
   if (maceStateEl) maceStateEl.textContent = (missionFlowState.maceState || 'SAFE').toUpperCase();
   var searchSpeedEl = document.getElementById('missionSearchRotationSpeed');
   if (searchSpeedEl && document.activeElement !== searchSpeedEl) searchSpeedEl.value = (missionFlowState.searchRotationSpeed != null ? missionFlowState.searchRotationSpeed : 1.5);
+  var searchMinConfEl = document.getElementById('missionSearchMinConfidence');
+  if (searchMinConfEl && document.activeElement !== searchMinConfEl) searchMinConfEl.value = (missionFlowState.searchMinConfidence != null ? missionFlowState.searchMinConfidence : 0.5);
+  missionSetGainLabelPair('missionSearchMinConfidenceVal', 'missionSearchMinConfidenceVal', (missionFlowState.searchMinConfidence != null ? missionFlowState.searchMinConfidence : 0.5).toFixed(2));
+  var searchWhitelistEl = document.getElementById('missionSearchClassWhitelist');
+  if (searchWhitelistEl && document.activeElement !== searchWhitelistEl) searchWhitelistEl.value = (missionFlowState.searchClassWhitelist || ['snoopy']).join(', ');
+  var searchFramesEl = document.getElementById('missionSearchLockFramesRequired');
+  if (searchFramesEl && document.activeElement !== searchFramesEl) searchFramesEl.value = (missionFlowState.searchLockFramesRequired != null ? missionFlowState.searchLockFramesRequired : 5);
+  missionSetGainLabelPair('missionSearchLockFramesRequiredVal', 'missionSearchLockFramesRequiredVal', String(missionFlowState.searchLockFramesRequired != null ? missionFlowState.searchLockFramesRequired : 5));
   var searchMarginEl = document.getElementById('missionSearchLockMargin');
   if (searchMarginEl && document.activeElement !== searchMarginEl) searchMarginEl.value = (missionFlowState.searchLockMarginPx != null ? missionFlowState.searchLockMarginPx : 32);
   missionSetGainLabelPair('missionSearchLockMarginVal', 'missionSearchLockMarginVal', Math.round(missionFlowState.searchLockMarginPx != null ? missionFlowState.searchLockMarginPx : 32) + ' px');
@@ -936,6 +952,7 @@ function missionSyncSummary() {
   if (searchMaxEl && document.activeElement !== searchMaxEl) searchMaxEl.value = (missionFlowState.searchLockMaxCommand != null ? missionFlowState.searchLockMaxCommand : 2);
   missionSetTelemetryValue('missionSearchLockError', missionFlowState.searchLockError != null ? missionFlowState.searchLockError.toFixed(1) + ' px' : '--');
   missionSetTelemetryValue('missionSearchLockCommand', missionFlowState.searchLockCommand != null ? missionFlowState.searchLockCommand.toFixed(3) + ' rad/s' : '--');
+  missionSetTelemetryValue('missionSearchLockFrames', String(missionFlowState.searchLockCenteredFrames != null ? missionFlowState.searchLockCenteredFrames : 0) + ' / ' + String(missionFlowState.searchLockFramesRequired != null ? missionFlowState.searchLockFramesRequired : 5));
   missionSetTelemetryValue('missionRotationEstimate', missionFlowState.rotationEstimateRpm != null ? missionFlowState.rotationEstimateRpm.toFixed(2) + ' rpm' : '--');
   missionSetTelemetryValue('missionRotationStableWindow', missionFlowState.rotationStableSeconds.toFixed(1) + ' s / ' + missionFlowState.rotationStableToleranceRpm.toFixed(1) + ' rpm');
   missionSetTelemetryValue('missionDemoPhase', (missionFlowState.demoSequenceState || 'IDLE').toUpperCase());
@@ -948,11 +965,17 @@ function missionSyncSummary() {
 function missionCompetitionConfigChanged() {
   if (activePageTab !== 'competition') return;
   var searchSpeedEl = document.getElementById('missionSearchRotationSpeed');
+  var searchMinConfEl = document.getElementById('missionSearchMinConfidence');
+  var searchWhitelistEl = document.getElementById('missionSearchClassWhitelist');
+  var searchFramesEl = document.getElementById('missionSearchLockFramesRequired');
   var searchMarginEl = document.getElementById('missionSearchLockMargin');
   var searchKpEl = document.getElementById('missionSearchLockKp');
   var searchMaxEl = document.getElementById('missionSearchLockMaxCommand');
   competitionPost('/api/competition/config', {
     searchRotationSpeed: searchSpeedEl ? parseFloat(searchSpeedEl.value || '1.5') : 1.5,
+    searchMinConfidence: searchMinConfEl ? parseFloat(searchMinConfEl.value || '0.5') : 0.5,
+    searchClassWhitelist: searchWhitelistEl ? searchWhitelistEl.value.split(',').map(function(label) { return label.trim().toLowerCase(); }).filter(function(label) { return !!label; }) : ['snoopy'],
+    searchLockFramesRequired: searchFramesEl ? parseInt(searchFramesEl.value || '5', 10) : 5,
     searchLockMarginPx: searchMarginEl ? parseFloat(searchMarginEl.value || '32') : 32,
     searchLockKp: searchKpEl ? parseFloat(searchKpEl.value || '6.0') : 6.0,
     searchLockMaxCommand: searchMaxEl ? parseFloat(searchMaxEl.value || '2.0') : 2.0
@@ -2046,7 +2069,7 @@ function chSliderInput(name, val) {
 function chGoNeutral(name) {
   var target = getNeutral(name);
   var slider = document.getElementById('ch_' + name);
-  if (slider) { slider.value = target; chUpdateLabel(name, target); }
+  if (slider) { slider.value = target; chUpdateLabel(name, target); chSendPwm(name, target); }
 }
 
 function chSetNeutral(name) {
@@ -2454,10 +2477,7 @@ function poll() {
     document.getElementById('gx').textContent = d.gyro.x.toFixed(1);
     document.getElementById('gy').textContent = d.gyro.y.toFixed(1);
     document.getElementById('gz').textContent = d.gyro.z.toFixed(1);
-    /* Accel */
-    document.getElementById('ax').textContent = d.accel.x.toFixed(2);
-    document.getElementById('ay').textContent = d.accel.y.toFixed(2);
-    document.getElementById('az').textContent = d.accel.z.toFixed(2);
+    /* Accel (removed from UI) */
     /* Encoder */
     var angle = d.encoder_angle;
     document.getElementById('angleText').innerHTML = angle.toFixed(1) + '&deg;';
@@ -2508,20 +2528,18 @@ function poll() {
     if (currentBar) currentBar.style.width = throttle + '%';
     /* Motor error */
     var errDiv = document.getElementById('motorError');
-    if (d.motor_error) {
-      errDiv.textContent = d.motor_error;
-      errDiv.style.display = 'block';
-    } else {
-      errDiv.textContent = '';
-      errDiv.style.display = 'none';
+    if (errDiv) {
+      if (d.motor_error) {
+        errDiv.textContent = d.motor_error;
+        errDiv.style.display = 'block';
+      } else {
+        errDiv.textContent = '';
+        errDiv.style.display = 'none';
+      }
     }
-    /* Connection dot */
+    /* Connection dot - green if we got a response */
     var dot = document.getElementById('statusDot');
-    if (d.connected) {
-      dot.className = 'status-dot ok';
-    } else {
-      dot.className = 'status-dot';
-    }
+    if (dot) dot.className = 'status-dot ok';
     missionSyncSensorTelemetry(d);
   }).catch(function() {
     document.getElementById('statusDot').className = 'status-dot';
@@ -3158,6 +3176,7 @@ function maceTuneVal(param, value) { fetch('/api/mace/tune', {method:'POST', hea
 
 /* === MACE run-log tester === */
 var maceTestLog = [];
+var maceMode = 'angle';
 
 function maceRpmToRad(rpm) {
   return Number(rpm || 0) * 2 * Math.PI / 60;
@@ -3170,8 +3189,51 @@ function maceTestField(id, fallback) {
   return Number.isFinite(value) ? value : fallback;
 }
 
+function maceSetMode(mode) {
+  maceMode = mode === 'rate' ? 'rate' : mode === 'body_rate' ? 'body_rate' : 'angle';
+  var angleBtn = document.getElementById('maceAngleModeBtn');
+  var rateBtn = document.getElementById('maceRateModeBtn');
+  var bodyRateBtn = document.getElementById('maceBodyRateModeBtn');
+  var angleControls = document.getElementById('maceAngleControls');
+  var angleButtons = document.getElementById('maceAngleButtons');
+  var testControls = document.querySelector('.dashboard-mace-tuner .mace-test-controls');
+  var testButtons = document.getElementById('maceRateButtons');
+  var plots = document.querySelectorAll('#maceTestRpmPlot, #maceTestUqPlot');
+  var plotTitles = document.querySelectorAll('.dashboard-mace-tuner .mace-test-summary');
+  var rpmPlotTitles = document.querySelectorAll('.dashboard-mace-tuner > .mace-plot-title');
+  var bodyRateControls = document.getElementById('maceBodyRateControls');
+  var bodyRateButtons = document.getElementById('maceBodyRateButtons');
+  var bodyRateStatus = document.getElementById('maceBodyRateStatus');
+  var bodyRatePlots = document.getElementById('maceBodyRatePlots');
+  var controlStatus = document.getElementById('maceControlStatus');
+  var torqueControls = document.getElementById('maceTorqueControls');
+  var torqueButtons = document.getElementById('maceTorqueButtons');
+  if (angleBtn) angleBtn.className = maceMode === 'angle' ? 'btn btn-sm' : 'btn btn-sm btn-dark';
+  if (rateBtn) rateBtn.className = maceMode === 'rate' ? 'btn btn-sm' : 'btn btn-sm btn-dark';
+  if (bodyRateBtn) bodyRateBtn.className = maceMode === 'body_rate' ? 'btn btn-sm' : 'btn btn-sm btn-dark';
+  if (angleControls) angleControls.style.display = maceMode === 'angle' ? 'grid' : 'none';
+  if (angleButtons) angleButtons.style.display = maceMode === 'angle' ? 'flex' : 'none';
+  if (controlStatus) controlStatus.style.display = maceMode === 'angle' ? '' : 'none';
+  if (torqueControls) torqueControls.style.display = maceMode === 'angle' ? '' : 'none';
+  if (torqueButtons) torqueButtons.style.display = maceMode === 'angle' ? 'flex' : 'none';
+  if (testControls) testControls.style.display = maceMode === 'rate' ? 'grid' : 'none';
+  if (testButtons) testButtons.style.display = maceMode === 'rate' ? 'flex' : 'none';
+  plots.forEach(function(el) { el.style.display = maceMode === 'rate' ? '' : 'none'; });
+  plotTitles.forEach(function(el) { el.style.display = maceMode === 'rate' ? '' : 'none'; });
+  rpmPlotTitles.forEach(function(el) { el.style.display = maceMode === 'rate' ? '' : 'none'; });
+  if (bodyRateControls) bodyRateControls.style.display = maceMode === 'body_rate' ? 'grid' : 'none';
+  if (bodyRateButtons) bodyRateButtons.style.display = maceMode === 'body_rate' ? 'flex' : 'none';
+  if (bodyRateStatus) bodyRateStatus.style.display = maceMode === 'body_rate' ? '' : 'none';
+  if (bodyRatePlots) bodyRatePlots.style.display = maceMode === 'body_rate' ? '' : 'none';
+}
+
 function maceTestSetStatus(text) {
   var el = document.getElementById('maceTestStatus');
+  if (el) el.textContent = text || '';
+}
+
+function maceControlSetStatus(text) {
+  var el = document.getElementById('maceControlStatus');
   if (el) el.textContent = text || '';
 }
 
@@ -3190,12 +3252,13 @@ function maceTestPost(url, body) {
 }
 
 function maceTestRun() {
+  var rpm = Math.max(-1000, Math.min(maceTestField('maceTestRpm', 100), 1000));
   return maceTestPost('/api/mace/test/run', {
     p: maceTestField('maceTestP', 0.2),
     i: maceTestField('maceTestI', 1.0),
     l: maceTestField('maceTestLpf', 0.05),
     v: maceTestField('maceTestVoltage', 4),
-    target: maceRpmToRad(maceTestField('maceTestRpm', 100)),
+    target: maceRpmToRad(rpm),
     r: maceTestField('maceTestRamp', 2.0),
     h: maceTestField('maceTestHold', 5)
   });
@@ -3204,6 +3267,97 @@ function maceTestRun() {
 function maceTestCalibrate() { return maceTestPost('/api/mace/test/calibrate'); }
 function maceTestStop() { return maceTestPost('/api/mace/test/stop'); }
 function maceTestDump() { return maceTestPost('/api/mace/test/dump'); }
+
+function maceControlPayload() {
+  return {
+    mode: 'angle',
+    angle_target: maceTestField('maceAngleTarget', 0),
+    kp: maceTestField('maceAngleKp', 3),
+    ki: maceTestField('maceAngleKi', 0),
+    kd: maceTestField('maceAngleKd', 0.8),
+    min_uq: maceTestField('maceAngleMinUq', 1.5),
+    max_uq: maceTestField('maceAngleMaxUq', 5),
+    voltage: maceTestField('maceAngleVoltage', 12)
+  };
+}
+
+function maceControlPost(url, body) {
+  return fetch(url, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body || {})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d && d.error) maceControlSetStatus('Error: ' + d.error);
+    setTimeout(maceControlRefresh, 250);
+    return d;
+  }).catch(function(err) {
+    maceControlSetStatus('Error: ' + err);
+  });
+}
+
+function maceControlStartAngle() { return maceControlPost('/api/mace/control/start', maceControlPayload()); }
+function maceControlApplyAngle() { return maceControlPost('/api/mace/control/config', maceControlPayload()); }
+function maceControlStop() { return maceControlPost('/api/mace/control/stop'); }
+function maceControlZero() { return maceControlPost('/api/mace/control/zero'); }
+function maceBreakawaySweep() {
+  return maceControlPost('/api/mace/control/breakaway', {
+    start: 0.1,
+    stop: maceTestField('maceAngleMaxUq', 3),
+    step: 0.05,
+    pulse_s: 0.5,
+    rest_s: 0.5,
+    voltage: maceTestField('maceAngleVoltage', 4),
+    wheel_rpm_threshold: 2.0,
+    body_delta_threshold: 0.15,
+    body_rate_threshold: 1.0,
+    direction: 1
+  });
+}
+
+function maceTorqueRun() {
+  return maceControlPost('/api/mace/torque/run', {
+    u: maceTestField('maceTorqueUq', 2),
+    v: maceTestField('maceTorqueVoltage', 12),
+    h: maceTestField('maceTorqueHold', 2),
+    zero_body: true,
+    zero_gyro: true
+  }).then(function() {
+    setTimeout(maceTorqueRefresh, 500);
+  });
+}
+
+function maceTorqueRender(state) {
+  var el = document.getElementById('maceTorqueSummary');
+  if (!el) return;
+  state = state || {};
+  var summary = state.summary || {};
+  var items = {
+    status: state.status || 'idle',
+    uq: Number(summary.uq || 0),
+    wheel_alpha_rpm_s: Number(summary.max_wheel_alpha_rpm_s || 0),
+    max_wheel_rpm: Number(summary.max_wheel_rpm || 0),
+    body_delta_deg: Number(summary.body_delta_deg || 0),
+    body_rate_dps: Number(summary.max_body_rate_dps || 0),
+    gyro_z_dps: Number(summary.max_gyro_z_dps || 0),
+    gyro_zero_z: Number(summary.gyro_zero_z || 0)
+  };
+  el.innerHTML = Object.entries(items).map(function(entry) {
+    var label = entry[0];
+    var value = entry[1];
+    if (label === 'status') {
+      return '<div class="stat"><div class="label">status</div><div class="value">' + String(value) + '</div></div>';
+    }
+    return '<div class="stat"><div class="label">' + label + '</div><div class="value">' + Number(value || 0).toFixed(3) + '</div></div>';
+  }).join('');
+}
+
+function maceTorqueRefresh() {
+  var el = document.getElementById('maceTorqueSummary');
+  if (!el) return;
+  fetch('/api/mace/torque/state').then(function(r) { return r.json(); }).then(maceTorqueRender).catch(function(err) {
+    el.textContent = 'Torque diagnostic unavailable: ' + err;
+  });
+}
 
 function maceTestRenderSummary(log) {
   var el = document.getElementById('maceTestSummary');
@@ -3328,6 +3482,332 @@ function maceTestRender(state) {
   ], 'No Uq/current/error log yet.');
 }
 
+/* ---- Angle Control ---- */
+var maceAngleRunning = false;
+var maceAnglePollTimer = null;
+
+function maceAngleSetStatus(text) {
+  var el = document.getElementById('maceAngleStatus');
+  if (el) el.textContent = text || '';
+}
+
+function maceAngleStop() {
+  maceAngleRunning = false;
+  if (maceAnglePollTimer) { clearInterval(maceAnglePollTimer); maceAnglePollTimer = null; }
+  fetch('/api/mace/control/stop', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'})
+    .then(function() { maceAngleSetStatus('Stopped'); });
+}
+
+function maceAngleZero() {
+  fetch('/api/mace/control/zero', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'})
+    .then(function() { maceAngleSetStatus('Zeroed'); });
+}
+
+function maceAngleStart() {
+  var target = maceTestField('maceAngleTarget', 0);
+  maceAngleRunning = true;
+  maceAngleSetStatus('Starting angle control...');
+
+  // Prespin to get wheel moving
+  fetch('/api/mace/control/stop', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'})
+  .then(function() { return new Promise(function(r) { setTimeout(r, 300); }); })
+  .then(function() {
+    return fetch('/api/mace/control/start', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({mode:'rate', rate_target_rpm:15, voltage:24, rate_ramp:2.5,
+        kp:0.3, ki:0.8, kd:0, min_uq:3.0, max_uq:18, angle_target:0, body_rate_target_dps:0})});
+  })
+  .then(function() { return new Promise(function(r) { setTimeout(r, 2000); }); })
+  .then(function() {
+    return fetch('/api/mace/control/stop', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'});
+  })
+  .then(function() { return new Promise(function(r) { setTimeout(r, 200); }); })
+  .then(function() {
+    return fetch('/api/mace/control/zero', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'});
+  })
+  .then(function() { return new Promise(function(r) { setTimeout(r, 100); }); })
+  .then(function() {
+    return fetch('/api/mace/control/start', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({mode:'angle', angle_target:target,
+        kp:maceTestField('maceAngleKp', 0.8), ki:maceTestField('maceAngleKi', 0.2),
+        kd:maceTestField('maceAngleKd', 0.10),
+        min_uq:maceTestField('maceAngleMinUq', 3.0), max_uq:maceTestField('maceAngleMaxUq', 8.0),
+        angle_deadband:maceTestField('maceAngleTolerance', 5),
+        voltage:24, rate_target_rpm:0, rate_ramp:5.0, body_rate_target_dps:0})});
+  })
+  .then(function() {
+    maceAngleSetStatus('Running - target: ' + target + ' deg');
+    maceAngleStartPoll();
+  });
+}
+
+function maceAngleGo() {
+  var target = maceTestField('maceAngleTarget', 0);
+  fetch('/api/mace/control/config', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({angle_target: target,
+      kp:maceTestField('maceAngleKp', 0.8), ki:maceTestField('maceAngleKi', 0.2),
+      kd:maceTestField('maceAngleKd', 0.10),
+      min_uq:maceTestField('maceAngleMinUq', 3.0), max_uq:maceTestField('maceAngleMaxUq', 8.0),
+      angle_deadband:maceTestField('maceAngleTolerance', 5)})})
+  .then(function() { maceAngleSetStatus('Target: ' + target + ' deg'); });
+}
+
+function maceAngleStartPoll() {
+  if (maceAnglePollTimer) clearInterval(maceAnglePollTimer);
+  maceAnglePollTimer = setInterval(function() {
+    fetch('/api/mace/control/state').then(function(r){return r.json();}).then(function(st) {
+      var ba = Number(st.body_angle || 0);
+      var br = Number(st.body_rate || 0);
+      var wr = Number(st.wheel_rpm || 0);
+      var tgt = Number(st.angle_target || 0);
+      var achieved = Math.abs(ba - tgt) < maceTestField('maceAngleTolerance', 5);
+      maceAngleSetStatus((achieved ? 'ACHIEVED  ' : '') + 'angle=' + ba.toFixed(1) + '  target=' + tgt.toFixed(0) + '  rate=' + br.toFixed(1) + '  wheel=' + wr.toFixed(0));
+      var log = st.angle_log || [];
+      if (log.length > 0) {
+        maceTestDrawChart('maceAnglePlot', log, [
+          {key: 'body_angle', color: '#a78bfa'},
+          {key: 'target', color: '#38bdf8'}
+        ], '');
+        maceTestDrawChart('maceAngleWheelPlot', log, [
+          {key: 'wheel_rpm', color: '#34d399'}
+        ], '');
+      }
+    });
+  }, 500);
+}
+
+/* ---- MACE Comp ---- */
+var maceCompState = 'idle'; // idle, priming, primed, running, desaturating
+var maceCompTimer = null;
+var maceCompStartWheelSign = 0;
+
+function maceCompSetStatus(text) {
+  var el = document.getElementById('maceCompStatus');
+  if (el) el.textContent = text || '';
+}
+
+function maceCompStop() {
+  maceCompState = 'idle';
+  if (maceCompTimer) { clearInterval(maceCompTimer); maceCompTimer = null; }
+  fetch('/api/mace/control/stop', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'})
+    .then(function() { maceCompSetStatus('Stopped'); });
+}
+
+function maceCompPrime() {
+  var limit = maceTestField('macePrimeRpm', 500);
+  maceCompState = 'priming';
+  maceCompSetStatus('Priming wheel to ' + limit + ' RPM (slow ramp)...');
+  fetch('/api/mace/control/stop', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'});
+  setTimeout(function() {
+    fetch('/api/mace/control/zero', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'});
+  }, 300);
+  setTimeout(function() {
+    var payload = {
+      mode: 'rate',
+      rate_target_rpm: limit,
+      voltage: maceTestField('maceBodyRateVoltage', 24),
+      rate_ramp: maceTestField('macePrimeRamp', 2.0),
+      kp: 0.3, ki: 0.8, kd: 0,
+      min_uq: 2.6, max_uq: maceTestField('maceBodyRateMaxUq', 18),
+      angle_target: 0, body_rate_target_dps: 0
+    };
+    fetch('/api/mace/control/start', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+    if (maceCompTimer) clearInterval(maceCompTimer);
+    maceCompTimer = setInterval(function() {
+      fetch('/api/mace/control/state').then(function(r){return r.json();}).then(function(st) {
+        var wr = Math.abs(Number(st.wheel_rpm || 0));
+        var pct = Math.min(100, Math.round(wr / limit * 100));
+        maceCompSetStatus('Priming... ' + wr.toFixed(0) + ' / ' + limit + ' RPM (' + pct + '%)');
+        if (wr >= limit * 0.95) {
+          maceCompState = 'primed';
+          maceCompSetStatus('>>> READY <<< Holding at ' + wr.toFixed(0) + ' RPM. Press RUN.');
+          clearInterval(maceCompTimer);
+          maceCompTimer = null;
+          // Keep rate mode active - holds wheel at setpoint until RUN is clicked
+        }
+      });
+    }, 500);
+  }, 600);
+}
+
+function maceCompRun() {
+  var rate = maceTestField('maceCompRate', 50);
+  var limit = Math.abs(maceTestField('maceFinishRpm', -500));
+  var rampTime = 2;
+  maceCompState = 'running';
+  maceCompSetStatus('Starting run at ' + rate + ' deg/s...');
+
+  // Stop rate mode, brief pause for worker to exit, then start body_rate
+  fetch('/api/mace/control/stop', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'})
+  .then(function() { return new Promise(function(r) { setTimeout(r, 200); }); })
+  .then(function() {
+    var payload = {
+      mode: 'body_rate',
+      body_rate_target_dps: rate,
+      kp: maceTestField('maceBodyRateKp', 0.3),
+      ki: maceTestField('maceBodyRateKi', 0.8),
+      kd: 0,
+      min_uq: 2.6,
+      max_uq: maceTestField('maceBodyRateMaxUq', 18),
+      voltage: maceTestField('maceBodyRateVoltage', 24),
+      rate_target_rpm: 0, rate_ramp: 5.0, angle_target: 0
+    };
+    maceCompStartWheelSign = 0;
+    fetch('/api/mace/control/state').then(function(r){return r.json();}).then(function(st) {
+      maceCompStartWheelSign = Number(st.wheel_rpm || 0) < 0 ? -1 : 1;
+    });
+    maceCompSetStatus('Running... ' + rate + ' deg/s');
+    // Start at 0 body rate, then ramp to target over 2s
+    payload.body_rate_target_dps = 0;
+    console.log('[MACE RUN] start payload:', JSON.stringify(payload));
+    return fetch('/api/mace/control/start', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+  }).then(function() {
+    // Ramp target from 0 to rate over 2 seconds
+    var rampSteps = 20;
+    var rampIdx = 0;
+    var rampTimer = setInterval(function() {
+      rampIdx++;
+      var frac = Math.min(1.0, rampIdx / rampSteps);
+      var tgt = rate * frac;
+      fetch('/api/mace/control/config', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({body_rate_target_dps: tgt})
+      });
+      if (rampIdx >= rampSteps) clearInterval(rampTimer);
+    }, 100);
+  }).then(function() {
+
+    // Poll until wheel hits -limit
+    if (maceCompTimer) clearInterval(maceCompTimer);
+    maceCompTimer = setInterval(function() {
+      if (maceCompState !== 'running') return;
+      fetch('/api/mace/control/state').then(function(r){return r.json();}).then(function(st) {
+        var wr = Number(st.wheel_rpm || 0);
+        var br = Number(st.body_rate || 0);
+        maceCompSetStatus('Running... rate=' + br.toFixed(1) + ' wheel=' + wr.toFixed(0) + ' RPM');
+        // Update plots
+        var log = st.angle_log || [];
+        if (log.length > 0) {
+          maceTestDrawChart('maceCompRatePlot', log, [
+            {key: 'body_rate', color: '#a78bfa'},
+            {key: 'body_rate_ref', color: '#38bdf8'}
+          ], '');
+          maceTestDrawChart('maceCompWheelPlot', log, [
+            {key: 'wheel_rpm', color: '#34d399'}
+          ], '');
+          maceTestDrawChart('maceCompUqPlot', log, [
+            {key: 'uq', color: '#f472b6'}
+          ], '');
+        }
+        var finishMag = Math.abs(maceTestField('maceFinishRpm', -500));
+        if (Math.abs(wr) >= finishMag && ((maceCompStartWheelSign < 0 && wr > 0) || (maceCompStartWheelSign > 0 && wr < 0) || maceCompStartWheelSign === 0)) {
+          maceCompSetStatus('Hit -' + limit + ' RPM! Stopping and desaturating...');
+          clearInterval(maceCompTimer);
+          maceCompTimer = null;
+          maceCompDesaturate(limit, rampTime);
+        }
+      });
+    }, 500);
+  });
+}
+
+function maceCompDesaturate(limit, rampTime) {
+  maceCompState = 'idle';
+  fetch('/api/mace/control/stop', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'});
+  maceCompSetStatus('Complete. Coasting to stop.');
+}
+
+function maceBodyRatePayload() {
+  return {
+    mode: 'body_rate',
+    body_rate_target_dps: maceTestField('maceBodyRateTarget', 50),
+    kp: maceTestField('maceBodyRateKp', 0.3),
+    ki: maceTestField('maceBodyRateKi', 0.8),
+    kd: 0,
+    min_uq: maceTestField('maceBodyRateMinUq', 2.6),
+    max_uq: maceTestField('maceBodyRateMaxUq', 18),
+    voltage: maceTestField('maceBodyRateVoltage', 24),
+    rate_target_rpm: 0,
+    rate_ramp: 5.0
+  };
+}
+
+function maceControlStartBodyRate() {
+  maceControlPost('/api/mace/control/start', maceBodyRatePayload());
+}
+
+function maceControlApplyBodyRate() {
+  maceControlPost('/api/mace/control/config', maceBodyRatePayload());
+}
+
+function maceBodyRateSetStatus(text) {
+  var el = document.getElementById('maceBodyRateStatus');
+  if (el) el.textContent = text || '';
+}
+
+function maceBodyRateRender(state) {
+  state = state || {};
+  var text = (state.mode || '?') + ' / ' + (state.status || 'idle');
+  if (state.enabled) text += ' / enabled';
+  if (state.error) text += ' / ' + state.error;
+  text += ' / rate=' + Number(state.body_rate || 0).toFixed(1) + ' deg/s';
+  text += ' / target=' + Number(state.body_rate_target_dps || 0).toFixed(1);
+  text += ' / wheel=' + Number(state.wheel_rpm || 0).toFixed(0) + ' rpm';
+  text += ' / Uq=' + Number(state.uq || 0).toFixed(2);
+  text += ' / angle=' + Number(state.body_angle || 0).toFixed(1);
+  maceBodyRateSetStatus(text);
+
+  var log = state.angle_log || [];
+  if (log.length > 0) {
+    maceTestDrawChart('maceBodyRatePlot', log, [
+      {key: 'body_rate', color: '#a78bfa'},
+      {key: 'body_rate_ref', color: '#38bdf8'}
+    ], 'No body rate log yet.');
+    maceTestDrawChart('maceWheelRpmPlot', log, [
+      {key: 'wheel_rpm', color: '#34d399'}
+    ], 'No wheel RPM log yet.');
+    maceTestDrawChart('maceBodyRateUqPlot', log, [
+      {key: 'uq', color: '#f472b6'}
+    ], 'No Uq log yet.');
+  }
+}
+
+function maceControlRender(state) {
+  state = state || {};
+  var text = (state.mode || 'angle') + ' / ' + (state.status || 'idle');
+  if (state.enabled) text += ' / enabled';
+  if (state.error) text += ' / ' + state.error;
+  text += ' / angle=' + Number(state.body_angle || 0).toFixed(2) + ' deg';
+  text += ' / rate=' + Number(state.body_rate || 0).toFixed(2) + ' deg/s';
+  if (state.gyro_rate_z !== undefined) text += ' / gyroZ=' + Number(state.gyro_rate_z || 0).toFixed(2) + ' deg/s';
+  text += ' / Uq=' + Number(state.uq || 0).toFixed(3);
+  maceControlSetStatus(text);
+  maceBreakawayRender(state);
+  maceTorqueRefresh();
+  maceBodyRateRender(state);
+}
+
+function maceBreakawayRender(state) {
+  var el = document.getElementById('maceBreakawaySummary');
+  if (!el) return;
+  var log = state.sweep_log || [];
+  var minWheel = state.min_wheel_uq;
+  var minBody = state.min_body_uq;
+  var last = log.length ? log[log.length - 1] : null;
+  var items = {
+    min_wheel_uq: minWheel == null ? 0 : Number(minWheel),
+    min_body_uq: minBody == null ? 0 : Number(minBody),
+    sweep_steps: log.length,
+    last_uq: last ? Number(last.uq || 0) : 0,
+    last_body_delta: last ? Number(last.body_delta_deg || 0) : 0,
+    last_wheel_rpm_delta: last ? Number(last.max_wheel_rpm_delta || 0) : 0
+  };
+  el.innerHTML = Object.entries(items).map(function(entry) {
+    var label = entry[0];
+    var value = Number(entry[1] || 0);
+    return '<div class="stat"><div class="label">' + label + '</div><div class="value">' + value.toFixed(label === 'sweep_steps' ? 0 : 3) + '</div></div>';
+  }).join('');
+}
+
 function maceTestRefresh() {
   var panel = document.getElementById('maceTestStatus');
   if (!panel) return;
@@ -3338,3 +3818,15 @@ function maceTestRefresh() {
 
 setInterval(maceTestRefresh, 1000);
 maceTestRefresh();
+
+function maceControlRefresh() {
+  var panel = document.getElementById('maceControlStatus');
+  if (!panel) return;
+  fetch('/api/mace/control/state').then(function(r) { return r.json(); }).then(maceControlRender).catch(function(err) {
+    maceControlSetStatus('MACE control API unavailable: ' + err);
+  });
+}
+
+setInterval(maceControlRefresh, 1000);
+maceControlRefresh();
+var maceMode = 'body_rate';
