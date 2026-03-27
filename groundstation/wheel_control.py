@@ -380,6 +380,13 @@ def _servo_ramp_loop():
         except Exception as e:
             print(f"[servo ramp] exception: {e!r}", flush=True)
 
+        # ~2 Hz refresh of GEO-DUDe hardware-pw snapshot for the UI.
+        if start - _servo_hardware_last_fetch > 0.5:
+            try:
+                _refresh_hardware_pw()
+            except Exception as e:
+                print(f"[servo ramp] hw pw refresh failed: {e!r}", flush=True)
+
         elapsed = time.monotonic() - start
         if elapsed < period:
             time.sleep(period - elapsed)
@@ -397,10 +404,13 @@ def _servo_heartbeat():
 
 def _servo_snapshot():
     now = time.monotonic()
+    with _servo_hardware_pw_lock:
+        hw = dict(_servo_hardware_pw)
     with _servo_state_lock:
         return {
             "target": dict(_servo_target_pw),
             "actual": dict(_servo_actual_pw),
+            "hardware": hw,
             "speed_per_tick": _servo_speed_per_tick,
             "heartbeat_age_s": now - _servo_last_heartbeat,
             "ramp_age_s": now - _servo_ramp_last_tick_mono,
@@ -776,8 +786,81 @@ def _run_gimbal_sequence(entries):
             gimbal_get(f"move?d={d}&steps={entry['steps']}")
 
 
+
+
+# Cached hardware-pw snapshot from GEO-DUDe's /pwm_health. Refreshed by the
+# ramp thread at ~2 Hz so /api/servo_state can serve it without each browser
+# poll hammering the Pi.
+_servo_hardware_pw = {name: None for name in CHANNELS}
+_servo_hardware_pw_lock = threading.Lock()
+_servo_hardware_last_fetch = 0.0
+
+def _fetch_geodude_last_pw():
+    """Pull _servo_last_pw from GEO-DUDe. Returns dict or None on failure."""
+    try:
+        req = urllib.request.Request(f"{GEODUDE_URL}/pwm_health")
+        resp = urllib.request.urlopen(req, timeout=1.0)
+        if resp.status != 200:
+            return None
+        body = json.loads(resp.read().decode())
+        return body.get("last_pw") or None
+    except Exception:
+        return None
+
+def _refresh_hardware_pw():
+    """Update _servo_hardware_pw from GEO-DUDe. Called by the ramp thread."""
+    global _servo_hardware_last_fetch
+    snap = _fetch_geodude_last_pw()
+    if snap is None:
+        return
+    with _servo_hardware_pw_lock:
+        for name in CHANNELS:
+            if name in snap:
+                _servo_hardware_pw[name] = snap[name]
+        _servo_hardware_last_fetch = time.monotonic()
+
+def _servo_bootstrap_seed():
+    """On boot, seed GEO-DUDe's _servo_last_pw for any channel that is at
+    0/None, using our saved neutral. Prevents the 50us staircase slam on
+    first user jog.
+
+    Runs once at startup, AFTER _servo_init_state. Only touches channels
+    that GEO-DUDe reports as unseeded; armed/moving channels are left
+    alone (/pwm_seed rejects them anyway).
+    """
+    snap = _fetch_geodude_last_pw()
+    if snap is None:
+        print("[servo bootstrap] GEO-DUDe unreachable; skipping seed", flush=True)
+        return
+    for name in CHANNELS:
+        hw = snap.get(name)
+        if hw not in (None, 0):
+            continue  # live signal, leave it alone
+        neutral = servo_neutral.get(name, 1500)
+        if neutral <= 0 or neutral > 2500:
+            continue
+        try:
+            body = json.dumps({"channel": name, "pw": int(neutral)}).encode()
+            req = urllib.request.Request(
+                f"{GEODUDE_URL}/pwm_seed",
+                data=body,
+                headers={"Content-Type": "application/json"},
+            )
+            resp = urllib.request.urlopen(req, timeout=2.0)
+            if resp.status == 200:
+                # Our belief already matches neutral; just mirror into hw cache.
+                with _servo_hardware_pw_lock:
+                    _servo_hardware_pw[name] = int(neutral)
+                print(f"[servo bootstrap] seeded {name} -> {neutral}us", flush=True)
+            else:
+                print(f"[servo bootstrap] seed {name} rejected: HTTP {resp.status}", flush=True)
+        except Exception as e:
+            print(f"[servo bootstrap] seed {name} failed: {e!r}", flush=True)
+
+
 def start_background_threads():
     _servo_init_state()
+    _servo_bootstrap_seed()
     threading.Thread(target=_servo_ramp_loop, daemon=True).start()
     threading.Thread(target=sensor_loop, daemon=True).start()
     threading.Thread(target=positions_flush_loop, daemon=True).start()
