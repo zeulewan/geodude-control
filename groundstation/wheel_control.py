@@ -385,18 +385,7 @@ def _servo_ramp_loop():
             time.sleep(period - elapsed)
 
 
-def _servo_set_target(name, pw):
-    """Set the target for a channel. Clamped to 0..2500 then to the per-
-    channel envelope (L6).
-
-    No special off-path: pw=0 just sets target=0 and the ramp drives
-    actual down through GEO-DUDe's 50 us/tick clamp. If the operator
-    really needs instant disable, they must go through /api/all_off.
-    """
-    pw = max(0, min(2500, int(pw)))
-    pw = _clamp_to_envelope(name, pw)
-    with _servo_state_lock:
-        _servo_target_pw[name] = pw
+# _servo_set_target inlined into /api/pwm in v6; function removed.
 
 
 def _servo_heartbeat():
