@@ -1499,7 +1499,16 @@ def pwm():
         last_pw = _servo_last_pw[name]
         clamped = False
         pw_to_write = requested_pw
-        if not bypass and last_pw is not None and requested_pw != 0 and last_pw != 0:
+        # L1: bypass_clamp is only valid for "off" (pw=0). Reject misuse.
+        if bypass and requested_pw != 0:
+            return jsonify({
+                "ok": False,
+                "error": "bypass_clamp is only valid for pw=0",
+                "channel": name,
+            }), 400
+        # C3: clamp always applies unless bypass, even across the 0 boundary.
+        # This closes the loophole where pw=0 -> nonzero could jump unbounded.
+        if not bypass and last_pw is not None:
             delta = requested_pw - last_pw
             if delta > SERVO_MAX_DELTA_US:
                 pw_to_write = last_pw + SERVO_MAX_DELTA_US
