@@ -68,16 +68,16 @@ LED0_ON_L = 0x06
 # Channel mapping (pin - 1 = 0-indexed)
 # MACE reaction wheel is no longer on PCA9685 — it is driven by Pi Pico via SimpleFOC
 CHANNELS = {
-    "B1":   15,
-    "S1":   14,
-    "B2":   13,
-    "S2":   12,
-    "E1":    6,
-    "E2":    4,
-    "W1A":   3,
-    "W1B":   2,
-    "W2A":   1,
-    "W2B":   0,
+    "B1":   0,   # SV1
+    "S1":   1,   # SV2
+    "B2":   2,   # SV3
+    "S2":   3,   # SV4
+    "E1":   4,   # SV5
+    "E2":   5,   # SV6
+    "W1A":  6,   # SV7
+    "W1B":  7,   # SV8
+    "W2A":  8,   # SV9
+    "W2B":  9,   # SV10
 }
 
 def pca_init(freq=50):

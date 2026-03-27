@@ -62,17 +62,17 @@ function takeSnapshot() {
 
 /* ========== Channel controls ========== */
 var CHANNELS = {
-  "W2B": {ch: 0, pin: 1}, "W2A": {ch: 1, pin: 2}, "W1B": {ch: 2, pin: 3},
-  "W1A": {ch: 3, pin: 4}, "E2": {ch: 4, pin: 5}, "E1": {ch: 6, pin: 7},
-  "MACE": {ch: 11, pin: 12}, "S2": {ch: 12, pin: 13}, "B2": {ch: 13, pin: 14},
-  "S1": {ch: 14, pin: 15}, "B1": {ch: 15, pin: 16}
+  "B1": {ch: 0, pin: 1}, "S1": {ch: 1, pin: 2}, "B2": {ch: 2, pin: 3},
+  "S2": {ch: 3, pin: 4}, "E1": {ch: 4, pin: 5}, "E2": {ch: 5, pin: 6},
+  "W1A": {ch: 6, pin: 7}, "W1B": {ch: 7, pin: 8}, "W2A": {ch: 8, pin: 9},
+  "W2B": {ch: 9, pin: 10}, "MACE": {ch: 11, pin: 12}
 };
 var chOrder = ["B1","B2","S1","S2","E1","E2","W1A","W2A","W1B","W2B","MACE"];
 var CH_RAMP_HZ = 30;
 var chActual = {};  // actual PWM value sent to hardware per channel
 
 /* Per-channel neutral positions (server-side, persisted to disk) */
-var chNeutral = {};
+var chNeutral = {"B1":1160,"S1":970,"E1":2350,"W1A":1500,"W1B":1500,"B2":890,"S2":810,"E2":2190,"W2A":1500,"W2B":1500};
 
 var controllerStatus = {enabled: false};
 var activePageTab = 'manual';
@@ -2052,7 +2052,7 @@ function chSliderInput(name, val) {
 function chGoNeutral(name) {
   var target = getNeutral(name);
   var slider = document.getElementById('ch_' + name);
-  if (slider) { slider.value = target; chUpdateLabel(name, target); chSendPwm(name, target); }
+  if (slider) { slider.value = target; chUpdateLabel(name, target); }
 }
 
 function chSetNeutral(name) {
@@ -3081,15 +3081,12 @@ function seqRun() {
 
 /* ========== Init ========== */
 (function() {
-  /* Fetch neutral positions from server */
-  fetch('/api/servo_neutral').then(function(r) { return r.json(); }).then(function(neutrals) {
-    chNeutral = neutrals;
-    chOrder.forEach(function(name) {
-      if (name === 'MACE') return;
-      var label = document.getElementById('chn_' + name);
-      if (label) label.textContent = getNeutral(name) + ' us';
-    });
-  }).catch(function() {});
+  /* Neutral positions are hardcoded in chNeutral */
+  chOrder.forEach(function(name) {
+    if (name === 'MACE') return;
+    var label = document.getElementById('chn_' + name);
+    if (label) label.textContent = getNeutral(name) + ' us';
+  });
 
   /* Fetch last-known servo positions from server, fallback to neutral */
   fetch('/api/servo_positions').then(function(r) { return r.json(); }).then(function(positions) {
