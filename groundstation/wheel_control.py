@@ -53,12 +53,22 @@ def load_positions():
         return {}
 
 def save_positions():
-    with open(POSITIONS_FILE, "w") as f:
-        json.dump(servo_positions, f)
+    """Persist servo positions atomically (tmp-file + fsync + rename)."""
+    try:
+        tmp = POSITIONS_FILE + ".tmp"
+        # H5: snapshot under the state lock so we don't iterate a mutating dict.
+        with _servo_positions_lock:
+            snapshot = dict(servo_positions)
+        with open(tmp, "w") as f:
+            json.dump(snapshot, f)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, POSITIONS_FILE)
+    except Exception as e:
+        print(f"servo_positions save failed: {e}", flush=True)
 
 servo_positions = load_positions()
-_positions_dirty = False
-_positions_last_change = 0
+_servo_positions_lock = threading.Lock()
 
 def mark_positions_dirty():
     global _positions_dirty, _positions_last_change
@@ -108,40 +118,30 @@ def send_pwm(channel, pw):
 
 
 def send_all_off():
-    """Turn all PCA9685 channels off."""
-    try:
-        req = urllib.request.Request(f"{GEODUDE_URL}/pwm/off", method="POST")
-        urllib.request.urlopen(req, timeout=3)
-        return True
-    except Exception:
-        return False
+    """Emergency: disable every PCA channel immediately via bypass_clamp=True,
+    and reset ramp state so the ramp thread does not re-energize them."""
+    ok_all = True
+    for name in CHANNELS:
+        ok, _ = _servo_send_to_geodude(name, 0, bypass_clamp=True)
+        ok_all = ok_all and ok
+    with _servo_state_lock:
+        for name in CHANNELS:
+            _servo_target_pw[name] = 0
+            _servo_actual_pw[name] = 0
+    return ok_all
 
-# --- Server-side servo ramp (safety-critical authoritative state) ---
-#
-# Client sets per-channel TARGETS only. A background thread ramps the
-# ACTUAL pulse-width toward the target at a capped rate and sends one PWM
-# to GEO-DUDe per tick per moving channel. Safety properties:
-#
-#   - Network drops between browser<->groundstation cannot cause jumps;
-#     the ramp just keeps stepping locally.
-#   - Drops between groundstation<->GEO-DUDe are also bounded because
-#     GEO-DUDe re-clamps any delta > SERVO_MAX_DELTA_US.
-#   - Two tabs cannot fight: both update the same target; the ramp always
-#     moves toward the latest one.
-#   - If the frontend goes silent (no heartbeat) for SERVO_HEARTBEAT_TIMEOUT,
-#     the target is frozen to the current actual so motion stops and stays
-#     stopped until the client comes back.
-#   - Each command to GEO-DUDe has a monotonic seq so late-arriving retries
-#     cannot revert the servo to a stale pw.
+
+# --- Servo safety state ---
 SERVO_RAMP_HZ = 30
-SERVO_MAX_STEP_US_PER_TICK = 10    # hard cap; GEO-DUDe clamps at 50
-SERVO_HEARTBEAT_TIMEOUT_S = 5.0
+SERVO_MAX_STEP_US_PER_TICK = 10
+SERVO_HEARTBEAT_TIMEOUT_S = 1.0
 
-_servo_target_pw = {}    # user-requested target per channel
-_servo_actual_pw = {}    # what we've ramped to and sent to GEO-DUDe
-_servo_seq = {}          # monotonic per-channel sequence number
+_servo_target_pw = {}
+_servo_actual_pw = {}
+_servo_seq = {}
 _servo_speed_per_tick = SERVO_MAX_STEP_US_PER_TICK
 _servo_last_heartbeat = 0.0
+_servo_ramp_last_tick_mono = 0.0
 _servo_state_lock = threading.Lock()
 
 
@@ -157,66 +157,104 @@ def _servo_init_state():
     _servo_last_heartbeat = time.monotonic()
 
 
-def _servo_send_to_geodude(name, pw):
-    """Send one PWM to GEO-DUDe with the next seq number for this channel.
-    Returns True on success. Uses the safety-hardened /pwm endpoint."""
+def _servo_send_to_geodude(name, pw, bypass_clamp=False):
+    """Send one PWM to GEO-DUDe, returns (ok, accepted_pw).
+
+    Uses a monotonic per-channel seq. If GEO-DUDe replies 409 stale-seq,
+    we parse its last_seq from the response and jump our local counter
+    past it. This prevents the permanent-lockout failure mode where
+    the groundstation restarts and starts at seq=1 while GEO-DUDe still
+    has last_seq=50000.
+    """
     seq = _servo_seq[name] + 1
+    payload = {"channel": name, "pw": pw, "seq": seq}
+    if bypass_clamp:
+        payload["bypass_clamp"] = True
     try:
-        body = json.dumps({"channel": name, "pw": pw, "seq": seq}).encode()
+        body = json.dumps(payload).encode()
         req = urllib.request.Request(
             f"{GEODUDE_URL}/pwm",
             data=body,
             headers={"Content-Type": "application/json"},
         )
         resp = urllib.request.urlopen(req, timeout=1.0)
-        _servo_seq[name] = seq
-        return True
+        result = json.loads(resp.read().decode()) if resp.status == 200 else None
+        if result and result.get("ok"):
+            _servo_seq[name] = seq
+            # accepted_pw may differ from requested if GEO-DUDe clamped
+            return True, int(result.get("pw", pw))
+    except urllib.error.HTTPError as e:
+        if e.code == 409:
+            try:
+                err = json.loads(e.read().decode())
+                server_last = int(err.get("last_seq", -1))
+                # Jump our counter past the server. Next attempt will succeed.
+                if server_last > _servo_seq[name]:
+                    _servo_seq[name] = server_last
+                    print(f"[servo] {name} seq resync to {server_last}", flush=True)
+            except Exception:
+                pass
     except Exception:
-        return False
+        pass
+    return False, None
 
 
 def _servo_ramp_loop():
-    """Authoritative ramp: runs at SERVO_RAMP_HZ, steps each channel's
-    actual toward its target by at most _servo_speed_per_tick us/tick, and
-    sends one PWM per moving channel per tick."""
+    """Authoritative ramp at SERVO_RAMP_HZ.
+
+    Safety properties:
+      - Body is wrapped in try/except so one exception cannot silently kill
+        the thread (C5).
+      - _servo_actual_pw is only advanced AFTER a successful PWM was
+        accepted by GEO-DUDe, so on failure we do NOT drift away from
+        reality (C2). Next tick retries the same step.
+      - _servo_ramp_last_tick_mono is updated every tick so the UI can
+        detect a hung ramp.
+      - Heartbeat watchdog freezes targets to current actual if the
+        client has gone silent for SERVO_HEARTBEAT_TIMEOUT_S.
+    """
+    global _servo_ramp_last_tick_mono
     period = 1.0 / SERVO_RAMP_HZ
     while True:
         start = time.monotonic()
-        with _servo_state_lock:
-            # Heartbeat watchdog: if the frontend has gone quiet, freeze
-            # targets at wherever the servos actually are. This stops any
-            # in-flight motion cleanly.
-            if start - _servo_last_heartbeat > SERVO_HEARTBEAT_TIMEOUT_S:
+        try:
+            _servo_ramp_last_tick_mono = start
+            with _servo_state_lock:
+                # Heartbeat watchdog.
+                if start - _servo_last_heartbeat > SERVO_HEARTBEAT_TIMEOUT_S:
+                    for name in CHANNELS:
+                        _servo_target_pw[name] = _servo_actual_pw[name]
+
+                # H1: read step cap under the lock.
+                step_cap = max(1, min(_servo_speed_per_tick, SERVO_MAX_STEP_US_PER_TICK))
+
+                moves = []
                 for name in CHANNELS:
-                    _servo_target_pw[name] = _servo_actual_pw[name]
+                    target = _servo_target_pw[name]
+                    actual = _servo_actual_pw[name]
+                    if target == actual:
+                        continue
+                    delta = target - actual
+                    step = step_cap if delta > 0 else -step_cap
+                    if abs(delta) < step_cap:
+                        step = delta
+                    new_actual = actual + step
+                    # DO NOT advance _servo_actual_pw yet. Wait for success.
+                    moves.append((name, actual, new_actual))
 
-            step_cap = max(1, min(_servo_speed_per_tick, SERVO_MAX_STEP_US_PER_TICK))
-            moves = []
-            for name in CHANNELS:
-                target = _servo_target_pw[name]
-                actual = _servo_actual_pw[name]
-                if target == actual:
-                    continue
-                delta = target - actual
-                step = step_cap if delta > 0 else -step_cap
-                if abs(delta) < step_cap:
-                    step = delta
-                new_actual = actual + step
-                _servo_actual_pw[name] = new_actual
-                moves.append((name, new_actual))
-
-        # Send outside the state lock so slow HTTP doesn't block target updates.
-        for name, pw in moves:
-            ok = _servo_send_to_geodude(name, pw)
-            if ok:
-                servo_positions[name] = pw
-                mark_positions_dirty()
-            else:
-                # Send failed. Leave actual at the new value; the next tick
-                # will try again to advance further. If GEO-DUDe comes back
-                # and our state has drifted more than SERVO_MAX_DELTA_US
-                # ahead, GEO-DUDe's clamp will cap the catch-up rate.
-                pass
+            # Send outside the state lock (slow HTTP must not block targets).
+            for name, prev_actual, new_actual in moves:
+                ok, accepted_pw = _servo_send_to_geodude(name, new_actual)
+                if ok:
+                    # Trust GEO-DUDe's accepted_pw (may be clamped below us).
+                    with _servo_state_lock:
+                        _servo_actual_pw[name] = accepted_pw
+                    with _servo_positions_lock:
+                        servo_positions[name] = accepted_pw
+                    mark_positions_dirty()
+                # else: _servo_actual_pw stays at prev_actual; retry next tick.
+        except Exception as e:
+            print(f"[servo ramp] exception: {e!r}", flush=True)
 
         elapsed = time.monotonic() - start
         if elapsed < period:
@@ -224,24 +262,16 @@ def _servo_ramp_loop():
 
 
 def _servo_set_target(name, pw):
-    """Set the target for a channel. Clamped to 0..2500. pw=0 means "off"
-    and goes straight through without ramping (PCA channel disable)."""
+    """Set the target for a channel. Clamped to 0..2500.
+
+    No special off-path: pw=0 just sets target=0 and the ramp drives
+    actual down through GEO-DUDe's 50 us/tick clamp. If the operator
+    really needs instant disable, they must go through /api/all_off.
+    This eliminates the race where a bypass-off raced the ramp (C4).
+    """
     pw = max(0, min(2500, int(pw)))
     with _servo_state_lock:
         _servo_target_pw[name] = pw
-        if pw == 0:
-            _servo_actual_pw[name] = 0
-    if pw == 0:
-        # Send off immediately, bypassing the clamp on GEO-DUDe.
-        try:
-            body = json.dumps({"channel": name, "pw": 0, "bypass_clamp": True}).encode()
-            req = urllib.request.Request(
-                f"{GEODUDE_URL}/pwm", data=body,
-                headers={"Content-Type": "application/json"},
-            )
-            urllib.request.urlopen(req, timeout=1.0)
-        except Exception:
-            pass
 
 
 def _servo_heartbeat():
@@ -250,12 +280,15 @@ def _servo_heartbeat():
 
 
 def _servo_snapshot():
+    now = time.monotonic()
     with _servo_state_lock:
         return {
             "target": dict(_servo_target_pw),
             "actual": dict(_servo_actual_pw),
             "speed_per_tick": _servo_speed_per_tick,
-            "heartbeat_age_s": time.monotonic() - _servo_last_heartbeat,
+            "heartbeat_age_s": now - _servo_last_heartbeat,
+            "ramp_age_s": now - _servo_ramp_last_tick_mono,
+            "seq": dict(_servo_seq),
         }
 
 
@@ -331,8 +364,10 @@ def servo_speed():
     global _servo_speed_per_tick
     data = request.json or {}
     step = int(data.get("us_per_tick", SERVO_MAX_STEP_US_PER_TICK))
-    _servo_speed_per_tick = max(1, min(step, SERVO_MAX_STEP_US_PER_TICK))
-    return jsonify({"ok": True, "us_per_tick": _servo_speed_per_tick})
+    new_val = max(1, min(step, SERVO_MAX_STEP_US_PER_TICK))
+    with _servo_state_lock:
+        _servo_speed_per_tick = new_val
+    return jsonify({"ok": True, "us_per_tick": new_val})
 
 
 @app.route('/api/heartbeat', methods=['POST'])
@@ -566,33 +601,11 @@ def _run_gimbal_sequence(entries):
             gimbal_get(f"move?d={d}&steps={entry['steps']}")
 
 
-def restore_positions_loop():
-    """On startup, wait for GEO-DUDe to come online, then restore last-known positions."""
-    if not servo_positions:
-        return
-    # Wait for GEO-DUDe to be reachable
-    for _ in range(60):
-        try:
-            urllib.request.urlopen(f"{GEODUDE_URL}/sensors", timeout=2)
-            break
-        except Exception:
-            time.sleep(2)
-    else:
-        return  # gave up after 2 minutes
-    # Restore last-known positions (where servos were before shutdown)
-    for name, pw in servo_positions.items():
-        if name in CHANNELS:
-            send_pwm(name, pw)
-            time.sleep(0.05)
-
-
 def start_background_threads():
     _servo_init_state()
     threading.Thread(target=_servo_ramp_loop, daemon=True).start()
     threading.Thread(target=sensor_loop, daemon=True).start()
     threading.Thread(target=positions_flush_loop, daemon=True).start()
-    threading.Thread(target=restore_positions_loop, daemon=True).start()
-
 
 def main(port=8080):
     dev = os.environ.get('WHEEL_CONTROL_DEV') == '1'
