@@ -34,6 +34,7 @@ TMC2209Stepper driver3(&Serial2, R_SENSE, 0x03);
 TMC2209Stepper* drivers[] = {&driver0, &driver1, &driver2, &driver3};
 
 int driversFound = 0;
+bool driverFound[4] = {false, false, false, false};  // Cached from last version check
 
 // Per-motor configuration
 int motorCurrentMA[4] = {400, 400, 400, 400};
@@ -56,6 +57,7 @@ void initDrivers() {
   for (int i = 0; i < 4; i++) {
     drivers[i]->begin();
     stepsPerDeg[i] = gearRatio[i] * MICROSTEPS_PER_REV / 360.0;
+    driverFound[i] = false;
   }
   delay(100);
   // Aggressively disable all drivers: SpreadCycle + toff(0)
@@ -74,6 +76,16 @@ void sendJson(String json) {
   server.send(200, "application/json", json);
 }
 
+bool sendBusyIfStepping(int targetDriver) {
+  // Only block if THIS driver is currently running (others are OK).
+  if (targetDriver >= 0 && targetDriver < 4 && motorRunning[targetDriver]) {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(409, "application/json", "{\"ok\":false,\"error\":\"driver busy stepping\"}");
+    return true;
+  }
+  return false;
+}
+
 void handleStatus() {
   bool stepping = anyMotorRunning();
   String r = "{\"drivers_found\":" + String(driversFound) +
@@ -85,11 +97,12 @@ void handleStatus() {
   for (int i = 0; i < 4; i++) {
     if (i > 0) r += ",";
     // Skip slow UART reads while motors are stepping to avoid pauses
-    bool found = false;
+    bool found = driverFound[i];
     uint32_t ds = 0;
     if (!stepping) {
       uint8_t ver = drivers[i]->version();
       found = (ver == 0x21);
+      driverFound[i] = found;
       ds = found ? drivers[i]->DRV_STATUS() : 0;
     }
     r += "{\"index\":" + String(i) +
@@ -122,7 +135,9 @@ void handleStatus() {
 void handleScan() {
   driversFound = 0;
   for (int i = 0; i < 4; i++) {
-    if (drivers[i]->version() == 0x21) driversFound++;
+    bool found = (drivers[i]->version() == 0x21);
+    driverFound[i] = found;
+    if (found) driversFound++;
   }
   sendJson("{\"ok\":true,\"drivers_found\":" + String(driversFound) + "}");
 }
@@ -195,6 +210,7 @@ void handleMoveDeg() {
 
 void handleEnable() {
   int d = server.arg("d").toInt();
+  if (sendBusyIfStepping(d)) return;
   if (d < 0 || d >= 4) {
     server.sendHeader("Access-Control-Allow-Origin", "*");
     server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid driver\"}");
@@ -213,6 +229,7 @@ void handleEnable() {
 
 void handleDisable() {
   int d = server.arg("d").toInt();
+  if (sendBusyIfStepping(d)) return;
   if (d < 0 || d >= 4) {
     server.sendHeader("Access-Control-Allow-Origin", "*");
     server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid driver\"}");
@@ -225,6 +242,7 @@ void handleDisable() {
 
 void handleMotorCurrent() {
   int d = server.arg("d").toInt();
+  if (sendBusyIfStepping(d)) return;
   int ma = server.arg("ma").toInt();
   if (d < 0 || d >= 4) {
     server.sendHeader("Access-Control-Allow-Origin", "*");
@@ -319,6 +337,22 @@ void handleCurrent() {
   sendJson("{\"ok\":true,\"current_ma\":" + String(ma) + "}");
 }
 
+
+
+void onWiFiEvent(WiFiEvent_t event) {
+  if (event == ARDUINO_EVENT_WIFI_STA_GOT_IP) {
+    // Re-init OTA after (re)connect. ArduinoOTA.begin() is idempotent.
+    ArduinoOTA.setHostname("esp32-tmc");
+    ArduinoOTA.begin();
+  }
+}
+
+void handleReboot() {
+  sendJson("{\"ok\":true,\"msg\":\"rebooting\"}");
+  delay(100);
+  ESP.restart();
+}
+
 void setup() {
   Serial.begin(115200);
   delay(500);
@@ -330,6 +364,7 @@ void setup() {
     digitalWrite(drvPins[i].dir, LOW);
   }
 
+  WiFi.onEvent(onWiFiEvent);
   WiFi.begin(ssid, password);
   int attempts = 0;
   while (WiFi.status() != WL_CONNECTED && attempts < 30) {
@@ -347,6 +382,7 @@ void setup() {
 
   initDrivers();
 
+  server.on("/reboot", HTTP_POST, handleReboot);
   server.on("/status", handleStatus);
   server.on("/scan", handleScan);
   server.on("/setup", handleSetup);
