@@ -112,7 +112,9 @@ function missionDefaultState() {
     aocsArmDetachResolved: false,
     maceState: 'SAFE',
     searchRotationSpeed: 1.5,
+    searchScanDirection: 1,
     searchMinConfidence: 0.5,
+    readiness: { maceReady: false, imuHealthy: false, encoderHealthy: false, modelReady: false, activeRequiredModel: '1', modelSlots: {'1': false, '2': false, '3': false} },
     searchClassWhitelist: ['snoopy'],
     searchLockFramesRequired: 5,
     searchLockCenteredFrames: 0,
@@ -247,7 +249,9 @@ function competitionSyncState(state) {
   missionFlowState.aocsArmDetachResolved = !!state.aocsArmDetachResolved;
   missionFlowState.maceState = state.maceState || 'SAFE';
   missionFlowState.searchRotationSpeed = state.searchRotationSpeed != null ? state.searchRotationSpeed : 1.5;
+  missionFlowState.searchScanDirection = state.searchScanDirection != null ? state.searchScanDirection : 1;
   missionFlowState.searchMinConfidence = state.searchMinConfidence != null ? state.searchMinConfidence : 0.5;
+  missionFlowState.readiness = state.readiness || { maceReady: false, imuHealthy: false, encoderHealthy: false, modelReady: false, activeRequiredModel: '1', modelSlots: {'1': false, '2': false, '3': false} };
   missionFlowState.searchClassWhitelist = Array.isArray(state.searchClassWhitelist) ? state.searchClassWhitelist : ['snoopy'];
   missionFlowState.searchLockFramesRequired = state.searchLockFramesRequired != null ? state.searchLockFramesRequired : 5;
   missionFlowState.searchLockCenteredFrames = state.searchLockCenteredFrames != null ? state.searchLockCenteredFrames : 0;
@@ -931,40 +935,14 @@ function missionSyncSummary() {
   if (detSizeEl) detSizeEl.textContent = missionFormatDetectionSize(missionFlowState.snoopyDetection && (missionFlowState.snoopyDetection.bbox_size_px || missionFlowState.snoopyDetection.bbox_size));
   var maceStateEl = document.getElementById('missionMaceState');
   if (maceStateEl) maceStateEl.textContent = (missionFlowState.maceState || 'SAFE').toUpperCase();
+  var readiness = missionFlowState.readiness || {};
+  missionSetTelemetryValue('missionReadinessMace', readiness.maceReady ? 'YES' : 'NO');
+  missionSetTelemetryValue('missionReadinessImu', readiness.imuHealthy ? 'YES' : 'NO');
+  missionSetTelemetryValue('missionReadinessEncoder', readiness.encoderHealthy ? 'YES' : 'NO');
+  missionSetTelemetryValue('missionReadinessModel', readiness.modelReady ? 'YES' : 'NO');
   var searchSpeedEl = document.getElementById('missionSearchRotationSpeed');
   if (searchSpeedEl && document.activeElement !== searchSpeedEl) searchSpeedEl.value = (missionFlowState.searchRotationSpeed != null ? missionFlowState.searchRotationSpeed : 1.5);
-  var searchMinConfEl = document.getElementById('missionSearchMinConfidence');
-  if (searchMinConfEl && document.activeElement !== searchMinConfEl) searchMinConfEl.value = (missionFlowState.searchMinConfidence != null ? missionFlowState.searchMinConfidence : 0.5);
-  missionSetGainLabelPair('missionSearchMinConfidenceVal', 'missionSearchMinConfidenceVal', (missionFlowState.searchMinConfidence != null ? missionFlowState.searchMinConfidence : 0.5).toFixed(2));
-  var searchWhitelistEl = document.getElementById('missionSearchClassWhitelist');
-  if (searchWhitelistEl && document.activeElement !== searchWhitelistEl) searchWhitelistEl.value = (missionFlowState.searchClassWhitelist || ['snoopy']).join(', ');
-  var searchFramesEl = document.getElementById('missionSearchLockFramesRequired');
-  if (searchFramesEl && document.activeElement !== searchFramesEl) searchFramesEl.value = (missionFlowState.searchLockFramesRequired != null ? missionFlowState.searchLockFramesRequired : 5);
-  missionSetGainLabelPair('missionSearchLockFramesRequiredVal', 'missionSearchLockFramesRequiredVal', String(missionFlowState.searchLockFramesRequired != null ? missionFlowState.searchLockFramesRequired : 5));
-  var searchMarginEl = document.getElementById('missionSearchLockMargin');
-  if (searchMarginEl && document.activeElement !== searchMarginEl) searchMarginEl.value = (missionFlowState.searchLockMarginPx != null ? missionFlowState.searchLockMarginPx : 32);
-  missionSetGainLabelPair('missionSearchLockMarginVal', 'missionSearchLockMarginVal', Math.round(missionFlowState.searchLockMarginPx != null ? missionFlowState.searchLockMarginPx : 32) + ' px');
-  missionSetGainLabelPair('missionSearchLockKpVal', 'missionSearchLockKpVal', (missionFlowState.searchLockKp != null ? missionFlowState.searchLockKp : 6).toFixed(2));
-  missionSetGainLabelPair('missionSearchLockMaxVal', 'missionSearchLockMaxVal', (missionFlowState.searchLockMaxCommand != null ? missionFlowState.searchLockMaxCommand : 2).toFixed(2));
-  var searchKpEl = document.getElementById('missionSearchLockKp');
-  if (searchKpEl && document.activeElement !== searchKpEl) searchKpEl.value = (missionFlowState.searchLockKp != null ? missionFlowState.searchLockKp : 6);
-  var searchMaxEl = document.getElementById('missionSearchLockMaxCommand');
-  if (searchMaxEl && document.activeElement !== searchMaxEl) searchMaxEl.value = (missionFlowState.searchLockMaxCommand != null ? missionFlowState.searchLockMaxCommand : 2);
-  missionSetTelemetryValue('missionSearchLockError', missionFlowState.searchLockError != null ? missionFlowState.searchLockError.toFixed(1) + ' px' : '--');
-  missionSetTelemetryValue('missionSearchLockCommand', missionFlowState.searchLockCommand != null ? missionFlowState.searchLockCommand.toFixed(3) + ' rad/s' : '--');
-  missionSetTelemetryValue('missionSearchLockFrames', String(missionFlowState.searchLockCenteredFrames != null ? missionFlowState.searchLockCenteredFrames : 0) + ' / ' + String(missionFlowState.searchLockFramesRequired != null ? missionFlowState.searchLockFramesRequired : 5));
-  missionSetTelemetryValue('missionRotationEstimate', missionFlowState.rotationEstimateRpm != null ? missionFlowState.rotationEstimateRpm.toFixed(2) + ' rpm' : '--');
-  missionSetTelemetryValue('missionRotationStableWindow', missionFlowState.rotationStableSeconds.toFixed(1) + ' s / ' + missionFlowState.rotationStableToleranceRpm.toFixed(1) + ' rpm');
-  missionSetTelemetryValue('missionDemoPhase', (missionFlowState.demoSequenceState || 'IDLE').toUpperCase());
-  missionSetTelemetryValue('missionDemoAngle', missionFlowState.demoCommandAngle != null ? missionFlowState.demoCommandAngle.toFixed(0) + ' deg' : '--');
-  missionSetTelemetryValue('missionRotationMatchTarget', missionFlowState.rotationMatchTargetRpm != null ? missionFlowState.rotationMatchTargetRpm.toFixed(2) + ' rpm' : '--');
-  missionSyncMlFeed();
-  missionRenderFlow();
-}
-
-function missionCompetitionConfigChanged() {
-  if (activePageTab !== 'competition') return;
-  var searchSpeedEl = document.getElementById('missionSearchRotationSpeed');
+  var searchDirEl = document.getElementById('missionSearchScanDirection');
   var searchMinConfEl = document.getElementById('missionSearchMinConfidence');
   var searchWhitelistEl = document.getElementById('missionSearchClassWhitelist');
   var searchFramesEl = document.getElementById('missionSearchLockFramesRequired');
@@ -972,7 +950,11 @@ function missionCompetitionConfigChanged() {
   var searchKpEl = document.getElementById('missionSearchLockKp');
   var searchMaxEl = document.getElementById('missionSearchLockMaxCommand');
   competitionPost('/api/competition/config', {
+    model1Loaded: !!visionState.models[0],
+    model2Loaded: !!visionState.models[1],
+    model3Loaded: !!visionState.models[2],
     searchRotationSpeed: searchSpeedEl ? parseFloat(searchSpeedEl.value || '1.5') : 1.5,
+    searchScanDirection: searchDirEl ? parseInt(searchDirEl.value || '1', 10) : 1,
     searchMinConfidence: searchMinConfEl ? parseFloat(searchMinConfEl.value || '0.5') : 0.5,
     searchClassWhitelist: searchWhitelistEl ? searchWhitelistEl.value.split(',').map(function(label) { return label.trim().toLowerCase(); }).filter(function(label) { return !!label; }) : ['snoopy'],
     searchLockFramesRequired: searchFramesEl ? parseInt(searchFramesEl.value || '5', 10) : 5,
@@ -1327,6 +1309,7 @@ function visionReset() {
   visionState.status = 'STANDBY';
   visionState.profile = 'Docking';
   visionState.mode = 'Observe';
+  if (activePageTab === 'competition') missionCompetitionConfigChanged();
   [1, 2, 3].forEach(function(slot) {
     var input = document.getElementById('visionModelFile' + slot);
     if (input) input.value = '';
