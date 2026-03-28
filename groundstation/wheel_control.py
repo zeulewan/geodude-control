@@ -1111,6 +1111,20 @@ def camera():
 # --- Attitude controller proxy ---
 
 
+@app.route('/api/controller/status')
+def controller_status():
+    """Report controller availability for frontend feature gating."""
+    return jsonify({
+        "available": False,
+        "enabled": False,
+        "connected": False,
+        "selected_arm": "left",
+        "deadman": False,
+        "active": False,
+        "last_error": "Controller backend unavailable on this deployment.",
+    })
+
+
 # --- Gimbal proxy ---
 
 def gimbal_get(path):
