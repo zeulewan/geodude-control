@@ -1520,7 +1520,7 @@
 	(footprint "PinHeader_1x04_P2.54mm_Vertical"
 		(layer "F.Cu")
 		(uuid "1e6bb7e6-0f03-4b84-b1af-aa061737be1e")
-		(at 35.3 39.06)
+		(at 24 40.7)
 		(descr "Through hole straight pin header, 1x04, 2.54mm pitch, single row")
 		(tags "Through hole pin header THT 1x04 2.54mm single row")
 		(property "Reference" "J41"
@@ -2179,7 +2179,7 @@
 	(footprint "TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm"
 		(layer "F.Cu")
 		(uuid "2b6e5cdc-e029-4a5a-8ee2-1343869f25ac")
-		(at 24.6 62.4 90)
+		(at 12 54 90)
 		(descr "terminal block MaiXu MX126-5.0-02P, 2 pins, pitch 5mm, size 10.5x7.8mm, drill diameter 1.3mm, pad diameter 2.8mm, https://www.lcsc.com/datasheet/lcsc_datasheet_2309150913_MAX-MX126-5-0-03P-GN01-Cu-S-A_C5188435.pdf")
 		(tags "THT terminal block MaiXu MX126-5.0-02P pitch 5mm size 10.5x7.8mm drill 1.3mm pad 2.8mm")
 		(property "Reference" "J34"
@@ -2592,7 +2592,7 @@
 	(footprint "TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm"
 		(layer "F.Cu")
 		(uuid "2d9813c7-2969-4629-96bb-d7569f995f2a")
-		(at 24.6 38.4 90)
+		(at 12 42 90)
 		(descr "terminal block MaiXu MX126-5.0-02P, 2 pins, pitch 5mm, size 10.5x7.8mm, drill diameter 1.3mm, pad diameter 2.8mm, https://www.lcsc.com/datasheet/lcsc_datasheet_2309150913_MAX-MX126-5-0-03P-GN01-Cu-S-A_C5188435.pdf")
 		(tags "THT terminal block MaiXu MX126-5.0-02P pitch 5mm size 10.5x7.8mm drill 1.3mm pad 2.8mm")
 		(property "Reference" "J32"
@@ -3823,7 +3823,7 @@
 	(footprint "TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm"
 		(layer "F.Cu")
 		(uuid "4c24693d-de03-4354-aa40-d7f08604d2b3")
-		(at 24.6 86.4 90)
+		(at 12 66 90)
 		(descr "terminal block MaiXu MX126-5.0-02P, 2 pins, pitch 5mm, size 10.5x7.8mm, drill diameter 1.3mm, pad diameter 2.8mm, https://www.lcsc.com/datasheet/lcsc_datasheet_2309150913_MAX-MX126-5-0-03P-GN01-Cu-S-A_C5188435.pdf")
 		(tags "THT terminal block MaiXu MX126-5.0-02P pitch 5mm size 10.5x7.8mm drill 1.3mm pad 2.8mm")
 		(property "Reference" "J37"
@@ -4236,7 +4236,7 @@
 	(footprint "PinHeader_1x04_P2.54mm_Vertical"
 		(layer "F.Cu")
 		(uuid "4c654e52-c892-485d-b085-37df76f83cf2")
-		(at 36.2 109.79)
+		(at 24 76.7)
 		(descr "Through hole straight pin header, 1x04, 2.54mm pitch, single row")
 		(tags "Through hole pin header THT 1x04 2.54mm single row")
 		(property "Reference" "J44"
@@ -6104,7 +6104,7 @@
 	(footprint "PinHeader_1x04_P2.54mm_Vertical"
 		(layer "F.Cu")
 		(uuid "9b18b6d8-b9cf-459b-891d-f69d390413c4")
-		(at 36.4 85.39)
+		(at 24 64.7)
 		(descr "Through hole straight pin header, 1x04, 2.54mm pitch, single row")
 		(tags "Through hole pin header THT 1x04 2.54mm single row")
 		(property "Reference" "J43"
@@ -6350,7 +6350,7 @@
 	(footprint "TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm"
 		(layer "F.Cu")
 		(uuid "a19e1a80-eca9-4ea0-abcd-080b312de318")
-		(at 24.6 110.4 90)
+		(at 12 78 90)
 		(descr "terminal block MaiXu MX126-5.0-02P, 2 pins, pitch 5mm, size 10.5x7.8mm, drill diameter 1.3mm, pad diameter 2.8mm, https://www.lcsc.com/datasheet/lcsc_datasheet_2309150913_MAX-MX126-5-0-03P-GN01-Cu-S-A_C5188435.pdf")
 		(tags "THT terminal block MaiXu MX126-5.0-02P pitch 5mm size 10.5x7.8mm drill 1.3mm pad 2.8mm")
 		(property "Reference" "J39"
@@ -7000,7 +7000,7 @@
 	(footprint "PinHeader_1x04_P2.54mm_Vertical"
 		(layer "F.Cu")
 		(uuid "a6149f9f-0446-4bd3-8d02-8f619de0c0da")
-		(at 34.9 14.46)
+		(at 24 28.7)
 		(descr "Through hole straight pin header, 1x04, 2.54mm pitch, single row")
 		(tags "Through hole pin header THT 1x04 2.54mm single row")
 		(property "Reference" "J40"
@@ -8486,7 +8486,7 @@
 	(footprint "TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm"
 		(layer "F.Cu")
 		(uuid "d0471672-3163-4f50-a3d9-57cd1ab765c5")
-		(at 24.6 14.4 90)
+		(at 12 30 90)
 		(descr "terminal block MaiXu MX126-5.0-02P, 2 pins, pitch 5mm, size 10.5x7.8mm, drill diameter 1.3mm, pad diameter 2.8mm, https://www.lcsc.com/datasheet/lcsc_datasheet_2309150913_MAX-MX126-5-0-03P-GN01-Cu-S-A_C5188435.pdf")
 		(tags "THT terminal block MaiXu MX126-5.0-02P pitch 5mm size 10.5x7.8mm drill 1.3mm pad 2.8mm")
 		(property "Reference" "J31"
@@ -9205,7 +9205,7 @@
 	(footprint "PinHeader_1x04_P2.54mm_Vertical"
 		(layer "F.Cu")
 		(uuid "d6f6985d-13b5-4d48-b5a2-a69999e720e7")
-		(at 36.1 62.26)
+		(at 24 52.7)
 		(descr "Through hole straight pin header, 1x04, 2.54mm pitch, single row")
 		(tags "Through hole pin header THT 1x04 2.54mm single row")
 		(property "Reference" "J42"
@@ -12228,30 +12228,6 @@
 		(uuid "0adf620d-6aa5-48f1-864a-488539d245d4")
 	)
 	(segment
-		(start 24.6 93.4)
-		(end 24.6 86.4)
-		(width 0.6)
-		(layer "F.Cu")
-		(net "+5V_LOGIC")
-		(uuid "28c6105a-a8bb-4610-af46-cd4894eabf33")
-	)
-	(segment
-		(start 24.6 81.4)
-		(end 24.6 86.4)
-		(width 0.6)
-		(layer "F.Cu")
-		(net "+5V_LOGIC")
-		(uuid "57d8e46b-ddaf-484d-8044-014c107b5807")
-	)
-	(segment
-		(start 24.6 98.4)
-		(end 24.6 93.4)
-		(width 0.6)
-		(layer "F.Cu")
-		(net "+5V_LOGIC")
-		(uuid "81bdf733-c85c-4d06-bfda-f3a16e4c97cb")
-	)
-	(segment
 		(start 36.4 93.01)
 		(end 36.4 90.47)
 		(width 0.6)
@@ -12292,6 +12268,14 @@
 		(uuid "238a2c80-ee86-4a08-9e21-5f1fd4d47a05")
 	)
 	(segment
+		(start 24.6 93.4)
+		(end 24.6 86.4)
+		(width 0.6)
+		(layer "F.Cu")
+		(net "GND_LOGIC")
+		(uuid "28c6105a-a8bb-4610-af46-cd4894eabf33")
+	)
+	(segment
 		(start 24.6 117.4)
 		(end 24.6 110.4)
 		(width 0.6)
@@ -12322,6 +12306,22 @@
 		(layer "F.Cu")
 		(net "GND_LOGIC")
 		(uuid "5336c758-5f6e-46ed-bcba-7a051838b3dd")
+	)
+	(segment
+		(start 24.6 81.4)
+		(end 24.6 86.4)
+		(width 0.6)
+		(layer "F.Cu")
+		(net "GND_LOGIC")
+		(uuid "57d8e46b-ddaf-484d-8044-014c107b5807")
+	)
+	(segment
+		(start 24.6 98.4)
+		(end 24.6 93.4)
+		(width 0.6)
+		(layer "F.Cu")
+		(net "GND_LOGIC")
+		(uuid "81bdf733-c85c-4d06-bfda-f3a16e4c97cb")
 	)
 	(segment
 		(start 36.2 117.41)
