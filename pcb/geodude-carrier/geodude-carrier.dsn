@@ -21,8 +21,24 @@
       )
     )
     (boundary
-      (path pcb 0  137950 -152550  17750 -152550  17750 -4550  137950 -4550
-            137950 -152550)
+      (path pcb 0  133390 -4624.08  133875 -4696.07  134351 -4815.3  134813 -4980.6
+            135257 -5190.39  135678 -5442.65  136072 -5734.95  136436 -6064.47
+            136765 -6428.03  137057 -6822.15  137310 -7243.02  137519 -7686.58
+            137685 -8148.58  137804 -8624.55  137876 -9109.91  137900 -9600
+            137900 -147500  137876 -147990  137804 -148475  137685 -148951
+            137519 -149413  137310 -149857  137057 -150278  136765 -150672
+            136436 -151036  136072 -151365  135678 -151657  135257 -151910
+            134813 -152119  134351 -152285  133875 -152404  133390 -152476
+            132900 -152500  22800 -152500  22309.9 -152476  21824.5 -152404
+            21348.6 -152285  20886.6 -152119  20443 -151910  20022.1 -151657
+            19628 -151365  19264.5 -151036  18934.9 -150672  18642.7 -150278
+            18390.4 -149857  18180.6 -149413  18015.3 -148951  17896.1 -148475
+            17824.1 -147990  17800 -147500  17800 -9600  17824.1 -9109.91
+            17896.1 -8624.55  18015.3 -8148.58  18180.6 -7686.58  18390.4 -7243.02
+            18642.7 -6822.15  18934.9 -6428.03  19264.5 -6064.47  19628 -5734.95
+            20022.1 -5442.65  20443 -5190.39  20886.6 -4980.6  21348.6 -4815.3
+            21824.5 -4696.07  22309.9 -4624.08  22800 -4600  132900 -4600
+            133390 -4624.08)
     )
     (via "Via[0-1]_400:300_um")
     (rule
@@ -32,9 +48,6 @@
     )
   )
   (placement
-    (component PinHeader_2x04_P2.54mm_Vertical
-      (place J_FAN 116460 -120500 front 90 (PN Fan))
-    )
     (component "BLX-A_5x20mm"
       (place F2 94285 -60900 front 0 (PN S1))
       (place F6 57785 -43900 front 0 (PN B2))
@@ -59,6 +72,9 @@
       (place SV9 90960 -132500 front 90 (PN W2A))
       (place SV5 105220 -124300 front 90 (PN W1B))
       (place SV8 76960 -132500 front 90 (PN E2))
+    )
+    (component PinHeader_2x04_P2.54mm_Vertical
+      (place J_FAN 116460 -120500 front 90 (PN Fan))
     )
     (component "TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm"
       (place J4 122900 -107000 front 90 (PN GND))
@@ -91,29 +107,6 @@
     )
   )
   (library
-    (image PinHeader_2x04_P2.54mm_Vertical
-      (outline (path signal 120  -1380 1380  0 1380))
-      (outline (path signal 120  -1380 0  -1380 1380))
-      (outline (path signal 120  -1380 -1270  -1380 -9000))
-      (outline (path signal 120  -1380 -1270  1270 -1270))
-      (outline (path signal 120  -1380 -9000  3920 -9000))
-      (outline (path signal 120  1270 1380  3920 1380))
-      (outline (path signal 120  1270 -1270  1270 1380))
-      (outline (path signal 120  3920 1380  3920 -9000))
-      (outline (path signal 100  -1270 0  0 1270))
-      (outline (path signal 100  -1270 -8890  -1270 0))
-      (outline (path signal 100  0 1270  3810 1270))
-      (outline (path signal 100  3810 1270  3810 -8890))
-      (outline (path signal 100  3810 -8890  -1270 -8890))
-      (pin Rect[A]Pad_1700.000000x1700.000000_um 1 0 0)
-      (pin Round[A]Pad_1700.000000_um 2 2540 0)
-      (pin Round[A]Pad_1700.000000_um 3 0 -2540)
-      (pin Round[A]Pad_1700.000000_um 4 2540 -2540)
-      (pin Round[A]Pad_1700.000000_um 5 0 -5080)
-      (pin Round[A]Pad_1700.000000_um 6 2540 -5080)
-      (pin Round[A]Pad_1700.000000_um 7 0 -7620)
-      (pin Round[A]Pad_1700.000000_um 8 2540 -7620)
-    )
     (image "BLX-A_5x20mm"
       (outline (polygon signal 0  14995 -5995  -14995 -5995  -14995 5995  14995 5995))
       (outline (path signal 120  -14000 5000  14000 5000))
@@ -139,6 +132,30 @@
       (pin Rect[A]Pad_1700.000000x1700.000000_um 1 0 0)
       (pin Round[A]Pad_1700.000000_um 2 0 -2540)
       (pin Round[A]Pad_1700.000000_um 3 0 -5080)
+    )
+    (image PinHeader_2x04_P2.54mm_Vertical
+      (outline (polygon signal 0  -1765 -9385  -1765 1765  4315 1765  4315 -9385))
+      (outline (path signal 120  3920 1380  3920 -9000))
+      (outline (path signal 120  1270 1380  3920 1380))
+      (outline (path signal 120  -1380 1380  0 1380))
+      (outline (path signal 120  -1380 0  -1380 1380))
+      (outline (path signal 120  1270 -1270  1270 1380))
+      (outline (path signal 120  -1380 -1270  1270 -1270))
+      (outline (path signal 120  -1380 -1270  -1380 -9000))
+      (outline (path signal 120  -1380 -9000  3920 -9000))
+      (outline (path signal 100  3810 1270  3810 -8890))
+      (outline (path signal 100  0 1270  3810 1270))
+      (outline (path signal 100  -1270 0  0 1270))
+      (outline (path signal 100  3810 -8890  -1270 -8890))
+      (outline (path signal 100  -1270 -8890  -1270 0))
+      (pin Rect[A]Pad_1700.000000x1700.000000_um 1 0 0)
+      (pin Round[A]Pad_1700.000000_um 2 2540 0)
+      (pin Round[A]Pad_1700.000000_um 3 0 -2540)
+      (pin Round[A]Pad_1700.000000_um 4 2540 -2540)
+      (pin Round[A]Pad_1700.000000_um 5 0 -5080)
+      (pin Round[A]Pad_1700.000000_um 6 2540 -5080)
+      (pin Round[A]Pad_1700.000000_um 7 0 -7620)
+      (pin Round[A]Pad_1700.000000_um 8 2540 -7620)
     )
     (image "TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm"
       (outline (polygon signal 0  -3495 -4305  -3495 4495  7995 4495  7995 -4305))
@@ -316,7 +333,7 @@
   )
   (network
     (net +12V
-      (pins J_FAN-3 F2-1 F6-1 J2-1 J2-2 F7-1 J1-1 J1-2 F1-1)
+      (pins F2-1 J_FAN-3 F6-1 J2-1 J2-2 F7-1 J1-1 J1-2 F1-1)
     )
     (net SV2_PWR
       (pins F2-2 SV2-2)
@@ -328,20 +345,20 @@
       (pins SV4-2 F4-2)
     )
     (net GND
-      (pins J_FAN-1 SV4-3 SV2-3 J4-1 J4-2 SV6-3 SV1-3 J_ESC-3 SV3-3 SV10-3 SV7-3 SV9-3
+      (pins SV4-3 J_FAN-1 SV2-3 J4-1 J4-2 SV6-3 SV1-3 J_ESC-3 SV3-3 SV10-3 SV7-3 SV9-3
         SV5-3 SV8-3 J3-1 J3-2)
-    )
-    (net SV6_PWR
-      (pins F6-2 SV6-2)
-    )
-    (net PWM_CH1
-      (pins SV2-1 J_PCA-2)
     )
     (net TACH
       (pins J_FAN-5 J_FAN-6)
     )
     (net PWM_CH12
       (pins J_FAN-7 J_FAN-8 J_PCA-16)
+    )
+    (net SV6_PWR
+      (pins F6-2 SV6-2)
+    )
+    (net PWM_CH1
+      (pins SV2-1 J_PCA-2)
     )
     (net PWM_CH5
       (pins SV6-1 J_PCA-7)
