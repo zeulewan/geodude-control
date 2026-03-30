@@ -51,8 +51,8 @@ def main():
     fuse_lib = os.path.join(fp_lib, "Fuse.pretty")
 
     # Check which terminal block footprints exist
-    tb_2pin = "TerminalBlock_bornier-2_P5.08mm"
-    tb_4pin = "TerminalBlock_bornier-4_P5.08mm"
+    tb_2pin = "TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm"
+    tb_4pin = "TerminalBlock_MaiXu_MX126-5.0-04P_1x04_P5.00mm"
 
     # --- Power input terminals (left edge) ---
     power_inputs = [
@@ -66,7 +66,7 @@ def main():
         place_footprint(board, tb_lib, tb_2pin, ref, val, x, y)
 
     # --- Fuse holders (center-left, two columns for arm 1 and arm 2) ---
-    fuse_fp = "Fuse_Littelfuse_395Series"  # Common 5x20mm PCB fuse holder
+    fuse_fp = "Fuseholder_Clip-5x20mm_Keystone_3517_Inline_P23.11x6.76mm_D1.70mm_Horizontal"  # Common 5x20mm PCB fuse holder
     fuse_data = [
         # Arm 1 (left column)
         ("F1", "8A", 35, 12),
@@ -124,22 +124,8 @@ def main():
     for ref, val, x, y in i2c_data:
         place_footprint(board, tb_lib, tb_4pin, ref, val, x, y)
 
-    # --- Add ground plane zone on back copper ---
-    zone = pcbnew.ZONE(board)
-    zone.SetIsRuleArea(False)
-    zone.SetDoNotAllowTracks(False)
-    zone.SetDoNotAllowPads(False)
-    zone.SetDoNotAllowCopperPour(False)
-    zone.SetLayer(pcbnew.B_Cu)
-    zone.SetNetCode(0)  # Will need to assign GND net after netlist import
-
-    corners = pcbnew.VECTOR_VECTOR2I()
-    corners.append(pcbnew.VECTOR2I(mm(0), mm(0)))
-    corners.append(pcbnew.VECTOR2I(mm(BOARD_W), mm(0)))
-    corners.append(pcbnew.VECTOR2I(mm(BOARD_W), mm(BOARD_H)))
-    corners.append(pcbnew.VECTOR2I(mm(0), mm(BOARD_H)))
-    zone.AddPolygon(corners)
-    board.Add(zone)
+    # Ground plane zone will be added manually after netlist import
+    # (needs GND net assigned which doesn't exist until netlist is loaded)
 
     # Save
     output = os.path.join(os.path.dirname(__file__), "geodude-carrier.kicad_pcb")
