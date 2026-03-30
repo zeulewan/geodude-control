@@ -9,8 +9,8 @@ import pcbnew
 import os
 
 # Board dimensions (mm)
-BOARD_W = 150
-BOARD_H = 120
+BOARD_W = 160
+BOARD_H = 155
 
 def mm(val):
     return pcbnew.FromMM(val)
@@ -54,20 +54,25 @@ def main():
     HDR_6PIN = "PinHeader_1x06_P2.54mm_Vertical"
     HDR_8PIN = "PinHeader_1x08_P2.54mm_Vertical"
 
-    # === POWER INPUT TERMINALS (left edge, vertical stack) ===
+    # === POWER INPUT TERMINALS (left edge) ===
     pwr_x = 12
-    pwr_y_start = 15
-    pwr_spacing = 18
-    power_inputs = [
-        ("J_12V", "12V_Input"),
-        ("J_7V4", "7V4_Input"),
-        ("J_5VS", "5V_Servo"),
-        ("J_5VL", "5V_Logic"),
-        ("J_3V3", "3V3_Input"),
-    ]
-    for i, (ref, val) in enumerate(power_inputs):
-        place_footprint(board, tb_lib, TB_2PIN, ref, val,
-                        pwr_x, pwr_y_start + i * pwr_spacing)
+    pwr_y = 10
+    sp = 14  # spacing between terminals
+
+    # 4x paralleled 12V inputs
+    for i in range(4):
+        place_footprint(board, tb_lib, TB_2PIN, f"J_12V_{i+1}", f"12V_{i+1}",
+                        pwr_x, pwr_y + i * sp)
+
+    # Other voltage inputs
+    place_footprint(board, tb_lib, TB_2PIN, "J_7V4", "7V4", pwr_x, pwr_y + 4 * sp)
+    place_footprint(board, tb_lib, TB_2PIN, "J_5VS", "5V_Servo", pwr_x, pwr_y + 5 * sp)
+    place_footprint(board, tb_lib, TB_2PIN, "J_5VL", "5V_Logic", pwr_x, pwr_y + 6 * sp)
+    place_footprint(board, tb_lib, TB_2PIN, "J_3V3", "3V3", pwr_x, pwr_y + 7 * sp)
+
+    # 2x paralleled GND bus
+    place_footprint(board, tb_lib, TB_2PIN, "J_GND_1", "GND_1", pwr_x, pwr_y + 8 * sp)
+    place_footprint(board, tb_lib, TB_2PIN, "J_GND_2", "GND_2", pwr_x, pwr_y + 9 * sp)
 
     # === FUSE HOLDERS (center-left, two rows of 5) ===
     # Fuse holders are ~26x11mm, need 14mm vertical spacing

@@ -28,36 +28,42 @@ pwm = [Net(f"PWM_CH{i}") for i in range(16)]
 # Per-servo fused power nets
 sv_pwr = [Net(f"SV{i+1}_PWR") for i in range(10)]
 
-# --- Power input terminals (5x 2-pin screw terminals, 5mm pitch) ---
-j_12v = Part("Connector", "Screw_Terminal_01x02",
-             ref="J_12V", value="12V_Input",
-             footprint="TerminalBlock:TerminalBlock_bornier-2_P5.08mm")
-j_12v[1] += vcc_12v
-j_12v[2] += gnd
+# --- Power input terminals ---
+# 12V needs 4 paralleled terminals (~9A each, 35A total possible)
+TB_FP = "TerminalBlock:TerminalBlock_bornier-2_P5.08mm"
+
+for i in range(4):
+    j = Part("Connector", "Screw_Terminal_01x02",
+             ref=f"J_12V_{i+1}", value=f"12V_Input_{i+1}", footprint=TB_FP)
+    j[1] += vcc_12v
+    j[2] += gnd
 
 j_7v4 = Part("Connector", "Screw_Terminal_01x02",
-             ref="J_7V4", value="7V4_Input",
-             footprint="TerminalBlock:TerminalBlock_bornier-2_P5.08mm")
+             ref="J_7V4", value="7V4_Input", footprint=TB_FP)
 j_7v4[1] += vcc_7v4
 j_7v4[2] += gnd
 
 j_5v_servo = Part("Connector", "Screw_Terminal_01x02",
-                   ref="J_5VS", value="5V_Servo_Input",
-                   footprint="TerminalBlock:TerminalBlock_bornier-2_P5.08mm")
+                   ref="J_5VS", value="5V_Servo_Input", footprint=TB_FP)
 j_5v_servo[1] += vcc_5v_servo
 j_5v_servo[2] += gnd
 
 j_5v_logic = Part("Connector", "Screw_Terminal_01x02",
-                   ref="J_5VL", value="5V_Logic_Input",
-                   footprint="TerminalBlock:TerminalBlock_bornier-2_P5.08mm")
+                   ref="J_5VL", value="5V_Logic_Input", footprint=TB_FP)
 j_5v_logic[1] += vcc_5v_logic
 j_5v_logic[2] += gnd
 
 j_3v3 = Part("Connector", "Screw_Terminal_01x02",
-             ref="J_3V3", value="3V3_Input",
-             footprint="TerminalBlock:TerminalBlock_bornier-2_P5.08mm")
+             ref="J_3V3", value="3V3_Input", footprint=TB_FP)
 j_3v3[1] += vcc_3v3
 j_3v3[2] += gnd
+
+# Common GND bus (2 paralleled terminals for current capacity)
+for i in range(2):
+    j = Part("Connector", "Screw_Terminal_01x02",
+             ref=f"J_GND_{i+1}", value=f"GND_Bus_{i+1}", footprint=TB_FP)
+    j[1] += gnd
+    j[2] += gnd
 
 # --- Fuses (10x, 5x20mm PCB-mount holders) ---
 # Fuse ratings and voltage rail assignments:
