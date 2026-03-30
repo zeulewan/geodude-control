@@ -142,8 +142,11 @@ def main():
         16: 12, 17: 13, 18: 14, 19: 15,
     }
     # PCA on top edge, horizontal (pins go left-right), centered
-    # 1x19 at 2.54mm pitch = 45.72mm long. Rotated 90°, centered on board width
-    f = place_fp(board, SOCK, S19, "J_PCA", "PCA9685", BOARD_W / 2, 10, 270)
+    # 1x19 at 2.54mm pitch = 45.72mm long. Pin 1 is origin, centre offset = 9*2.54 = 22.86mm
+    # Rotated 270°: pin 1 right, pin 19 left. Origin at pin 1.
+    # To centre: place origin at BOARD_W/2 + 22.86mm (so pin 10 lands at centre)
+    pca_centre_offset = 9 * 2.54  # 22.86mm
+    f = place_fp(board, SOCK, S19, "J_PCA", "PCA9685", BOARD_W / 2 + pca_centre_offset, 10, 270)
     if f:
         for pin, ch in pca_pin_to_ch.items():
             set_pad(f, pin, nets[f"PWM_CH{ch}"])
