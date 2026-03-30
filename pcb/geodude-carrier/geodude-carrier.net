@@ -1,0 +1,1375 @@
+(export 
+  (version "D")
+  (design
+    (source "generate_netlist.py")
+    (date "03/30/2026 03:29 AM")
+    (tool "SKiDL (2.2.1)")
+    (sheet
+      (number 1)
+      (name "/")
+      (tstamps "/")
+      (title_block
+        (title)
+        (company)
+        (rev)
+        (date)
+        (source "generate_netlist.py")
+        (comment
+          (number "1")
+          (value ""))
+        (comment
+          (number "2")
+          (value ""))
+        (comment
+          (number "3")
+          (value ""))
+        (comment
+          (number "4")
+          (value ""))
+        (comment
+          (number "5")
+          (value ""))
+        (comment
+          (number "6")
+          (value ""))
+        (comment
+          (number "7")
+          (value ""))
+        (comment
+          (number "8")
+          (value ""))
+        (comment
+          (number "9")
+          (value "")))))
+  (components
+    (comp
+      (ref "F1")
+      (value "8A")
+      (description "Fuse")
+      (footprint "Fuse:Fuse_Littelfuse_395Series")
+      (fields
+        (field
+          (name "Description") "Fuse")
+        (field
+          (name "Footprint") "Fuse:Fuse_Littelfuse_395Series")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "DiH5DNdRZa")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:86"))
+      (libsource
+        (lib "Device")
+        (part "Fuse"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "95c685f3-4fc7-5f97-b159-9ab2bfec0c5d"))
+    (comp
+      (ref "F10")
+      (value "3A")
+      (description "Fuse")
+      (footprint "Fuse:Fuse_Littelfuse_395Series")
+      (fields
+        (field
+          (name "Description") "Fuse")
+        (field
+          (name "Footprint") "Fuse:Fuse_Littelfuse_395Series")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "Pusux6xkzd")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:86"))
+      (libsource
+        (lib "Device")
+        (part "Fuse"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "b27a8707-9684-57f8-b237-41398dc3326d"))
+    (comp
+      (ref "F2")
+      (value "8A")
+      (description "Fuse")
+      (footprint "Fuse:Fuse_Littelfuse_395Series")
+      (fields
+        (field
+          (name "Description") "Fuse")
+        (field
+          (name "Footprint") "Fuse:Fuse_Littelfuse_395Series")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "2zcqwz5A1Q")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:86"))
+      (libsource
+        (lib "Device")
+        (part "Fuse"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "95674c7e-064b-575d-bc52-3301d982daad"))
+    (comp
+      (ref "F3")
+      (value "5A")
+      (description "Fuse")
+      (footprint "Fuse:Fuse_Littelfuse_395Series")
+      (fields
+        (field
+          (name "Description") "Fuse")
+        (field
+          (name "Footprint") "Fuse:Fuse_Littelfuse_395Series")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "7mlgmlqEtz")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:86"))
+      (libsource
+        (lib "Device")
+        (part "Fuse"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "d393bafd-34f7-558c-b7c7-4a6af36669cd"))
+    (comp
+      (ref "F4")
+      (value "3A")
+      (description "Fuse")
+      (footprint "Fuse:Fuse_Littelfuse_395Series")
+      (fields
+        (field
+          (name "Description") "Fuse")
+        (field
+          (name "Footprint") "Fuse:Fuse_Littelfuse_395Series")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "SJ_FT16Jnm")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:86"))
+      (libsource
+        (lib "Device")
+        (part "Fuse"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "94c25458-3303-5c33-a26a-a9af84b391cd"))
+    (comp
+      (ref "F5")
+      (value "3A")
+      (description "Fuse")
+      (footprint "Fuse:Fuse_Littelfuse_395Series")
+      (fields
+        (field
+          (name "Description") "Fuse")
+        (field
+          (name "Footprint") "Fuse:Fuse_Littelfuse_395Series")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "DLlBj3IQmf")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:86"))
+      (libsource
+        (lib "Device")
+        (part "Fuse"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "e9e93a9f-756b-5728-847c-f8d9ecd66faa"))
+    (comp
+      (ref "F6")
+      (value "8A")
+      (description "Fuse")
+      (footprint "Fuse:Fuse_Littelfuse_395Series")
+      (fields
+        (field
+          (name "Description") "Fuse")
+        (field
+          (name "Footprint") "Fuse:Fuse_Littelfuse_395Series")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "S4vS_3JQA8")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:86"))
+      (libsource
+        (lib "Device")
+        (part "Fuse"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "bdc55874-56b3-5924-8739-81e603b27de0"))
+    (comp
+      (ref "F7")
+      (value "8A")
+      (description "Fuse")
+      (footprint "Fuse:Fuse_Littelfuse_395Series")
+      (fields
+        (field
+          (name "Description") "Fuse")
+        (field
+          (name "Footprint") "Fuse:Fuse_Littelfuse_395Series")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "Wwc5OrsYJK")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:86"))
+      (libsource
+        (lib "Device")
+        (part "Fuse"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "492139ec-defb-54b3-a88d-0858a292322f"))
+    (comp
+      (ref "F8")
+      (value "5A")
+      (description "Fuse")
+      (footprint "Fuse:Fuse_Littelfuse_395Series")
+      (fields
+        (field
+          (name "Description") "Fuse")
+        (field
+          (name "Footprint") "Fuse:Fuse_Littelfuse_395Series")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "C_LRyGWokE")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:86"))
+      (libsource
+        (lib "Device")
+        (part "Fuse"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "73d27211-5574-56fa-aaa0-8b8943a2106f"))
+    (comp
+      (ref "F9")
+      (value "3A")
+      (description "Fuse")
+      (footprint "Fuse:Fuse_Littelfuse_395Series")
+      (fields
+        (field
+          (name "Description") "Fuse")
+        (field
+          (name "Footprint") "Fuse:Fuse_Littelfuse_395Series")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "AW11gQA0YB")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:86"))
+      (libsource
+        (lib "Device")
+        (part "Fuse"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "79ecb550-9621-5a45-879d-8d0dc8701971"))
+    (comp
+      (ref "J_12V")
+      (value "12V_Input")
+      (description "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+      (footprint "TerminalBlock:TerminalBlock_bornier-2_P5.08mm")
+      (fields
+        (field
+          (name "Description") "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+        (field
+          (name "Footprint") "TerminalBlock:TerminalBlock_bornier-2_P5.08mm")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "njzk6tkYSq")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:32"))
+      (libsource
+        (lib "Connector")
+        (part "Screw_Terminal_01x02"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "d750bd65-ec62-5260-a7f2-63aaed034cdc"))
+    (comp
+      (ref "J_3V3")
+      (value "3V3_Input")
+      (description "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+      (footprint "TerminalBlock:TerminalBlock_bornier-2_P5.08mm")
+      (fields
+        (field
+          (name "Description") "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+        (field
+          (name "Footprint") "TerminalBlock:TerminalBlock_bornier-2_P5.08mm")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "2zAo55SFHp")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:56"))
+      (libsource
+        (lib "Connector")
+        (part "Screw_Terminal_01x02"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "dd6f5685-7928-5f1f-b18b-76e9d1b95b7e"))
+    (comp
+      (ref "J_5VL")
+      (value "5V_Logic_Input")
+      (description "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+      (footprint "TerminalBlock:TerminalBlock_bornier-2_P5.08mm")
+      (fields
+        (field
+          (name "Description") "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+        (field
+          (name "Footprint") "TerminalBlock:TerminalBlock_bornier-2_P5.08mm")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "EKFj9QLqMY")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:50"))
+      (libsource
+        (lib "Connector")
+        (part "Screw_Terminal_01x02"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "e60575ab-66d8-52bd-9b43-071277158639"))
+    (comp
+      (ref "J_5VS")
+      (value "5V_Servo_Input")
+      (description "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+      (footprint "TerminalBlock:TerminalBlock_bornier-2_P5.08mm")
+      (fields
+        (field
+          (name "Description") "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+        (field
+          (name "Footprint") "TerminalBlock:TerminalBlock_bornier-2_P5.08mm")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "s4OAxuXTGs")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:44"))
+      (libsource
+        (lib "Connector")
+        (part "Screw_Terminal_01x02"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "c907ff22-4acc-5a6d-998c-94f36f58d001"))
+    (comp
+      (ref "J_7V4")
+      (value "7V4_Input")
+      (description "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+      (footprint "TerminalBlock:TerminalBlock_bornier-2_P5.08mm")
+      (fields
+        (field
+          (name "Description") "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+        (field
+          (name "Footprint") "TerminalBlock:TerminalBlock_bornier-2_P5.08mm")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "Y7elYoIOzK")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:38"))
+      (libsource
+        (lib "Connector")
+        (part "Screw_Terminal_01x02"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "07c3ed13-a441-523c-8e0c-9558b633964a"))
+    (comp
+      (ref "J_ESC")
+      (value "MACE_ESC")
+      (description "Generic connector, single row, 01x03, script generated")
+      (footprint "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical")
+      (fields
+        (field
+          (name "Description") "Generic connector, single row, 01x03, script generated")
+        (field
+          (name "Footprint") "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "Vxpx2mIYKg")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:150"))
+      (libsource
+        (lib "Connector")
+        (part "Conn_01x03_Pin"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "bd30c09b-eada-5bb6-a9bb-b788952e3c83"))
+    (comp
+      (ref "J_FAN")
+      (value "Fan")
+      (description "Generic connector, single row, 01x03, script generated")
+      (footprint "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical")
+      (fields
+        (field
+          (name "Description") "Generic connector, single row, 01x03, script generated")
+        (field
+          (name "Footprint") "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "SIOkzd0ZLg")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:158"))
+      (libsource
+        (lib "Connector")
+        (part "Conn_01x03_Pin"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "086a69aa-3860-5a69-8ffb-7f93d0385445"))
+    (comp
+      (ref "J_I2C1")
+      (value "I2C_IMU")
+      (description "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
+      (footprint "TerminalBlock:TerminalBlock_bornier-4_P5.08mm")
+      (fields
+        (field
+          (name "Description") "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
+        (field
+          (name "Footprint") "TerminalBlock:TerminalBlock_bornier-4_P5.08mm")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "wqypY_y6xK")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:124"))
+      (libsource
+        (lib "Connector")
+        (part "Screw_Terminal_01x04"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "9e2b0faa-2914-508f-9b1f-8c0e95fe4cde"))
+    (comp
+      (ref "J_I2C2")
+      (value "I2C_Encoder")
+      (description "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
+      (footprint "TerminalBlock:TerminalBlock_bornier-4_P5.08mm")
+      (fields
+        (field
+          (name "Description") "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
+        (field
+          (name "Footprint") "TerminalBlock:TerminalBlock_bornier-4_P5.08mm")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "smsPCo4s1x")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:124"))
+      (libsource
+        (lib "Connector")
+        (part "Screw_Terminal_01x04"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "41a4378e-e607-55b0-8125-7d45815a5148"))
+    (comp
+      (ref "J_I2C3")
+      (value "I2C_Spare1")
+      (description "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
+      (footprint "TerminalBlock:TerminalBlock_bornier-4_P5.08mm")
+      (fields
+        (field
+          (name "Description") "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
+        (field
+          (name "Footprint") "TerminalBlock:TerminalBlock_bornier-4_P5.08mm")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "zDm7TTCTCI")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:124"))
+      (libsource
+        (lib "Connector")
+        (part "Screw_Terminal_01x04"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "b991f7b7-8efa-5376-a08f-4e0357f30e81"))
+    (comp
+      (ref "J_I2C4")
+      (value "I2C_Spare2")
+      (description "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
+      (footprint "TerminalBlock:TerminalBlock_bornier-4_P5.08mm")
+      (fields
+        (field
+          (name "Description") "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
+        (field
+          (name "Footprint") "TerminalBlock:TerminalBlock_bornier-4_P5.08mm")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "Ku88iiQPXw")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:124"))
+      (libsource
+        (lib "Connector")
+        (part "Screw_Terminal_01x04"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "46845ad3-040b-5209-92f6-f3b9bc880a2d"))
+    (comp
+      (ref "J_PCA_A")
+      (value "PCA9685_Ch0-7")
+      (description "Generic connector, single row, 01x08, script generated")
+      (footprint "Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical")
+      (fields
+        (field
+          (name "Description") "Generic connector, single row, 01x08, script generated")
+        (field
+          (name "Footprint") "Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "qqrZ4kuZU3")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:109"))
+      (libsource
+        (lib "Connector")
+        (part "Conn_01x08_Pin"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "7353a3a7-40e1-52c1-ac10-21de32b7dc94"))
+    (comp
+      (ref "J_PCA_B")
+      (value "PCA9685_Ch8-15")
+      (description "Generic connector, single row, 01x08, script generated")
+      (footprint "Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical")
+      (fields
+        (field
+          (name "Description") "Generic connector, single row, 01x08, script generated")
+        (field
+          (name "Footprint") "Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "SE_gtis93r")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:115"))
+      (libsource
+        (lib "Connector")
+        (part "Conn_01x08_Pin"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "3b962651-b76e-5672-9e18-db112c4f8a45"))
+    (comp
+      (ref "J_PCA_CTRL")
+      (value "PCA9685_Control")
+      (description "Generic connector, single row, 01x06, script generated")
+      (footprint "Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical")
+      (fields
+        (field
+          (name "Description") "Generic connector, single row, 01x06, script generated")
+        (field
+          (name "Footprint") "Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "ORn8FxVTh5")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:98"))
+      (libsource
+        (lib "Connector")
+        (part "Conn_01x06_Pin"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "882c719c-8750-5157-aee7-65d7fdca9aee"))
+    (comp
+      (ref "SV1")
+      (value "Arm1_Base")
+      (description "Generic connector, single row, 01x03, script generated")
+      (footprint "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical")
+      (fields
+        (field
+          (name "Description") "Generic connector, single row, 01x03, script generated")
+        (field
+          (name "Footprint") "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "sZlJDrhaBk")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:142"))
+      (libsource
+        (lib "Connector")
+        (part "Conn_01x03_Pin"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "721c4001-0785-5df0-a098-2a22c2b4d207"))
+    (comp
+      (ref "SV10")
+      (value "Arm2_WristPan")
+      (description "Generic connector, single row, 01x03, script generated")
+      (footprint "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical")
+      (fields
+        (field
+          (name "Description") "Generic connector, single row, 01x03, script generated")
+        (field
+          (name "Footprint") "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "GCjRaMf8B5")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:142"))
+      (libsource
+        (lib "Connector")
+        (part "Conn_01x03_Pin"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "4ba9fdd8-a862-5b18-b89a-d566d7e0dbe2"))
+    (comp
+      (ref "SV2")
+      (value "Arm1_Shoulder")
+      (description "Generic connector, single row, 01x03, script generated")
+      (footprint "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical")
+      (fields
+        (field
+          (name "Description") "Generic connector, single row, 01x03, script generated")
+        (field
+          (name "Footprint") "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "D0yfaeyfUq")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:142"))
+      (libsource
+        (lib "Connector")
+        (part "Conn_01x03_Pin"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "09f2b0ca-1595-5c31-ac96-be39cebfee9f"))
+    (comp
+      (ref "SV3")
+      (value "Arm1_Elbow")
+      (description "Generic connector, single row, 01x03, script generated")
+      (footprint "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical")
+      (fields
+        (field
+          (name "Description") "Generic connector, single row, 01x03, script generated")
+        (field
+          (name "Footprint") "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "6gQwXEn5Xe")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:142"))
+      (libsource
+        (lib "Connector")
+        (part "Conn_01x03_Pin"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "068a1da3-2976-5d99-a1a3-e41b5b5e0e22"))
+    (comp
+      (ref "SV4")
+      (value "Arm1_WristRot")
+      (description "Generic connector, single row, 01x03, script generated")
+      (footprint "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical")
+      (fields
+        (field
+          (name "Description") "Generic connector, single row, 01x03, script generated")
+        (field
+          (name "Footprint") "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "DjENbXq7VG")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:142"))
+      (libsource
+        (lib "Connector")
+        (part "Conn_01x03_Pin"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "22a1467c-ce98-5345-bf16-c49ff0d534cd"))
+    (comp
+      (ref "SV5")
+      (value "Arm1_WristPan")
+      (description "Generic connector, single row, 01x03, script generated")
+      (footprint "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical")
+      (fields
+        (field
+          (name "Description") "Generic connector, single row, 01x03, script generated")
+        (field
+          (name "Footprint") "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "UeC2O5IkEg")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:142"))
+      (libsource
+        (lib "Connector")
+        (part "Conn_01x03_Pin"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "259d7707-e188-5781-95f7-0e3cecde2185"))
+    (comp
+      (ref "SV6")
+      (value "Arm2_Base")
+      (description "Generic connector, single row, 01x03, script generated")
+      (footprint "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical")
+      (fields
+        (field
+          (name "Description") "Generic connector, single row, 01x03, script generated")
+        (field
+          (name "Footprint") "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "2zct6BMlh3")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:142"))
+      (libsource
+        (lib "Connector")
+        (part "Conn_01x03_Pin"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "485d6896-9dba-5148-8cc5-b96ab15cfdfd"))
+    (comp
+      (ref "SV7")
+      (value "Arm2_Shoulder")
+      (description "Generic connector, single row, 01x03, script generated")
+      (footprint "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical")
+      (fields
+        (field
+          (name "Description") "Generic connector, single row, 01x03, script generated")
+        (field
+          (name "Footprint") "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "8ugN_kItPB")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:142"))
+      (libsource
+        (lib "Connector")
+        (part "Conn_01x03_Pin"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "322baa2a-f3ca-5d56-bd70-f54136d1b6ec"))
+    (comp
+      (ref "SV8")
+      (value "Arm2_Elbow")
+      (description "Generic connector, single row, 01x03, script generated")
+      (footprint "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical")
+      (fields
+        (field
+          (name "Description") "Generic connector, single row, 01x03, script generated")
+        (field
+          (name "Footprint") "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "qmu1lMNi1X")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:142"))
+      (libsource
+        (lib "Connector")
+        (part "Conn_01x03_Pin"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "7f818815-62ad-5d60-9723-b61a3bf9e9a6"))
+    (comp
+      (ref "SV9")
+      (value "Arm2_WristRot")
+      (description "Generic connector, single row, 01x03, script generated")
+      (footprint "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical")
+      (fields
+        (field
+          (name "Description") "Generic connector, single row, 01x03, script generated")
+        (field
+          (name "Footprint") "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "eiCBnRrKjb")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:142"))
+      (libsource
+        (lib "Connector")
+        (part "Conn_01x03_Pin"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "6da2cf56-f0b9-522f-9751-831c79c7c13a")))
+  (nets
+    (net
+      (code 1)
+      (name "+12V")
+      (class "Default")
+      (node
+        (ref "F1")
+        (pin "1")
+        (pintype "PASSIVE"))
+      (node
+        (ref "F2")
+        (pin "1")
+        (pintype "PASSIVE"))
+      (node
+        (ref "F6")
+        (pin "1")
+        (pintype "PASSIVE"))
+      (node
+        (ref "F7")
+        (pin "1")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_12V")
+        (pin "1")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_ESC")
+        (pin "2")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_FAN")
+        (pin "2")
+        (pintype "PASSIVE")))
+    (net
+      (code 2)
+      (name "+3V3")
+      (class "Default")
+      (node
+        (ref "J_3V3")
+        (pin "1")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_I2C1")
+        (pin "3")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_I2C2")
+        (pin "3")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_I2C3")
+        (pin "3")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_I2C4")
+        (pin "3")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_PCA_CTRL")
+        (pin "5")
+        (pintype "PASSIVE")))
+    (net
+      (code 3)
+      (name "+5V_LOGIC")
+      (class "Default")
+      (node
+        (ref "J_5VL")
+        (pin "1")
+        (pintype "PASSIVE")))
+    (net
+      (code 4)
+      (name "+5V_SERVO")
+      (class "Default")
+      (node
+        (ref "F10")
+        (pin "1")
+        (pintype "PASSIVE"))
+      (node
+        (ref "F4")
+        (pin "1")
+        (pintype "PASSIVE"))
+      (node
+        (ref "F5")
+        (pin "1")
+        (pintype "PASSIVE"))
+      (node
+        (ref "F9")
+        (pin "1")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_5VS")
+        (pin "1")
+        (pintype "PASSIVE")))
+    (net
+      (code 5)
+      (name "+7V4")
+      (class "Default")
+      (node
+        (ref "F3")
+        (pin "1")
+        (pintype "PASSIVE"))
+      (node
+        (ref "F8")
+        (pin "1")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_7V4")
+        (pin "1")
+        (pintype "PASSIVE")))
+    (net
+      (code 6)
+      (name "GND")
+      (class "Default")
+      (node
+        (ref "J_12V")
+        (pin "2")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_3V3")
+        (pin "2")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_5VL")
+        (pin "2")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_5VS")
+        (pin "2")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_7V4")
+        (pin "2")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_ESC")
+        (pin "3")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_FAN")
+        (pin "3")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_I2C1")
+        (pin "4")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_I2C2")
+        (pin "4")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_I2C3")
+        (pin "4")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_I2C4")
+        (pin "4")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_PCA_CTRL")
+        (pin "1")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_PCA_CTRL")
+        (pin "2")
+        (pintype "PASSIVE"))
+      (node
+        (ref "SV1")
+        (pin "3")
+        (pintype "PASSIVE"))
+      (node
+        (ref "SV10")
+        (pin "3")
+        (pintype "PASSIVE"))
+      (node
+        (ref "SV2")
+        (pin "3")
+        (pintype "PASSIVE"))
+      (node
+        (ref "SV3")
+        (pin "3")
+        (pintype "PASSIVE"))
+      (node
+        (ref "SV4")
+        (pin "3")
+        (pintype "PASSIVE"))
+      (node
+        (ref "SV5")
+        (pin "3")
+        (pintype "PASSIVE"))
+      (node
+        (ref "SV6")
+        (pin "3")
+        (pintype "PASSIVE"))
+      (node
+        (ref "SV7")
+        (pin "3")
+        (pintype "PASSIVE"))
+      (node
+        (ref "SV8")
+        (pin "3")
+        (pintype "PASSIVE"))
+      (node
+        (ref "SV9")
+        (pin "3")
+        (pintype "PASSIVE")))
+    (net
+      (code 7)
+      (name "PWM_CH0")
+      (class "Default")
+      (node
+        (ref "J_PCA_A")
+        (pin "1")
+        (pintype "PASSIVE"))
+      (node
+        (ref "SV1")
+        (pin "1")
+        (pintype "PASSIVE")))
+    (net
+      (code 8)
+      (name "PWM_CH1")
+      (class "Default")
+      (node
+        (ref "J_PCA_A")
+        (pin "2")
+        (pintype "PASSIVE"))
+      (node
+        (ref "SV2")
+        (pin "1")
+        (pintype "PASSIVE")))
+    (net
+      (code 9)
+      (name "PWM_CH10")
+      (class "Default")
+      (node
+        (ref "J_PCA_B")
+        (pin "3")
+        (pintype "PASSIVE")))
+    (net
+      (code 10)
+      (name "PWM_CH11")
+      (class "Default")
+      (node
+        (ref "J_ESC")
+        (pin "1")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_PCA_B")
+        (pin "4")
+        (pintype "PASSIVE")))
+    (net
+      (code 11)
+      (name "PWM_CH12")
+      (class "Default")
+      (node
+        (ref "J_FAN")
+        (pin "1")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_PCA_B")
+        (pin "5")
+        (pintype "PASSIVE")))
+    (net
+      (code 12)
+      (name "PWM_CH13")
+      (class "Default")
+      (node
+        (ref "J_PCA_B")
+        (pin "6")
+        (pintype "PASSIVE")))
+    (net
+      (code 13)
+      (name "PWM_CH14")
+      (class "Default")
+      (node
+        (ref "J_PCA_B")
+        (pin "7")
+        (pintype "PASSIVE")))
+    (net
+      (code 14)
+      (name "PWM_CH15")
+      (class "Default")
+      (node
+        (ref "J_PCA_B")
+        (pin "8")
+        (pintype "PASSIVE")))
+    (net
+      (code 15)
+      (name "PWM_CH2")
+      (class "Default")
+      (node
+        (ref "J_PCA_A")
+        (pin "3")
+        (pintype "PASSIVE"))
+      (node
+        (ref "SV3")
+        (pin "1")
+        (pintype "PASSIVE")))
+    (net
+      (code 16)
+      (name "PWM_CH3")
+      (class "Default")
+      (node
+        (ref "J_PCA_A")
+        (pin "4")
+        (pintype "PASSIVE"))
+      (node
+        (ref "SV4")
+        (pin "1")
+        (pintype "PASSIVE")))
+    (net
+      (code 17)
+      (name "PWM_CH4")
+      (class "Default")
+      (node
+        (ref "J_PCA_A")
+        (pin "5")
+        (pintype "PASSIVE"))
+      (node
+        (ref "SV5")
+        (pin "1")
+        (pintype "PASSIVE")))
+    (net
+      (code 18)
+      (name "PWM_CH5")
+      (class "Default")
+      (node
+        (ref "J_PCA_A")
+        (pin "6")
+        (pintype "PASSIVE"))
+      (node
+        (ref "SV6")
+        (pin "1")
+        (pintype "PASSIVE")))
+    (net
+      (code 19)
+      (name "PWM_CH6")
+      (class "Default")
+      (node
+        (ref "J_PCA_A")
+        (pin "7")
+        (pintype "PASSIVE"))
+      (node
+        (ref "SV7")
+        (pin "1")
+        (pintype "PASSIVE")))
+    (net
+      (code 20)
+      (name "PWM_CH7")
+      (class "Default")
+      (node
+        (ref "J_PCA_A")
+        (pin "8")
+        (pintype "PASSIVE"))
+      (node
+        (ref "SV8")
+        (pin "1")
+        (pintype "PASSIVE")))
+    (net
+      (code 21)
+      (name "PWM_CH8")
+      (class "Default")
+      (node
+        (ref "J_PCA_B")
+        (pin "1")
+        (pintype "PASSIVE"))
+      (node
+        (ref "SV9")
+        (pin "1")
+        (pintype "PASSIVE")))
+    (net
+      (code 22)
+      (name "PWM_CH9")
+      (class "Default")
+      (node
+        (ref "J_PCA_B")
+        (pin "2")
+        (pintype "PASSIVE"))
+      (node
+        (ref "SV10")
+        (pin "1")
+        (pintype "PASSIVE")))
+    (net
+      (code 23)
+      (name "SCL")
+      (class "Default")
+      (node
+        (ref "J_I2C1")
+        (pin "2")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_I2C2")
+        (pin "2")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_I2C3")
+        (pin "2")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_I2C4")
+        (pin "2")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_PCA_CTRL")
+        (pin "3")
+        (pintype "PASSIVE")))
+    (net
+      (code 24)
+      (name "SDA")
+      (class "Default")
+      (node
+        (ref "J_I2C1")
+        (pin "1")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_I2C2")
+        (pin "1")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_I2C3")
+        (pin "1")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_I2C4")
+        (pin "1")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_PCA_CTRL")
+        (pin "4")
+        (pintype "PASSIVE")))
+    (net
+      (code 25)
+      (name "SV10_PWR")
+      (class "Default")
+      (node
+        (ref "F10")
+        (pin "2")
+        (pintype "PASSIVE"))
+      (node
+        (ref "SV10")
+        (pin "2")
+        (pintype "PASSIVE")))
+    (net
+      (code 26)
+      (name "SV1_PWR")
+      (class "Default")
+      (node
+        (ref "F1")
+        (pin "2")
+        (pintype "PASSIVE"))
+      (node
+        (ref "SV1")
+        (pin "2")
+        (pintype "PASSIVE")))
+    (net
+      (code 27)
+      (name "SV2_PWR")
+      (class "Default")
+      (node
+        (ref "F2")
+        (pin "2")
+        (pintype "PASSIVE"))
+      (node
+        (ref "SV2")
+        (pin "2")
+        (pintype "PASSIVE")))
+    (net
+      (code 28)
+      (name "SV3_PWR")
+      (class "Default")
+      (node
+        (ref "F3")
+        (pin "2")
+        (pintype "PASSIVE"))
+      (node
+        (ref "SV3")
+        (pin "2")
+        (pintype "PASSIVE")))
+    (net
+      (code 29)
+      (name "SV4_PWR")
+      (class "Default")
+      (node
+        (ref "F4")
+        (pin "2")
+        (pintype "PASSIVE"))
+      (node
+        (ref "SV4")
+        (pin "2")
+        (pintype "PASSIVE")))
+    (net
+      (code 30)
+      (name "SV5_PWR")
+      (class "Default")
+      (node
+        (ref "F5")
+        (pin "2")
+        (pintype "PASSIVE"))
+      (node
+        (ref "SV5")
+        (pin "2")
+        (pintype "PASSIVE")))
+    (net
+      (code 31)
+      (name "SV6_PWR")
+      (class "Default")
+      (node
+        (ref "F6")
+        (pin "2")
+        (pintype "PASSIVE"))
+      (node
+        (ref "SV6")
+        (pin "2")
+        (pintype "PASSIVE")))
+    (net
+      (code 32)
+      (name "SV7_PWR")
+      (class "Default")
+      (node
+        (ref "F7")
+        (pin "2")
+        (pintype "PASSIVE"))
+      (node
+        (ref "SV7")
+        (pin "2")
+        (pintype "PASSIVE")))
+    (net
+      (code 33)
+      (name "SV8_PWR")
+      (class "Default")
+      (node
+        (ref "F8")
+        (pin "2")
+        (pintype "PASSIVE"))
+      (node
+        (ref "SV8")
+        (pin "2")
+        (pintype "PASSIVE")))
+    (net
+      (code 34)
+      (name "SV9_PWR")
+      (class "Default")
+      (node
+        (ref "F9")
+        (pin "2")
+        (pintype "PASSIVE"))
+      (node
+        (ref "SV9")
+        (pin "2")
+        (pintype "PASSIVE")))))
