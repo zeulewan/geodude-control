@@ -137,7 +137,7 @@ def pid_to_motor(output):
 
 # --- Wheel saturation ---
 
-MAX_WHEEL_RPM = 8000  # approximate, needs calibration
+MAX_WHEEL_RPM = 600
 
 def check_saturation(rpm):
     if rpm > MAX_WHEEL_RPM * 0.95:
@@ -242,10 +242,11 @@ def control_loop():
             integral += error * dt
             integral = max(-integral_limit, min(integral_limit, integral))
 
-        # Saturation protection: reduce integral if wheel near max
+        # Saturation protection: hard limit at MAX_WHEEL_RPM
         sat = check_saturation(wheel_rpm)
         if sat == "saturated":
             integral *= 0.95  # slowly bleed integral
+            output_clamped = 0  # force coast — do not push past RPM limit
 
         # 4. Map to motor (uni-directional: positive = throttle, negative = coast)
         if output_clamped > 0:
