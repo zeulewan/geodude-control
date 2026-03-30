@@ -142,7 +142,7 @@ def main():
         11: 8, 12: 9, 13: 10, 14: 11,
         16: 12, 17: 13, 18: 14, 19: 15,
     }
-    f = place_fp(board, SOCK, S19, "J_PCA", "PCA9685", BOARD_W - 10, 60)
+    f = place_fp(board, SOCK, S19, "J_PCA", "PCA9685", BOARD_W / 2, 8, 90)
     if f:
         for pin, ch in pca_pin_to_ch.items():
             set_pad(f, pin, nets[f"PWM_CH{ch}"])
@@ -150,6 +150,10 @@ def main():
     # ==============================================================
     # BOTTOM: Servo headers (3-pin: signal, power, GND)
     # ==============================================================
+    # RIGHT EDGE: Servo headers (arm1 top-right, arm2 bottom-right)
+    sv_x = BOARD_W - 10
+    sv_sp = 10
+
     # Arm 1
     for i, (ref, val, sig, pwr) in enumerate([
         ("SV1", "B1", "PWM_CH0", "SV1_PWR"),
@@ -158,7 +162,7 @@ def main():
         ("SV4", "W1A", "PWM_CH3", "SV4_PWR"),
         ("SV5", "W1B", "PWM_CH4", "SV5_PWR"),
     ]):
-        f = place_fp(board, CONN, H3, ref, val, 30 + i*14, 135, 90)
+        f = place_fp(board, CONN, H3, ref, val, sv_x, 35 + i*sv_sp, 90)
         if f:
             set_pad(f, 1, nets[sig])
             set_pad(f, 2, nets[pwr])
@@ -172,21 +176,20 @@ def main():
         ("SV9", "W2A", "PWM_CH8", "SV9_PWR"),
         ("SV10", "W2B", "PWM_CH9", "SV10_PWR"),
     ]):
-        f = place_fp(board, CONN, H3, ref, val, 115 + i*14, 135, 90)
+        f = place_fp(board, CONN, H3, ref, val, sv_x, 95 + i*sv_sp, 90)
         if f:
             set_pad(f, 1, nets[sig])
             set_pad(f, 2, nets[pwr])
             set_pad(f, 3, nets["GND"])
 
-    # ESC (3-pin: PWM, NC, GND)
-    f = place_fp(board, CONN, H3, "J_ESC", "ESC", 85, 148, 90)
+    # ESC and Fan on right edge too
+    f = place_fp(board, CONN, H3, "J_ESC", "ESC", sv_x, 145, 90)
     if f:
         set_pad(f, 1, nets["PWM_CH11"])
         # pin 2 NC
         set_pad(f, 3, nets["GND"])
 
-    # Fan (3-pin: PWM, 12V, GND)
-    f = place_fp(board, CONN, H3, "J_FAN", "Fan", 100, 148, 90)
+    f = place_fp(board, CONN, H3, "J_FAN", "Fan", sv_x, 155, 90)
     if f:
         set_pad(f, 1, nets["PWM_CH12"])
         set_pad(f, 2, nets["+12V"])
