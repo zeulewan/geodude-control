@@ -97,20 +97,16 @@ def throttle_to_pw(throttle, reverse):
 
 def ramp_loop():
     """Server-side ramp: smoothly moves throttle toward target at ramp_rate %/s."""
+    last_pw = None
     while True:
         time.sleep(1.0 / RAMP_HZ)
         with lock:
             if not state["armed"] or state["arming"]:
+                last_pw = None
                 continue
             target = state["target"]
             current = state["throttle"]
-            if abs(target - current) < 0.1:
-                if current != target:
-                    state["throttle"] = target
-                    pw = throttle_to_pw(target, state["reverse"])
-                else:
-                    continue
-            else:
+            if abs(target - current) > 0.1:
                 step = state["ramp_rate"] / RAMP_HZ
                 diff = target - current
                 if abs(diff) <= step:
@@ -119,8 +115,13 @@ def ramp_loop():
                     state["throttle"] = current + step
                 else:
                     state["throttle"] = current - step
-                pw = throttle_to_pw(state["throttle"], state["reverse"])
-        send_motor(pw)
+            else:
+                state["throttle"] = target
+            pw = throttle_to_pw(state["throttle"], state["reverse"])
+        # Only send if pw changed (avoid flooding)
+        if pw != last_pw:
+            send_motor(pw)
+            last_pw = pw
 
 
 def watchdog_loop():
