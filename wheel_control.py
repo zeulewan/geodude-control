@@ -7,6 +7,7 @@ import urllib.request
 app = Flask(__name__)
 
 GEODUDE_URL = "http://192.168.4.166:5000"
+ATTITUDE_URL = "http://192.168.4.166:5001"
 WATCHDOG_TIMEOUT = 3  # seconds — auto-stop if no frontend heartbeat
 RAMP_HZ = 20  # ramp loop tick rate
 
@@ -307,6 +308,70 @@ HTML = """
         <div class="btn-row" id="calBtns"></div>
       </div>
     </div>
+    <div class="card full-width" id="attitudeCard">
+      <h2>Attitude Control</h2>
+      <div id="attitudeBanner" style="display:none;background:#22c55e;color:#000;padding:8px 16px;border-radius:6px;margin-bottom:12px;font-weight:600;text-align:center">ATTITUDE CONTROL ACTIVE — Manual MACE disabled</div>
+      <div class="grid" style="gap:16px;margin-bottom:16px">
+        <div style="text-align:center">
+          <svg width="180" height="180" viewBox="-90 -90 180 180" id="attDial">
+            <circle cx="0" cy="0" r="80" fill="none" stroke="#1e2433" stroke-width="3"/>
+            <line x1="0" y1="0" x2="0" y2="-70" stroke="#f59e0b" stroke-width="2" id="attSetpointNeedle" transform="rotate(0)"/>
+            <line x1="0" y1="0" x2="0" y2="-70" stroke="#3b82f6" stroke-width="3" id="attAngleNeedle" transform="rotate(0)"/>
+            <circle cx="0" cy="0" r="5" fill="#3b82f6"/>
+            <text x="0" y="55" text-anchor="middle" fill="#6b7280" font-size="10" id="attRevs">0 rev</text>
+          </svg>
+          <div style="font-family:monospace;font-size:20px;color:#3b82f6" id="attAngleText">0.0&deg;</div>
+          <div style="font-family:monospace;font-size:14px;color:#f59e0b" id="attSetpointText">SP: 0.0&deg;</div>
+        </div>
+        <div>
+          <div class="sensor-row"><span class="sensor-label">Error</span><span class="sensor-value" id="attError">0.0&deg;</span></div>
+          <div class="sensor-row"><span class="sensor-label">Output</span><span class="sensor-value" id="attOutput">0%</span></div>
+          <div class="sensor-row"><span class="sensor-label">Motor</span><span class="sensor-value" id="attMotor">0%</span></div>
+          <div class="sensor-row"><span class="sensor-label">PWM</span><span class="sensor-value" id="attPwm">1000us</span></div>
+          <div class="sensor-row"><span class="sensor-label">Wheel RPM</span><span class="sensor-value" id="attRpm">0</span></div>
+          <div class="sensor-row"><span class="sensor-label">Gz</span><span class="sensor-value" id="attGz">0.0 &deg;/s</span></div>
+          <div class="sensor-row"><span class="sensor-label">Bias</span><span class="sensor-value" id="attBias">0.0</span></div>
+          <div class="sensor-row"><span class="sensor-label">Saturation</span><span class="sensor-value" id="attSat" style="color:#22c55e">ok</span></div>
+        </div>
+      </div>
+      <div style="margin-bottom:12px">
+        <span class="sensor-label">Setpoint:</span>
+        <input type="number" id="attSetpointInput" value="0" step="1" style="width:80px;background:#1e293b;color:#e0e6f0;border:1px solid #334155;border-radius:4px;padding:4px 8px;font-family:monospace;font-size:14px">
+        <button class="btn btn-sm" style="background:#3b82f6;color:#fff;padding:4px 12px" onclick="attSetpoint()">SET</button>
+      </div>
+      <div class="btn-row" style="margin-bottom:12px">
+        <button class="btn btn-sm" style="background:#334155;color:#94a3b8" onclick="attNudge(-90)">-90&deg;</button>
+        <button class="btn btn-sm" style="background:#334155;color:#94a3b8" onclick="attNudge(-10)">-10&deg;</button>
+        <button class="btn btn-sm" style="background:#334155;color:#94a3b8" onclick="attNudge(10)">+10&deg;</button>
+        <button class="btn btn-sm" style="background:#334155;color:#94a3b8" onclick="attNudge(90)">+90&deg;</button>
+      </div>
+      <div class="slider-container" style="margin-bottom:8px">
+        <span class="sensor-label">Kp:</span>
+        <input type="range" min="0" max="10" step="0.1" value="1.5" id="attKp" oninput="attUpdateGain()">
+        <span class="sensor-value" id="attKpVal" style="min-width:40px">1.5</span>
+      </div>
+      <div class="slider-container" style="margin-bottom:8px">
+        <span class="sensor-label">Ki:</span>
+        <input type="range" min="0" max="1" step="0.01" value="0.05" id="attKi" oninput="attUpdateGain()">
+        <span class="sensor-value" id="attKiVal" style="min-width:40px">0.05</span>
+      </div>
+      <div class="slider-container" style="margin-bottom:8px">
+        <span class="sensor-label">Kd:</span>
+        <input type="range" min="0" max="5" step="0.1" value="0.8" id="attKd" oninput="attUpdateGain()">
+        <span class="sensor-value" id="attKdVal" style="min-width:40px">0.8</span>
+      </div>
+      <div class="slider-container" style="margin-bottom:16px">
+        <span class="sensor-label">Max %:</span>
+        <input type="range" min="10" max="100" step="1" value="60" id="attMaxThrottle" oninput="attUpdateGain()">
+        <span class="sensor-value" id="attMaxVal" style="min-width:40px">60</span>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-arm" id="attEnableBtn" onclick="attToggleEnable()">ENABLE</button>
+        <button class="btn btn-stop" onclick="attStop()">STOP</button>
+        <button class="btn" style="background:#334155;color:#94a3b8" onclick="attZero()">ZERO</button>
+        <button class="btn" style="background:#334155;color:#94a3b8" onclick="attRecalibrate()">RECALIBRATE</button>
+      </div>
+    </div>
     <div class="card full-width">
       <h2>PCA9685 Channels</h2>
       <div style="margin-bottom:12px">
@@ -578,6 +643,129 @@ chOrder.forEach(name => {
   if (name === 'MACE') return;
   fetch('/api/pwm', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({channel: name, pw: 1500})});
 });
+
+// --- Attitude Control ---
+let attEnabled = false;
+let attGainTimeout = null;
+
+function attToggleEnable() {
+  if (attEnabled) {
+    fetch('/api/attitude/disable', {method:'POST'});
+  } else {
+    fetch('/api/attitude/enable', {method:'POST'});
+  }
+}
+
+function attStop() {
+  fetch('/api/attitude/stop', {method:'POST'});
+}
+
+function attZero() {
+  fetch('/api/attitude/zero', {method:'POST'});
+}
+
+function attRecalibrate() {
+  fetch('/api/attitude/calibrate', {method:'POST'});
+}
+
+function attSetpoint() {
+  let val = parseFloat(document.getElementById('attSetpointInput').value) || 0;
+  fetch('/api/attitude/setpoint', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({angle: val})});
+}
+
+function attNudge(delta) {
+  fetch('/api/attitude/nudge', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({delta: delta})});
+}
+
+function attUpdateGain() {
+  document.getElementById('attKpVal').textContent = document.getElementById('attKp').value;
+  document.getElementById('attKiVal').textContent = document.getElementById('attKi').value;
+  document.getElementById('attKdVal').textContent = document.getElementById('attKd').value;
+  document.getElementById('attMaxVal').textContent = document.getElementById('attMaxThrottle').value;
+  if (attGainTimeout) clearTimeout(attGainTimeout);
+  attGainTimeout = setTimeout(function() {
+    fetch('/api/attitude/gains', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
+      Kp: parseFloat(document.getElementById('attKp').value),
+      Ki: parseFloat(document.getElementById('attKi').value),
+      Kd: parseFloat(document.getElementById('attKd').value),
+      max_throttle: parseFloat(document.getElementById('attMaxThrottle').value)
+    })});
+  }, 200);
+}
+
+function attPoll() {
+  fetch('/api/attitude/status').then(r => {
+    if (!r.ok) return;
+    return r.json();
+  }).then(d => {
+    if (!d) return;
+    attEnabled = d.enabled;
+    let btn = document.getElementById('attEnableBtn');
+    if (d.calibrating) {
+      btn.textContent = 'CALIBRATING...';
+      btn.className = 'btn btn-arm arming';
+    } else if (d.arming) {
+      btn.textContent = 'ARMING...';
+      btn.className = 'btn btn-arm arming';
+    } else if (d.enabled) {
+      btn.textContent = 'DISABLE';
+      btn.className = 'btn btn-arm armed';
+    } else {
+      btn.textContent = 'ENABLE';
+      btn.className = 'btn btn-arm';
+    }
+    // Banner and manual MACE disable
+    let banner = document.getElementById('attitudeBanner');
+    let maceCard = document.getElementById('holdBtn');
+    if (d.enabled) {
+      banner.style.display = 'block';
+      if (maceCard) maceCard.classList.add('disabled');
+    } else {
+      banner.style.display = 'none';
+      if (maceCard) maceCard.classList.remove('disabled');
+    }
+    // Angle display
+    document.getElementById('attAngleText').innerHTML = d.body_angle.toFixed(1) + '&deg;';
+    document.getElementById('attSetpointText').innerHTML = 'SP: ' + d.setpoint.toFixed(1) + '&deg;';
+    let revs = Math.floor(Math.abs(d.body_angle) / 360);
+    document.getElementById('attRevs').textContent = revs + ' rev';
+    // Needles
+    let angleDeg = ((d.body_angle % 360) + 360) % 360;
+    let spDeg = ((d.setpoint % 360) + 360) % 360;
+    document.getElementById('attAngleNeedle').setAttribute('transform', 'rotate(' + angleDeg + ')');
+    document.getElementById('attSetpointNeedle').setAttribute('transform', 'rotate(' + spDeg + ')');
+    // Status
+    document.getElementById('attError').innerHTML = d.error.toFixed(1) + '&deg;';
+    document.getElementById('attOutput').textContent = d.output.toFixed(1) + '%';
+    document.getElementById('attMotor').textContent = d.motor_pct.toFixed(1) + '%';
+    document.getElementById('attPwm').textContent = d.pwm + 'us';
+    document.getElementById('attRpm').textContent = Math.round(d.wheel_rpm);
+    document.getElementById('attGz').innerHTML = d.gz.toFixed(1) + ' &deg;/s';
+    document.getElementById('attBias').textContent = d.gz_bias.toFixed(3);
+    let satEl = document.getElementById('attSat');
+    satEl.textContent = d.saturation;
+    satEl.style.color = d.saturation === 'ok' ? '#22c55e' : d.saturation === 'warning' ? '#f59e0b' : '#ef4444';
+    // Sync gain sliders if not being dragged
+    if (!attGainTimeout) {
+      document.getElementById('attKp').value = d.Kp;
+      document.getElementById('attKpVal').textContent = d.Kp;
+      document.getElementById('attKi').value = d.Ki;
+      document.getElementById('attKiVal').textContent = d.Ki;
+      document.getElementById('attKd').value = d.Kd;
+      document.getElementById('attKdVal').textContent = d.Kd;
+      document.getElementById('attMaxThrottle').value = d.max_throttle;
+      document.getElementById('attMaxVal').textContent = d.max_throttle;
+    }
+    // Watchdog warning
+    if (d.watchdog_triggered) {
+      document.getElementById('attitudeBanner').textContent = 'WATCHDOG TRIGGERED — Controller disabled';
+      document.getElementById('attitudeBanner').style.background = '#ef4444';
+      document.getElementById('attitudeBanner').style.display = 'block';
+    }
+  }).catch(() => {});
+}
+
+setInterval(attPoll, 100);
 </script>
 </body>
 </html>
@@ -731,6 +919,80 @@ def stop():
     time.sleep(0.5)
     send_motor(0)
     return jsonify({"ok": True})
+
+
+# --- Attitude controller proxy ---
+
+def attitude_proxy(path, method="GET", data=None):
+    """Proxy requests to the attitude controller on GEO-DUDe:5001."""
+    try:
+        if method == "POST":
+            body = json.dumps(data).encode() if data else b""
+            req = urllib.request.Request(
+                f"{ATTITUDE_URL}/{path}",
+                data=body,
+                headers={"Content-Type": "application/json"},
+            )
+        else:
+            req = urllib.request.Request(f"{ATTITUDE_URL}/{path}")
+        resp = urllib.request.urlopen(req, timeout=3)
+        return json.loads(resp.read().decode()), resp.status
+    except Exception as e:
+        return {"error": str(e)}, 502
+
+
+@app.route('/api/attitude/status')
+def attitude_status():
+    data, code = attitude_proxy("status")
+    return jsonify(data), code
+
+
+@app.route('/api/attitude/enable', methods=['POST'])
+def attitude_enable():
+    data, code = attitude_proxy("enable", "POST")
+    return jsonify(data), code
+
+
+@app.route('/api/attitude/disable', methods=['POST'])
+def attitude_disable():
+    data, code = attitude_proxy("disable", "POST")
+    return jsonify(data), code
+
+
+@app.route('/api/attitude/setpoint', methods=['POST'])
+def attitude_setpoint():
+    data, code = attitude_proxy("setpoint", "POST", request.json)
+    return jsonify(data), code
+
+
+@app.route('/api/attitude/nudge', methods=['POST'])
+def attitude_nudge():
+    data, code = attitude_proxy("nudge", "POST", request.json)
+    return jsonify(data), code
+
+
+@app.route('/api/attitude/zero', methods=['POST'])
+def attitude_zero():
+    data, code = attitude_proxy("zero", "POST")
+    return jsonify(data), code
+
+
+@app.route('/api/attitude/gains', methods=['POST'])
+def attitude_gains():
+    data, code = attitude_proxy("gains", "POST", request.json)
+    return jsonify(data), code
+
+
+@app.route('/api/attitude/calibrate', methods=['POST'])
+def attitude_calibrate():
+    data, code = attitude_proxy("calibrate", "POST")
+    return jsonify(data), code
+
+
+@app.route('/api/attitude/stop', methods=['POST'])
+def attitude_stop():
+    data, code = attitude_proxy("stop", "POST")
+    return jsonify(data), code
 
 
 if __name__ == '__main__':

@@ -126,6 +126,8 @@ def sensors():
 @app.route("/motor", methods=["POST"])
 def motor():
     """Legacy endpoint — controls MACE channel."""
+    if os.path.exists("/tmp/attitude_active"):
+        return jsonify({"ok": False, "error": "attitude controller active"}), 409
     data = request.json
     pw = int(data.get("pw", 1000))
     pw = max(0, min(2000, pw))
