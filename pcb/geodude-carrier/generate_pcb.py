@@ -189,11 +189,9 @@ def main():
     # LEFT EDGE: Logic bus section
     # Each bus: 4x single pin headers + 2x screw terminals
     # ==============================================================
-    bus_x_hdr = 8      # pin header x
-    bus_x_scr1 = 16    # first screw terminal x
-    bus_x_scr2 = 28    # second screw terminal x
+    H4 = "PinHeader_1x04_P2.54mm_Vertical"
     bus_y_start = 55
-    bus_sp = 12
+    bus_sp = 14
 
     buses = [
         ("SDA", "SDA"),
@@ -203,25 +201,22 @@ def main():
         ("LGND", "GND_LOGIC"),
     ]
 
-    hdr_idx = 1
     for row, (label, net_name) in enumerate(buses):
         y = bus_y_start + row * bus_sp
 
-        # 4x single pin headers
-        for j in range(4):
-            f = place_fp(board, CONN, H1, f"J_{label}_{j+1}", label,
-                         bus_x_hdr, y + j * 2.8 - 4)
-            if f:
-                set_pad(f, 1, nets[net_name])
-            hdr_idx += 1
+        # 1x4 pin header (all 4 pins same net)
+        f = place_fp(board, CONN, H4, f"J_{label}_H", label, 8, y)
+        if f:
+            for p in range(1, 5):
+                set_pad(f, p, nets[net_name])
 
         # 2x screw terminals
-        f = place_fp(board, TB, TB2, f"J_{label}_S1", f"{label}_S", bus_x_scr1, y)
+        f = place_fp(board, TB, TB2, f"J_{label}_S1", f"{label}", 22, y)
         if f:
             set_pad(f, 1, nets[net_name])
             set_pad(f, 2, nets[net_name])
 
-        f = place_fp(board, TB, TB2, f"J_{label}_S2", f"{label}_S", bus_x_scr2, y)
+        f = place_fp(board, TB, TB2, f"J_{label}_S2", f"{label}", 34, y)
         if f:
             set_pad(f, 1, nets[net_name])
             set_pad(f, 2, nets[net_name])
