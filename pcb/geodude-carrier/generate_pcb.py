@@ -152,11 +152,24 @@ def main():
             set_pad(f, pin, nets[f"PWM_CH{ch}"])
 
     # ==============================================================
-    # BOTTOM: Servo headers (3-pin: signal, power, GND)
+    # BOTTOM: ESC + Fan row, then Servo headers row below
     # ==============================================================
-    # BOTTOM EDGE: Servo headers (arm1 left, arm2 right)
-    sv_y = BOARD_H - 10
     sv_sp = 12
+    esc_y = BOARD_H - 22   # ESC/Fan row (above servos)
+    sv_y = BOARD_H - 8     # Servo row (bottom edge)
+
+    # ESC + Fan row (centred)
+    f = place_fp(board, CONN, H3, "J_ESC", "ESC", 80, esc_y, 90)
+    if f:
+        set_pad(f, 1, nets["PWM_CH11"])
+        # pin 2 NC
+        set_pad(f, 3, nets["GND"])
+
+    f = place_fp(board, CONN, H3, "J_FAN", "Fan", 92, esc_y, 90)
+    if f:
+        set_pad(f, 1, nets["PWM_CH12"])
+        set_pad(f, 2, nets["+12V"])
+        set_pad(f, 3, nets["GND"])
 
     # Arm 1 (left)
     for i, (ref, val, sig, pwr) in enumerate([
@@ -171,19 +184,10 @@ def main():
             set_pad(f, 1, nets[sig])
             set_pad(f, 2, nets[pwr])
             set_pad(f, 3, nets["GND"])
-
-    # ESC + Fan (center)
-    f = place_fp(board, CONN, H3, "J_ESC", "ESC", 85, sv_y, 90)
-    if f:
-        set_pad(f, 1, nets["PWM_CH11"])
-        # pin 2 NC
-        set_pad(f, 3, nets["GND"])
-
-    f = place_fp(board, CONN, H3, "J_FAN", "Fan", 97, sv_y, 90)
-    if f:
-        set_pad(f, 1, nets["PWM_CH12"])
-        set_pad(f, 2, nets["+12V"])
-        set_pad(f, 3, nets["GND"])
+            # Move silkscreen value below pins, horizontal
+            val_field = f.Value()
+            val_field.SetPosition(pcbnew.VECTOR2I(mm(20 + i*sv_sp), mm(sv_y + 6)))
+            val_field.SetTextAngle(pcbnew.EDA_ANGLE(0, pcbnew.DEGREES_T))
 
     # Arm 2 (right)
     for i, (ref, val, sig, pwr) in enumerate([
@@ -198,6 +202,9 @@ def main():
             set_pad(f, 1, nets[sig])
             set_pad(f, 2, nets[pwr])
             set_pad(f, 3, nets["GND"])
+            val_field = f.Value()
+            val_field.SetPosition(pcbnew.VECTOR2I(mm(120 + i*sv_sp), mm(sv_y + 6)))
+            val_field.SetTextAngle(pcbnew.EDA_ANGLE(0, pcbnew.DEGREES_T))
 
     # ==============================================================
     # LEFT EDGE: Logic bus section
@@ -208,8 +215,8 @@ def main():
     lx = 10  # left edge x
 
     buses = [
-        ("SDA", "SDA"),
         ("SCL", "SCL"),
+        ("SDA", "SDA"),
         ("3V3", "+3V3"),
         ("5V", "+5V_LOGIC"),
         ("GND_L", "GND_LOGIC"),
