@@ -156,8 +156,8 @@ def control_loop():
     bus.write_byte_data(IMU_ADDR, 0x06, 0x01)
     time.sleep(0.05)
 
-    # Ensure motor is off at startup
-    set_motor(bus, 1000)
+    # Ensure motor signal is off at startup (not 1000us which arms ESC)
+    pca_off(bus, MACE_CHANNEL)
 
     body_angle = 0.0
     integral = 0.0
@@ -180,11 +180,9 @@ def control_loop():
             arming = state["arming"]
 
         if not enabled or calibrating or arming:
-            # Not active: reset, coast
+            # Not active: reset, don't touch motor
             integral = 0.0
             current_motor_pct = 0.0
-            if not calibrating and not arming:
-                set_motor(bus, 1000)
             elapsed = time.monotonic() - loop_start
             sleep_time = (1.0 / LOOP_HZ) - elapsed
             if sleep_time > 0:
