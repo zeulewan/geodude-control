@@ -102,7 +102,7 @@ def sensor_loop():
                     if delta < -180: delta += 360
                     dps = delta / dt
                     rpm_buf.append(abs(dps) / 6.0)
-                    if len(rpm_buf) > 50:
+                    if len(rpm_buf) > 10:
                         rpm_buf.pop(0)
                     rpm = sum(rpm_buf) / len(rpm_buf)
             last_angle = angle
