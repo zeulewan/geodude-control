@@ -1,0 +1,99 @@
+Info: Reading netlist file '/Users/zeul/GIT/geodude-control/pcb/geodude-carrier/geodude-carrier.net'.
+
+Info: Using tstamps (unique IDs) to match symbols and footprints.
+
+Info: Processing symbol 'J_12V_3:TerminalBlock:TerminalBlock_bornier-2_P5.08mm'.
+Info: Processing symbol 'SV9:Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical'.
+Info: Processing symbol 'SV8:Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical'.
+Info: Processing symbol 'SV7:Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical'.
+Info: Processing symbol 'SV6:Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical'.
+Info: Processing symbol 'SV5:Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical'.
+Info: Processing symbol 'SV4:Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical'.
+Info: Processing symbol 'SV3:Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical'.
+Info: Processing symbol 'SV2:Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical'.
+Info: Processing symbol 'SV10:Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical'.
+Info: Processing symbol 'SV1:Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical'.
+Info: Processing symbol 'J_ESC:Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical'.
+Info: Processing symbol 'J_FAN:Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical'.
+Info: Processing symbol 'J_PCA_CTRL:Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical'.
+Info: Processing symbol 'J_I2C2:TerminalBlock:TerminalBlock_bornier-4_P5.08mm'.
+Info: Processing symbol 'J_PCA_A:Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical'.
+Info: Processing symbol 'J_I2C3:TerminalBlock:TerminalBlock_bornier-4_P5.08mm'.
+Info: Processing symbol 'J_PCA_B:Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical'.
+Info: Processing symbol 'J_I2C4:TerminalBlock:TerminalBlock_bornier-4_P5.08mm'.
+Info: Processing symbol 'F1:Fuse:Fuse_Littelfuse_395Series'.
+Info: Processing symbol 'J_I2C1:TerminalBlock:TerminalBlock_bornier-4_P5.08mm'.
+Info: Processing symbol 'F9:Fuse:Fuse_Littelfuse_395Series'.
+Info: Processing symbol 'J_12V_1:TerminalBlock:TerminalBlock_bornier-2_P5.08mm'.
+Info: Processing symbol 'F8:Fuse:Fuse_Littelfuse_395Series'.
+Info: Processing symbol 'J_12V_2:TerminalBlock:TerminalBlock_bornier-2_P5.08mm'.
+Info: Processing symbol 'F7:Fuse:Fuse_Littelfuse_395Series'.
+Info: Processing symbol 'J_12V_4:TerminalBlock:TerminalBlock_bornier-2_P5.08mm'.
+Info: Processing symbol 'F6:Fuse:Fuse_Littelfuse_395Series'.
+Info: Processing symbol 'J_3V3:TerminalBlock:TerminalBlock_bornier-2_P5.08mm'.
+Info: Processing symbol 'F5:Fuse:Fuse_Littelfuse_395Series'.
+Info: Processing symbol 'J_5VL:TerminalBlock:TerminalBlock_bornier-2_P5.08mm'.
+Info: Processing symbol 'F4:Fuse:Fuse_Littelfuse_395Series'.
+Info: Processing symbol 'J_5VS:TerminalBlock:TerminalBlock_bornier-2_P5.08mm'.
+Info: Processing symbol 'F3:Fuse:Fuse_Littelfuse_395Series'.
+Info: Processing symbol 'J_7V4:TerminalBlock:TerminalBlock_bornier-2_P5.08mm'.
+Info: Processing symbol 'F2:Fuse:Fuse_Littelfuse_395Series'.
+Info: Processing symbol 'J_GND_1:TerminalBlock:TerminalBlock_bornier-2_P5.08mm'.
+Info: Processing symbol 'F10:Fuse:Fuse_Littelfuse_395Series'.
+Info: Processing symbol 'J_GND_2:TerminalBlock:TerminalBlock_bornier-2_P5.08mm'.
+Add SV9 (footprint 'Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical').
+Add J_PCA_B (footprint 'Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical').
+Add SV8 (footprint 'Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical').
+Add SV7 (footprint 'Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical').
+Add F10 (footprint 'Fuse:Fuse_Littelfuse_395Series').
+Add SV6 (footprint 'Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical').
+Add F2 (footprint 'Fuse:Fuse_Littelfuse_395Series').
+Add SV5 (footprint 'Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical').
+Add F3 (footprint 'Fuse:Fuse_Littelfuse_395Series').
+Add SV4 (footprint 'Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical').
+Add F4 (footprint 'Fuse:Fuse_Littelfuse_395Series').
+Add SV3 (footprint 'Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical').
+Add F5 (footprint 'Fuse:Fuse_Littelfuse_395Series').
+Add SV2 (footprint 'Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical').
+Add F6 (footprint 'Fuse:Fuse_Littelfuse_395Series').
+Add SV10 (footprint 'Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical').
+Add F7 (footprint 'Fuse:Fuse_Littelfuse_395Series').
+Add SV1 (footprint 'Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical').
+Add F8 (footprint 'Fuse:Fuse_Littelfuse_395Series').
+Add J_ESC (footprint 'Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical').
+Add F9 (footprint 'Fuse:Fuse_Littelfuse_395Series').
+Add J_FAN (footprint 'Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical').
+Add F1 (footprint 'Fuse:Fuse_Littelfuse_395Series').
+Add J_PCA_CTRL (footprint 'Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical').
+Add J_PCA_A (footprint 'Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical').
+Error: Cannot add J_GND_2 (footprint 'TerminalBlock:TerminalBlock_bornier-2_P5.08mm' not found).
+Error: J_I2C2 footprint 'TerminalBlock_bornier-4_P5.08mm' not found in any libraries in the footprint library table.
+Error: J_12V_3 footprint 'TerminalBlock_bornier-2_P5.08mm' not found in any libraries in the footprint library table.
+Error: Cannot add J_I2C3 (footprint 'TerminalBlock:TerminalBlock_bornier-4_P5.08mm' not found).
+Error: J_GND_2 footprint 'TerminalBlock_bornier-2_P5.08mm' not found in any libraries in the footprint library table.
+Error: Cannot add J_I2C4 (footprint 'TerminalBlock:TerminalBlock_bornier-4_P5.08mm' not found).
+Error: J_GND_1 footprint 'TerminalBlock_bornier-2_P5.08mm' not found in any libraries in the footprint library table.
+Error: Cannot add J_I2C1 (footprint 'TerminalBlock:TerminalBlock_bornier-4_P5.08mm' not found).
+Error: J_7V4 footprint 'TerminalBlock_bornier-2_P5.08mm' not found in any libraries in the footprint library table.
+Error: Cannot add J_12V_1 (footprint 'TerminalBlock:TerminalBlock_bornier-2_P5.08mm' not found).
+Error: J_5VS footprint 'TerminalBlock_bornier-2_P5.08mm' not found in any libraries in the footprint library table.
+Error: Cannot add J_12V_2 (footprint 'TerminalBlock:TerminalBlock_bornier-2_P5.08mm' not found).
+Error: J_5VL footprint 'TerminalBlock_bornier-2_P5.08mm' not found in any libraries in the footprint library table.
+Error: Cannot add J_12V_4 (footprint 'TerminalBlock:TerminalBlock_bornier-2_P5.08mm' not found).
+Error: J_3V3 footprint 'TerminalBlock_bornier-2_P5.08mm' not found in any libraries in the footprint library table.
+Error: Cannot add J_3V3 (footprint 'TerminalBlock:TerminalBlock_bornier-2_P5.08mm' not found).
+Error: J_12V_4 footprint 'TerminalBlock_bornier-2_P5.08mm' not found in any libraries in the footprint library table.
+Error: Cannot add J_5VL (footprint 'TerminalBlock:TerminalBlock_bornier-2_P5.08mm' not found).
+Error: J_12V_2 footprint 'TerminalBlock_bornier-2_P5.08mm' not found in any libraries in the footprint library table.
+Error: Cannot add J_5VS (footprint 'TerminalBlock:TerminalBlock_bornier-2_P5.08mm' not found).
+Error: J_12V_1 footprint 'TerminalBlock_bornier-2_P5.08mm' not found in any libraries in the footprint library table.
+Error: Cannot add J_7V4 (footprint 'TerminalBlock:TerminalBlock_bornier-2_P5.08mm' not found).
+Error: J_I2C1 footprint 'TerminalBlock_bornier-4_P5.08mm' not found in any libraries in the footprint library table.
+Error: Cannot add J_GND_1 (footprint 'TerminalBlock:TerminalBlock_bornier-2_P5.08mm' not found).
+Error: J_I2C4 footprint 'TerminalBlock_bornier-4_P5.08mm' not found in any libraries in the footprint library table.
+Error: Cannot add J_12V_3 (footprint 'TerminalBlock:TerminalBlock_bornier-2_P5.08mm' not found).
+Error: J_I2C3 footprint 'TerminalBlock_bornier-4_P5.08mm' not found in any libraries in the footprint library table.
+Error: Cannot add J_I2C2 (footprint 'TerminalBlock:TerminalBlock_bornier-4_P5.08mm' not found).
+
+
+Info: Total warnings: 0, errors: 14.

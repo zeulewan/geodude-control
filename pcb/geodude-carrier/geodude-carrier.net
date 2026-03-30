@@ -2,7 +2,7 @@
   (version "D")
   (design
     (source "generate_netlist.py")
-    (date "03/30/2026 03:29 AM")
+    (date "03/30/2026 03:57 AM")
     (tool "SKiDL (2.2.1)")
     (sheet
       (number 1)
@@ -55,16 +55,16 @@
         (field
           (name "Datasheet"))
         (field
-          (name "SKiDL Tag") "DiH5DNdRZa")
+          (name "SKiDL Tag") "7YDbeLOwU6")
         (field
-          (name "SKiDL Line") "generate_netlist.py:86"))
+          (name "SKiDL Line") "generate_netlist.py:92"))
       (libsource
         (lib "Device")
         (part "Fuse"))
       (sheetpath
         (names "/")
         (tstamps "/"))
-      (tstamps "95c685f3-4fc7-5f97-b159-9ab2bfec0c5d"))
+      (tstamps "8a271843-481f-58b3-b112-28cec09d959f"))
     (comp
       (ref "F10")
       (value "3A")
@@ -78,16 +78,16 @@
         (field
           (name "Datasheet"))
         (field
-          (name "SKiDL Tag") "Pusux6xkzd")
+          (name "SKiDL Tag") "92_5Q4NuNj")
         (field
-          (name "SKiDL Line") "generate_netlist.py:86"))
+          (name "SKiDL Line") "generate_netlist.py:92"))
       (libsource
         (lib "Device")
         (part "Fuse"))
       (sheetpath
         (names "/")
         (tstamps "/"))
-      (tstamps "b27a8707-9684-57f8-b237-41398dc3326d"))
+      (tstamps "f0b01334-b5dc-54e8-996f-3760e16710f4"))
     (comp
       (ref "F2")
       (value "8A")
@@ -101,16 +101,16 @@
         (field
           (name "Datasheet"))
         (field
-          (name "SKiDL Tag") "2zcqwz5A1Q")
+          (name "SKiDL Tag") "Z37DAJ6FHI")
         (field
-          (name "SKiDL Line") "generate_netlist.py:86"))
+          (name "SKiDL Line") "generate_netlist.py:92"))
       (libsource
         (lib "Device")
         (part "Fuse"))
       (sheetpath
         (names "/")
         (tstamps "/"))
-      (tstamps "95674c7e-064b-575d-bc52-3301d982daad"))
+      (tstamps "765cae16-656e-5391-96c6-d86a3c51d073"))
     (comp
       (ref "F3")
       (value "5A")
@@ -124,16 +124,16 @@
         (field
           (name "Datasheet"))
         (field
-          (name "SKiDL Tag") "7mlgmlqEtz")
+          (name "SKiDL Tag") "3ekPBOPXMA")
         (field
-          (name "SKiDL Line") "generate_netlist.py:86"))
+          (name "SKiDL Line") "generate_netlist.py:92"))
       (libsource
         (lib "Device")
         (part "Fuse"))
       (sheetpath
         (names "/")
         (tstamps "/"))
-      (tstamps "d393bafd-34f7-558c-b7c7-4a6af36669cd"))
+      (tstamps "0d9c9282-e779-5281-868c-70f5e0dd998b"))
     (comp
       (ref "F4")
       (value "3A")
@@ -147,16 +147,16 @@
         (field
           (name "Datasheet"))
         (field
-          (name "SKiDL Tag") "SJ_FT16Jnm")
+          (name "SKiDL Tag") "QUEYo6xrfP")
         (field
-          (name "SKiDL Line") "generate_netlist.py:86"))
+          (name "SKiDL Line") "generate_netlist.py:92"))
       (libsource
         (lib "Device")
         (part "Fuse"))
       (sheetpath
         (names "/")
         (tstamps "/"))
-      (tstamps "94c25458-3303-5c33-a26a-a9af84b391cd"))
+      (tstamps "09746fd7-c373-5254-b159-1ee26b441801"))
     (comp
       (ref "F5")
       (value "3A")
@@ -170,16 +170,16 @@
         (field
           (name "Datasheet"))
         (field
-          (name "SKiDL Tag") "DLlBj3IQmf")
+          (name "SKiDL Tag") "wxVDp40KL_")
         (field
-          (name "SKiDL Line") "generate_netlist.py:86"))
+          (name "SKiDL Line") "generate_netlist.py:92"))
       (libsource
         (lib "Device")
         (part "Fuse"))
       (sheetpath
         (names "/")
         (tstamps "/"))
-      (tstamps "e9e93a9f-756b-5728-847c-f8d9ecd66faa"))
+      (tstamps "2ed22987-00f4-58ea-861b-9981198b9fdb"))
     (comp
       (ref "F6")
       (value "8A")
@@ -193,16 +193,16 @@
         (field
           (name "Datasheet"))
         (field
-          (name "SKiDL Tag") "S4vS_3JQA8")
+          (name "SKiDL Tag") "ILIMj0HhiV")
         (field
-          (name "SKiDL Line") "generate_netlist.py:86"))
+          (name "SKiDL Line") "generate_netlist.py:92"))
       (libsource
         (lib "Device")
         (part "Fuse"))
       (sheetpath
         (names "/")
         (tstamps "/"))
-      (tstamps "bdc55874-56b3-5924-8739-81e603b27de0"))
+      (tstamps "2113ca2b-28ba-5d1e-bfbf-a25bb82f374a"))
     (comp
       (ref "F7")
       (value "8A")
@@ -216,16 +216,16 @@
         (field
           (name "Datasheet"))
         (field
-          (name "SKiDL Tag") "Wwc5OrsYJK")
+          (name "SKiDL Tag") "lg_ZyOMLAB")
         (field
-          (name "SKiDL Line") "generate_netlist.py:86"))
+          (name "SKiDL Line") "generate_netlist.py:92"))
       (libsource
         (lib "Device")
         (part "Fuse"))
       (sheetpath
         (names "/")
         (tstamps "/"))
-      (tstamps "492139ec-defb-54b3-a88d-0858a292322f"))
+      (tstamps "33d4ce79-b15c-5489-ae78-689a8d8cf4de"))
     (comp
       (ref "F8")
       (value "5A")
@@ -239,16 +239,16 @@
         (field
           (name "Datasheet"))
         (field
-          (name "SKiDL Tag") "C_LRyGWokE")
+          (name "SKiDL Tag") "uPgLSKqGId")
         (field
-          (name "SKiDL Line") "generate_netlist.py:86"))
+          (name "SKiDL Line") "generate_netlist.py:92"))
       (libsource
         (lib "Device")
         (part "Fuse"))
       (sheetpath
         (names "/")
         (tstamps "/"))
-      (tstamps "73d27211-5574-56fa-aaa0-8b8943a2106f"))
+      (tstamps "bbdc85fb-4b48-5372-8250-9928ea5d077a"))
     (comp
       (ref "F9")
       (value "3A")
@@ -262,53 +262,122 @@
         (field
           (name "Datasheet"))
         (field
-          (name "SKiDL Tag") "AW11gQA0YB")
+          (name "SKiDL Tag") "GinkD1X9x7")
         (field
-          (name "SKiDL Line") "generate_netlist.py:86"))
+          (name "SKiDL Line") "generate_netlist.py:92"))
       (libsource
         (lib "Device")
         (part "Fuse"))
       (sheetpath
         (names "/")
         (tstamps "/"))
-      (tstamps "79ecb550-9621-5a45-879d-8d0dc8701971"))
+      (tstamps "f6f81407-de1b-5a15-b79e-052a88649a88"))
     (comp
-      (ref "J_12V")
-      (value "12V_Input")
+      (ref "J_12V_1")
+      (value "12V_Input_1")
       (description "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
-      (footprint "TerminalBlock:TerminalBlock_bornier-2_P5.08mm")
+      (footprint "TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm")
       (fields
         (field
           (name "Description") "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
         (field
-          (name "Footprint") "TerminalBlock:TerminalBlock_bornier-2_P5.08mm")
+          (name "Footprint") "TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm")
         (field
           (name "Datasheet"))
         (field
-          (name "SKiDL Tag") "njzk6tkYSq")
+          (name "SKiDL Tag") "uN3Y8MUgOp")
         (field
-          (name "SKiDL Line") "generate_netlist.py:32"))
+          (name "SKiDL Line") "generate_netlist.py:36"))
       (libsource
         (lib "Connector")
         (part "Screw_Terminal_01x02"))
       (sheetpath
         (names "/")
         (tstamps "/"))
-      (tstamps "d750bd65-ec62-5260-a7f2-63aaed034cdc"))
+      (tstamps "93888144-4ad0-5bbe-9979-e5a7c7636b28"))
     (comp
-      (ref "J_3V3")
-      (value "3V3_Input")
+      (ref "J_12V_2")
+      (value "12V_Input_2")
       (description "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
-      (footprint "TerminalBlock:TerminalBlock_bornier-2_P5.08mm")
+      (footprint "TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm")
       (fields
         (field
           (name "Description") "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
         (field
-          (name "Footprint") "TerminalBlock:TerminalBlock_bornier-2_P5.08mm")
+          (name "Footprint") "TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm")
         (field
           (name "Datasheet"))
         (field
-          (name "SKiDL Tag") "2zAo55SFHp")
+          (name "SKiDL Tag") "H0EfIIW721")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:36"))
+      (libsource
+        (lib "Connector")
+        (part "Screw_Terminal_01x02"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "0c718a71-079a-52d6-9719-8850a1eb3b2d"))
+    (comp
+      (ref "J_12V_3")
+      (value "12V_Input_3")
+      (description "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+      (footprint "TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm")
+      (fields
+        (field
+          (name "Description") "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+        (field
+          (name "Footprint") "TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "c2HDwuFuNn")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:36"))
+      (libsource
+        (lib "Connector")
+        (part "Screw_Terminal_01x02"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "cd5c6b96-79dc-5d89-8f9b-036844246760"))
+    (comp
+      (ref "J_12V_4")
+      (value "12V_Input_4")
+      (description "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+      (footprint "TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm")
+      (fields
+        (field
+          (name "Description") "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+        (field
+          (name "Footprint") "TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "NupjLKXunh")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:36"))
+      (libsource
+        (lib "Connector")
+        (part "Screw_Terminal_01x02"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "56d851b4-3cac-50b7-ae3d-188737a452da"))
+    (comp
+      (ref "J_3V3")
+      (value "3V3_Input")
+      (description "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+      (footprint "TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm")
+      (fields
+        (field
+          (name "Description") "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+        (field
+          (name "Footprint") "TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "DIrGYlUyfw")
         (field
           (name "SKiDL Line") "generate_netlist.py:56"))
       (libsource
@@ -317,76 +386,76 @@
       (sheetpath
         (names "/")
         (tstamps "/"))
-      (tstamps "dd6f5685-7928-5f1f-b18b-76e9d1b95b7e"))
+      (tstamps "8103b8ff-390f-56ea-9185-3a3a673adc3e"))
     (comp
       (ref "J_5VL")
       (value "5V_Logic_Input")
       (description "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
-      (footprint "TerminalBlock:TerminalBlock_bornier-2_P5.08mm")
+      (footprint "TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm")
       (fields
         (field
           (name "Description") "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
         (field
-          (name "Footprint") "TerminalBlock:TerminalBlock_bornier-2_P5.08mm")
+          (name "Footprint") "TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm")
         (field
           (name "Datasheet"))
         (field
-          (name "SKiDL Tag") "EKFj9QLqMY")
+          (name "SKiDL Tag") "7_5oGk5beN")
         (field
-          (name "SKiDL Line") "generate_netlist.py:50"))
+          (name "SKiDL Line") "generate_netlist.py:51"))
       (libsource
         (lib "Connector")
         (part "Screw_Terminal_01x02"))
       (sheetpath
         (names "/")
         (tstamps "/"))
-      (tstamps "e60575ab-66d8-52bd-9b43-071277158639"))
+      (tstamps "046ae93c-868d-530f-95e0-53c880d2ff5b"))
     (comp
       (ref "J_5VS")
       (value "5V_Servo_Input")
       (description "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
-      (footprint "TerminalBlock:TerminalBlock_bornier-2_P5.08mm")
+      (footprint "TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm")
       (fields
         (field
           (name "Description") "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
         (field
-          (name "Footprint") "TerminalBlock:TerminalBlock_bornier-2_P5.08mm")
+          (name "Footprint") "TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm")
         (field
           (name "Datasheet"))
         (field
-          (name "SKiDL Tag") "s4OAxuXTGs")
+          (name "SKiDL Tag") "Jz64t5cObt")
         (field
-          (name "SKiDL Line") "generate_netlist.py:44"))
+          (name "SKiDL Line") "generate_netlist.py:46"))
       (libsource
         (lib "Connector")
         (part "Screw_Terminal_01x02"))
       (sheetpath
         (names "/")
         (tstamps "/"))
-      (tstamps "c907ff22-4acc-5a6d-998c-94f36f58d001"))
+      (tstamps "9be1962e-58e9-5cfb-8623-e55bb4e2d513"))
     (comp
       (ref "J_7V4")
       (value "7V4_Input")
       (description "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
-      (footprint "TerminalBlock:TerminalBlock_bornier-2_P5.08mm")
+      (footprint "TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm")
       (fields
         (field
           (name "Description") "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
         (field
-          (name "Footprint") "TerminalBlock:TerminalBlock_bornier-2_P5.08mm")
+          (name "Footprint") "TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm")
         (field
           (name "Datasheet"))
         (field
-          (name "SKiDL Tag") "Y7elYoIOzK")
+          (name "SKiDL Tag") "fvQWlvZVu_")
         (field
-          (name "SKiDL Line") "generate_netlist.py:38"))
+          (name "SKiDL Line") "generate_netlist.py:41"))
       (libsource
         (lib "Connector")
         (part "Screw_Terminal_01x02"))
       (sheetpath
         (names "/")
         (tstamps "/"))
-      (tstamps "07c3ed13-a441-523c-8e0c-9558b633964a"))
+      (tstamps "718e6210-864c-50d1-9ab6-c138923ace59"))
     (comp
       (ref "J_ESC")
       (value "MACE_ESC")
@@ -400,16 +469,16 @@
         (field
           (name "Datasheet"))
         (field
-          (name "SKiDL Tag") "Vxpx2mIYKg")
+          (name "SKiDL Tag") "Xbiql3IypV")
         (field
-          (name "SKiDL Line") "generate_netlist.py:150"))
+          (name "SKiDL Line") "generate_netlist.py:156"))
       (libsource
         (lib "Connector")
         (part "Conn_01x03_Pin"))
       (sheetpath
         (names "/")
         (tstamps "/"))
-      (tstamps "bd30c09b-eada-5bb6-a9bb-b788952e3c83"))
+      (tstamps "0b3654b9-a1fe-5d0b-83aa-e191cd33cade"))
     (comp
       (ref "J_FAN")
       (value "Fan")
@@ -423,108 +492,154 @@
         (field
           (name "Datasheet"))
         (field
-          (name "SKiDL Tag") "SIOkzd0ZLg")
+          (name "SKiDL Tag") "58dEGjqmvs")
         (field
-          (name "SKiDL Line") "generate_netlist.py:158"))
+          (name "SKiDL Line") "generate_netlist.py:164"))
       (libsource
         (lib "Connector")
         (part "Conn_01x03_Pin"))
       (sheetpath
         (names "/")
         (tstamps "/"))
-      (tstamps "086a69aa-3860-5a69-8ffb-7f93d0385445"))
+      (tstamps "690c8192-5c68-5a94-92a3-90700165da3d"))
+    (comp
+      (ref "J_GND_1")
+      (value "GND_Bus_1")
+      (description "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+      (footprint "TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm")
+      (fields
+        (field
+          (name "Description") "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+        (field
+          (name "Footprint") "TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "2OgRdnBdJh")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:63"))
+      (libsource
+        (lib "Connector")
+        (part "Screw_Terminal_01x02"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "526dec5d-8066-5a74-a305-d4877cbb2277"))
+    (comp
+      (ref "J_GND_2")
+      (value "GND_Bus_2")
+      (description "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+      (footprint "TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm")
+      (fields
+        (field
+          (name "Description") "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+        (field
+          (name "Footprint") "TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm")
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "vXBoF1YN9K")
+        (field
+          (name "SKiDL Line") "generate_netlist.py:63"))
+      (libsource
+        (lib "Connector")
+        (part "Screw_Terminal_01x02"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "b0cf70e3-7967-55a1-9769-2bf551befc50"))
     (comp
       (ref "J_I2C1")
       (value "I2C_IMU")
       (description "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
-      (footprint "TerminalBlock:TerminalBlock_bornier-4_P5.08mm")
+      (footprint "TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-04P_1x04_P5.00mm")
       (fields
         (field
           (name "Description") "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
         (field
-          (name "Footprint") "TerminalBlock:TerminalBlock_bornier-4_P5.08mm")
+          (name "Footprint") "TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-04P_1x04_P5.00mm")
         (field
           (name "Datasheet"))
         (field
-          (name "SKiDL Tag") "wqypY_y6xK")
+          (name "SKiDL Tag") "A1Emsaaw3V")
         (field
-          (name "SKiDL Line") "generate_netlist.py:124"))
+          (name "SKiDL Line") "generate_netlist.py:130"))
       (libsource
         (lib "Connector")
         (part "Screw_Terminal_01x04"))
       (sheetpath
         (names "/")
         (tstamps "/"))
-      (tstamps "9e2b0faa-2914-508f-9b1f-8c0e95fe4cde"))
+      (tstamps "a79c1e58-8b2d-525c-9e32-e7d27a4defe1"))
     (comp
       (ref "J_I2C2")
       (value "I2C_Encoder")
       (description "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
-      (footprint "TerminalBlock:TerminalBlock_bornier-4_P5.08mm")
+      (footprint "TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-04P_1x04_P5.00mm")
       (fields
         (field
           (name "Description") "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
         (field
-          (name "Footprint") "TerminalBlock:TerminalBlock_bornier-4_P5.08mm")
+          (name "Footprint") "TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-04P_1x04_P5.00mm")
         (field
           (name "Datasheet"))
         (field
-          (name "SKiDL Tag") "smsPCo4s1x")
+          (name "SKiDL Tag") "MBwaSnSrfu")
         (field
-          (name "SKiDL Line") "generate_netlist.py:124"))
+          (name "SKiDL Line") "generate_netlist.py:130"))
       (libsource
         (lib "Connector")
         (part "Screw_Terminal_01x04"))
       (sheetpath
         (names "/")
         (tstamps "/"))
-      (tstamps "41a4378e-e607-55b0-8125-7d45815a5148"))
+      (tstamps "c1136079-2b64-53e5-afcf-12f181e43020"))
     (comp
       (ref "J_I2C3")
       (value "I2C_Spare1")
       (description "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
-      (footprint "TerminalBlock:TerminalBlock_bornier-4_P5.08mm")
+      (footprint "TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-04P_1x04_P5.00mm")
       (fields
         (field
           (name "Description") "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
         (field
-          (name "Footprint") "TerminalBlock:TerminalBlock_bornier-4_P5.08mm")
+          (name "Footprint") "TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-04P_1x04_P5.00mm")
         (field
           (name "Datasheet"))
         (field
-          (name "SKiDL Tag") "zDm7TTCTCI")
+          (name "SKiDL Tag") "Jcpn0OIh9Z")
         (field
-          (name "SKiDL Line") "generate_netlist.py:124"))
+          (name "SKiDL Line") "generate_netlist.py:130"))
       (libsource
         (lib "Connector")
         (part "Screw_Terminal_01x04"))
       (sheetpath
         (names "/")
         (tstamps "/"))
-      (tstamps "b991f7b7-8efa-5376-a08f-4e0357f30e81"))
+      (tstamps "0a585b3a-4b7d-51c3-90d7-d49f5ff9ff6d"))
     (comp
       (ref "J_I2C4")
       (value "I2C_Spare2")
       (description "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
-      (footprint "TerminalBlock:TerminalBlock_bornier-4_P5.08mm")
+      (footprint "TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-04P_1x04_P5.00mm")
       (fields
         (field
           (name "Description") "Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
         (field
-          (name "Footprint") "TerminalBlock:TerminalBlock_bornier-4_P5.08mm")
+          (name "Footprint") "TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-04P_1x04_P5.00mm")
         (field
           (name "Datasheet"))
         (field
-          (name "SKiDL Tag") "Ku88iiQPXw")
+          (name "SKiDL Tag") "7ZXO1GGiNB")
         (field
-          (name "SKiDL Line") "generate_netlist.py:124"))
+          (name "SKiDL Line") "generate_netlist.py:130"))
       (libsource
         (lib "Connector")
         (part "Screw_Terminal_01x04"))
       (sheetpath
         (names "/")
         (tstamps "/"))
-      (tstamps "46845ad3-040b-5209-92f6-f3b9bc880a2d"))
+      (tstamps "11d52687-21f0-5998-aa52-6a4077cabe66"))
     (comp
       (ref "J_PCA_A")
       (value "PCA9685_Ch0-7")
@@ -538,16 +653,16 @@
         (field
           (name "Datasheet"))
         (field
-          (name "SKiDL Tag") "qqrZ4kuZU3")
+          (name "SKiDL Tag") "NjTwLaJwxK")
         (field
-          (name "SKiDL Line") "generate_netlist.py:109"))
+          (name "SKiDL Line") "generate_netlist.py:115"))
       (libsource
         (lib "Connector")
         (part "Conn_01x08_Pin"))
       (sheetpath
         (names "/")
         (tstamps "/"))
-      (tstamps "7353a3a7-40e1-52c1-ac10-21de32b7dc94"))
+      (tstamps "fb5db690-2223-5b62-bcde-f2981b28a28c"))
     (comp
       (ref "J_PCA_B")
       (value "PCA9685_Ch8-15")
@@ -561,16 +676,16 @@
         (field
           (name "Datasheet"))
         (field
-          (name "SKiDL Tag") "SE_gtis93r")
+          (name "SKiDL Tag") "a5_RDYeBZs")
         (field
-          (name "SKiDL Line") "generate_netlist.py:115"))
+          (name "SKiDL Line") "generate_netlist.py:121"))
       (libsource
         (lib "Connector")
         (part "Conn_01x08_Pin"))
       (sheetpath
         (names "/")
         (tstamps "/"))
-      (tstamps "3b962651-b76e-5672-9e18-db112c4f8a45"))
+      (tstamps "9328d6c8-0de6-5cbc-837c-9017dc65fd0a"))
     (comp
       (ref "J_PCA_CTRL")
       (value "PCA9685_Control")
@@ -584,16 +699,16 @@
         (field
           (name "Datasheet"))
         (field
-          (name "SKiDL Tag") "ORn8FxVTh5")
+          (name "SKiDL Tag") "doJKZ02JU5")
         (field
-          (name "SKiDL Line") "generate_netlist.py:98"))
+          (name "SKiDL Line") "generate_netlist.py:104"))
       (libsource
         (lib "Connector")
         (part "Conn_01x06_Pin"))
       (sheetpath
         (names "/")
         (tstamps "/"))
-      (tstamps "882c719c-8750-5157-aee7-65d7fdca9aee"))
+      (tstamps "dfcd107a-c94f-5699-8cb0-a8f8f178f72f"))
     (comp
       (ref "SV1")
       (value "Arm1_Base")
@@ -607,16 +722,16 @@
         (field
           (name "Datasheet"))
         (field
-          (name "SKiDL Tag") "sZlJDrhaBk")
+          (name "SKiDL Tag") "9lIdVGf62Z")
         (field
-          (name "SKiDL Line") "generate_netlist.py:142"))
+          (name "SKiDL Line") "generate_netlist.py:148"))
       (libsource
         (lib "Connector")
         (part "Conn_01x03_Pin"))
       (sheetpath
         (names "/")
         (tstamps "/"))
-      (tstamps "721c4001-0785-5df0-a098-2a22c2b4d207"))
+      (tstamps "807e783d-30de-52b7-864b-8b2ec2a932b4"))
     (comp
       (ref "SV10")
       (value "Arm2_WristPan")
@@ -630,16 +745,16 @@
         (field
           (name "Datasheet"))
         (field
-          (name "SKiDL Tag") "GCjRaMf8B5")
+          (name "SKiDL Tag") "Sane6q4GOp")
         (field
-          (name "SKiDL Line") "generate_netlist.py:142"))
+          (name "SKiDL Line") "generate_netlist.py:148"))
       (libsource
         (lib "Connector")
         (part "Conn_01x03_Pin"))
       (sheetpath
         (names "/")
         (tstamps "/"))
-      (tstamps "4ba9fdd8-a862-5b18-b89a-d566d7e0dbe2"))
+      (tstamps "3612af44-65d7-50b2-a7e6-e79b74912c23"))
     (comp
       (ref "SV2")
       (value "Arm1_Shoulder")
@@ -653,16 +768,16 @@
         (field
           (name "Datasheet"))
         (field
-          (name "SKiDL Tag") "D0yfaeyfUq")
+          (name "SKiDL Tag") "4X4OZqfXUE")
         (field
-          (name "SKiDL Line") "generate_netlist.py:142"))
+          (name "SKiDL Line") "generate_netlist.py:148"))
       (libsource
         (lib "Connector")
         (part "Conn_01x03_Pin"))
       (sheetpath
         (names "/")
         (tstamps "/"))
-      (tstamps "09f2b0ca-1595-5c31-ac96-be39cebfee9f"))
+      (tstamps "39d2cf9e-16d9-55f3-8f64-2150ae8c2f4e"))
     (comp
       (ref "SV3")
       (value "Arm1_Elbow")
@@ -676,16 +791,16 @@
         (field
           (name "Datasheet"))
         (field
-          (name "SKiDL Tag") "6gQwXEn5Xe")
+          (name "SKiDL Tag") "a0oBf0t4gN")
         (field
-          (name "SKiDL Line") "generate_netlist.py:142"))
+          (name "SKiDL Line") "generate_netlist.py:148"))
       (libsource
         (lib "Connector")
         (part "Conn_01x03_Pin"))
       (sheetpath
         (names "/")
         (tstamps "/"))
-      (tstamps "068a1da3-2976-5d99-a1a3-e41b5b5e0e22"))
+      (tstamps "3c5fe7f7-0eee-59fb-8e6d-cebc4e38301c"))
     (comp
       (ref "SV4")
       (value "Arm1_WristRot")
@@ -699,16 +814,16 @@
         (field
           (name "Datasheet"))
         (field
-          (name "SKiDL Tag") "DjENbXq7VG")
+          (name "SKiDL Tag") "5rBbE6uvvT")
         (field
-          (name "SKiDL Line") "generate_netlist.py:142"))
+          (name "SKiDL Line") "generate_netlist.py:148"))
       (libsource
         (lib "Connector")
         (part "Conn_01x03_Pin"))
       (sheetpath
         (names "/")
         (tstamps "/"))
-      (tstamps "22a1467c-ce98-5345-bf16-c49ff0d534cd"))
+      (tstamps "ca0e6e9c-0506-52b7-94fe-d7dec342ce74"))
     (comp
       (ref "SV5")
       (value "Arm1_WristPan")
@@ -722,16 +837,16 @@
         (field
           (name "Datasheet"))
         (field
-          (name "SKiDL Tag") "UeC2O5IkEg")
+          (name "SKiDL Tag") "pfk_OnnJob")
         (field
-          (name "SKiDL Line") "generate_netlist.py:142"))
+          (name "SKiDL Line") "generate_netlist.py:148"))
       (libsource
         (lib "Connector")
         (part "Conn_01x03_Pin"))
       (sheetpath
         (names "/")
         (tstamps "/"))
-      (tstamps "259d7707-e188-5781-95f7-0e3cecde2185"))
+      (tstamps "89751a40-6270-55c8-8f29-fc43ebc42b0a"))
     (comp
       (ref "SV6")
       (value "Arm2_Base")
@@ -745,16 +860,16 @@
         (field
           (name "Datasheet"))
         (field
-          (name "SKiDL Tag") "2zct6BMlh3")
+          (name "SKiDL Tag") "q8Q4BCu5qh")
         (field
-          (name "SKiDL Line") "generate_netlist.py:142"))
+          (name "SKiDL Line") "generate_netlist.py:148"))
       (libsource
         (lib "Connector")
         (part "Conn_01x03_Pin"))
       (sheetpath
         (names "/")
         (tstamps "/"))
-      (tstamps "485d6896-9dba-5148-8cc5-b96ab15cfdfd"))
+      (tstamps "b8b04702-0a4f-5229-a6c2-06d9699d7ae4"))
     (comp
       (ref "SV7")
       (value "Arm2_Shoulder")
@@ -768,16 +883,16 @@
         (field
           (name "Datasheet"))
         (field
-          (name "SKiDL Tag") "8ugN_kItPB")
+          (name "SKiDL Tag") "7Rphd4mUZE")
         (field
-          (name "SKiDL Line") "generate_netlist.py:142"))
+          (name "SKiDL Line") "generate_netlist.py:148"))
       (libsource
         (lib "Connector")
         (part "Conn_01x03_Pin"))
       (sheetpath
         (names "/")
         (tstamps "/"))
-      (tstamps "322baa2a-f3ca-5d56-bd70-f54136d1b6ec"))
+      (tstamps "019cd8be-bc34-5a16-bb75-a7835cac67fc"))
     (comp
       (ref "SV8")
       (value "Arm2_Elbow")
@@ -791,16 +906,16 @@
         (field
           (name "Datasheet"))
         (field
-          (name "SKiDL Tag") "qmu1lMNi1X")
+          (name "SKiDL Tag") "DJlOPZPF1M")
         (field
-          (name "SKiDL Line") "generate_netlist.py:142"))
+          (name "SKiDL Line") "generate_netlist.py:148"))
       (libsource
         (lib "Connector")
         (part "Conn_01x03_Pin"))
       (sheetpath
         (names "/")
         (tstamps "/"))
-      (tstamps "7f818815-62ad-5d60-9723-b61a3bf9e9a6"))
+      (tstamps "c86cbb5a-a75b-5c92-8311-a23a537cd133"))
     (comp
       (ref "SV9")
       (value "Arm2_WristRot")
@@ -814,16 +929,16 @@
         (field
           (name "Datasheet"))
         (field
-          (name "SKiDL Tag") "eiCBnRrKjb")
+          (name "SKiDL Tag") "lSKlIzbhp8")
         (field
-          (name "SKiDL Line") "generate_netlist.py:142"))
+          (name "SKiDL Line") "generate_netlist.py:148"))
       (libsource
         (lib "Connector")
         (part "Conn_01x03_Pin"))
       (sheetpath
         (names "/")
         (tstamps "/"))
-      (tstamps "6da2cf56-f0b9-522f-9751-831c79c7c13a")))
+      (tstamps "f6fcf462-82f0-53da-84a1-74243155c7b8")))
   (nets
     (net
       (code 1)
@@ -846,7 +961,19 @@
         (pin "1")
         (pintype "PASSIVE"))
       (node
-        (ref "J_12V")
+        (ref "J_12V_1")
+        (pin "1")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_12V_2")
+        (pin "1")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_12V_3")
+        (pin "1")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_12V_4")
         (pin "1")
         (pintype "PASSIVE"))
       (node
@@ -938,7 +1065,19 @@
       (name "GND")
       (class "Default")
       (node
-        (ref "J_12V")
+        (ref "J_12V_1")
+        (pin "2")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_12V_2")
+        (pin "2")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_12V_3")
+        (pin "2")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_12V_4")
         (pin "2")
         (pintype "PASSIVE"))
       (node
@@ -964,6 +1103,22 @@
       (node
         (ref "J_FAN")
         (pin "3")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_GND_1")
+        (pin "1")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_GND_1")
+        (pin "2")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_GND_2")
+        (pin "1")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J_GND_2")
+        (pin "2")
         (pintype "PASSIVE"))
       (node
         (ref "J_I2C1")

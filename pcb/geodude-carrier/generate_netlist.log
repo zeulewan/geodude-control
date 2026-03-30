@@ -1,12 +1,85 @@
-WARNING: KICAD_SYMBOL_DIR environment variable is missing, so the default KiCad symbol libraries won't be searched. @ [/home/zeul/GIT/geodude-control/pcb/geodude-carrier/<frozen importlib._bootstrap_external>:995=>/home/zeul/GIT/geodude-control/pcb/geodude-carrier/<frozen importlib._bootstrap>:488]
-WARNING: KICAD8_SYMBOL_DIR environment variable is missing, so the default KiCad symbol libraries won't be searched. @ [/home/zeul/GIT/geodude-control/pcb/geodude-carrier/<frozen importlib._bootstrap_external>:995=>/home/zeul/GIT/geodude-control/pcb/geodude-carrier/<frozen importlib._bootstrap>:488]
-WARNING: KICAD6_SYMBOL_DIR environment variable is missing, so the default KiCad symbol libraries won't be searched. @ [/home/zeul/GIT/geodude-control/pcb/geodude-carrier/<frozen importlib._bootstrap_external>:995=>/home/zeul/GIT/geodude-control/pcb/geodude-carrier/<frozen importlib._bootstrap>:488]
-WARNING: KICAD7_SYMBOL_DIR environment variable is missing, so the default KiCad symbol libraries won't be searched. @ [/home/zeul/GIT/geodude-control/pcb/geodude-carrier/<frozen importlib._bootstrap_external>:995=>/home/zeul/GIT/geodude-control/pcb/geodude-carrier/<frozen importlib._bootstrap>:488]
-WARNING: KICAD9_SYMBOL_DIR environment variable is missing, so the default KiCad symbol libraries won't be searched. @ [/home/zeul/GIT/geodude-control/pcb/geodude-carrier/<frozen importlib._bootstrap_external>:995=>/home/zeul/GIT/geodude-control/pcb/geodude-carrier/<frozen importlib._bootstrap>:488]
+WARNING: KICAD6_SYMBOL_DIR environment variable is missing, so the default KiCad symbol libraries won't be searched. @ [/Users/zeul/GIT/geodude-control/pcb/geodude-carrier/<frozen importlib._bootstrap_external>:850=>/Users/zeul/GIT/geodude-control/pcb/geodude-carrier/<frozen importlib._bootstrap>:228]
+WARNING: KICAD7_SYMBOL_DIR environment variable is missing, so the default KiCad symbol libraries won't be searched. @ [/Users/zeul/GIT/geodude-control/pcb/geodude-carrier/<frozen importlib._bootstrap_external>:850=>/Users/zeul/GIT/geodude-control/pcb/geodude-carrier/<frozen importlib._bootstrap>:228]
 WARNING: fp-lib-table file was not found. Component footprints are not available.
-WARNING: fp-lib-table file was not found. Component footprints are not available.
-WARNING: fp-lib-table file was not found. Component footprints are not available.
-WARNING: fp-lib-table file was not found. Component footprints are not available.
-ERROR: Can't open file: Connector.
- @ [/home/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:32]
-WARNING: Could not load KiCad schematic library "Connector", falling back to backup library. @ [/home/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:32]
+WARNING: Missing tag on Screw_Terminal_01x02 instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:36.
+WARNING: Random tag uN3Y8MUgOp generated for Screw_Terminal_01x02.
+WARNING: Missing tag on Screw_Terminal_01x02 instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:36.
+WARNING: Random tag H0EfIIW721 generated for Screw_Terminal_01x02.
+WARNING: Missing tag on Screw_Terminal_01x02 instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:36.
+WARNING: Random tag c2HDwuFuNn generated for Screw_Terminal_01x02.
+WARNING: Missing tag on Screw_Terminal_01x02 instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:36.
+WARNING: Random tag NupjLKXunh generated for Screw_Terminal_01x02.
+WARNING: Missing tag on Screw_Terminal_01x02 instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:41.
+WARNING: Random tag fvQWlvZVu_ generated for Screw_Terminal_01x02.
+WARNING: Missing tag on Screw_Terminal_01x02 instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:46.
+WARNING: Random tag Jz64t5cObt generated for Screw_Terminal_01x02.
+WARNING: Missing tag on Screw_Terminal_01x02 instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:51.
+WARNING: Random tag 7_5oGk5beN generated for Screw_Terminal_01x02.
+WARNING: Missing tag on Screw_Terminal_01x02 instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:56.
+WARNING: Random tag DIrGYlUyfw generated for Screw_Terminal_01x02.
+WARNING: Missing tag on Screw_Terminal_01x02 instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:63.
+WARNING: Random tag 2OgRdnBdJh generated for Screw_Terminal_01x02.
+WARNING: Missing tag on Screw_Terminal_01x02 instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:63.
+WARNING: Random tag vXBoF1YN9K generated for Screw_Terminal_01x02.
+WARNING: Missing tag on Fuse instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:92.
+WARNING: Random tag 7YDbeLOwU6 generated for Fuse.
+WARNING: Missing tag on Fuse instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:92.
+WARNING: Random tag Z37DAJ6FHI generated for Fuse.
+WARNING: Missing tag on Fuse instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:92.
+WARNING: Random tag 3ekPBOPXMA generated for Fuse.
+WARNING: Missing tag on Fuse instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:92.
+WARNING: Random tag QUEYo6xrfP generated for Fuse.
+WARNING: Missing tag on Fuse instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:92.
+WARNING: Random tag wxVDp40KL_ generated for Fuse.
+WARNING: Missing tag on Fuse instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:92.
+WARNING: Random tag ILIMj0HhiV generated for Fuse.
+WARNING: Missing tag on Fuse instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:92.
+WARNING: Random tag lg_ZyOMLAB generated for Fuse.
+WARNING: Missing tag on Fuse instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:92.
+WARNING: Random tag uPgLSKqGId generated for Fuse.
+WARNING: Missing tag on Fuse instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:92.
+WARNING: Random tag GinkD1X9x7 generated for Fuse.
+WARNING: Missing tag on Fuse instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:92.
+WARNING: Random tag 92_5Q4NuNj generated for Fuse.
+WARNING: Missing tag on Conn_01x06_Pin instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:104.
+WARNING: Random tag doJKZ02JU5 generated for Conn_01x06_Pin.
+WARNING: Missing tag on Conn_01x08_Pin instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:115.
+WARNING: Random tag NjTwLaJwxK generated for Conn_01x08_Pin.
+WARNING: Missing tag on Conn_01x08_Pin instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:121.
+WARNING: Random tag a5_RDYeBZs generated for Conn_01x08_Pin.
+WARNING: Missing tag on Screw_Terminal_01x04 instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:130.
+WARNING: Random tag A1Emsaaw3V generated for Screw_Terminal_01x04.
+WARNING: Missing tag on Screw_Terminal_01x04 instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:130.
+WARNING: Random tag MBwaSnSrfu generated for Screw_Terminal_01x04.
+WARNING: Missing tag on Screw_Terminal_01x04 instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:130.
+WARNING: Random tag Jcpn0OIh9Z generated for Screw_Terminal_01x04.
+WARNING: Missing tag on Screw_Terminal_01x04 instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:130.
+WARNING: Random tag 7ZXO1GGiNB generated for Screw_Terminal_01x04.
+WARNING: Missing tag on Conn_01x03_Pin instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:148.
+WARNING: Random tag 9lIdVGf62Z generated for Conn_01x03_Pin.
+WARNING: Missing tag on Conn_01x03_Pin instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:148.
+WARNING: Random tag 4X4OZqfXUE generated for Conn_01x03_Pin.
+WARNING: Missing tag on Conn_01x03_Pin instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:148.
+WARNING: Random tag a0oBf0t4gN generated for Conn_01x03_Pin.
+WARNING: Missing tag on Conn_01x03_Pin instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:148.
+WARNING: Random tag 5rBbE6uvvT generated for Conn_01x03_Pin.
+WARNING: Missing tag on Conn_01x03_Pin instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:148.
+WARNING: Random tag pfk_OnnJob generated for Conn_01x03_Pin.
+WARNING: Missing tag on Conn_01x03_Pin instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:148.
+WARNING: Random tag q8Q4BCu5qh generated for Conn_01x03_Pin.
+WARNING: Missing tag on Conn_01x03_Pin instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:148.
+WARNING: Random tag 7Rphd4mUZE generated for Conn_01x03_Pin.
+WARNING: Missing tag on Conn_01x03_Pin instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:148.
+WARNING: Random tag DJlOPZPF1M generated for Conn_01x03_Pin.
+WARNING: Missing tag on Conn_01x03_Pin instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:148.
+WARNING: Random tag lSKlIzbhp8 generated for Conn_01x03_Pin.
+WARNING: Missing tag on Conn_01x03_Pin instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:148.
+WARNING: Random tag Sane6q4GOp generated for Conn_01x03_Pin.
+WARNING: Missing tag on Conn_01x03_Pin instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:156.
+WARNING: Random tag Xbiql3IypV generated for Conn_01x03_Pin.
+WARNING: Missing tag on Conn_01x03_Pin instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/generate_netlist.py:164.
+WARNING: Random tag 58dEGjqmvs generated for Conn_01x03_Pin.
+WARNING: Missing tag on  instantiated at /Users/zeul/GIT/geodude-control/pcb/geodude-carrier/<frozen importlib._bootstrap>:228.
+INFO: 80 warnings found while generating netlist.
+INFO: 0 errors found while generating netlist.
+
