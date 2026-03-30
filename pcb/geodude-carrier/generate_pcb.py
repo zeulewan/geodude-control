@@ -98,8 +98,6 @@ def main():
         ("J8", "GND", "GND", "GND"),
         ("J9", "GND", "GND", "GND"),
         ("J10", "GND", "GND", "GND"),
-        ("J11", "5V Logic", "+5V_LOGIC", "GND_LOGIC"),
-        ("J12", "3.3V", "+3V3", "GND_LOGIC"),
     ]
     pwr_total = len(all_power) * sp
     py = (BOARD_H - pwr_total) / 2 + sp / 2
