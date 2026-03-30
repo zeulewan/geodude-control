@@ -258,6 +258,7 @@ HTML = """
         </div>
       </div>
       <div class="angle-text" id="angleText">--</div>
+      <div class="angle-text" id="rpmText" style="font-size:18px;color:#3b82f6;margin-top:4px">0 RPM</div>
     </div>
     <div class="card">
       <h2>System</h2>
@@ -295,6 +296,7 @@ HTML = """
       <div class="btn-row">
         <button class="btn btn-arm" id="armBtn" onclick="toggleArm()">ARM</button>
         <button class="btn btn-stop" onclick="emergencyStop()">EMERGENCY STOP</button>
+        <button class="btn" style="background:#f59e0b;color:#000" onclick="brake()">BRAKE</button>
         <button class="btn btn-reverse" onclick="toggleReverse()">REVERSE</button>
         <button class="btn" style="background:#334155;color:#94a3b8" onclick="startCalibrate()">CALIBRATE ESC</button>
       </div>
@@ -316,6 +318,9 @@ HTML = """
 let reverse = false;
 let holding = false;
 let currentNeedleAngle = 0;
+let lastAngle = null;
+let lastAngleTime = null;
+let rpmBuffer = [];
 let isArmed = false;
 let isArming = false;
 
@@ -450,6 +455,12 @@ function emergencyStop() {
   fetch('/api/stop', {method:'POST'});
 }
 
+function brake() {
+  holding = false;
+  document.getElementById('holdBtn').classList.remove('active');
+  fetch('/api/brake', {method:'POST'});
+}
+
 function toggleReverse() {
   reverse = !reverse;
   fetch('/api/throttle', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({target: 0, reverse: reverse})});
@@ -523,6 +534,21 @@ function poll() {
     if (delta < -180) delta += 360;
     currentNeedleAngle += delta;
     document.getElementById('needle').style.transform = 'rotate(' + currentNeedleAngle + 'deg)';
+    // RPM calculation
+    let now = performance.now();
+    if (lastAngle !== null && lastAngleTime !== null) {
+      let dt = (now - lastAngleTime) / 1000;
+      if (dt > 0) {
+        let dps = delta / dt; // degrees per second
+        let rpm = Math.abs(dps) / 6; // 360 deg/s = 60 RPM
+        rpmBuffer.push(rpm);
+        if (rpmBuffer.length > 15) rpmBuffer.shift();
+        let avgRpm = rpmBuffer.reduce((a,b) => a+b, 0) / rpmBuffer.length;
+        document.getElementById('rpmText').textContent = Math.round(avgRpm) + ' RPM';
+      }
+    }
+    lastAngle = target;
+    lastAngleTime = now;
     updateArmUI(d.armed, d.arming);
     document.getElementById('armedStatus').textContent = d.arming ? 'ARMING' : (d.armed ? 'YES' : 'NO');
     document.getElementById('armedStatus').style.color = d.arming ? '#f59e0b' : (d.armed ? '#22c55e' : '#ef4444');
@@ -665,6 +691,16 @@ def all_off():
     """Turn all PCA9685 channels off."""
     ok = send_all_off()
     return jsonify({"ok": ok})
+
+
+@app.route('/api/brake', methods=['POST'])
+def brake():
+    """Brake: set throttle to 0 but stay armed, hold 1000us (ESC brake)."""
+    with lock:
+        state["throttle"] = 0.0
+        state["target"] = 0.0
+    send_motor(1000)
+    return jsonify({"ok": True})
 
 
 @app.route('/api/calibrate', methods=['POST'])
