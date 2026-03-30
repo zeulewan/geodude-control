@@ -91,7 +91,7 @@ def sensor_loop():
             sensor_data.update({"ax":round(ax,3),"ay":round(ay,3),"az":round(az,3),"gx":round(gx,1),"gy":round(gy,1),"gz":round(gz,1),"angle":round(angle,1)})
         except:
             pass
-        time.sleep(0.05)
+        time.sleep(0.033)
 
 # --- API ---
 

@@ -155,7 +155,7 @@ def sensor_loop():
         except Exception:
             with lock:
                 state["connected"] = False
-        time.sleep(0.1)
+        time.sleep(0.033)
 
 
 HTML = """
@@ -549,7 +549,7 @@ function poll() {
   });
 }
 
-setInterval(poll, 100);
+setInterval(poll, 33);
 
 fetch('/api/sensors').then(r=>r.json()).then(d => {
   if (d.ramp_rate) {
