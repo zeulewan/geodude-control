@@ -220,9 +220,11 @@ def main():
             set_pad_net(fp, 4, nets["GND"])
 
     # ==============================================================
-    # ROUTING
+    # NO MANUAL ROUTING — use Freerouting autorouter instead
+    # Export DSN from KiCad, run Freerouting, import SES back
     # ==============================================================
-    print("Routing traces...")
+    if False:  # disabled — traces were crossing everything
+        print("Routing traces...")
 
     def get_pad_pos(ref, pad_num):
         """Get pad position by component reference and pad number."""
@@ -349,7 +351,7 @@ def main():
     # PCA control GND
     route_pads("J_PCA_CTRL", 1, "J_GND_1", 1, W_SIG, pcbnew.B_Cu)
 
-    print(f"Routed {len(board.GetTracks())} traces")
+        print(f"Routed {len(board.GetTracks())} traces")
 
     # ==============================================================
     # SAVE
