@@ -271,7 +271,7 @@ HTML = """
       <h2>MACE — Reaction Wheel</h2>
       <div class="slider-container" style="margin-bottom:16px">
         <span class="sensor-label">Power:</span>
-        <input type="range" id="holdPower" min="0" max="100" value="10" oninput="document.getElementById('holdPowerVal').textContent=this.value+'%'">
+        <input type="range" id="holdPower" min="10" max="100" value="10" oninput="document.getElementById('holdPowerVal').textContent=this.value+'%'">
         <span class="sensor-value" id="holdPowerVal" style="min-width:50px;text-align:right">10%</span>
       </div>
       <div class="slider-container" style="margin-bottom:16px">
@@ -639,6 +639,9 @@ def throttle():
             state["throttle"] = 0.0
             send_idle = True
         else:
+            # Jump to 10% floor so motor starts immediately
+            if state["throttle"] < 10.0:
+                state["throttle"] = 10.0
             send_idle = False
     if send_idle:
         send_motor(1000)
