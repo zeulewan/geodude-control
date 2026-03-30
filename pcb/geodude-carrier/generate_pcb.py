@@ -8,17 +8,16 @@ Run with KiCad's Python:
 import pcbnew
 import os
 
-# Board dimensions (mm)
 BOARD_W = 160
-BOARD_H = 155
+BOARD_H = 150
 
 def mm(val):
     return pcbnew.FromMM(val)
 
-def place_footprint(board, lib, fp_name, ref, value, x, y, angle=0):
+def place_fp(board, lib, fp_name, ref, value, x, y, angle=0):
     fp = pcbnew.FootprintLoad(lib, fp_name)
     if fp is None:
-        print(f"WARNING: Could not load {lib}/{fp_name}")
+        print(f"WARNING: Could not load {fp_name} from {lib}")
         return None
     fp.SetReference(ref)
     fp.SetValue(value)
@@ -44,122 +43,102 @@ def main():
     fp_base = "/Applications/KiCad/KiCad.app/Contents/SharedSupport/footprints"
     tb_lib = os.path.join(fp_base, "TerminalBlock.pretty")
     conn_lib = os.path.join(fp_base, "Connector_PinHeader_2.54mm.pretty")
-    fuse_lib = os.path.join(fp_base, "Fuse.pretty")
+    local_lib = os.path.dirname(os.path.abspath(__file__))  # custom footprints
 
-    # Footprint names
-    TB_2PIN = "TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm"
-    TB_4PIN = "TerminalBlock_MaiXu_MX126-5.0-04P_1x04_P5.00mm"
-    FUSE_5x20 = "Fuseholder_Clip-5x20mm_Keystone_3517_Inline_P23.11x6.76mm_D1.70mm_Horizontal"
-    HDR_3PIN = "PinHeader_1x03_P2.54mm_Vertical"
-    HDR_6PIN = "PinHeader_1x06_P2.54mm_Vertical"
-    HDR_8PIN = "PinHeader_1x08_P2.54mm_Vertical"
+    TB_2 = "TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm"
+    TB_4 = "TerminalBlock_MaiXu_MX126-5.0-04P_1x04_P5.00mm"
+    FUSE = "BLX-A_5x20mm"  # custom, in local dir
+    H3 = "PinHeader_1x03_P2.54mm_Vertical"
+    H6 = "PinHeader_1x06_P2.54mm_Vertical"
+    H8 = "PinHeader_1x08_P2.54mm_Vertical"
 
-    # === POWER INPUT TERMINALS (left edge) ===
-    pwr_x = 12
-    pwr_y = 10
-    sp = 14  # spacing between terminals
+    # ============================================================
+    # LEFT EDGE: Power input terminals
+    # ============================================================
+    px = 12
+    py = 10
+    sp = 14
 
-    # 4x paralleled 12V inputs
+    # 4x 12V (paralleled, ~9A each)
     for i in range(4):
-        place_footprint(board, tb_lib, TB_2PIN, f"J_12V_{i+1}", f"12V_{i+1}",
-                        pwr_x, pwr_y + i * sp)
+        place_fp(board, tb_lib, TB_2, f"J_12V_{i+1}", f"12V_{i+1}", px, py + i * sp)
 
-    # Other voltage inputs
-    place_footprint(board, tb_lib, TB_2PIN, "J_7V4", "7V4", pwr_x, pwr_y + 4 * sp)
-    place_footprint(board, tb_lib, TB_2PIN, "J_5VS", "5V_Servo", pwr_x, pwr_y + 5 * sp)
-    place_footprint(board, tb_lib, TB_2PIN, "J_5VL", "5V_Logic", pwr_x, pwr_y + 6 * sp)
-    place_footprint(board, tb_lib, TB_2PIN, "J_3V3", "3V3", pwr_x, pwr_y + 7 * sp)
+    # 7.4V, 5V servo, 5V logic, 3.3V
+    place_fp(board, tb_lib, TB_2, "J_7V4", "7V4", px, py + 4 * sp)
+    place_fp(board, tb_lib, TB_2, "J_5VS", "5V_Servo", px, py + 5 * sp)
+    place_fp(board, tb_lib, TB_2, "J_5VL", "5V_Logic", px, py + 6 * sp)
+    place_fp(board, tb_lib, TB_2, "J_3V3", "3V3", px, py + 7 * sp)
 
-    # 2x paralleled GND bus
-    place_footprint(board, tb_lib, TB_2PIN, "J_GND_1", "GND_1", pwr_x, pwr_y + 8 * sp)
-    place_footprint(board, tb_lib, TB_2PIN, "J_GND_2", "GND_2", pwr_x, pwr_y + 9 * sp)
+    # 2x GND bus (paralleled)
+    place_fp(board, tb_lib, TB_2, "J_GND_1", "GND_1", px, py + 8 * sp)
+    place_fp(board, tb_lib, TB_2, "J_GND_2", "GND_2", px, py + 9 * sp)
 
-    # === FUSE HOLDERS (center-left, two rows of 5) ===
-    # Fuse holders are ~26x11mm, need 14mm vertical spacing
-    fuse_x_arm1 = 45
-    fuse_x_arm2 = 75
-    fuse_y_start = 12
-    fuse_spacing = 15
+    # ============================================================
+    # CENTER: Fuse holders (two columns, 15mm vertical spacing)
+    # ============================================================
+    # BLX-A is ~28x10mm, 22mm pin spacing
+    f1x = 50   # Arm 1 column
+    f2x = 85   # Arm 2 column
+    fy = 15
+    fsp = 16   # vertical spacing (fuse is ~10mm tall + clearance)
 
-    fuse_data = [
-        # Arm 1
-        ("F1", "8A", fuse_x_arm1),
-        ("F2", "8A", fuse_x_arm1),
-        ("F3", "5A", fuse_x_arm1),
-        ("F4", "3A", fuse_x_arm1),
-        ("F5", "3A", fuse_x_arm1),
-        # Arm 2
-        ("F6", "8A", fuse_x_arm2),
-        ("F7", "8A", fuse_x_arm2),
-        ("F8", "5A", fuse_x_arm2),
-        ("F9", "3A", fuse_x_arm2),
-        ("F10", "3A", fuse_x_arm2),
+    fuses = [
+        ("F1", "8A", f1x, 0), ("F2", "8A", f1x, 1), ("F3", "5A", f1x, 2),
+        ("F4", "3A", f1x, 3), ("F5", "3A", f1x, 4),
+        ("F6", "8A", f2x, 0), ("F7", "8A", f2x, 1), ("F8", "5A", f2x, 2),
+        ("F9", "3A", f2x, 3), ("F10", "3A", f2x, 4),
     ]
-    for i, (ref, val, fx) in enumerate(fuse_data):
+    for ref, val, fx, row in fuses:
+        place_fp(board, local_lib, FUSE, ref, val, fx, fy + row * fsp)
+
+    # ============================================================
+    # RIGHT SIDE: Servo/ESC/Fan 3-pin headers
+    # ============================================================
+    s1x = 120  # Arm 1 column
+    s2x = 138  # Arm 2 column
+    sy = 12
+    ssp = 10
+
+    servos = [
+        ("SV1", "Arm1_Base", s1x), ("SV2", "Arm1_Shldr", s1x),
+        ("SV3", "Arm1_Elbow", s1x), ("SV4", "Arm1_WrRot", s1x),
+        ("SV5", "Arm1_WrPan", s1x),
+        ("SV6", "Arm2_Base", s2x), ("SV7", "Arm2_Shldr", s2x),
+        ("SV8", "Arm2_Elbow", s2x), ("SV9", "Arm2_WrRot", s2x),
+        ("SV10", "Arm2_WrPan", s2x),
+    ]
+    for i, (ref, val, sx) in enumerate(servos):
         row = i % 5
-        place_footprint(board, fuse_lib, FUSE_5x20, ref, val,
-                        fx, fuse_y_start + row * fuse_spacing)
+        place_fp(board, conn_lib, H3, ref, val, sx, sy + row * ssp)
 
-    # === SERVO/ESC/FAN HEADERS (right side, two columns) ===
-    sv_x_arm1 = 110
-    sv_x_arm2 = 125
-    sv_y_start = 12
-    sv_spacing = 10
+    # ESC and Fan
+    place_fp(board, conn_lib, H3, "J_ESC", "MACE_ESC", s1x, sy + 5 * ssp + 8)
+    place_fp(board, conn_lib, H3, "J_FAN", "Fan", s2x, sy + 5 * ssp + 8)
 
-    servo_data = [
-        ("SV1", "Arm1_Base", sv_x_arm1),
-        ("SV2", "Arm1_Shoulder", sv_x_arm1),
-        ("SV3", "Arm1_Elbow", sv_x_arm1),
-        ("SV4", "Arm1_WristRot", sv_x_arm1),
-        ("SV5", "Arm1_WristPan", sv_x_arm1),
-        ("SV6", "Arm2_Base", sv_x_arm2),
-        ("SV7", "Arm2_Shoulder", sv_x_arm2),
-        ("SV8", "Arm2_Elbow", sv_x_arm2),
-        ("SV9", "Arm2_WristRot", sv_x_arm2),
-        ("SV10", "Arm2_WristPan", sv_x_arm2),
-    ]
-    for i, (ref, val, sx) in enumerate(servo_data):
-        row = i % 5
-        place_footprint(board, conn_lib, HDR_3PIN, ref, val,
-                        sx, sv_y_start + row * sv_spacing)
+    # ============================================================
+    # CENTER-BOTTOM: PCA9685 socket
+    # ============================================================
+    place_fp(board, conn_lib, H6, "J_PCA_CTRL", "PCA_Ctrl", 45, 110)
+    place_fp(board, conn_lib, H8, "J_PCA_A", "PCA_Ch0-7", 60, 110)
+    place_fp(board, conn_lib, H8, "J_PCA_B", "PCA_Ch8-15", 75, 110)
 
-    # ESC and Fan below servos
-    place_footprint(board, conn_lib, HDR_3PIN, "J_ESC", "MACE_ESC",
-                    sv_x_arm1, sv_y_start + 5 * sv_spacing + 5)
-    place_footprint(board, conn_lib, HDR_3PIN, "J_FAN", "Fan",
-                    sv_x_arm2, sv_y_start + 5 * sv_spacing + 5)
-
-    # === PCA9685 SOCKET (center bottom) ===
-    pca_y = 95
-    place_footprint(board, conn_lib, HDR_6PIN, "J_PCA_CTRL", "PCA_Ctrl",
-                    45, pca_y)
-    place_footprint(board, conn_lib, HDR_8PIN, "J_PCA_A", "PCA_Ch0-7",
-                    60, pca_y)
-    place_footprint(board, conn_lib, HDR_8PIN, "J_PCA_B", "PCA_Ch8-15",
-                    75, pca_y)
-
-    # === I2C BREAKOUT (bottom edge) ===
-    i2c_y = 110
-    i2c_spacing = 28
-    i2c_data = [
-        ("J_I2C1", "I2C_IMU"),
-        ("J_I2C2", "I2C_Encoder"),
-        ("J_I2C3", "I2C_Spare1"),
-        ("J_I2C4", "I2C_Spare2"),
-    ]
-    for i, (ref, val) in enumerate(i2c_data):
-        place_footprint(board, tb_lib, TB_4PIN, ref, val,
-                        25 + i * i2c_spacing, i2c_y)
+    # ============================================================
+    # BOTTOM EDGE: I2C breakout terminals
+    # ============================================================
+    i2c_y = 138
+    for i, (ref, val) in enumerate([
+        ("J_I2C1", "IMU"), ("J_I2C2", "Encoder"),
+        ("J_I2C3", "Spare1"), ("J_I2C4", "Spare2"),
+    ]):
+        place_fp(board, tb_lib, TB_4, ref, val, 25 + i * 32, i2c_y)
 
     # Save
-    output = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                          "geodude-carrier.kicad_pcb")
-    board.Save(output)
-    print(f"PCB saved: {output}")
-    print(f"Board: {BOARD_W}mm x {BOARD_H}mm")
-    print(f"Components: {len(board.GetFootprints())}")
-    print()
-    print("Open in KiCad PCB Editor, then: File -> Import Netlist -> geodude-carrier.net")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                       "geodude-carrier.kicad_pcb")
+    board.Save(out)
+    n = len(board.GetFootprints())
+    print(f"PCB saved: {out}")
+    print(f"Board: {BOARD_W}x{BOARD_H}mm, {n} components")
 
 if __name__ == "__main__":
     main()
