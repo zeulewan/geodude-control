@@ -166,7 +166,7 @@ def get_camera_proc():
             camera_proc = subprocess.Popen([
                 "rpicam-vid", "-t", "0",
                 "--codec", "mjpeg",
-                "--width", "1280", "--height", "960",
+                "--width", "1280", "--height", "720",
                 "--framerate", "15",
                 "--vflip", "--hflip",
                 "--inline",
