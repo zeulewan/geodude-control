@@ -94,7 +94,7 @@ def main():
     # 4x 12V paralleled
     for i in range(4):
         fp = place_fp(board, tb_lib, TB_2, f"J_12V_{i+1}", f"12V_{i+1}",
-                       10 + i * 10, row_y)
+                       10 + i * 12, row_y)
         if fp:
             set_pad_net(fp, 1, nets["+12V"])
             set_pad_net(fp, 2, nets["GND"])
@@ -104,7 +104,7 @@ def main():
         ("J_GND_1", "GND_1", "GND"), ("J_GND_2", "GND_2", "GND"),
         ("J_7V4", "7V4", "+7V4"), ("J_5VS", "5V_Servo", "+5V_SERVO"),
     ]):
-        fp = place_fp(board, tb_lib, TB_2, ref, val, 10 + i * 10, row_y + row_sp)
+        fp = place_fp(board, tb_lib, TB_2, ref, val, 10 + i * 12, row_y + row_sp)
         if fp:
             set_pad_net(fp, 1, nets[net1])
             set_pad_net(fp, 2, nets["GND"])
@@ -185,7 +185,7 @@ def main():
     # PCA9685 SOCKET (control + PWM headers)
     # ==============================================================
     # Control header: GND, OE(->GND), SCL, SDA, VCC(3.3V), V+(NC)
-    fp = place_fp(board, conn_lib, H6, "J_PCA_CTRL", "PCA_Ctrl", 45, 130)
+    fp = place_fp(board, conn_lib, H6, "J_PCA_CTRL", "PCA_Ctrl", 30, 120)
     if fp:
         set_pad_net(fp, 1, nets["GND"])       # GND
         set_pad_net(fp, 2, nets["GND"])       # OE -> GND
@@ -195,13 +195,13 @@ def main():
         # Pin 6 = V+ (NC, no net)
 
     # PWM Ch0-7
-    fp = place_fp(board, conn_lib, H8, "J_PCA_A", "PCA_Ch0-7", 60, 130)
+    fp = place_fp(board, conn_lib, H8, "J_PCA_A", "PCA_Ch0-7", 50, 120)
     if fp:
         for i in range(8):
             set_pad_net(fp, i + 1, nets[f"PWM_CH{i}"])
 
     # PWM Ch8-15
-    fp = place_fp(board, conn_lib, H8, "J_PCA_B", "PCA_Ch8-15", 75, 130)
+    fp = place_fp(board, conn_lib, H8, "J_PCA_B", "PCA_Ch8-15", 70, 120)
     if fp:
         for i in range(8):
             set_pad_net(fp, i + 1, nets[f"PWM_CH{8 + i}"])
@@ -212,7 +212,7 @@ def main():
     i2c_labels = ["IMU", "Encoder", "Spare1", "Spare2"]
     for i, label in enumerate(i2c_labels):
         fp = place_fp(board, tb_lib, TB_4, f"J_I2C{i+1}", label,
-                       25 + i * 32, 145)
+                       20 + i * 35, 145)
         if fp:
             set_pad_net(fp, 1, nets["SDA"])
             set_pad_net(fp, 2, nets["SCL"])
