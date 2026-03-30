@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate complete KiCad PCB for GEO-DUDe Carrier Board.
 
-Creates footprints, nets, and assigns nets to pads — no GUI netlist import needed.
+Creates footprints, nets, assigns nets to pads. Then export DSN → Freerouting → import SES.
 
 Run with KiCad's Python:
 /Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3 generate_pcb.py
@@ -11,7 +11,7 @@ import pcbnew
 import os
 
 BOARD_W = 160
-BOARD_H = 150
+BOARD_H = 160
 
 def mm(val):
     return pcbnew.FromMM(val)
@@ -36,7 +36,6 @@ def place_fp(board, lib, fp_name, ref, value, x, y, angle=0):
     return fp
 
 def set_pad_net(fp, pad_num, net_info):
-    """Assign a net to a pad by pad number (string)."""
     for pad in fp.Pads():
         if pad.GetNumber() == str(pad_num):
             pad.SetNet(net_info)
@@ -69,7 +68,7 @@ def main():
     H8 = "PinHeader_1x08_P2.54mm_Vertical"
 
     # ==============================================================
-    # CREATE ALL NETS
+    # CREATE NETS
     # ==============================================================
     nets = {}
     add_net(board, "GND", nets)
@@ -86,43 +85,52 @@ def main():
         add_net(board, f"SV{i+1}_PWR", nets)
 
     # ==============================================================
-    # POWER INPUT TERMINALS (top, horizontal rows)
+    # Set up design rules / net classes for trace widths
     # ==============================================================
-    row_y = 10
-    row_sp = 12
+    ds = board.GetDesignSettings()
+    # These get written into the DSN and Freerouting respects them
+    nc_default = ds.GetDefaultNetclass()
+    nc_default.SetTrackWidth(mm(0.4))
+    nc_default.SetClearance(mm(0.3))
 
-    # 4x 12V paralleled
+    # ==============================================================
+    # TOP SECTION: Power input terminals (rows 1-3)
+    # ==============================================================
+    # Layout: top of board, horizontal rows of snapped-together terminals
+    # 12mm spacing between 2-pin blocks (10mm wide + 2mm gap)
+
+    # Row 1 (y=12): 4x 12V
     for i in range(4):
         fp = place_fp(board, tb_lib, TB_2, f"J_12V_{i+1}", f"12V_{i+1}",
-                       10 + i * 12, row_y)
+                       15 + i * 12, 12)
         if fp:
             set_pad_net(fp, 1, nets["+12V"])
             set_pad_net(fp, 2, nets["GND"])
 
-    # GND bus x2, 7V4, 5V servo
+    # Row 2 (y=24): 2x GND, 7V4, 5V servo
     for i, (ref, val, net1) in enumerate([
         ("J_GND_1", "GND_1", "GND"), ("J_GND_2", "GND_2", "GND"),
         ("J_7V4", "7V4", "+7V4"), ("J_5VS", "5V_Servo", "+5V_SERVO"),
     ]):
-        fp = place_fp(board, tb_lib, TB_2, ref, val, 10 + i * 12, row_y + row_sp)
+        fp = place_fp(board, tb_lib, TB_2, ref, val, 15 + i * 12, 24)
         if fp:
             set_pad_net(fp, 1, nets[net1])
             set_pad_net(fp, 2, nets["GND"])
 
-    # 5V logic, 3V3
+    # Row 3 (y=36): 5V logic, 3.3V
     for i, (ref, val, net1) in enumerate([
         ("J_5VL", "5V_Logic", "+5V_LOGIC"), ("J_3V3", "3V3", "+3V3"),
     ]):
-        fp = place_fp(board, tb_lib, TB_2, ref, val, 10 + i * 15, row_y + 2 * row_sp)
+        fp = place_fp(board, tb_lib, TB_2, ref, val, 15 + i * 12, 36)
         if fp:
             set_pad_net(fp, 1, nets[net1])
             set_pad_net(fp, 2, nets["GND"])
 
     # ==============================================================
-    # FUSE HOLDERS (two columns)
+    # MIDDLE SECTION: Fuse holders (y=55-125, two columns)
     # ==============================================================
-    f1x, f2x = 50, 85
-    fy, fsp = 50, 16
+    f1x, f2x = 40, 100  # wider spacing between arm columns
+    fy, fsp = 55, 15
 
     fuse_config = [
         ("F1", "8A", "+12V", "SV1_PWR", f1x, 0),
@@ -142,89 +150,85 @@ def main():
             set_pad_net(fp, 1, nets[rail_net])
             set_pad_net(fp, 2, nets[pwr_net])
 
-    # ==============================================================
-    # SERVO HEADERS (3-pin: signal, power, GND)
-    # ==============================================================
-    s1x, s2x = 120, 140
-    sy, ssp = 50, 10
-
-    servo_config = [
-        ("SV1", "Arm1_Base", 0, "PWM_CH0", "SV1_PWR", s1x),
-        ("SV2", "Arm1_Shldr", 1, "PWM_CH1", "SV2_PWR", s1x),
-        ("SV3", "Arm1_Elbow", 2, "PWM_CH2", "SV3_PWR", s1x),
-        ("SV4", "Arm1_WrRot", 3, "PWM_CH3", "SV4_PWR", s1x),
-        ("SV5", "Arm1_WrPan", 4, "PWM_CH4", "SV5_PWR", s1x),
-        ("SV6", "Arm2_Base", 0, "PWM_CH5", "SV6_PWR", s2x),
-        ("SV7", "Arm2_Shldr", 1, "PWM_CH6", "SV7_PWR", s2x),
-        ("SV8", "Arm2_Elbow", 2, "PWM_CH7", "SV8_PWR", s2x),
-        ("SV9", "Arm2_WrRot", 3, "PWM_CH8", "SV9_PWR", s2x),
-        ("SV10", "Arm2_WrPan", 4, "PWM_CH9", "SV10_PWR", s2x),
-    ]
-    for ref, val, row, sig_net, pwr_net, sx in servo_config:
-        fp = place_fp(board, conn_lib, H3, ref, val, sx, sy + row * ssp)
-        if fp:
-            set_pad_net(fp, 1, nets[sig_net])
-            set_pad_net(fp, 2, nets[pwr_net])
-            set_pad_net(fp, 3, nets["GND"])
-
-    # ESC (12V direct, no fuse)
-    fp = place_fp(board, conn_lib, H3, "J_ESC", "MACE_ESC", s1x, sy + 5 * ssp + 8)
+    # PCA9685 socket between fuse columns
+    fp = place_fp(board, conn_lib, H6, "J_PCA_CTRL", "PCA_Ctrl", 65, 55)
     if fp:
-        set_pad_net(fp, 1, nets["PWM_CH11"])
-        set_pad_net(fp, 2, nets["+12V"])
-        set_pad_net(fp, 3, nets["GND"])
-
-    # Fan (12V direct, no fuse)
-    fp = place_fp(board, conn_lib, H3, "J_FAN", "Fan", s2x, sy + 5 * ssp + 8)
-    if fp:
-        set_pad_net(fp, 1, nets["PWM_CH12"])
-        set_pad_net(fp, 2, nets["+12V"])
-        set_pad_net(fp, 3, nets["GND"])
-
-    # ==============================================================
-    # PCA9685 SOCKET (control + PWM headers)
-    # ==============================================================
-    # Control header: GND, OE(->GND), SCL, SDA, VCC(3.3V), V+(NC)
-    fp = place_fp(board, conn_lib, H6, "J_PCA_CTRL", "PCA_Ctrl", 30, 120)
-    if fp:
-        set_pad_net(fp, 1, nets["GND"])       # GND
-        set_pad_net(fp, 2, nets["GND"])       # OE -> GND
+        set_pad_net(fp, 1, nets["GND"])
+        set_pad_net(fp, 2, nets["GND"])   # OE -> GND
         set_pad_net(fp, 3, nets["SCL"])
         set_pad_net(fp, 4, nets["SDA"])
-        set_pad_net(fp, 5, nets["+3V3"])      # VCC
-        # Pin 6 = V+ (NC, no net)
+        set_pad_net(fp, 5, nets["+3V3"])
 
-    # PWM Ch0-7
-    fp = place_fp(board, conn_lib, H8, "J_PCA_A", "PCA_Ch0-7", 50, 120)
+    fp = place_fp(board, conn_lib, H8, "J_PCA_A", "PCA_Ch0-7", 75, 55)
     if fp:
         for i in range(8):
             set_pad_net(fp, i + 1, nets[f"PWM_CH{i}"])
 
-    # PWM Ch8-15
-    fp = place_fp(board, conn_lib, H8, "J_PCA_B", "PCA_Ch8-15", 70, 120)
+    fp = place_fp(board, conn_lib, H8, "J_PCA_B", "PCA_Ch8-15", 85, 55)
     if fp:
         for i in range(8):
             set_pad_net(fp, i + 1, nets[f"PWM_CH{8 + i}"])
 
     # ==============================================================
-    # I2C BREAKOUT (4x 4-pin: SDA, SCL, 3V3, GND)
+    # BOTTOM SECTION: Servo/ESC/Fan headers + I2C breakout
     # ==============================================================
-    i2c_labels = ["IMU", "Encoder", "Spare1", "Spare2"]
-    for i, label in enumerate(i2c_labels):
-        fp = place_fp(board, tb_lib, TB_4, f"J_I2C{i+1}", label,
-                       20 + i * 35, 145)
+    # Servo headers in two rows (arm1 / arm2), 10mm spacing
+    s1x, s2x = 15, 90  # arm1 left, arm2 right
+    sy = 140
+    ssp = 8  # tight horizontal spacing for 3-pin headers
+
+    # Arm 1 servos (horizontal row)
+    for i, (ref, val, sig, pwr) in enumerate([
+        ("SV1", "Base", "PWM_CH0", "SV1_PWR"),
+        ("SV2", "Shldr", "PWM_CH1", "SV2_PWR"),
+        ("SV3", "Elbow", "PWM_CH2", "SV3_PWR"),
+        ("SV4", "WrRot", "PWM_CH3", "SV4_PWR"),
+        ("SV5", "WrPan", "PWM_CH4", "SV5_PWR"),
+    ]):
+        fp = place_fp(board, conn_lib, H3, ref, f"A1_{val}", s1x + i * 14, sy)
+        if fp:
+            set_pad_net(fp, 1, nets[sig])
+            set_pad_net(fp, 2, nets[pwr])
+            set_pad_net(fp, 3, nets["GND"])
+
+    # Arm 2 servos (horizontal row)
+    for i, (ref, val, sig, pwr) in enumerate([
+        ("SV6", "Base", "PWM_CH5", "SV6_PWR"),
+        ("SV7", "Shldr", "PWM_CH6", "SV7_PWR"),
+        ("SV8", "Elbow", "PWM_CH7", "SV8_PWR"),
+        ("SV9", "WrRot", "PWM_CH8", "SV9_PWR"),
+        ("SV10", "WrPan", "PWM_CH9", "SV10_PWR"),
+    ]):
+        fp = place_fp(board, conn_lib, H3, ref, f"A2_{val}", s2x + i * 14, sy)
+        if fp:
+            set_pad_net(fp, 1, nets[sig])
+            set_pad_net(fp, 2, nets[pwr])
+            set_pad_net(fp, 3, nets["GND"])
+
+    # ESC and Fan
+    fp = place_fp(board, conn_lib, H3, "J_ESC", "MACE_ESC", 15, 152)
+    if fp:
+        set_pad_net(fp, 1, nets["PWM_CH11"])
+        set_pad_net(fp, 2, nets["+12V"])
+        set_pad_net(fp, 3, nets["GND"])
+
+    fp = place_fp(board, conn_lib, H3, "J_FAN", "Fan", 30, 152)
+    if fp:
+        set_pad_net(fp, 1, nets["PWM_CH12"])
+        set_pad_net(fp, 2, nets["+12V"])
+        set_pad_net(fp, 3, nets["GND"])
+
+    # I2C breakout terminals (bottom right)
+    for i, (ref, val) in enumerate([
+        ("J_I2C1", "IMU"), ("J_I2C2", "Encoder"),
+        ("J_I2C3", "Spare1"), ("J_I2C4", "Spare2"),
+    ]):
+        fp = place_fp(board, tb_lib, TB_4, ref, val, 60 + i * 25, 152)
         if fp:
             set_pad_net(fp, 1, nets["SDA"])
             set_pad_net(fp, 2, nets["SCL"])
             set_pad_net(fp, 3, nets["+3V3"])
             set_pad_net(fp, 4, nets["GND"])
-
-    # ==============================================================
-    # ROUTING: handled by Freerouting autorouter
-    # Export DSN from KiCad: File -> Export -> Specctra DSN
-    # Run Freerouting on the DSN file
-    # Import SES back: File -> Import -> Specctra Session
-    # ==============================================================
 
     # ==============================================================
     # SAVE
@@ -233,13 +237,9 @@ def main():
                        "geodude-carrier.kicad_pcb")
     board.Save(out)
 
-    n_fp = len(board.GetFootprints())
-    n_nets = board.GetNetCount()
-    n_tracks = len(board.GetTracks())
     print(f"PCB saved: {out}")
     print(f"Board: {BOARD_W}x{BOARD_H}mm")
-    print(f"Components: {n_fp}, Nets: {n_nets}, Traces: {n_tracks}")
-    print("Ready to open in KiCad.")
+    print(f"Components: {len(board.GetFootprints())}, Nets: {board.GetNetCount()}")
 
 if __name__ == "__main__":
     main()
