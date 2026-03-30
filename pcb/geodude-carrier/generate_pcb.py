@@ -19,7 +19,7 @@ def add_net(board, name, nets):
     board.Add(ni)
     nets[name] = ni
 
-def place_fp(board, lib, fp_name, ref, value, x, y, angle=0):
+def place_fp(board, lib, fp_name, ref, value, x, y, angle=0, silk_angle=None, silk_offset=None):
     fp = pcbnew.FootprintLoad(lib, fp_name)
     if fp is None:
         print(f"WARNING: {fp_name} not found in {lib}")
@@ -35,6 +35,15 @@ def place_fp(board, lib, fp_name, ref, value, x, y, angle=0):
     val_field = fp.Value()
     val_field.SetLayer(pcbnew.F_SilkS)
     val_field.SetVisible(True)
+    # Rotate silkscreen text (default: match component angle)
+    if silk_angle is not None:
+        val_field.SetTextAngle(pcbnew.EDA_ANGLE(silk_angle, pcbnew.DEGREES_T))
+    elif angle:
+        val_field.SetTextAngle(pcbnew.EDA_ANGLE(angle, pcbnew.DEGREES_T))
+    # Offset silkscreen position
+    if silk_offset:
+        pos = val_field.GetPosition()
+        val_field.SetPosition(pcbnew.VECTOR2I(pos.x + mm(silk_offset[0]), pos.y + mm(silk_offset[1])))
     board.Add(fp)
     return fp
 
@@ -144,7 +153,8 @@ def main():
     # Rotated 270°: pin 1 right, pin 19 left. Origin at pin 1.
     # To centre: place origin at BOARD_W/2 + 22.86mm (so pin 10 lands at centre)
     pca_centre_offset = 9 * 2.54  # 22.86mm
-    f = place_fp(board, SOCK, S19, "J_PCA", "PCA9685", BOARD_W / 2 + pca_centre_offset, 10, 270)
+    f = place_fp(board, SOCK, S19, "J_PCA", "PCA9685", BOARD_W / 2 + pca_centre_offset, 10, 270,
+                 silk_angle=0, silk_offset=(0, -4))
     if f:
         for pin, ch in pca_pin_to_ch.items():
             set_pad(f, pin, nets[f"PWM_CH{ch}"])
@@ -177,15 +187,12 @@ def main():
         ("SV4", "W1A", "PWM_CH3", "SV4_PWR"),
         ("SV5", "W1B", "PWM_CH4", "SV5_PWR"),
     ]):
-        f = place_fp(board, CONN, H3, ref, val, 20 + i*sv_sp, sv_y, 90)
+        f = place_fp(board, CONN, H3, ref, val, 20 + i*sv_sp, sv_y, 90,
+                     silk_angle=0, silk_offset=(0, 4))
         if f:
             set_pad(f, 1, nets[sig])
             set_pad(f, 2, nets[pwr])
             set_pad(f, 3, nets["GND"])
-            # Move silkscreen value below pins, horizontal
-            val_field = f.Value()
-            val_field.SetPosition(pcbnew.VECTOR2I(mm(20 + i*sv_sp), mm(sv_y + 6)))
-            val_field.SetTextAngle(pcbnew.EDA_ANGLE(0, pcbnew.DEGREES_T))
 
     # Arm 2 (right)
     for i, (ref, val, sig, pwr) in enumerate([
@@ -195,14 +202,12 @@ def main():
         ("SV9", "W2A", "PWM_CH8", "SV9_PWR"),
         ("SV10", "W2B", "PWM_CH9", "SV10_PWR"),
     ]):
-        f = place_fp(board, CONN, H3, ref, val, 120 + i*sv_sp, sv_y, 90)
+        f = place_fp(board, CONN, H3, ref, val, 120 + i*sv_sp, sv_y, 90,
+                     silk_angle=0, silk_offset=(0, 4))
         if f:
             set_pad(f, 1, nets[sig])
             set_pad(f, 2, nets[pwr])
             set_pad(f, 3, nets["GND"])
-            val_field = f.Value()
-            val_field.SetPosition(pcbnew.VECTOR2I(mm(120 + i*sv_sp), mm(sv_y + 6)))
-            val_field.SetTextAngle(pcbnew.EDA_ANGLE(0, pcbnew.DEGREES_T))
 
     # ==============================================================
     # LEFT EDGE: Logic bus section
