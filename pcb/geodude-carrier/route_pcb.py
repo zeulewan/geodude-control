@@ -17,9 +17,12 @@ SES_FILE = os.path.join(BASE, "geodude-carrier.ses")
 JAVA = "/tmp/jdk-21.0.2.jdk/Contents/Home/bin/java"
 FREEROUTING = "/tmp/freerouting.jar"
 
-# Net-to-width mapping (mm)
-# Freerouting DSN uses mils (1 mil = 0.0254mm), but KiCad DSN export uses mm
-NET_WIDTHS = {
+# Net-to-width mapping in mm, converted to um for DSN
+# KiCad DSN export uses micrometers (um)
+def mm_to_um(v):
+    return int(v * 1000)
+
+NET_WIDTHS_MM = {
     # 8A power (12V base/shoulder, ESC)
     "+12V": 3.0,
     "SV1_PWR": 3.0, "SV2_PWR": 3.0,
@@ -37,7 +40,9 @@ NET_WIDTHS = {
     # GND gets wide traces too
     "GND": 3.0,
 }
-DEFAULT_WIDTH = 0.4  # signal traces
+# Convert to um for DSN file
+NET_WIDTHS = {k: mm_to_um(v) for k, v in NET_WIDTHS_MM.items()}
+DEFAULT_WIDTH = 400  # 0.4mm = 400um for signal traces
 
 
 def patch_dsn_widths(dsn_file):
@@ -52,7 +57,7 @@ def patch_dsn_widths(dsn_file):
     # Replace the default width in the structure/rule section
     content = re.sub(
         r'(\(rule\s*\(width\s+)[\d.]+(\))',
-        r'\g<1>0.4\2',  # default 0.4mm for signals
+        f'\\g<1>{DEFAULT_WIDTH}\\2',  # default 400um for signals
         content
     )
 
@@ -69,7 +74,7 @@ def patch_dsn_widths(dsn_file):
     for cls_name, cls_data in classes.items():
         net_list = " ".join(f'"{n}"' for n in cls_data["nets"])
         class_defs += f'    (class {cls_name} {net_list}\n'
-        class_defs += f'      (rule (width {cls_data["width"]}))\n'
+        class_defs += f'      (rule (width {cls_data["width"]}))\n'  # already in um
         class_defs += f'    )\n'
 
     # Insert classes into the network section

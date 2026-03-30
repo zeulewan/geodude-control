@@ -198,12 +198,12 @@ def main():
             set_pad_net(fp, 2, nets[pwr])
             set_pad_net(fp, 3, nets["GND"])
 
-    # ESC and Fan
-    fp = place_fp(board, conn_lib, H3, "J_ESC", "MACE_ESC", 15, 152)
+    # ESC (PWM + GND only, ESC gets its own power from bus)
+    H2 = "PinHeader_1x02_P2.54mm_Vertical"
+    fp = place_fp(board, conn_lib, H2, "J_ESC", "MACE_ESC", 15, 152)
     if fp:
         set_pad_net(fp, 1, nets["PWM_CH11"])
-        set_pad_net(fp, 2, nets["+12V"])
-        set_pad_net(fp, 3, nets["GND"])
+        set_pad_net(fp, 2, nets["GND"])
 
     fp = place_fp(board, conn_lib, H3, "J_FAN", "Fan", 30, 152)
     if fp:
