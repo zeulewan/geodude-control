@@ -53,34 +53,37 @@ def main():
     H8 = "PinHeader_1x08_P2.54mm_Vertical"
 
     # ============================================================
-    # LEFT EDGE: Power input terminals
+    # TOP EDGE: Power input terminals (horizontal rows, snapped together)
     # ============================================================
-    px = 12
-    py = 10
-    sp = 14
+    # 2-pin blocks are 10mm wide (5.08mm pitch), snap side by side
+    # Row spacing ~12mm (terminal height ~7.5mm + clearance)
 
-    # 4x 12V (paralleled, ~9A each)
+    row_y = 10    # first row Y
+    row_sp = 12   # spacing between rows
+
+    # Row 1: 4x 12V paralleled (40mm wide)
     for i in range(4):
-        place_fp(board, tb_lib, TB_2, f"J_12V_{i+1}", f"12V_{i+1}", px, py + i * sp)
+        place_fp(board, tb_lib, TB_2, f"J_12V_{i+1}", f"12V_{i+1}",
+                 10 + i * 10, row_y)
 
-    # 7.4V, 5V servo, 5V logic, 3.3V
-    place_fp(board, tb_lib, TB_2, "J_7V4", "7V4", px, py + 4 * sp)
-    place_fp(board, tb_lib, TB_2, "J_5VS", "5V_Servo", px, py + 5 * sp)
-    place_fp(board, tb_lib, TB_2, "J_5VL", "5V_Logic", px, py + 6 * sp)
-    place_fp(board, tb_lib, TB_2, "J_3V3", "3V3", px, py + 7 * sp)
+    # Row 2: 2x GND paralleled + 7V4 + 5V servo
+    place_fp(board, tb_lib, TB_2, "J_GND_1", "GND_1", 10, row_y + row_sp)
+    place_fp(board, tb_lib, TB_2, "J_GND_2", "GND_2", 20, row_y + row_sp)
+    place_fp(board, tb_lib, TB_2, "J_7V4", "7V4", 35, row_y + row_sp)
+    place_fp(board, tb_lib, TB_2, "J_5VS", "5V_Servo", 50, row_y + row_sp)
 
-    # 2x GND bus (paralleled)
-    place_fp(board, tb_lib, TB_2, "J_GND_1", "GND_1", px, py + 8 * sp)
-    place_fp(board, tb_lib, TB_2, "J_GND_2", "GND_2", px, py + 9 * sp)
+    # Row 3: 5V logic + 3.3V (low current, smaller group)
+    place_fp(board, tb_lib, TB_2, "J_5VL", "5V_Logic", 10, row_y + 2 * row_sp)
+    place_fp(board, tb_lib, TB_2, "J_3V3", "3V3", 25, row_y + 2 * row_sp)
 
     # ============================================================
     # CENTER: Fuse holders (two columns, 15mm vertical spacing)
     # ============================================================
     # BLX-A is ~28x10mm, 22mm pin spacing
-    f1x = 50   # Arm 1 column
-    f2x = 85   # Arm 2 column
-    fy = 15
-    fsp = 16   # vertical spacing (fuse is ~10mm tall + clearance)
+    f1x = 30   # Arm 1 column
+    f2x = 65   # Arm 2 column
+    fy = 50    # below power terminals
+    fsp = 16
 
     fuses = [
         ("F1", "8A", f1x, 0), ("F2", "8A", f1x, 1), ("F3", "5A", f1x, 2),
@@ -94,9 +97,9 @@ def main():
     # ============================================================
     # RIGHT SIDE: Servo/ESC/Fan 3-pin headers
     # ============================================================
-    s1x = 120  # Arm 1 column
-    s2x = 138  # Arm 2 column
-    sy = 12
+    s1x = 110  # Arm 1 column
+    s2x = 130  # Arm 2 column
+    sy = 50    # aligned with fuses
     ssp = 10
 
     servos = [
@@ -118,14 +121,14 @@ def main():
     # ============================================================
     # CENTER-BOTTOM: PCA9685 socket
     # ============================================================
-    place_fp(board, conn_lib, H6, "J_PCA_CTRL", "PCA_Ctrl", 45, 110)
-    place_fp(board, conn_lib, H8, "J_PCA_A", "PCA_Ch0-7", 60, 110)
-    place_fp(board, conn_lib, H8, "J_PCA_B", "PCA_Ch8-15", 75, 110)
+    place_fp(board, conn_lib, H6, "J_PCA_CTRL", "PCA_Ctrl", 45, 135)
+    place_fp(board, conn_lib, H8, "J_PCA_A", "PCA_Ch0-7", 60, 135)
+    place_fp(board, conn_lib, H8, "J_PCA_B", "PCA_Ch8-15", 75, 135)
 
     # ============================================================
     # BOTTOM EDGE: I2C breakout terminals
     # ============================================================
-    i2c_y = 138
+    i2c_y = 148
     for i, (ref, val) in enumerate([
         ("J_I2C1", "IMU"), ("J_I2C2", "Encoder"),
         ("J_I2C3", "Spare1"), ("J_I2C4", "Spare2"),

@@ -30,7 +30,7 @@ sv_pwr = [Net(f"SV{i+1}_PWR") for i in range(10)]
 
 # --- Power input terminals ---
 # 12V needs 4 paralleled terminals (~9A each, 35A total possible)
-TB_FP = "TerminalBlock:TerminalBlock_bornier-2_P5.08mm"
+TB_FP = "TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm"
 
 for i in range(4):
     j = Part("Connector", "Screw_Terminal_01x02",
@@ -129,7 +129,7 @@ i2c_labels = ["IMU", "Encoder", "Spare1", "Spare2"]
 for idx, label in enumerate(i2c_labels):
     j = Part("Connector", "Screw_Terminal_01x04",
              ref=f"J_I2C{idx+1}", value=f"I2C_{label}",
-             footprint="TerminalBlock:TerminalBlock_bornier-4_P5.08mm")
+             footprint="TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-04P_1x04_P5.00mm")
     j[1] += sda
     j[2] += scl
     j[3] += vcc_3v3
