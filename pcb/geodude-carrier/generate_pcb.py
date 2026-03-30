@@ -84,14 +84,7 @@ def main():
     for i in range(10):
         add_net(board, f"SV{i+1}_PWR", nets)
 
-    # ==============================================================
-    # Set up design rules / net classes for trace widths
-    # ==============================================================
-    ds = board.GetDesignSettings()
-    # These get written into the DSN and Freerouting respects them
-    nc_default = ds.GetDefaultNetclass()
-    nc_default.SetTrackWidth(mm(0.4))
-    nc_default.SetClearance(mm(0.3))
+    # Trace widths handled by DSN patching in route_pcb.py
 
     # ==============================================================
     # TOP SECTION: Power input terminals (rows 1-3)
