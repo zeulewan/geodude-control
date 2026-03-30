@@ -209,7 +209,7 @@ HTML = """
   .btn-hold.disabled { background: #334155; color: #6b7280; pointer-events: none; }
   .angle-display { position: relative; width: 160px; height: 160px; margin: 0 auto; }
   .angle-ring { width: 160px; height: 160px; border-radius: 50%; border: 3px solid #1e2433; position: relative; }
-  .angle-needle { position: absolute; top: 50%; left: 50%; width: 3px; height: 60px; background: #f59e0b; transform-origin: bottom center; border-radius: 2px; margin-left: -1.5px; margin-top: -60px; transition: transform 0.1s linear; }
+  .angle-needle { position: absolute; top: 50%; left: 50%; width: 3px; height: 60px; background: #f59e0b; transform-origin: bottom center; border-radius: 2px; margin-left: -1.5px; margin-top: -60px; transition: transform 0.033s linear; }
   .angle-center { position: absolute; top: 50%; left: 50%; width: 10px; height: 10px; background: #f59e0b; border-radius: 50%; margin: -5px 0 0 -5px; }
   .angle-text { text-align: center; margin-top: 12px; font-family: 'SF Mono', monospace; font-size: 24px; color: #f59e0b; }
   .motor-error { color: #ef4444; font-size: 12px; margin-top: 8px; font-family: monospace; }
@@ -517,7 +517,8 @@ function poll() {
     document.getElementById('az').textContent = d.accel.z.toFixed(3);
     document.getElementById('angleText').textContent = d.encoder_angle.toFixed(1) + '\u00b0';
     let target = d.encoder_angle;
-    let delta = target - (currentNeedleAngle % 360);
+    let cur = ((currentNeedleAngle % 360) + 360) % 360;
+    let delta = target - cur;
     if (delta > 180) delta -= 360;
     if (delta < -180) delta += 360;
     currentNeedleAngle += delta;
