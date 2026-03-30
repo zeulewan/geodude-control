@@ -214,26 +214,25 @@ def main():
     for row, (label, net_name) in enumerate(buses):
         y = 25 + row * bus_sp
 
-        # Screw terminal on the edge
+        # Screw terminals column (left edge)
         f = place_fp(board, TB, TB2, f"J{jnum}", label, lx, y, 90)
         jnum += 1
         if f:
             set_pad(f, 1, nets[net_name])
             set_pad(f, 2, nets[net_name])
 
-        # 1x4 pin header next to it
-        f = place_fp(board, CONN, H4, f"J{jnum}", label, lx + 15, y)
-        jnum += 1
-        if f:
-            for p in range(1, 5):
-                set_pad(f, p, nets[net_name])
-
-        # Second screw terminal
-        f = place_fp(board, TB, TB2, f"J{jnum}", label, lx + 28, y, 90)
+        f = place_fp(board, TB, TB2, f"J{jnum}", label, lx + 12, y, 90)
         jnum += 1
         if f:
             set_pad(f, 1, nets[net_name])
             set_pad(f, 2, nets[net_name])
+
+        # Pin header column (right of screw terminals)
+        f = place_fp(board, CONN, H4, f"J{jnum}", label, lx + 26, y)
+        jnum += 1
+        if f:
+            for p in range(1, 5):
+                set_pad(f, p, nets[net_name])
 
     # ==============================================================
     # SAVE
