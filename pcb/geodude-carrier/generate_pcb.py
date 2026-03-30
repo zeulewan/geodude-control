@@ -85,18 +85,18 @@ def main():
     tx = 15
 
     all_power = [
-        ("J_12V_1", "12V", "+12V", "GND"),
-        ("J_12V_2", "12V", "+12V", "GND"),
-        ("J_12V_3", "12V", "+12V", "GND"),
-        ("J_12V_4", "12V", "+12V", "GND"),
-        ("J_7V4", "7V4", "+7V4", "GND"),
-        ("J_5VS", "5V_S", "+5V_SERVO", "GND"),
-        ("J_GND_1", "GND", "GND", "GND"),
-        ("J_GND_2", "GND", "GND", "GND"),
-        ("J_GND_3", "GND", "GND", "GND"),
-        ("J_GND_4", "GND", "GND", "GND"),
-        ("J_5VL", "5V_L", "+5V_LOGIC", "GND_LOGIC"),
-        ("J_3V3", "3V3", "+3V3", "GND_LOGIC"),
+        ("J1", "12V", "+12V", "GND"),
+        ("J2", "12V", "+12V", "GND"),
+        ("J3", "12V", "+12V", "GND"),
+        ("J4", "12V", "+12V", "GND"),
+        ("J5", "7.4V", "+7V4", "GND"),
+        ("J6", "5V Servo", "+5V_SERVO", "GND"),
+        ("J7", "GND", "GND", "GND"),
+        ("J8", "GND", "GND", "GND"),
+        ("J9", "GND", "GND", "GND"),
+        ("J10", "GND", "GND", "GND"),
+        ("J11", "5V Logic", "+5V_LOGIC", "GND_LOGIC"),
+        ("J12", "3.3V", "+3V3", "GND_LOGIC"),
     ]
     for i, (ref, val, net1, net2) in enumerate(all_power):
         f = place_fp(board, TB, TB2, ref, val, tx + i*sp, ty)
@@ -146,11 +146,11 @@ def main():
     # ==============================================================
     # Arm 1
     for i, (ref, val, sig, pwr) in enumerate([
-        ("SV1", "A1_Base", "PWM_CH0", "SV1_PWR"),
-        ("SV2", "A1_Shldr", "PWM_CH1", "SV2_PWR"),
-        ("SV3", "A1_Elbow", "PWM_CH2", "SV3_PWR"),
-        ("SV4", "A1_WrRot", "PWM_CH3", "SV4_PWR"),
-        ("SV5", "A1_WrPan", "PWM_CH4", "SV5_PWR"),
+        ("SV1", "B1", "PWM_CH0", "SV1_PWR"),
+        ("SV2", "S1", "PWM_CH1", "SV2_PWR"),
+        ("SV3", "E1", "PWM_CH2", "SV3_PWR"),
+        ("SV4", "W1A", "PWM_CH3", "SV4_PWR"),
+        ("SV5", "W1B", "PWM_CH4", "SV5_PWR"),
     ]):
         f = place_fp(board, CONN, H3, ref, val, 30 + i*14, 135, 90)
         if f:
@@ -160,11 +160,11 @@ def main():
 
     # Arm 2
     for i, (ref, val, sig, pwr) in enumerate([
-        ("SV6", "A2_Base", "PWM_CH5", "SV6_PWR"),
-        ("SV7", "A2_Shldr", "PWM_CH6", "SV7_PWR"),
-        ("SV8", "A2_Elbow", "PWM_CH7", "SV8_PWR"),
-        ("SV9", "A2_WrRot", "PWM_CH8", "SV9_PWR"),
-        ("SV10", "A2_WrPan", "PWM_CH9", "SV10_PWR"),
+        ("SV6", "B2", "PWM_CH5", "SV6_PWR"),
+        ("SV7", "S2", "PWM_CH6", "SV7_PWR"),
+        ("SV8", "E2", "PWM_CH7", "SV8_PWR"),
+        ("SV9", "W2A", "PWM_CH8", "SV9_PWR"),
+        ("SV10", "W2B", "PWM_CH9", "SV10_PWR"),
     ]):
         f = place_fp(board, CONN, H3, ref, val, 105 + i*14, 135, 90)
         if f:
@@ -198,26 +198,30 @@ def main():
         ("SDA", "SDA"),
         ("SCL", "SCL"),
         ("3V3", "+3V3"),
-        ("5VL", "+5V_LOGIC"),
-        ("LGND", "GND_LOGIC"),
+        ("5V", "+5V_LOGIC"),
+        ("GND_L", "GND_LOGIC"),
     ]
 
+    jnum = 30  # unique ref counter
     for row, (label, net_name) in enumerate(buses):
         y = bus_y_start + row * bus_sp
 
         # 1x4 pin header (all 4 pins same net)
-        f = place_fp(board, CONN, H4, f"J_{label}_H", label, 8, y)
+        f = place_fp(board, CONN, H4, f"J{jnum}", label, 8, y)
+        jnum += 1
         if f:
             for p in range(1, 5):
                 set_pad(f, p, nets[net_name])
 
         # 2x screw terminals
-        f = place_fp(board, TB, TB2, f"J_{label}_S1", f"{label}", 22, y)
+        f = place_fp(board, TB, TB2, f"J{jnum}", label, 22, y)
+        jnum += 1
         if f:
             set_pad(f, 1, nets[net_name])
             set_pad(f, 2, nets[net_name])
 
-        f = place_fp(board, TB, TB2, f"J_{label}_S2", f"{label}", 34, y)
+        f = place_fp(board, TB, TB2, f"J{jnum}", label, 34, y)
+        jnum += 1
         if f:
             set_pad(f, 1, nets[net_name])
             set_pad(f, 2, nets[net_name])
