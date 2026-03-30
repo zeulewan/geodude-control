@@ -32,6 +32,12 @@
     )
   )
   (placement
+    (component PinHeader_1x02_P2.54mm_Vertical
+      (place J_TACH 126460 -120500 front 90 (PN Tach))
+    )
+    (component PinHeader_1x04_P2.54mm_Vertical
+      (place J_FAN 116460 -120500 front 90 (PN Fan))
+    )
     (component "BLX-A_5x20mm"
       (place F2 94285 -60900 front 0 (PN S1))
       (place F6 57785 -43900 front 0 (PN B2))
@@ -49,13 +55,13 @@
       (place SV2 63220 -124300 front 90 (PN S1))
       (place SV6 48960 -132500 front 90 (PN B2))
       (place SV1 49220 -124300 front 90 (PN B1))
+      (place J_ESC 116460 -132500 front 90 (PN ESC))
       (place SV3 77220 -124300 front 90 (PN E1))
       (place SV10 104960 -132500 front 90 (PN W2B))
       (place SV7 62960 -132500 front 90 (PN S2))
       (place SV9 90960 -132500 front 90 (PN W2A))
       (place SV5 105220 -124300 front 90 (PN W1B))
       (place SV8 76960 -132500 front 90 (PN E2))
-      (place J_FAN 116460 -120500 front 90 (PN Fan))
     )
     (component "TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm"
       (place J4 122900 -107000 front 90 (PN GND))
@@ -70,15 +76,12 @@
       (place J31 25000 -57400 front 90 (PN SCL))
       (place J3 122900 -95000 front 90 (PN GND))
     )
-    (component PinHeader_1x04_P2.54mm_Vertical
+    (component PinHeader_1x04_P2.54mm_Vertical::1
       (place J41 37000 -68100 front 0 (PN SDA))
       (place J44 37000 -104100 front 0 (PN GND_L))
       (place J43 37000 -92100 front 0 (PN 5V))
       (place J40 37000 -56100 front 0 (PN SCL))
       (place J42 37000 -80100 front 0 (PN 3V3))
-    )
-    (component PinHeader_1x03_P2.54mm_Vertical::1
-      (place J_ESC 116460 -132500 front 90 (PN ESC))
     )
     (component MountingHole_3.2mm_M3
       (place MH3 49300 -140500 front 0 (PN M3))
@@ -91,7 +94,40 @@
     )
   )
   (library
+    (image PinHeader_1x02_P2.54mm_Vertical
+      (outline (path signal 120  -1380 1380  0 1380))
+      (outline (path signal 120  -1380 0  -1380 1380))
+      (outline (path signal 120  -1380 -1270  -1380 -3920))
+      (outline (path signal 120  -1380 -1270  1380 -1270))
+      (outline (path signal 120  -1380 -3920  1380 -3920))
+      (outline (path signal 120  1380 -1270  1380 -3920))
+      (outline (path signal 100  -1270 635  -635 1270))
+      (outline (path signal 100  -1270 -3810  -1270 635))
+      (outline (path signal 100  -635 1270  1270 1270))
+      (outline (path signal 100  1270 1270  1270 -3810))
+      (outline (path signal 100  1270 -3810  -1270 -3810))
+      (pin Rect[A]Pad_1700.000000x1700.000000_um 1 0 0)
+      (pin Round[A]Pad_1700.000000_um 2 0 -2540)
+    )
+    (image PinHeader_1x04_P2.54mm_Vertical
+      (outline (path signal 120  -1380 1380  0 1380))
+      (outline (path signal 120  -1380 0  -1380 1380))
+      (outline (path signal 120  -1380 -1270  -1380 -9000))
+      (outline (path signal 120  -1380 -1270  1380 -1270))
+      (outline (path signal 120  -1380 -9000  1380 -9000))
+      (outline (path signal 120  1380 -1270  1380 -9000))
+      (outline (path signal 100  -1270 635  -635 1270))
+      (outline (path signal 100  -1270 -8890  -1270 635))
+      (outline (path signal 100  -635 1270  1270 1270))
+      (outline (path signal 100  1270 1270  1270 -8890))
+      (outline (path signal 100  1270 -8890  -1270 -8890))
+      (pin Rect[A]Pad_1700.000000x1700.000000_um 1 0 0)
+      (pin Round[A]Pad_1700.000000_um 2 0 -2540)
+      (pin Round[A]Pad_1700.000000_um 3 0 -5080)
+      (pin Round[A]Pad_1700.000000_um 4 0 -7620)
+    )
     (image "BLX-A_5x20mm"
+      (outline (polygon signal 0  14995 -5995  -14995 -5995  -14995 5995  14995 5995))
       (outline (path signal 120  -14000 5000  14000 5000))
       (outline (path signal 120  -14000 -5000  -14000 5000))
       (outline (path signal 120  14000 5000  14000 -5000))
@@ -100,6 +136,7 @@
       (pin Round[A]Pad_2800.000000_um 2 11100 0)
     )
     (image PinHeader_1x03_P2.54mm_Vertical
+      (outline (polygon signal 0  -1765 -6845  -1765 1765  1765 1765  1765 -6845))
       (outline (path signal 120  -1380 1380  0 1380))
       (outline (path signal 120  -1380 0  -1380 1380))
       (outline (path signal 120  1380 -1270  1380 -6460))
@@ -168,7 +205,7 @@
       (pin RoundRect[A]Pad_2800.000000x2800.000000_250.952000_um_0.000000_0 1 0 0)
       (pin Round[A]Pad_2800.000000_um 2 5000 0)
     )
-    (image PinHeader_1x04_P2.54mm_Vertical
+    (image PinHeader_1x04_P2.54mm_Vertical::1
       (outline (polygon signal 0  1765 -9385  -1765 -9385  -1765 1765  1765 1765))
       (outline (path signal 120  -1380 1380  0 1380))
       (outline (path signal 120  -1380 0  -1380 1380))
@@ -185,23 +222,6 @@
       (pin Round[A]Pad_1700.000000_um 2 0 -2540)
       (pin Round[A]Pad_1700.000000_um 3 0 -5080)
       (pin Round[A]Pad_1700.000000_um 4 0 -7620)
-    )
-    (image PinHeader_1x03_P2.54mm_Vertical::1
-      (outline (polygon signal 0  -1765 -6845  -1765 1765  1765 1765  1765 -6845))
-      (outline (path signal 120  -1380 1380  0 1380))
-      (outline (path signal 120  -1380 0  -1380 1380))
-      (outline (path signal 120  1380 -1270  1380 -6460))
-      (outline (path signal 120  -1380 -1270  1380 -1270))
-      (outline (path signal 120  -1380 -1270  -1380 -6460))
-      (outline (path signal 120  -1380 -6460  1380 -6460))
-      (outline (path signal 100  1270 1270  1270 -6350))
-      (outline (path signal 100  -635 1270  1270 1270))
-      (outline (path signal 100  -1270 635  -635 1270))
-      (outline (path signal 100  1270 -6350  -1270 -6350))
-      (outline (path signal 100  -1270 -6350  -1270 635))
-      (pin Rect[A]Pad_1700.000000x1700.000000_um 1 0 0)
-      (pin Round[A]Pad_1700.000000_um 2 0 -2540)
-      (pin Round[A]Pad_1700.000000_um 3 0 -5080)
     )
     (image MountingHole_3.2mm_M3
       (outline (polygon signal 0  372.747 3427.32  741.112 3366.93  1100.8 3267.06  1447.58 3128.89
@@ -308,7 +328,7 @@
   )
   (network
     (net +12V
-      (pins F2-1 F6-1 J2-1 J2-2 F7-1 J1-1 J1-2 J_FAN-2 F1-1)
+      (pins J_FAN-2 F2-1 F6-1 J2-1 J2-2 F7-1 J1-1 J1-2 F1-1)
     )
     (net SV2_PWR
       (pins F2-2 SV2-2)
@@ -320,8 +340,8 @@
       (pins SV4-2 F4-2)
     )
     (net GND
-      (pins SV4-3 SV2-3 J4-1 J4-2 SV6-3 SV1-3 J_ESC-3 SV3-3 SV10-3 SV7-3 SV9-3 SV5-3
-        SV8-3 J3-1 J3-2 J_FAN-3)
+      (pins J_TACH-2 J_FAN-1 SV4-3 SV2-3 J4-1 J4-2 SV6-3 SV1-3 J_ESC-3 SV3-3 SV10-3
+        SV7-3 SV9-3 SV5-3 SV8-3 J3-1 J3-2)
     )
     (net SV6_PWR
       (pins F6-2 SV6-2)
@@ -399,7 +419,7 @@
       (pins F3-1 J5-1 J5-2 F8-1)
     )
     (net PWM_CH12
-      (pins J_FAN-1 J_PCA-16)
+      (pins J_FAN-4 J_PCA-16)
     )
     (net PWM_CH10
       (pins J_PCA-13)
@@ -413,11 +433,14 @@
     (net PWM_CH15
       (pins J_PCA-19)
     )
+    (net TACH
+      (pins J_TACH-1 J_FAN-3)
+    )
     (class kicad_default +12V +3V3 +5V_LOGIC +5V_SERVO +7V4 GND GND_LOGIC
       PWM_CH0 PWM_CH1 PWM_CH10 PWM_CH11 PWM_CH12 PWM_CH13 PWM_CH14 PWM_CH15
       PWM_CH2 PWM_CH3 PWM_CH4 PWM_CH5 PWM_CH6 PWM_CH7 PWM_CH8 PWM_CH9 SCL
       SDA SV10_PWR SV1_PWR SV2_PWR SV3_PWR SV4_PWR SV5_PWR SV6_PWR SV7_PWR
-      SV8_PWR SV9_PWR
+      SV8_PWR SV9_PWR TACH
       (circuit
         (use_via "Via[0-1]_400:300_um")
       )
