@@ -226,7 +226,7 @@
   )
   (symbol
     (lib_id "Connector:Screw_Terminal_01x02")
-    (at 45 80)
+    (at 45 80 0)
     (unit 1)
     (exclude_from_sim no)
     (in_bom yes)
@@ -358,7 +358,7 @@
   )
   (symbol
     (lib_id "Connector:Screw_Terminal_01x02")
-    (at 45 110)
+    (at 45 110 0)
     (unit 1)
     (exclude_from_sim no)
     (in_bom yes)
@@ -490,7 +490,7 @@
   )
   (symbol
     (lib_id "Connector:Screw_Terminal_01x02")
-    (at 45 140)
+    (at 45 140 0)
     (unit 1)
     (exclude_from_sim no)
     (in_bom yes)
@@ -622,7 +622,7 @@
   )
   (symbol
     (lib_id "Connector:Screw_Terminal_01x02")
-    (at 45 170)
+    (at 45 170 0)
     (unit 1)
     (exclude_from_sim no)
     (in_bom yes)
@@ -754,7 +754,7 @@
   )
   (symbol
     (lib_id "Connector:Screw_Terminal_01x02")
-    (at 45 200)
+    (at 45 200 0)
     (unit 1)
     (exclude_from_sim no)
     (in_bom yes)
@@ -995,7 +995,7 @@
   )
   (symbol
     (lib_id "Connector_Generic:Conn_01x03")
-    (at 175 180)
+    (at 175 180 0)
     (unit 1)
     (exclude_from_sim no)
     (in_bom yes)
@@ -1209,7 +1209,7 @@
   )
   (symbol
     (lib_id "Connector_Generic:Conn_01x03")
-    (at 175 215)
+    (at 175 215 0)
     (unit 1)
     (exclude_from_sim no)
     (in_bom yes)
@@ -1423,7 +1423,7 @@
   )
   (symbol
     (lib_id "Connector_Generic:Conn_01x03")
-    (at 175 250)
+    (at 175 250 0)
     (unit 1)
     (exclude_from_sim no)
     (in_bom yes)
@@ -1637,7 +1637,7 @@
   )
   (symbol
     (lib_id "Connector_Generic:Conn_01x03")
-    (at 175 285)
+    (at 175 285 0)
     (unit 1)
     (exclude_from_sim no)
     (in_bom yes)
@@ -1851,7 +1851,7 @@
   )
   (symbol
     (lib_id "Connector_Generic:Conn_01x03")
-    (at 175 320)
+    (at 175 320 0)
     (unit 1)
     (exclude_from_sim no)
     (in_bom yes)
@@ -2065,7 +2065,7 @@
   )
   (symbol
     (lib_id "Connector_Generic:Conn_01x03")
-    (at 175 385)
+    (at 175 385 0)
     (unit 1)
     (exclude_from_sim no)
     (in_bom yes)
@@ -2279,7 +2279,7 @@
   )
   (symbol
     (lib_id "Connector_Generic:Conn_01x03")
-    (at 175 420)
+    (at 175 420 0)
     (unit 1)
     (exclude_from_sim no)
     (in_bom yes)
@@ -2493,7 +2493,7 @@
   )
   (symbol
     (lib_id "Connector_Generic:Conn_01x03")
-    (at 175 455)
+    (at 175 455 0)
     (unit 1)
     (exclude_from_sim no)
     (in_bom yes)
@@ -2707,7 +2707,7 @@
   )
   (symbol
     (lib_id "Connector_Generic:Conn_01x03")
-    (at 175 490)
+    (at 175 490 0)
     (unit 1)
     (exclude_from_sim no)
     (in_bom yes)
@@ -2921,7 +2921,7 @@
   )
   (symbol
     (lib_id "Connector_Generic:Conn_01x03")
-    (at 175 525)
+    (at 175 525 0)
     (unit 1)
     (exclude_from_sim no)
     (in_bom yes)
@@ -3053,7 +3053,7 @@
   )
   (symbol
     (lib_id "Connector_Generic:Conn_01x03")
-    (at 175 570)
+    (at 175 570 0)
     (unit 1)
     (exclude_from_sim no)
     (in_bom yes)
@@ -3207,7 +3207,7 @@
   )
   (symbol
     (lib_id "Connector_Generic:Conn_01x03")
-    (at 175 610)
+    (at 175 610 0)
     (unit 1)
     (exclude_from_sim no)
     (in_bom yes)
@@ -3370,7 +3370,7 @@
   )
   (symbol
     (lib_id "Connector_Generic:Conn_01x08")
-    (at 350 100)
+    (at 350 100 0)
     (unit 1)
     (exclude_from_sim no)
     (in_bom yes)
@@ -3674,7 +3674,7 @@
   )
   (symbol
     (lib_id "Connector_Generic:Conn_01x08")
-    (at 350 220)
+    (at 350 220 0)
     (unit 1)
     (exclude_from_sim no)
     (in_bom yes)
@@ -3876,7 +3876,7 @@
   )
   (symbol
     (lib_id "Connector_Generic:Conn_01x08")
-    (at 350 340)
+    (at 350 340 0)
     (unit 1)
     (exclude_from_sim no)
     (in_bom yes)
@@ -4030,7 +4030,7 @@
   )
   (symbol
     (lib_id "Connector:Screw_Terminal_01x04")
-    (at 560 100)
+    (at 560 100 0)
     (unit 1)
     (exclude_from_sim no)
     (in_bom yes)
@@ -4206,7 +4206,7 @@
   )
   (symbol
     (lib_id "Connector:Screw_Terminal_01x04")
-    (at 560 155)
+    (at 560 155 0)
     (unit 1)
     (exclude_from_sim no)
     (in_bom yes)
@@ -4382,7 +4382,7 @@
   )
   (symbol
     (lib_id "Connector:Screw_Terminal_01x04")
-    (at 560 210)
+    (at 560 210 0)
     (unit 1)
     (exclude_from_sim no)
     (in_bom yes)
@@ -4558,7 +4558,7 @@
   )
   (symbol
     (lib_id "Connector:Screw_Terminal_01x04")
-    (at 560 265)
+    (at 560 265 0)
     (unit 1)
     (exclude_from_sim no)
     (in_bom yes)
