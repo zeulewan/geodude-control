@@ -8,7 +8,7 @@ Run with KiCad's Python:
 import pcbnew
 import os
 
-BOARD_W = 170
+BOARD_W = 190
 BOARD_H = 160
 
 def mm(val):
@@ -106,7 +106,7 @@ def main():
     # ==============================================================
     # MIDDLE: Fuses (two columns)
     # ==============================================================
-    f1x, f2x = 35, 100
+    f1x, f2x = 55, 120
     fy, fsp = 48, 16
 
     for ref, val, rail, pwr, fx, row in [
@@ -135,7 +135,7 @@ def main():
         11: 8, 12: 9, 13: 10, 14: 11,
         16: 12, 17: 13, 18: 14, 19: 15,
     }
-    f = place_fp(board, SOCK, S19, "J_PCA", "PCA9685", BOARD_W - 8, 55)
+    f = place_fp(board, SOCK, S19, "J_PCA", "PCA9685", BOARD_W - 10, 60)
     if f:
         for pin, ch in pca_pin_to_ch.items():
             set_pad(f, pin, nets[f"PWM_CH{ch}"])
@@ -151,7 +151,7 @@ def main():
         ("SV4", "A1_WrRot", "PWM_CH3", "SV4_PWR"),
         ("SV5", "A1_WrPan", "PWM_CH4", "SV5_PWR"),
     ]):
-        f = place_fp(board, CONN, H3, ref, val, 12 + i*14, 135)
+        f = place_fp(board, CONN, H3, ref, val, 30 + i*14, 135)
         if f:
             set_pad(f, 1, nets[sig])
             set_pad(f, 2, nets[pwr])
@@ -165,21 +165,21 @@ def main():
         ("SV9", "A2_WrRot", "PWM_CH8", "SV9_PWR"),
         ("SV10", "A2_WrPan", "PWM_CH9", "SV10_PWR"),
     ]):
-        f = place_fp(board, CONN, H3, ref, val, 90 + i*14, 135)
+        f = place_fp(board, CONN, H3, ref, val, 105 + i*14, 135)
         if f:
             set_pad(f, 1, nets[sig])
             set_pad(f, 2, nets[pwr])
             set_pad(f, 3, nets["GND"])
 
     # ESC (3-pin: PWM, NC, GND)
-    f = place_fp(board, CONN, H3, "J_ESC", "ESC", 12, 148)
+    f = place_fp(board, CONN, H3, "J_ESC", "ESC", 30, 148)
     if f:
         set_pad(f, 1, nets["PWM_CH11"])
         # pin 2 NC
         set_pad(f, 3, nets["GND"])
 
     # Fan (3-pin: PWM, 12V, GND)
-    f = place_fp(board, CONN, H3, "J_FAN", "Fan", 28, 148)
+    f = place_fp(board, CONN, H3, "J_FAN", "Fan", 46, 148)
     if f:
         set_pad(f, 1, nets["PWM_CH12"])
         set_pad(f, 2, nets["+12V"])
