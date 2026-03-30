@@ -885,7 +885,7 @@
 				)
 			)
 		)
-		(property "Value" "12V"
+		(property "Value" "GND"
 			(at 2.25 4.92 90)
 			(layer "F.SilkS")
 			(uuid "cdb624ce-30cc-4e53-b0f4-8358f270bba8")
@@ -1255,7 +1255,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(roundrect_rratio 0.089286)
-			(net "+12V")
+			(net "GND")
 			(uuid "b181b9bf-cd73-40d1-8857-7a6596ff5c56")
 		)
 		(pad "2" thru_hole circle
@@ -2160,7 +2160,7 @@
 			(drill 1.3)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
-			(net "GND")
+			(net "+12V")
 			(uuid "3c38ab62-92a7-4df6-b370-fc2e99d1c4b0")
 		)
 		(embedded_fonts no)
@@ -5808,7 +5808,7 @@
 			(drill 1.3)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
-			(net "GND")
+			(net "+12V")
 			(uuid "eaabb00d-76c2-4e29-8bf4-37e9da85637d")
 		)
 		(embedded_fonts no)
@@ -10794,7 +10794,7 @@
 				)
 			)
 		)
-		(property "Value" "12V"
+		(property "Value" "GND"
 			(at 2.25 4.92 90)
 			(layer "F.SilkS")
 			(uuid "ec02b245-7638-4039-94f4-ef0a19c830e3")
@@ -11164,7 +11164,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(roundrect_rratio 0.089286)
-			(net "+12V")
+			(net "GND")
 			(uuid "021e8a92-e824-4178-9c73-a0c16c351329")
 		)
 		(pad "2" thru_hole circle
