@@ -107,7 +107,7 @@ def main():
     # ==============================================================
     # MIDDLE: Fuses (two columns)
     # ==============================================================
-    f1x, f2x = 70, 130
+    f1x, f2x = 45, 130
     fy, fsp = 48, 16
 
     for ref, val, rail, pwr, fx, row in [
@@ -166,21 +166,21 @@ def main():
         ("SV9", "W2A", "PWM_CH8", "SV9_PWR"),
         ("SV10", "W2B", "PWM_CH9", "SV10_PWR"),
     ]):
-        f = place_fp(board, CONN, H3, ref, val, 105 + i*14, 135, 90)
+        f = place_fp(board, CONN, H3, ref, val, 115 + i*14, 135, 90)
         if f:
             set_pad(f, 1, nets[sig])
             set_pad(f, 2, nets[pwr])
             set_pad(f, 3, nets["GND"])
 
     # ESC (3-pin: PWM, NC, GND)
-    f = place_fp(board, CONN, H3, "J_ESC", "ESC", 30, 148, 90)
+    f = place_fp(board, CONN, H3, "J_ESC", "ESC", 85, 148, 90)
     if f:
         set_pad(f, 1, nets["PWM_CH11"])
         # pin 2 NC
         set_pad(f, 3, nets["GND"])
 
     # Fan (3-pin: PWM, 12V, GND)
-    f = place_fp(board, CONN, H3, "J_FAN", "Fan", 46, 148, 90)
+    f = place_fp(board, CONN, H3, "J_FAN", "Fan", 100, 148, 90)
     if f:
         set_pad(f, 1, nets["PWM_CH12"])
         set_pad(f, 2, nets["+12V"])
