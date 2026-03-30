@@ -11820,8 +11820,8 @@
 		(layer "Edge.Cuts")
 		(uuid "2407a36e-3692-4a57-8748-f7a8a1d3740a")
 	)
-	(gr_text "\"uhm I don't fuckin know.\\nalright that's going on it\\nyou didn't put that?\\nyou didn't put that right\\nall those things that we said are going on it\\nyou're not typing what I'm saying right? no you're not stop typing\"\\n- Zeul and Mizi March 30th 2026"
-		(at 75 80 0)
+	(gr_text "uhm I don't fuckin know.\nalright that's going on it\nyou didn't put that?\nyou didn't put that right\nall those things that we said are going on it\nyou're not typing what I'm saying right? no you're not stop typing\n- Zeul and Mizi March 30th 2026"
+		(at 69.1 27.6 0)
 		(layer "B.SilkS")
 		(uuid "1ebba48e-7dd6-4d7c-b68c-9ad9afc90a31")
 		(effects
@@ -11829,7 +11829,7 @@
 				(size 1.2 1.2)
 				(thickness 0.15)
 			)
-			(justify mirror)
+			(justify left mirror)
 		)
 	)
 	(segment
