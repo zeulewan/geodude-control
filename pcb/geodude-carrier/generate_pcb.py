@@ -82,13 +82,11 @@ def main():
         add_net(board, f"SV{i+1}_PWR", nets)
 
     # ==============================================================
-    # TOP: All power screw terminals in one line
+    # RIGHT EDGE: All power screw terminals in a vertical column
     # ==============================================================
-    # Order: 4x 12V | 7V4 | 5V_SERVO | 4x GND | 5V_LOGIC | 3V3
-    # 12 terminals x 12mm = 144mm, centered on 190mm board
     sp = 12
-    ty = 10
-    tx = 15
+    px = BOARD_W - 10
+    py = 10
 
     all_power = [
         ("J1", "12V", "+12V", "GND"),
@@ -105,7 +103,7 @@ def main():
         ("J12", "3.3V", "+3V3", "GND_LOGIC"),
     ]
     for i, (ref, val, net1, net2) in enumerate(all_power):
-        f = place_fp(board, TB, TB2, ref, val, tx + i*sp, ty)
+        f = place_fp(board, TB, TB2, ref, val, px, py + i*sp, 90)
         if f:
             set_pad(f, 1, nets[net1])
             set_pad(f, 2, nets[net2])
@@ -142,7 +140,8 @@ def main():
         11: 8, 12: 9, 13: 10, 14: 11,
         16: 12, 17: 13, 18: 14, 19: 15,
     }
-    f = place_fp(board, SOCK, S19, "J_PCA", "PCA9685", BOARD_W / 2, 8, 90)
+    # PCA on top edge, horizontal (pins go left-right), centered
+    f = place_fp(board, SOCK, S19, "J_PCA", "PCA9685", BOARD_W / 2 - 10, 8)
     if f:
         for pin, ch in pca_pin_to_ch.items():
             set_pad(f, pin, nets[f"PWM_CH{ch}"])
@@ -150,11 +149,11 @@ def main():
     # ==============================================================
     # BOTTOM: Servo headers (3-pin: signal, power, GND)
     # ==============================================================
-    # RIGHT EDGE: Servo headers (arm1 top-right, arm2 bottom-right)
-    sv_x = BOARD_W - 10
-    sv_sp = 10
+    # BOTTOM EDGE: Servo headers (arm1 left, arm2 right)
+    sv_y = BOARD_H - 10
+    sv_sp = 12
 
-    # Arm 1
+    # Arm 1 (left)
     for i, (ref, val, sig, pwr) in enumerate([
         ("SV1", "B1", "PWM_CH0", "SV1_PWR"),
         ("SV2", "S1", "PWM_CH1", "SV2_PWR"),
@@ -162,13 +161,26 @@ def main():
         ("SV4", "W1A", "PWM_CH3", "SV4_PWR"),
         ("SV5", "W1B", "PWM_CH4", "SV5_PWR"),
     ]):
-        f = place_fp(board, CONN, H3, ref, val, sv_x, 35 + i*sv_sp, 90)
+        f = place_fp(board, CONN, H3, ref, val, 20 + i*sv_sp, sv_y, 90)
         if f:
             set_pad(f, 1, nets[sig])
             set_pad(f, 2, nets[pwr])
             set_pad(f, 3, nets["GND"])
 
-    # Arm 2
+    # ESC + Fan (center)
+    f = place_fp(board, CONN, H3, "J_ESC", "ESC", 85, sv_y, 90)
+    if f:
+        set_pad(f, 1, nets["PWM_CH11"])
+        # pin 2 NC
+        set_pad(f, 3, nets["GND"])
+
+    f = place_fp(board, CONN, H3, "J_FAN", "Fan", 97, sv_y, 90)
+    if f:
+        set_pad(f, 1, nets["PWM_CH12"])
+        set_pad(f, 2, nets["+12V"])
+        set_pad(f, 3, nets["GND"])
+
+    # Arm 2 (right)
     for i, (ref, val, sig, pwr) in enumerate([
         ("SV6", "B2", "PWM_CH5", "SV6_PWR"),
         ("SV7", "S2", "PWM_CH6", "SV7_PWR"),
@@ -176,32 +188,19 @@ def main():
         ("SV9", "W2A", "PWM_CH8", "SV9_PWR"),
         ("SV10", "W2B", "PWM_CH9", "SV10_PWR"),
     ]):
-        f = place_fp(board, CONN, H3, ref, val, sv_x, 95 + i*sv_sp, 90)
+        f = place_fp(board, CONN, H3, ref, val, 120 + i*sv_sp, sv_y, 90)
         if f:
             set_pad(f, 1, nets[sig])
             set_pad(f, 2, nets[pwr])
             set_pad(f, 3, nets["GND"])
-
-    # ESC and Fan on right edge too
-    f = place_fp(board, CONN, H3, "J_ESC", "ESC", sv_x, 145, 90)
-    if f:
-        set_pad(f, 1, nets["PWM_CH11"])
-        # pin 2 NC
-        set_pad(f, 3, nets["GND"])
-
-    f = place_fp(board, CONN, H3, "J_FAN", "Fan", sv_x, 155, 90)
-    if f:
-        set_pad(f, 1, nets["PWM_CH12"])
-        set_pad(f, 2, nets["+12V"])
-        set_pad(f, 3, nets["GND"])
 
     # ==============================================================
     # LEFT EDGE: Logic bus section
     # Each bus: 4x single pin headers + 2x screw terminals
     # ==============================================================
     H4 = "PinHeader_1x04_P2.54mm_Vertical"
-    bus_y_start = 55
     bus_sp = 14
+    lx = 10  # left edge x
 
     buses = [
         ("SDA", "SDA"),
@@ -211,25 +210,26 @@ def main():
         ("GND_L", "GND_LOGIC"),
     ]
 
-    jnum = 30  # unique ref counter
+    jnum = 30
     for row, (label, net_name) in enumerate(buses):
-        y = bus_y_start + row * bus_sp
+        y = 25 + row * bus_sp
 
-        # 1x4 pin header (all 4 pins same net)
-        f = place_fp(board, CONN, H4, f"J{jnum}", label, 8, y)
-        jnum += 1
-        if f:
-            for p in range(1, 5):
-                set_pad(f, p, nets[net_name])
-
-        # 2x screw terminals
-        f = place_fp(board, TB, TB2, f"J{jnum}", label, 22, y)
+        # Screw terminal on the edge
+        f = place_fp(board, TB, TB2, f"J{jnum}", label, lx, y, 90)
         jnum += 1
         if f:
             set_pad(f, 1, nets[net_name])
             set_pad(f, 2, nets[net_name])
 
-        f = place_fp(board, TB, TB2, f"J{jnum}", label, 34, y)
+        # 1x4 pin header next to it
+        f = place_fp(board, CONN, H4, f"J{jnum}", label, lx + 15, y)
+        jnum += 1
+        if f:
+            for p in range(1, 5):
+                set_pad(f, p, nets[net_name])
+
+        # Second screw terminal
+        f = place_fp(board, TB, TB2, f"J{jnum}", label, lx + 28, y, 90)
         jnum += 1
         if f:
             set_pad(f, 1, nets[net_name])
