@@ -4,6 +4,8 @@
 Runs on GEO-DUDe Pi. Reads IMU gz for body rate, integrates for body angle,
 PID controls the reaction wheel to hold a setpoint angle.
 
+Bidirectional ESC: 1500us = stop, >1500 = forward, <1500 = reverse.
+
 Port 5001. Separate from sensor_server.py (port 5000).
 """
 
@@ -21,6 +23,10 @@ IMU_ADDR = 0x69
 ENCODER_ADDR = 0x36
 MACE_CHANNEL = 11
 LED0_ON_L = 0x06
+
+# --- ESC mode ---
+# Set to True when the bidirectional ESC is installed, False for old Drfeify
+BIDIRECTIONAL_ESC = True
 
 # --- Control constants ---
 LOOP_HZ = 100
@@ -43,7 +49,7 @@ state = {
     "error": 0.0,
     "output": 0.0,
     "motor_pct": 0.0,
-    "pwm": 1000,
+    "pwm": 1500,
     # Sensors
     "gz": 0.0,
     "gz_bias": 0.0,
@@ -90,9 +96,14 @@ def pca_off(bus, channel):
 
 
 def set_motor(bus, pw):
-    """Set MACE motor PWM. 1000 = idle/coast, 1100-2000 = throttle, 0 = signal off."""
+    """Set MACE motor PWM. 0 = signal off.
+    Bidirectional: 1500=stop, 1100-1900=active.
+    Uni-directional (old): 1000=idle, 1000-2000=active."""
     if pw == 0:
         pca_off(bus, MACE_CHANNEL)
+    elif BIDIRECTIONAL_ESC:
+        pw = max(1100, min(1900, pw))
+        pca_set_pulse_us(bus, MACE_CHANNEL, pw)
     else:
         pw = max(1000, min(2000, pw))
         pca_set_pulse_us(bus, MACE_CHANNEL, pw)
@@ -125,14 +136,16 @@ def rate_limit(current_pct, desired_pct):
 # --- Deadband mapping ---
 
 def pid_to_motor(output):
-    """Map PID output [0, 100] to motor [10%, 100%], skipping deadband.
-    Below threshold -> 0 (coast)."""
-    if output < MOTOR_OUTPUT_THRESHOLD:
+    """Map PID output [-100, 100] to motor [-100%, 100%], skipping deadband.
+    Below threshold in either direction -> 0 (coast at 1500us)."""
+    if abs(output) < MOTOR_OUTPUT_THRESHOLD:
         return 0.0
-    # Linear map: threshold -> MOTOR_MIN_PCT, 100 -> 100
+    sign = 1.0 if output > 0 else -1.0
+    magnitude = abs(output)
     range_in = 100.0 - MOTOR_OUTPUT_THRESHOLD
     range_out = 100.0 - MOTOR_MIN_PCT
-    return MOTOR_MIN_PCT + (output - MOTOR_OUTPUT_THRESHOLD) / range_in * range_out
+    motor_pct = MOTOR_MIN_PCT + (magnitude - MOTOR_OUTPUT_THRESHOLD) / range_in * range_out
+    return sign * motor_pct
 
 
 # --- Wheel saturation ---
@@ -140,9 +153,10 @@ def pid_to_motor(output):
 MAX_WHEEL_RPM = 600
 
 def check_saturation(rpm):
-    if rpm > MAX_WHEEL_RPM * 0.95:
+    abs_rpm = abs(rpm)
+    if abs_rpm > MAX_WHEEL_RPM * 0.95:
         return "saturated"
-    if rpm > MAX_WHEEL_RPM * 0.85:
+    if abs_rpm > MAX_WHEEL_RPM * 0.85:
         return "warning"
     return "ok"
 
@@ -156,8 +170,8 @@ def control_loop():
     bus.write_byte_data(IMU_ADDR, 0x06, 0x01)
     time.sleep(0.05)
 
-    # Ensure motor signal is off at startup (not 1000us which arms ESC)
-    pca_off(bus, MACE_CHANNEL)
+    # Send stop signal on startup
+    set_motor(bus, 1500 if BIDIRECTIONAL_ESC else 1000)
 
     body_angle = 0.0
     integral = 0.0
@@ -209,8 +223,8 @@ def control_loop():
                 wdelta = wheel_angle - last_wheel_angle
                 if wdelta > 180: wdelta -= 360
                 if wdelta < -180: wdelta += 360
-                rpm_buf.append(abs(wdelta / wdt) / 6.0)
-                if len(rpm_buf) > 50:
+                rpm_buf.append(wdelta / wdt / 6.0)  # signed RPM
+                if len(rpm_buf) > 10:
                     rpm_buf.pop(0)
                 wheel_rpm = sum(rpm_buf) / len(rpm_buf)
         last_wheel_angle = wheel_angle
@@ -246,21 +260,33 @@ def control_loop():
             integral *= 0.95  # slowly bleed integral
             output_clamped = 0  # force coast — do not push past RPM limit
 
-        # 4. Map to motor (uni-directional: positive = throttle, negative = coast)
-        if output_clamped > 0:
+        # 4. Map to motor
+        if BIDIRECTIONAL_ESC:
+            # Bidirectional: positive = forward, negative = reverse
             desired_motor_pct = pid_to_motor(output_clamped)
         else:
-            desired_motor_pct = 0.0
+            # Uni-directional: positive = throttle, negative = coast
+            if output_clamped > 0:
+                desired_motor_pct = pid_to_motor(output_clamped)
+            else:
+                desired_motor_pct = 0.0
 
         # 5. Rate limit
         current_motor_pct = rate_limit(current_motor_pct, desired_motor_pct)
 
         # 6. Convert to PWM
-        if current_motor_pct < 1.0:
-            pw = 1000  # coast
+        if BIDIRECTIONAL_ESC:
+            if abs(current_motor_pct) < 1.0:
+                pw = 1500  # stop
+            else:
+                pw = 1500 + int(current_motor_pct * 4)
+                pw = max(1100, min(1900, pw))
         else:
-            pw = 1000 + int(current_motor_pct * 10)
-            pw = max(1000, min(2000, pw))
+            if current_motor_pct < 1.0:
+                pw = 1000  # coast
+            else:
+                pw = 1000 + int(current_motor_pct * 10)
+                pw = max(1000, min(2000, pw))
 
         set_motor(bus, pw)
 
@@ -287,8 +313,9 @@ def control_loop():
 # --- Enable/disable sequences ---
 
 def enable_sequence():
-    """Calibrate gyro, arm ESC, start controller. Runs in a thread."""
+    """Calibrate gyro and start controller. Bidirectional ESC needs no arming."""
     bus = smbus2.SMBus(1)
+    stop_pw = 1500 if BIDIRECTIONAL_ESC else 1000
 
     # Calibrate gyro
     with state_lock:
@@ -298,13 +325,17 @@ def enable_sequence():
         state["gz_bias"] = bias
         state["calibrating"] = False
 
-    # Arm ESC
-    with state_lock:
-        state["arming"] = True
-    set_motor(bus, 1000)
-    time.sleep(3)
-    with state_lock:
-        state["arming"] = False
+    if BIDIRECTIONAL_ESC:
+        # No arming needed — just ensure stopped
+        set_motor(bus, stop_pw)
+    else:
+        # Old ESC needs 3s arming at 1000us
+        with state_lock:
+            state["arming"] = True
+        set_motor(bus, 1000)
+        time.sleep(3)
+        with state_lock:
+            state["arming"] = False
 
     # Zero angle and enable
     with state_lock:
@@ -315,6 +346,7 @@ def enable_sequence():
         state["output"] = 0.0
         state["motor_pct"] = 0.0
         state["enabled"] = True
+        state["arming"] = False
         state["watchdog_triggered"] = False
 
     # Create flag file
@@ -341,6 +373,7 @@ def disable_controller():
 
 def watchdog_loop():
     global last_heartbeat
+    stop_pw = 1500 if BIDIRECTIONAL_ESC else 1000
     while True:
         time.sleep(1)
         with state_lock:
@@ -349,10 +382,9 @@ def watchdog_loop():
             with state_lock:
                 state["watchdog_triggered"] = True
             disable_controller()
-            # Coast motor
             try:
                 bus = smbus2.SMBus(1)
-                set_motor(bus, 1000)
+                set_motor(bus, stop_pw)
                 bus.close()
             except Exception:
                 pass
@@ -382,7 +414,7 @@ def disable():
     disable_controller()
     try:
         bus = smbus2.SMBus(1)
-        set_motor(bus, 1000)
+        set_motor(bus, 1500 if BIDIRECTIONAL_ESC else 1000)
         bus.close()
     except Exception:
         pass
@@ -444,7 +476,7 @@ def recalibrate():
         state["calibrating"] = True
 
     bus = smbus2.SMBus(1)
-    set_motor(bus, 1000)  # coast during calibration
+    set_motor(bus, 1500 if BIDIRECTIONAL_ESC else 1000)  # stop during calibration
     bias = calibrate_gyro(bus)
     bus.close()
 
@@ -457,13 +489,13 @@ def recalibrate():
 
 @app.route("/stop", methods=["POST"])
 def stop():
-    """Emergency stop: disable everything, coast motor."""
+    """Emergency stop: disable everything, stop motor."""
     disable_controller()
     try:
         bus = smbus2.SMBus(1)
-        set_motor(bus, 1000)
+        set_motor(bus, 1500 if BIDIRECTIONAL_ESC else 1000)
         time.sleep(0.5)
-        set_motor(bus, 0)
+        set_motor(bus, 0)  # signal off
         bus.close()
     except Exception:
         pass

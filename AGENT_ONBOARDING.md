@@ -100,12 +100,14 @@ PCA9685 socket is a 1x19 female header. Pins 5, 10, 15 are NC (cap gaps between 
 | | |
 |---|---|
 | Motor | Uangel X2807 1700KV BLDC |
-| ESC | Drfeify 40A (uncalibrated, factory defaults) |
-| Control | PCA9685 Ch 11, 1000us=idle, 2000us=full, min spin ~1075us (~10%) |
+| ESC | **Bidirectional 40A 2-6S** ([Amazon.ca](https://www.amazon.ca/dp/B0BSSP61XW)) — replaces old Drfeify 40A |
+| Control | PCA9685 Ch 11, **1500us=stop, 1100-1500us=reverse, 1500-1900us=forward** |
 | RPM limit | 600 RPM (software, with hysteresis at 70%) |
 | Ramp rate | Configurable, default 0.1%/s, max 100%/s |
-| Brake | ESC brake mode NOT enabled (1000us = coast) |
-| ESC direction | Uni-directional only |
+| Brake | Not needed — active reverse torque replaces passive braking |
+| ESC direction | **Bidirectional** (proportional forward + reverse) |
+| Arming | None required — plug and play, no calibration |
+| Deadband | ~±50-75us around 1500us center — handled in software |
 
 ### Sensors
 
@@ -130,7 +132,7 @@ PID controller for body angle using reaction wheel. Runs at 100Hz on GEO-DUDe.
 | Ramp rate | 40.5%/s | Max throttle change rate |
 | Watchdog | 5s | Auto-disable if no frontend heartbeat |
 
-**Key constraint:** ESC is uni-directional — can only apply torque in one direction. Other direction relies on friction/coast.
+**Bidirectional ESC:** Full proportional torque in both directions. PID output maps to 1500us ± 500us (center = stop, above = forward, below = reverse). No arming sequence needed. Deadband around center handled by skipping ±50-75us zone in software.
 
 **Gyro bias:** Calibrated on enable (2s stationary sampling). Drift accumulates over time.
 

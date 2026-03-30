@@ -101,7 +101,7 @@ def sensor_loop():
                     if delta > 180: delta -= 360
                     if delta < -180: delta += 360
                     dps = delta / dt
-                    rpm_buf.append(abs(dps) / 6.0)
+                    rpm_buf.append(dps / 6.0)  # signed RPM
                     if len(rpm_buf) > 10:
                         rpm_buf.pop(0)
                     rpm = sum(rpm_buf) / len(rpm_buf)
@@ -155,11 +155,11 @@ def system_stats():
 
 @app.route("/motor", methods=["POST"])
 def motor():
-    """Legacy endpoint — controls MACE channel."""
+    """Controls MACE channel. Bidirectional: 1500=stop, 1100-1900=active."""
     if os.path.exists("/tmp/attitude_active"):
         return jsonify({"ok": False, "error": "attitude controller active"}), 409
     data = request.json
-    pw = int(data.get("pw", 1000))
+    pw = int(data.get("pw", 1500))
     pw = max(0, min(2000, pw))
     ch = CHANNELS["MACE"]
     if pw == 0:
