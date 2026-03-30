@@ -243,7 +243,7 @@
 	(footprint "PinHeader_1x03_P2.54mm_Vertical"
 		(layer "F.Cu")
 		(uuid "0a15a98f-fe4c-4d27-89de-34eef4dd50c2")
-		(at 77 152 90)
+		(at 60.91 151.55 90)
 		(descr "Through hole straight pin header, 1x03, 2.54mm pitch, single row")
 		(tags "Through hole pin header THT 1x03 2.54mm single row")
 		(property "Reference" "SV4"
@@ -480,7 +480,7 @@
 	(footprint "BLX-A_5x20mm"
 		(layer "F.Cu")
 		(uuid "12547845-f8e1-4e75-88d1-683f8ef4066a")
-		(at 120 48)
+		(at 105.615 47.85)
 		(descr "BLX-A PCB mount 5x20mm fuse holder, 22.63mm pin pitch, 1.33mm pin width")
 		(tags "fuse holder 5x20mm BLX-A PCB mount")
 		(property "Reference" "F6"
@@ -633,7 +633,7 @@
 	(footprint "PinHeader_1x03_P2.54mm_Vertical"
 		(layer "F.Cu")
 		(uuid "152f4016-c128-4423-bf12-bba06f239d15")
-		(at 53 152 90)
+		(at 36.91 151.55 90)
 		(descr "Through hole straight pin header, 1x03, 2.54mm pitch, single row")
 		(tags "Through hole pin header THT 1x03 2.54mm single row")
 		(property "Reference" "SV2"
@@ -870,7 +870,7 @@
 	(footprint "TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm"
 		(layer "F.Cu")
 		(uuid "180f7310-f91c-4a22-bf33-26d3b7e20c37")
-		(at 180 62 90)
+		(at 148.6 110.85 90)
 		(descr "terminal block MaiXu MX126-5.0-02P, 2 pins, pitch 5mm, size 10.5x7.8mm, drill diameter 1.3mm, pad diameter 2.8mm, https://www.lcsc.com/datasheet/lcsc_datasheet_2309150913_MAX-MX126-5-0-03P-GN01-Cu-S-A_C5188435.pdf")
 		(tags "THT terminal block MaiXu MX126-5.0-02P pitch 5mm size 10.5x7.8mm drill 1.3mm pad 2.8mm")
 		(property "Reference" "J4"
@@ -1283,7 +1283,7 @@
 	(footprint "PinHeader_1x03_P2.54mm_Vertical"
 		(layer "F.Cu")
 		(uuid "1c10f227-2b45-4aa7-a9a1-187b1585eef7")
-		(at 101 152 90)
+		(at 84.91 151.55 90)
 		(descr "Through hole straight pin header, 1x03, 2.54mm pitch, single row")
 		(tags "Through hole pin header THT 1x03 2.54mm single row")
 		(property "Reference" "SV6"
@@ -1766,7 +1766,7 @@
 	(footprint "TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm"
 		(layer "F.Cu")
 		(uuid "26d33806-7934-422b-b894-e799964579a3")
-		(at 180 38 90)
+		(at 148.3 60.7 90)
 		(descr "terminal block MaiXu MX126-5.0-02P, 2 pins, pitch 5mm, size 10.5x7.8mm, drill diameter 1.3mm, pad diameter 2.8mm, https://www.lcsc.com/datasheet/lcsc_datasheet_2309150913_MAX-MX126-5-0-03P-GN01-Cu-S-A_C5188435.pdf")
 		(tags "THT terminal block MaiXu MX126-5.0-02P pitch 5mm size 10.5x7.8mm drill 1.3mm pad 2.8mm")
 		(property "Reference" "J2"
@@ -3418,7 +3418,7 @@
 	(footprint "PinHeader_1x03_P2.54mm_Vertical"
 		(layer "F.Cu")
 		(uuid "335b819b-1ffb-4e79-88b0-985a3af295e3")
-		(at 41 152 90)
+		(at 24.91 151.55 90)
 		(descr "Through hole straight pin header, 1x03, 2.54mm pitch, single row")
 		(tags "Through hole pin header THT 1x03 2.54mm single row")
 		(property "Reference" "SV1"
@@ -3655,7 +3655,7 @@
 	(footprint "PinHeader_1x03_P2.54mm_Vertical"
 		(layer "F.Cu")
 		(uuid "357977c3-046c-4c02-9ec5-52c641053d12")
-		(at 89 138 90)
+		(at 72.91 137.55 90)
 		(descr "Through hole straight pin header, 1x03, 2.54mm pitch, single row")
 		(tags "Through hole pin header THT 1x03 2.54mm single row")
 		(property "Reference" "J_ESC"
@@ -3891,7 +3891,7 @@
 	(footprint "PinHeader_1x03_P2.54mm_Vertical"
 		(layer "F.Cu")
 		(uuid "35e400d2-8c96-4c36-b451-ab6ddc668c91")
-		(at 65 152 90)
+		(at 48.91 151.55 90)
 		(descr "Through hole straight pin header, 1x03, 2.54mm pitch, single row")
 		(tags "Through hole pin header THT 1x03 2.54mm single row")
 		(property "Reference" "SV3"
@@ -4971,7 +4971,7 @@
 			(uuid "3c1003fc-6de4-40dd-95ee-f1ff7386f7b1")
 		)
 		(fp_text user "${REFERENCE}"
-			(at 0 2.54 180)
+			(at 0.45 -13.55 180)
 			(layer "F.Fab")
 			(uuid "b74befc9-ffd6-4a9a-8d07-5fc74b7914a2")
 			(effects
@@ -5024,7 +5024,7 @@
 	(footprint "PinHeader_1x03_P2.54mm_Vertical"
 		(layer "F.Cu")
 		(uuid "604c4f27-e8f2-4235-85cb-3ee231317889")
-		(at 113 152 90)
+		(at 96.91 151.55 90)
 		(descr "Through hole straight pin header, 1x03, 2.54mm pitch, single row")
 		(tags "Through hole pin header THT 1x03 2.54mm single row")
 		(property "Reference" "SV7"
@@ -5261,7 +5261,7 @@
 	(footprint "BLX-A_5x20mm"
 		(layer "F.Cu")
 		(uuid "6c5bfa14-c681-4020-9513-6dc434564d08")
-		(at 120 64)
+		(at 105.615 63.85)
 		(descr "BLX-A PCB mount 5x20mm fuse holder, 22.63mm pin pitch, 1.33mm pin width")
 		(tags "fuse holder 5x20mm BLX-A PCB mount")
 		(property "Reference" "F7"
@@ -5414,7 +5414,7 @@
 	(footprint "TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm"
 		(layer "F.Cu")
 		(uuid "6fd2d1c3-c543-4ddd-8019-7af21dbec70d")
-		(at 180 26 90)
+		(at 148.3 48.7 90)
 		(descr "terminal block MaiXu MX126-5.0-02P, 2 pins, pitch 5mm, size 10.5x7.8mm, drill diameter 1.3mm, pad diameter 2.8mm, https://www.lcsc.com/datasheet/lcsc_datasheet_2309150913_MAX-MX126-5-0-03P-GN01-Cu-S-A_C5188435.pdf")
 		(tags "THT terminal block MaiXu MX126-5.0-02P pitch 5mm size 10.5x7.8mm drill 1.3mm pad 2.8mm")
 		(property "Reference" "J1"
@@ -6240,7 +6240,7 @@
 	(footprint "PinHeader_1x03_P2.54mm_Vertical"
 		(layer "F.Cu")
 		(uuid "92dbfedf-f467-4341-971f-7972c8898955")
-		(at 137 152 90)
+		(at 120.91 151.55 90)
 		(descr "Through hole straight pin header, 1x03, 2.54mm pitch, single row")
 		(tags "Through hole pin header THT 1x03 2.54mm single row")
 		(property "Reference" "SV9"
@@ -6477,7 +6477,7 @@
 	(footprint "PinHeader_1x03_P2.54mm_Vertical"
 		(layer "F.Cu")
 		(uuid "9a822c62-0685-40db-82ba-bf2395a3036e")
-		(at 89 152 90)
+		(at 72.91 151.55 90)
 		(descr "Through hole straight pin header, 1x03, 2.54mm pitch, single row")
 		(tags "Through hole pin header THT 1x03 2.54mm single row")
 		(property "Reference" "SV5"
@@ -7373,7 +7373,7 @@
 	(footprint "PinHeader_1x03_P2.54mm_Vertical"
 		(layer "F.Cu")
 		(uuid "a444fa19-9c06-4279-a45e-c3b811a708b6")
-		(at 125 152 90)
+		(at 108.91 151.55 90)
 		(descr "Through hole straight pin header, 1x03, 2.54mm pitch, single row")
 		(tags "Through hole pin header THT 1x03 2.54mm single row")
 		(property "Reference" "SV8"
@@ -7856,7 +7856,7 @@
 	(footprint "TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm"
 		(layer "F.Cu")
 		(uuid "aad3e7ba-8184-431d-9f0a-95b38a511200")
-		(at 180 86 90)
+		(at 148.6 85.95 90)
 		(descr "terminal block MaiXu MX126-5.0-02P, 2 pins, pitch 5mm, size 10.5x7.8mm, drill diameter 1.3mm, pad diameter 2.8mm, https://www.lcsc.com/datasheet/lcsc_datasheet_2309150913_MAX-MX126-5-0-03P-GN01-Cu-S-A_C5188435.pdf")
 		(tags "THT terminal block MaiXu MX126-5.0-02P pitch 5mm size 10.5x7.8mm drill 1.3mm pad 2.8mm")
 		(property "Reference" "J6"
@@ -8575,7 +8575,7 @@
 	(footprint "TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm"
 		(layer "F.Cu")
 		(uuid "c4dfa23d-b596-4347-acbf-f481b8280ba4")
-		(at 180 74 90)
+		(at 148.6 73.95 90)
 		(descr "terminal block MaiXu MX126-5.0-02P, 2 pins, pitch 5mm, size 10.5x7.8mm, drill diameter 1.3mm, pad diameter 2.8mm, https://www.lcsc.com/datasheet/lcsc_datasheet_2309150913_MAX-MX126-5-0-03P-GN01-Cu-S-A_C5188435.pdf")
 		(tags "THT terminal block MaiXu MX126-5.0-02P pitch 5mm size 10.5x7.8mm drill 1.3mm pad 2.8mm")
 		(property "Reference" "J5"
@@ -9554,7 +9554,7 @@
 	(footprint "BLX-A_5x20mm"
 		(layer "F.Cu")
 		(uuid "d52cd1e8-eeb8-4b44-9c37-0f249a65d7f3")
-		(at 120 96)
+		(at 105.615 95.85)
 		(descr "BLX-A PCB mount 5x20mm fuse holder, 22.63mm pin pitch, 1.33mm pin width")
 		(tags "fuse holder 5x20mm BLX-A PCB mount")
 		(property "Reference" "F9"
@@ -10779,7 +10779,7 @@
 	(footprint "TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm"
 		(layer "F.Cu")
 		(uuid "de48ea77-457c-4414-976e-bf13f9da9d9a")
-		(at 180 50 90)
+		(at 148.6 98.85 90)
 		(descr "terminal block MaiXu MX126-5.0-02P, 2 pins, pitch 5mm, size 10.5x7.8mm, drill diameter 1.3mm, pad diameter 2.8mm, https://www.lcsc.com/datasheet/lcsc_datasheet_2309150913_MAX-MX126-5-0-03P-GN01-Cu-S-A_C5188435.pdf")
 		(tags "THT terminal block MaiXu MX126-5.0-02P pitch 5mm size 10.5x7.8mm drill 1.3mm pad 2.8mm")
 		(property "Reference" "J3"
@@ -11192,7 +11192,7 @@
 	(footprint "BLX-A_5x20mm"
 		(layer "F.Cu")
 		(uuid "df926a6b-706a-42da-a126-7a33c257dca1")
-		(at 120 80)
+		(at 105.615 79.85)
 		(descr "BLX-A PCB mount 5x20mm fuse holder, 22.63mm pin pitch, 1.33mm pin width")
 		(tags "fuse holder 5x20mm BLX-A PCB mount")
 		(property "Reference" "F8"
@@ -11345,7 +11345,7 @@
 	(footprint "PinHeader_1x03_P2.54mm_Vertical"
 		(layer "F.Cu")
 		(uuid "e8e96e90-c83b-4416-9c49-101931bdf1ce")
-		(at 101 138 90)
+		(at 84.91 137.55 90)
 		(descr "Through hole straight pin header, 1x03, 2.54mm pitch, single row")
 		(tags "Through hole pin header THT 1x03 2.54mm single row")
 		(property "Reference" "J_FAN"
@@ -11582,7 +11582,7 @@
 	(footprint "PinSocket_1x19_P2.54mm_Vertical"
 		(layer "F.Cu")
 		(uuid "ebd88bd5-7d6a-49fd-9ac7-4f8f4b3fc575")
-		(at 117.86 10 -90)
+		(at 104.95 10.15 -90)
 		(descr "Through hole straight socket strip, 1x19, 2.54mm pitch, single row (from Kicad 4.0.7), script generated")
 		(tags "Through hole socket strip THT 1x19 2.54mm single row")
 		(property "Reference" "J_PCA"
@@ -12555,7 +12555,7 @@
 	(footprint "BLX-A_5x20mm"
 		(layer "F.Cu")
 		(uuid "fd0943d3-c3e0-4bab-a46a-aa6fdbeeabc2")
-		(at 120 112)
+		(at 105.615 111.85)
 		(descr "BLX-A PCB mount 5x20mm fuse holder, 22.63mm pin pitch, 1.33mm pin width")
 		(tags "fuse holder 5x20mm BLX-A PCB mount")
 		(property "Reference" "F10"
@@ -12707,7 +12707,7 @@
 	)
 	(gr_rect
 		(start 0 0)
-		(end 190 160)
+		(end 160.069848 158.182897)
 		(stroke
 			(width 0.1)
 			(type default)
