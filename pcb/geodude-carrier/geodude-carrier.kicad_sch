@@ -1,0 +1,4654 @@
+(kicad_sch
+  (version 20250101)
+  (generator "claude_code")
+  (generator_version "10.0")
+  (uuid "cc027e56-f7e8-4c98-9a10-3a5e2b00efb1")
+  (paper "A1")
+
+  (lib_symbols
+    (symbol "Connector:Screw_Terminal_01x02"
+      (pin_names (offset 1.016) hide)
+      (exclude_from_sim no)
+      (in_bom yes)
+      (on_board yes)
+      (property "Reference" "J" (at 0 2.54 0) (effects (font (size 1.27 1.27))))
+      (property "Value" "Screw_Terminal_01x02" (at 0 -5.08 0) (effects (font (size 1.27 1.27))))
+      (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+      (property "Datasheet" "~" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+      (property "ki_keywords" "screw terminal" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+      (symbol "Screw_Terminal_01x02_1_1"
+        (rectangle (start -1.27 1.27) (end 1.27 -3.81) (stroke (width 0.254) (type default)) (fill (type background)))
+        (circle (center 0 0) (radius 0.508) (stroke (width 0.254) (type default)) (fill (type none)))
+        (circle (center 0 -2.54) (radius 0.508) (stroke (width 0.254) (type default)) (fill (type none)))
+        (pin passive line (at -3.81 0 0) (length 2.54) (name "Pin_1" (effects (font (size 1.27 1.27)))) (number "1" (effects (font (size 1.27 1.27)))))
+        (pin passive line (at -3.81 -2.54 0) (length 2.54) (name "Pin_2" (effects (font (size 1.27 1.27)))) (number "2" (effects (font (size 1.27 1.27)))))
+      )
+    )
+    (symbol "Connector:Screw_Terminal_01x04"
+      (pin_names (offset 1.016) hide)
+      (exclude_from_sim no)
+      (in_bom yes)
+      (on_board yes)
+      (property "Reference" "J" (at 0 5.08 0) (effects (font (size 1.27 1.27))))
+      (property "Value" "Screw_Terminal_01x04" (at 0 -10.16 0) (effects (font (size 1.27 1.27))))
+      (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+      (property "Datasheet" "~" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+      (property "ki_keywords" "screw terminal" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+      (symbol "Screw_Terminal_01x04_1_1"
+        (rectangle (start -1.27 3.81) (end 1.27 -8.89) (stroke (width 0.254) (type default)) (fill (type background)))
+        (circle (center 0 2.54) (radius 0.508) (stroke (width 0.254) (type default)) (fill (type none)))
+        (pin passive line (at -3.81 2.54 0) (length 2.54) (name "Pin_1" (effects (font (size 1.27 1.27)))) (number "1" (effects (font (size 1.27 1.27)))))
+        (circle (center 0 0) (radius 0.508) (stroke (width 0.254) (type default)) (fill (type none)))
+        (pin passive line (at -3.81 0 0) (length 2.54) (name "Pin_2" (effects (font (size 1.27 1.27)))) (number "2" (effects (font (size 1.27 1.27)))))
+        (circle (center 0 -2.54) (radius 0.508) (stroke (width 0.254) (type default)) (fill (type none)))
+        (pin passive line (at -3.81 -2.54 0) (length 2.54) (name "Pin_3" (effects (font (size 1.27 1.27)))) (number "3" (effects (font (size 1.27 1.27)))))
+        (circle (center 0 -5.08) (radius 0.508) (stroke (width 0.254) (type default)) (fill (type none)))
+        (pin passive line (at -3.81 -5.08 0) (length 2.54) (name "Pin_4" (effects (font (size 1.27 1.27)))) (number "4" (effects (font (size 1.27 1.27)))))
+      )
+    )
+    (symbol "Connector_Generic:Conn_01x08"
+      (pin_names (offset 1.016) hide)
+      (exclude_from_sim no)
+      (in_bom yes)
+      (on_board yes)
+      (property "Reference" "J" (at 0 10.16 0) (effects (font (size 1.27 1.27))))
+      (property "Value" "Conn_01x08" (at 0 -20.32 0) (effects (font (size 1.27 1.27))))
+      (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+      (property "Datasheet" "~" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+      (property "ki_keywords" "connector" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+      (symbol "Conn_01x08_1_1"
+        (rectangle (start -1.27 8.89) (end 1.27 -19.05) (stroke (width 0.254) (type default)) (fill (type background)))
+        (pin passive line (at -3.81 7.62 0) (length 2.54) (name "Pin_1" (effects (font (size 1.27 1.27)))) (number "1" (effects (font (size 1.27 1.27)))))
+        (pin passive line (at -3.81 5.08 0) (length 2.54) (name "Pin_2" (effects (font (size 1.27 1.27)))) (number "2" (effects (font (size 1.27 1.27)))))
+        (pin passive line (at -3.81 2.54 0) (length 2.54) (name "Pin_3" (effects (font (size 1.27 1.27)))) (number "3" (effects (font (size 1.27 1.27)))))
+        (pin passive line (at -3.81 0 0) (length 2.54) (name "Pin_4" (effects (font (size 1.27 1.27)))) (number "4" (effects (font (size 1.27 1.27)))))
+        (pin passive line (at -3.81 -2.54 0) (length 2.54) (name "Pin_5" (effects (font (size 1.27 1.27)))) (number "5" (effects (font (size 1.27 1.27)))))
+        (pin passive line (at -3.81 -5.08 0) (length 2.54) (name "Pin_6" (effects (font (size 1.27 1.27)))) (number "6" (effects (font (size 1.27 1.27)))))
+        (pin passive line (at -3.81 -7.62 0) (length 2.54) (name "Pin_7" (effects (font (size 1.27 1.27)))) (number "7" (effects (font (size 1.27 1.27)))))
+        (pin passive line (at -3.81 -10.16 0) (length 2.54) (name "Pin_8" (effects (font (size 1.27 1.27)))) (number "8" (effects (font (size 1.27 1.27)))))
+      )
+    )
+    (symbol "Connector_Generic:Conn_01x03"
+      (pin_names (offset 1.016) hide)
+      (exclude_from_sim no)
+      (in_bom yes)
+      (on_board yes)
+      (property "Reference" "J" (at 0 5.08 0) (effects (font (size 1.27 1.27))))
+      (property "Value" "Conn_01x03" (at 0 -5.08 0) (effects (font (size 1.27 1.27))))
+      (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+      (property "Datasheet" "~" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+      (property "ki_keywords" "connector" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+      (symbol "Conn_01x03_1_1"
+        (rectangle (start -1.27 3.81) (end 1.27 -3.81) (stroke (width 0.254) (type default)) (fill (type background)))
+        (pin passive line (at -3.81 2.54 0) (length 2.54) (name "Pin_1" (effects (font (size 1.27 1.27)))) (number "1" (effects (font (size 1.27 1.27)))))
+        (pin passive line (at -3.81 0 0) (length 2.54) (name "Pin_2" (effects (font (size 1.27 1.27)))) (number "2" (effects (font (size 1.27 1.27)))))
+        (pin passive line (at -3.81 -2.54 0) (length 2.54) (name "Pin_3" (effects (font (size 1.27 1.27)))) (number "3" (effects (font (size 1.27 1.27)))))
+      )
+    )
+    (symbol "Device:Fuse"
+      (pin_names (offset 0))
+      (exclude_from_sim no)
+      (in_bom yes)
+      (on_board yes)
+      (property "Reference" "F" (at 2.032 0 90) (effects (font (size 1.27 1.27))))
+      (property "Value" "Fuse" (at -2.032 0 90) (effects (font (size 1.27 1.27))))
+      (property "Footprint" "" (at -1.016 0 90) (effects (font (size 1.27 1.27)) hide))
+      (property "Datasheet" "~" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+      (property "ki_keywords" "fuse" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+      (symbol "Fuse_0_1"
+        (rectangle (start -0.762 -2.54) (end 0.762 2.54) (stroke (width 0.254) (type default)) (fill (type none)))
+      )
+      (symbol "Fuse_1_1"
+        (pin passive line (at 0 3.81 270) (length 1.27) (name "~" (effects (font (size 1.27 1.27)))) (number "1" (effects (font (size 1.27 1.27)))))
+        (pin passive line (at 0 -3.81 90) (length 1.27) (name "~" (effects (font (size 1.27 1.27)))) (number "2" (effects (font (size 1.27 1.27)))))
+      )
+    )
+    (symbol "power:+12V"
+      (power)
+      (pin_names (offset 0))
+      (exclude_from_sim no)
+      (in_bom yes)
+      (on_board yes)
+      (property "Reference" "#PWR" (at 0 -5.08 0) (effects (font (size 1.27 1.27)) hide))
+      (property "Value" "+12V" (at 0 3.81 0) (effects (font (size 1.27 1.27))))
+      (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+      (property "Datasheet" "" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+      (symbol "+12V_0_1"
+        (polyline (pts (xy -0.762 1.27) (xy 0 2.54) (xy 0.762 1.27)) (stroke (width 0) (type default)) (fill (type none)))
+        (pin power_in line (at 0 0 90) (length 1.27) (name "+12V" (effects (font (size 1.27 1.27)))) (number "1" (effects (font (size 1.27 1.27)))))
+      )
+    )
+    (symbol "power:+7V4"
+      (power)
+      (pin_names (offset 0))
+      (exclude_from_sim no)
+      (in_bom yes)
+      (on_board yes)
+      (property "Reference" "#PWR" (at 0 -5.08 0) (effects (font (size 1.27 1.27)) hide))
+      (property "Value" "+7V4" (at 0 3.81 0) (effects (font (size 1.27 1.27))))
+      (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+      (property "Datasheet" "" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+      (symbol "+7V4_0_1"
+        (polyline (pts (xy -0.762 1.27) (xy 0 2.54) (xy 0.762 1.27)) (stroke (width 0) (type default)) (fill (type none)))
+        (pin power_in line (at 0 0 90) (length 1.27) (name "+7V4" (effects (font (size 1.27 1.27)))) (number "1" (effects (font (size 1.27 1.27)))))
+      )
+    )
+    (symbol "power:+5V"
+      (power)
+      (pin_names (offset 0))
+      (exclude_from_sim no)
+      (in_bom yes)
+      (on_board yes)
+      (property "Reference" "#PWR" (at 0 -5.08 0) (effects (font (size 1.27 1.27)) hide))
+      (property "Value" "+5V" (at 0 3.81 0) (effects (font (size 1.27 1.27))))
+      (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+      (property "Datasheet" "" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+      (symbol "+5V_0_1"
+        (polyline (pts (xy -0.762 1.27) (xy 0 2.54) (xy 0.762 1.27)) (stroke (width 0) (type default)) (fill (type none)))
+        (pin power_in line (at 0 0 90) (length 1.27) (name "+5V" (effects (font (size 1.27 1.27)))) (number "1" (effects (font (size 1.27 1.27)))))
+      )
+    )
+    (symbol "power:+3.3V"
+      (power)
+      (pin_names (offset 0))
+      (exclude_from_sim no)
+      (in_bom yes)
+      (on_board yes)
+      (property "Reference" "#PWR" (at 0 -5.08 0) (effects (font (size 1.27 1.27)) hide))
+      (property "Value" "+3.3V" (at 0 3.81 0) (effects (font (size 1.27 1.27))))
+      (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+      (property "Datasheet" "" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+      (symbol "+3.3V_0_1"
+        (polyline (pts (xy -0.762 1.27) (xy 0 2.54) (xy 0.762 1.27)) (stroke (width 0) (type default)) (fill (type none)))
+        (pin power_in line (at 0 0 90) (length 1.27) (name "+3.3V" (effects (font (size 1.27 1.27)))) (number "1" (effects (font (size 1.27 1.27)))))
+      )
+    )
+    (symbol "power:GND"
+      (power)
+      (pin_names (offset 0))
+      (exclude_from_sim no)
+      (in_bom yes)
+      (on_board yes)
+      (property "Reference" "#PWR" (at 0 2.54 0) (effects (font (size 1.27 1.27)) hide))
+      (property "Value" "GND" (at 0 -3.81 0) (effects (font (size 1.27 1.27))))
+      (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+      (property "Datasheet" "" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+      (symbol "GND_0_1"
+        (polyline (pts (xy 0 0) (xy 0 -1.27) (xy 1.27 -1.27) (xy 0 -2.54) (xy -1.27 -1.27) (xy 0 -1.27)) (stroke (width 0) (type default)) (fill (type none)))
+      )
+      (symbol "GND_1_1"
+        (pin power_in line (at 0 0 270) (length 0) (name "GND" (effects (font (size 1.27 1.27)))) (number "1" (effects (font (size 1.27 1.27)))))
+      )
+    )
+  )
+
+  (text "GEO-DUDe Carrier PCB"
+    (at 400 20 0)
+    (effects
+      (font
+        (size 5.08 5.08)
+      )
+    )
+    (uuid "a7d4541b-e606-4c0f-8ac6-b0df14c621a4")
+  )
+  (text "Power Distribution + Servo/ESC/Fan Control via PCA9685"
+    (at 400 35 0)
+    (effects
+      (font
+        (size 2.54 2.54)
+      )
+    )
+    (uuid "fe824506-e5ab-4529-aaa8-c586997f6ead")
+  )
+  (text "POWER INPUT"
+    (at 30 55 0)
+    (effects
+      (font
+        (size 3.0 3.0)
+      )
+    )
+    (uuid "604ba788-d344-4e1e-bffc-1bb2cb5a0b90")
+  )
+  (symbol
+    (lib_id "Connector:Screw_Terminal_01x02")
+    (at 45 80)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "d963ad03-a8a1-45f3-9cf1-e7b4be14b65a")
+    (property "Reference" "J_12V"
+      (at 50 78 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "12V_Input"
+      (at 50 82 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "a1267bf9-e2dc-4e10-b63b-6ebf028ddc92")
+    )
+    (pin "2"
+      (uuid "44000560-9117-4e3f-b796-0b74c8d0870a")
+    )
+  )
+  (symbol
+    (lib_id "power:+12V")
+    (at 30 74 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "a97468ac-0196-4eb8-957c-0e3c54f0d760")
+    (property "Reference" "#PWR001"
+      (at 30 68.92 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "+12V"
+      (at 30 77.81 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "71c841d9-ef4c-43ad-8212-3b500454bf05")
+    )
+  )
+  (wire
+    (pts
+      (xy 30 74) (xy 30 80)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "6561f4cd-6082-4194-b73d-35f3791e418d")
+  )
+  (wire
+    (pts
+      (xy 30 80) (xy 41.19 80)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "dbd1d831-b576-44e1-95da-14336a920f6a")
+  )
+  (symbol
+    (lib_id "power:GND")
+    (at 30 80.54 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "e7325ce4-05b7-4838-bd65-00341ec58900")
+    (property "Reference" "#PWR002"
+      (at 30 83.08000000000001 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "GND"
+      (at 30 76.73 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "ee7836fb-2620-4d81-9ef4-746b39dc1fc0")
+    )
+  )
+  (wire
+    (pts
+      (xy 30 80.54) (xy 30 77.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "ec1d9945-f641-4c77-991f-504f24758339")
+  )
+  (wire
+    (pts
+      (xy 30 77.46) (xy 41.19 77.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "d711e21f-c456-4bc3-bc96-d7c0ecf83001")
+  )
+  (symbol
+    (lib_id "Connector:Screw_Terminal_01x02")
+    (at 45 110)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "0838ebbd-e51b-4971-a5df-b374609b5429")
+    (property "Reference" "J_7V4"
+      (at 50 108 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "7V4_Input"
+      (at 50 112 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "10391531-3373-4e13-b2f5-b7cdb107fd02")
+    )
+    (pin "2"
+      (uuid "878e4ad6-c3f8-4a21-a0aa-5c00a4ab6df1")
+    )
+  )
+  (symbol
+    (lib_id "power:+7V4")
+    (at 30 104 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "84830f9a-1320-44c6-8023-4785fccad047")
+    (property "Reference" "#PWR003"
+      (at 30 98.92 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "+7V4"
+      (at 30 107.81 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "fd909036-4276-4c04-8cf1-8b6dc16f2b74")
+    )
+  )
+  (wire
+    (pts
+      (xy 30 104) (xy 30 110)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "4df6855e-f202-4bac-b330-e6ef6dbc17e5")
+  )
+  (wire
+    (pts
+      (xy 30 110) (xy 41.19 110)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "cb457ec8-9d6a-4dea-985f-5bd11b905cb8")
+  )
+  (symbol
+    (lib_id "power:GND")
+    (at 30 110.54 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "f7600b6d-1232-4d22-bda0-d8e98e1e6010")
+    (property "Reference" "#PWR004"
+      (at 30 113.08000000000001 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "GND"
+      (at 30 106.73 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "a0a6e8b2-a3e5-4e08-b10c-536d64e5d558")
+    )
+  )
+  (wire
+    (pts
+      (xy 30 110.54) (xy 30 107.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "32f213e0-8dbb-4d7d-b148-dabea51c36be")
+  )
+  (wire
+    (pts
+      (xy 30 107.46) (xy 41.19 107.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "a758753f-a897-42d2-99c4-bfbe35dbdcfa")
+  )
+  (symbol
+    (lib_id "Connector:Screw_Terminal_01x02")
+    (at 45 140)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "627176fe-7330-4442-b16d-1b2e58a5bb1b")
+    (property "Reference" "J_5V"
+      (at 50 138 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "5V_Input"
+      (at 50 142 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "6241234b-6170-44fd-87cc-1d32594446d2")
+    )
+    (pin "2"
+      (uuid "05248653-f602-42fe-90f1-cc9b06a13cb8")
+    )
+  )
+  (symbol
+    (lib_id "power:+5V")
+    (at 30 134 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "a9c5f5aa-0a13-428c-95c9-1296bce749ac")
+    (property "Reference" "#PWR005"
+      (at 30 128.92 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "+5V"
+      (at 30 137.81 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "41e493eb-5cc9-4082-a40a-c120b08a1c12")
+    )
+  )
+  (wire
+    (pts
+      (xy 30 134) (xy 30 140)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "bde76215-9b03-449b-8080-c17981c2e50c")
+  )
+  (wire
+    (pts
+      (xy 30 140) (xy 41.19 140)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "51791aea-e6c3-4bef-b23c-6ea0906b94d2")
+  )
+  (symbol
+    (lib_id "power:GND")
+    (at 30 143.54 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "14ba2305-8bbb-4ea3-829d-4869d75b8052")
+    (property "Reference" "#PWR006"
+      (at 30 146.07999999999998 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "GND"
+      (at 30 139.73 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "b77e1974-083d-4ba4-956e-9fbef1fe26e0")
+    )
+  )
+  (wire
+    (pts
+      (xy 30 143.54) (xy 30 137.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "e9aa9fcb-8d1d-48e0-82ef-ed3486c5a67f")
+  )
+  (wire
+    (pts
+      (xy 30 137.46) (xy 41.19 137.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "238f561a-8432-4155-9d80-5801c52a3453")
+  )
+  (text "ARM 1 SERVOS"
+    (at 90 165 0)
+    (effects
+      (font
+        (size 2.54 2.54)
+      )
+    )
+    (uuid "66de5d6d-7555-4b20-b955-7e15d26caa94")
+  )
+  (text "ARM 2 SERVOS"
+    (at 90 370 0)
+    (effects
+      (font
+        (size 2.54 2.54)
+      )
+    )
+    (uuid "10a89e66-1682-4c1a-8f26-4b68c4c4fcf8")
+  )
+  (symbol
+    (lib_id "Device:Fuse")
+    (at 100 180 90)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "c215ec22-3933-4a4d-8236-9f2af6ee276b")
+    (property "Reference" "F1"
+      (at 105 178 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "8A"
+      (at 105 182 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "365d4641-5ad7-46a4-adb1-d5ac122cf006")
+    )
+    (pin "2"
+      (uuid "a3b802c4-f004-4c75-850b-bde58c7bfa2b")
+    )
+  )
+  (symbol
+    (lib_id "power:+12V")
+    (at 96.19 172 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "3b25ae0b-abbe-4443-adc1-abae40e014f4")
+    (property "Reference" "#PWR007"
+      (at 96.19 166.92 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "+12V"
+      (at 96.19 175.81 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "850449cb-713d-48f2-8b31-96f5ddeb06d4")
+    )
+  )
+  (wire
+    (pts
+      (xy 96.19 172) (xy 96.19 180)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "8a5eda8f-9561-4cfc-8c53-3a1ff621d4e5")
+  )
+  (wire
+    (pts
+      (xy 103.81 180) (xy 113.81 180)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "0adb27f6-d80b-4957-abce-adfe38f7e12a")
+  )
+  (label "SV1_PWR"
+    (at 113.81 180 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "42cad40b-53a0-40f7-acae-90a9583f70ad")
+  )
+  (symbol
+    (lib_id "Connector_Generic:Conn_01x03")
+    (at 175 180)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "6f87589d-81cd-41ba-b1dd-9a0d23ef06e5")
+    (property "Reference" "SV1"
+      (at 180 178 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "Arm1_Base"
+      (at 180 182 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "0ef40137-f93a-4cbd-ab91-b5044e7d0615")
+    )
+    (pin "2"
+      (uuid "26896bf2-13eb-4714-a83d-0871e33c16ef")
+    )
+    (pin "3"
+      (uuid "39d887c8-818f-4cca-9221-2863a9b561b2")
+    )
+  )
+  (label "PWM_CH0"
+    (at 160 182.54 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "7ab83512-1d84-4c4b-ba61-5c7fec0fc504")
+  )
+  (wire
+    (pts
+      (xy 160 182.54) (xy 171.19 182.54)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "d15ca91a-6302-46ae-a4ef-500fce6dc0ec")
+  )
+  (label "SV1_PWR"
+    (at 160 180 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "f52052b4-f2cf-4cda-8119-d6bdb739c152")
+  )
+  (wire
+    (pts
+      (xy 160 180) (xy 171.19 180)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "029edbbd-6dd6-4c8e-833f-77a705cedae6")
+  )
+  (symbol
+    (lib_id "power:GND")
+    (at 167 180.46 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "85c56876-4682-4235-ac8f-a073d8165ce6")
+    (property "Reference" "#PWR008"
+      (at 167 183.0 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "GND"
+      (at 167 176.65 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "33f2db7a-c2f0-44e1-8cb2-142e74d3558a")
+    )
+  )
+  (wire
+    (pts
+      (xy 167 180.46) (xy 167 177.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "df0e9e12-705e-41fa-a38d-29d0f3b7bab4")
+  )
+  (wire
+    (pts
+      (xy 167 177.46) (xy 171.19 177.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "c606443c-46af-4418-8153-3411c38f5b76")
+  )
+  (symbol
+    (lib_id "Device:Fuse")
+    (at 100 215 90)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "19f9b35e-c892-4e0a-981c-de94b489bd97")
+    (property "Reference" "F2"
+      (at 105 213 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "8A"
+      (at 105 217 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "6a5a19b6-6039-4977-9f16-7bc49e1d7d02")
+    )
+    (pin "2"
+      (uuid "adbaca2e-cca7-4f0d-b28e-fb7f63cc3f8b")
+    )
+  )
+  (symbol
+    (lib_id "power:+12V")
+    (at 96.19 207 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "9bbc9970-3494-419c-a0e7-71877c0889b7")
+    (property "Reference" "#PWR009"
+      (at 96.19 201.92 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "+12V"
+      (at 96.19 210.81 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "855c9c01-c03a-4a7d-82aa-dd8b79ae852c")
+    )
+  )
+  (wire
+    (pts
+      (xy 96.19 207) (xy 96.19 215)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "90ae15cb-a088-40c1-bf98-ea483e09249b")
+  )
+  (wire
+    (pts
+      (xy 103.81 215) (xy 113.81 215)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "bd8b3fe3-fa68-4c25-aa3c-240fed456872")
+  )
+  (label "SV2_PWR"
+    (at 113.81 215 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "83d0d2b4-a637-4109-9aa0-d6b3302c0a0c")
+  )
+  (symbol
+    (lib_id "Connector_Generic:Conn_01x03")
+    (at 175 215)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "7b5d68e5-92e7-47d1-9b7a-598eab5d3743")
+    (property "Reference" "SV2"
+      (at 180 213 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "Arm1_Shoulder"
+      (at 180 217 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "9157ffa7-1bfa-4a64-83ae-eb2a876c79a5")
+    )
+    (pin "2"
+      (uuid "f910121b-6097-4a64-aa1d-3e9097ee6eac")
+    )
+    (pin "3"
+      (uuid "06dadb35-2ac3-4c97-9613-cd248269c7e6")
+    )
+  )
+  (label "PWM_CH1"
+    (at 160 217.54 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "d78fd12d-8026-4a01-a348-7420b0c4d396")
+  )
+  (wire
+    (pts
+      (xy 160 217.54) (xy 171.19 217.54)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "0b00e441-1838-4796-9214-3ce0420d1b7f")
+  )
+  (label "SV2_PWR"
+    (at 160 215 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "c52eee56-e6ef-40e4-9136-58c04036b90a")
+  )
+  (wire
+    (pts
+      (xy 160 215) (xy 171.19 215)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "e8dc2531-42e1-4124-b7fd-f6015dcb140b")
+  )
+  (symbol
+    (lib_id "power:GND")
+    (at 167 215.46 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "b9e52b4d-a448-416e-af16-f852e0d74f83")
+    (property "Reference" "#PWR010"
+      (at 167 218.0 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "GND"
+      (at 167 211.65 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "3ede8314-e970-46ee-9a0c-1a2604fd2def")
+    )
+  )
+  (wire
+    (pts
+      (xy 167 215.46) (xy 167 212.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "6bd14694-a53b-4662-a223-5e52dfe8b871")
+  )
+  (wire
+    (pts
+      (xy 167 212.46) (xy 171.19 212.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "fc1da922-264d-46e6-89a4-47d729ebe719")
+  )
+  (symbol
+    (lib_id "Device:Fuse")
+    (at 100 250 90)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "13b6c686-1870-42bf-8f91-af3651df1d5f")
+    (property "Reference" "F3"
+      (at 105 248 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "5A"
+      (at 105 252 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "e08f3eed-f230-4b29-b249-5ddf9b996dd8")
+    )
+    (pin "2"
+      (uuid "9119472b-f640-4692-a82e-a7f2a3a6aec7")
+    )
+  )
+  (symbol
+    (lib_id "power:+7V4")
+    (at 96.19 242 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "ce607e73-6add-4d66-a17d-ad8a17807250")
+    (property "Reference" "#PWR011"
+      (at 96.19 236.92 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "+7V4"
+      (at 96.19 245.81 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "beda3504-b373-4598-8624-77f45e692ad7")
+    )
+  )
+  (wire
+    (pts
+      (xy 96.19 242) (xy 96.19 250)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "f8ec5e36-2bfa-49b0-bdd6-ea0c6b8fa83f")
+  )
+  (wire
+    (pts
+      (xy 103.81 250) (xy 113.81 250)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "874d9fdb-2835-433d-899f-8c58516e69b4")
+  )
+  (label "SV3_PWR"
+    (at 113.81 250 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "a8331992-d422-4fd4-95b4-739a591ffa05")
+  )
+  (symbol
+    (lib_id "Connector_Generic:Conn_01x03")
+    (at 175 250)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "b4378fc1-27f4-44f2-b48d-c054a86dfcd1")
+    (property "Reference" "SV3"
+      (at 180 248 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "Arm1_Elbow"
+      (at 180 252 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "fcbace34-d1ac-46ae-8e5f-7082d7733c8b")
+    )
+    (pin "2"
+      (uuid "5ee1c831-1f87-4b14-ab2a-36b33a1c68bb")
+    )
+    (pin "3"
+      (uuid "bf2cb8a8-8c16-4f64-8b86-c187d14493f6")
+    )
+  )
+  (label "PWM_CH2"
+    (at 160 252.54 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "ce4667d1-346a-4b7b-a68b-0ffcd75d8659")
+  )
+  (wire
+    (pts
+      (xy 160 252.54) (xy 171.19 252.54)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "e51558b2-cb6e-4dc3-86f2-fb22af58c7cb")
+  )
+  (label "SV3_PWR"
+    (at 160 250 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "39a1e71f-0d28-4151-99c5-e6d2cb6e6757")
+  )
+  (wire
+    (pts
+      (xy 160 250) (xy 171.19 250)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "bd99b166-e240-4b03-9bc4-e35e3b29000f")
+  )
+  (symbol
+    (lib_id "power:GND")
+    (at 167 250.46 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "491d2954-775d-48e1-a741-39670c333a94")
+    (property "Reference" "#PWR012"
+      (at 167 253.0 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "GND"
+      (at 167 246.65 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "9d8be7f5-b132-49d6-b03a-da8224799998")
+    )
+  )
+  (wire
+    (pts
+      (xy 167 250.46) (xy 167 247.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "4059d181-0403-483a-8ea7-3e1cb4977410")
+  )
+  (wire
+    (pts
+      (xy 167 247.46) (xy 171.19 247.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "fc52a7da-5843-4e4c-99c9-ec5543d8a7f0")
+  )
+  (symbol
+    (lib_id "Device:Fuse")
+    (at 100 285 90)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "9f0829b8-6254-40f1-aaca-1f0edefc4b0d")
+    (property "Reference" "F4"
+      (at 105 283 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "3A"
+      (at 105 287 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "68d060a5-32b5-4a47-9810-c4b97ce3c632")
+    )
+    (pin "2"
+      (uuid "90114adb-00e5-4aa9-90db-0dff713f2b0d")
+    )
+  )
+  (symbol
+    (lib_id "power:+5V")
+    (at 96.19 277 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "e44f81c6-ad23-4916-81eb-af633d911335")
+    (property "Reference" "#PWR013"
+      (at 96.19 271.92 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "+5V"
+      (at 96.19 280.81 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "1dd1e093-2738-486f-bdc5-a058fe6f09b8")
+    )
+  )
+  (wire
+    (pts
+      (xy 96.19 277) (xy 96.19 285)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "3e373b16-b6d3-4729-abe1-00a7060decb7")
+  )
+  (wire
+    (pts
+      (xy 103.81 285) (xy 113.81 285)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "e7dcff18-4d70-445b-9eb0-37f29ea7c152")
+  )
+  (label "SV4_PWR"
+    (at 113.81 285 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "72012325-f33d-49ad-b0c9-732407d75235")
+  )
+  (symbol
+    (lib_id "Connector_Generic:Conn_01x03")
+    (at 175 285)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "bad6c6a8-e4f1-480e-b12e-683b2f6db579")
+    (property "Reference" "SV4"
+      (at 180 283 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "Arm1_WristRot"
+      (at 180 287 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "a103387a-2a10-4624-a50e-abe4a75f0134")
+    )
+    (pin "2"
+      (uuid "3a51a436-7532-48e3-8b1a-458610cad5ef")
+    )
+    (pin "3"
+      (uuid "66eade67-8c7f-4dfb-bfd1-47602c9b7d45")
+    )
+  )
+  (label "PWM_CH3"
+    (at 160 287.54 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "284938ba-c8a0-4a9e-bcc9-3b06b89715ee")
+  )
+  (wire
+    (pts
+      (xy 160 287.54) (xy 171.19 287.54)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "8c26993f-7ffb-4ac5-83c1-d35b3473f62b")
+  )
+  (label "SV4_PWR"
+    (at 160 285 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "4e777c2e-9afe-42dc-bca3-b62adbc1f810")
+  )
+  (wire
+    (pts
+      (xy 160 285) (xy 171.19 285)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "30625d26-222f-4d38-9ea9-12b342cc059d")
+  )
+  (symbol
+    (lib_id "power:GND")
+    (at 167 285.46 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "a40af136-097b-4e03-ac2b-eb260a80e9b2")
+    (property "Reference" "#PWR014"
+      (at 167 288.0 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "GND"
+      (at 167 281.65 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "bba92635-4ecd-4cd7-8493-1c44bf1692b7")
+    )
+  )
+  (wire
+    (pts
+      (xy 167 285.46) (xy 167 282.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "b8972415-d771-4cb4-83ed-01a05b2716ff")
+  )
+  (wire
+    (pts
+      (xy 167 282.46) (xy 171.19 282.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "b324cf64-2a56-4590-9f62-22734971d98c")
+  )
+  (symbol
+    (lib_id "Device:Fuse")
+    (at 100 320 90)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "0d5218bf-0e7b-4308-82ca-a54fad530acc")
+    (property "Reference" "F5"
+      (at 105 318 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "3A"
+      (at 105 322 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "ddaaa4bf-de9a-4172-b15e-584fa96df0a2")
+    )
+    (pin "2"
+      (uuid "4ddf6e93-fc6f-42f5-8c58-8c963f713c59")
+    )
+  )
+  (symbol
+    (lib_id "power:+5V")
+    (at 96.19 312 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "86ce21b5-0e7b-43c0-b52d-c1fc59b8cd30")
+    (property "Reference" "#PWR015"
+      (at 96.19 306.92 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "+5V"
+      (at 96.19 315.81 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "699cc836-2e62-4056-b842-e16d3c39c9da")
+    )
+  )
+  (wire
+    (pts
+      (xy 96.19 312) (xy 96.19 320)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "da792062-d491-419c-9acf-b9c95ca8fc9f")
+  )
+  (wire
+    (pts
+      (xy 103.81 320) (xy 113.81 320)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "8384b8e7-c20a-4696-a78c-58c32ef1f8e6")
+  )
+  (label "SV5_PWR"
+    (at 113.81 320 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "a9b7ced8-bc1f-413b-901e-dd864be1d99d")
+  )
+  (symbol
+    (lib_id "Connector_Generic:Conn_01x03")
+    (at 175 320)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "2a947b0e-53d8-4ae1-86a4-cdc05d9ee8f7")
+    (property "Reference" "SV5"
+      (at 180 318 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "Arm1_WristPan"
+      (at 180 322 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "670717f5-5672-4bf2-89c3-f894d99ebff9")
+    )
+    (pin "2"
+      (uuid "cb726d1f-9706-4108-afcd-cea210ba7b6d")
+    )
+    (pin "3"
+      (uuid "3bd29f4a-3114-47dd-b1e2-735a2318dc89")
+    )
+  )
+  (label "PWM_CH4"
+    (at 160 322.54 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "4e49f807-7f46-44ed-b3ad-6c2cd32c7742")
+  )
+  (wire
+    (pts
+      (xy 160 322.54) (xy 171.19 322.54)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "682f26e8-57a2-4e3f-a0ca-500b08ad894b")
+  )
+  (label "SV5_PWR"
+    (at 160 320 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "d035cac8-8e91-4813-8203-c22121ffada6")
+  )
+  (wire
+    (pts
+      (xy 160 320) (xy 171.19 320)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "c4490d9f-5c24-4fd7-b932-dd9f6189199d")
+  )
+  (symbol
+    (lib_id "power:GND")
+    (at 167 320.46 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "61f79834-efaa-4a04-b4fa-806fac160529")
+    (property "Reference" "#PWR016"
+      (at 167 323.0 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "GND"
+      (at 167 316.65 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "8a2d0668-6348-4b52-9678-e06812f8f0e3")
+    )
+  )
+  (wire
+    (pts
+      (xy 167 320.46) (xy 167 317.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "94fcb60e-39f9-4ab0-bd6c-aeca4144d3cc")
+  )
+  (wire
+    (pts
+      (xy 167 317.46) (xy 171.19 317.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "22e145a4-34fc-4e0a-94c5-2f3643abb324")
+  )
+  (symbol
+    (lib_id "Device:Fuse")
+    (at 100 385 90)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "7ff4c47f-be42-4c5a-aa98-e92887764431")
+    (property "Reference" "F6"
+      (at 105 383 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "8A"
+      (at 105 387 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "8830eb9a-e86f-4d03-805e-469f7bbaa57a")
+    )
+    (pin "2"
+      (uuid "c977f639-e399-439c-b4ed-27cb6d68a2aa")
+    )
+  )
+  (symbol
+    (lib_id "power:+12V")
+    (at 96.19 377 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "8a5304a0-332b-41b2-bb13-e436b5b31b92")
+    (property "Reference" "#PWR017"
+      (at 96.19 371.92 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "+12V"
+      (at 96.19 380.81 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "19e6d1b6-9786-45fb-9d94-dbdd3a633ef5")
+    )
+  )
+  (wire
+    (pts
+      (xy 96.19 377) (xy 96.19 385)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "95879a03-1ccc-4e14-95a7-555ca8bcb9c3")
+  )
+  (wire
+    (pts
+      (xy 103.81 385) (xy 113.81 385)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "3bb84f94-8578-479b-be4a-6a917eca3c92")
+  )
+  (label "SV6_PWR"
+    (at 113.81 385 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "e99c570d-7acc-47a6-85fc-da7dfafe033d")
+  )
+  (symbol
+    (lib_id "Connector_Generic:Conn_01x03")
+    (at 175 385)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "440a1d14-ccaa-4f69-aa08-1c247caa9a52")
+    (property "Reference" "SV6"
+      (at 180 383 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "Arm2_Base"
+      (at 180 387 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "ab09bda4-a5c1-4698-8258-df4b6dab2ed1")
+    )
+    (pin "2"
+      (uuid "c96abc1e-cde1-4b42-bb2f-d673aa460d02")
+    )
+    (pin "3"
+      (uuid "503e9e59-8899-48e2-a7e4-6da248cc2168")
+    )
+  )
+  (label "PWM_CH5"
+    (at 160 387.54 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "8040f7bf-c011-4c6e-a59b-671b3db5eb95")
+  )
+  (wire
+    (pts
+      (xy 160 387.54) (xy 171.19 387.54)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "82c6df50-c0e2-43c7-937a-f6dbcca0fdde")
+  )
+  (label "SV6_PWR"
+    (at 160 385 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "bf4ee8d2-6f9a-494f-a4c5-b619a87ab917")
+  )
+  (wire
+    (pts
+      (xy 160 385) (xy 171.19 385)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "b7642f76-5eb2-4559-8342-501b02f4e321")
+  )
+  (symbol
+    (lib_id "power:GND")
+    (at 167 385.46 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "23e29788-8bd5-45a8-b02f-5cf6482d09a0")
+    (property "Reference" "#PWR018"
+      (at 167 388.0 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "GND"
+      (at 167 381.65 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "ee7eacb0-82bd-4f4d-a3ca-a7759a707ecc")
+    )
+  )
+  (wire
+    (pts
+      (xy 167 385.46) (xy 167 382.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "e1cec80d-95f5-42a0-bb9f-ee7cf52675d6")
+  )
+  (wire
+    (pts
+      (xy 167 382.46) (xy 171.19 382.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "70d6a561-42f2-478b-9e0a-77c67db55795")
+  )
+  (symbol
+    (lib_id "Device:Fuse")
+    (at 100 420 90)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "a0402de5-4f33-4a9e-8cb5-494b6b15dcd4")
+    (property "Reference" "F7"
+      (at 105 418 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "8A"
+      (at 105 422 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "3e6d672c-1032-48d7-a472-a421b34a9a96")
+    )
+    (pin "2"
+      (uuid "2039155a-f238-420f-b33c-5ce5a9e9df4a")
+    )
+  )
+  (symbol
+    (lib_id "power:+12V")
+    (at 96.19 412 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "549217c0-9182-42a9-b473-fd0803d57d10")
+    (property "Reference" "#PWR019"
+      (at 96.19 406.92 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "+12V"
+      (at 96.19 415.81 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "3fcbe39f-5634-4f6a-bd4e-9dd2b7e974e3")
+    )
+  )
+  (wire
+    (pts
+      (xy 96.19 412) (xy 96.19 420)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "9b700999-627e-427e-a680-4bee65ef317f")
+  )
+  (wire
+    (pts
+      (xy 103.81 420) (xy 113.81 420)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "e15e3b97-75e7-4731-ad08-88fa70996b4b")
+  )
+  (label "SV7_PWR"
+    (at 113.81 420 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "9d87e15d-c4e9-41de-b03f-f5ae886241d8")
+  )
+  (symbol
+    (lib_id "Connector_Generic:Conn_01x03")
+    (at 175 420)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "b3bab70a-bf90-47bb-9d18-ee4db59c91d7")
+    (property "Reference" "SV7"
+      (at 180 418 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "Arm2_Shoulder"
+      (at 180 422 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "3ae865fe-cb5c-44c3-b2f0-3cae1b8214ed")
+    )
+    (pin "2"
+      (uuid "17195568-e1ab-4904-9675-7e0135e30b71")
+    )
+    (pin "3"
+      (uuid "4983724e-57ef-4a2c-9ec6-2cd345d5fd80")
+    )
+  )
+  (label "PWM_CH6"
+    (at 160 422.54 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "6f194545-dac0-46eb-8b22-394e4eb722be")
+  )
+  (wire
+    (pts
+      (xy 160 422.54) (xy 171.19 422.54)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "78c8fbe4-b0b7-48a4-a7cf-7403dd2304ac")
+  )
+  (label "SV7_PWR"
+    (at 160 420 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "ab9a2dbc-38d0-44cc-8583-3360d97cff3d")
+  )
+  (wire
+    (pts
+      (xy 160 420) (xy 171.19 420)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "a8d25438-3d55-4f1a-ba1a-176c8ec01a1a")
+  )
+  (symbol
+    (lib_id "power:GND")
+    (at 167 420.46 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "3eca5d1d-6f7a-4766-91de-b11c32707e29")
+    (property "Reference" "#PWR020"
+      (at 167 423.0 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "GND"
+      (at 167 416.65 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "6b5c20e7-aa83-45df-811d-291416d50c80")
+    )
+  )
+  (wire
+    (pts
+      (xy 167 420.46) (xy 167 417.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "17cd1da2-c297-436a-9511-45de2a6a9cd2")
+  )
+  (wire
+    (pts
+      (xy 167 417.46) (xy 171.19 417.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "f26c4217-a815-45d3-af0d-3119d70d2502")
+  )
+  (symbol
+    (lib_id "Device:Fuse")
+    (at 100 455 90)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "ea929b0e-0d0a-4c11-b256-2755fe30e040")
+    (property "Reference" "F8"
+      (at 105 453 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "5A"
+      (at 105 457 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "3740766b-14bd-4b08-a067-26dcd12c00c3")
+    )
+    (pin "2"
+      (uuid "354ccd7c-794a-4c49-a6cc-7205d48d1a75")
+    )
+  )
+  (symbol
+    (lib_id "power:+7V4")
+    (at 96.19 447 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "8f5753c5-6f4d-4ead-a5d6-71b3433e54b4")
+    (property "Reference" "#PWR021"
+      (at 96.19 441.92 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "+7V4"
+      (at 96.19 450.81 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "1e6f488e-6998-4cb4-a866-4e09941618c5")
+    )
+  )
+  (wire
+    (pts
+      (xy 96.19 447) (xy 96.19 455)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "05a83e69-0263-41f3-9a36-f7887f905c5e")
+  )
+  (wire
+    (pts
+      (xy 103.81 455) (xy 113.81 455)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "ecff764a-3fbc-488b-bd77-360fe55fb52c")
+  )
+  (label "SV8_PWR"
+    (at 113.81 455 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "b7e2f093-d80b-454a-87d6-ea450ff00af5")
+  )
+  (symbol
+    (lib_id "Connector_Generic:Conn_01x03")
+    (at 175 455)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "5b4ac4ef-2d80-430f-8690-7784de21e27c")
+    (property "Reference" "SV8"
+      (at 180 453 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "Arm2_Elbow"
+      (at 180 457 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "510f9c26-5b9a-46ea-b866-f91638e1df4a")
+    )
+    (pin "2"
+      (uuid "30841448-44f2-4c2e-96ef-808ef541d787")
+    )
+    (pin "3"
+      (uuid "bc62ded2-3c74-44bb-bcfd-f704f887b316")
+    )
+  )
+  (label "PWM_CH7"
+    (at 160 457.54 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "c1c7a926-4e3a-4761-8f54-3bceaf21074c")
+  )
+  (wire
+    (pts
+      (xy 160 457.54) (xy 171.19 457.54)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "f0f26850-95b4-4d89-8c4a-c71b69481b17")
+  )
+  (label "SV8_PWR"
+    (at 160 455 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "3df1bcf2-b85e-45d6-9249-559a49919120")
+  )
+  (wire
+    (pts
+      (xy 160 455) (xy 171.19 455)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "e302c2f5-1583-47eb-a5e6-de4ce47efe8d")
+  )
+  (symbol
+    (lib_id "power:GND")
+    (at 167 455.46 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "e6c70f6f-2bdf-4894-a38a-9716c96e7303")
+    (property "Reference" "#PWR022"
+      (at 167 458.0 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "GND"
+      (at 167 451.65 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "813f70dc-95dd-4fef-8f64-afef4c4ffd8f")
+    )
+  )
+  (wire
+    (pts
+      (xy 167 455.46) (xy 167 452.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "fb0f4454-311e-40a3-9ae4-db0018f8dacd")
+  )
+  (wire
+    (pts
+      (xy 167 452.46) (xy 171.19 452.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "859f41d8-fa52-473c-86aa-537c553017c5")
+  )
+  (symbol
+    (lib_id "Device:Fuse")
+    (at 100 490 90)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "dc630d36-98ba-4440-a5bd-29fa5ee8e749")
+    (property "Reference" "F9"
+      (at 105 488 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "3A"
+      (at 105 492 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "980b186b-23e0-4652-842b-9ad34e23edf5")
+    )
+    (pin "2"
+      (uuid "40a41296-2039-4060-b1c8-bfa20d26e3b2")
+    )
+  )
+  (symbol
+    (lib_id "power:+5V")
+    (at 96.19 482 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "d1dec059-5557-45ff-8cad-324de5a699b9")
+    (property "Reference" "#PWR023"
+      (at 96.19 476.92 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "+5V"
+      (at 96.19 485.81 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "823f6ccc-1a5b-4688-8923-f2a618fef4e4")
+    )
+  )
+  (wire
+    (pts
+      (xy 96.19 482) (xy 96.19 490)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "74c51110-d6c9-4bbf-829c-f9bedf255889")
+  )
+  (wire
+    (pts
+      (xy 103.81 490) (xy 113.81 490)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "c863dad1-396b-4142-8590-e1f0adb48855")
+  )
+  (label "SV9_PWR"
+    (at 113.81 490 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "33f8eccd-3b74-430f-a154-78ca62fc3789")
+  )
+  (symbol
+    (lib_id "Connector_Generic:Conn_01x03")
+    (at 175 490)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "aaedd00c-ce23-4c38-a29a-271e81d8ab15")
+    (property "Reference" "SV9"
+      (at 180 488 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "Arm2_WristRot"
+      (at 180 492 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "3312ac76-6a70-4fb3-be4b-7c2e4a5d126b")
+    )
+    (pin "2"
+      (uuid "53dcf0e3-cc42-4390-ac45-a0be673f8883")
+    )
+    (pin "3"
+      (uuid "785019d3-a47d-4836-9af6-221111350f0c")
+    )
+  )
+  (label "PWM_CH8"
+    (at 160 492.54 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "a8ac71f5-91f5-4e60-ad96-9279f04d1780")
+  )
+  (wire
+    (pts
+      (xy 160 492.54) (xy 171.19 492.54)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "22f3b0f4-1b7c-4e1d-bf52-99ae0e32de05")
+  )
+  (label "SV9_PWR"
+    (at 160 490 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "5c4435ba-be50-4fd6-99ae-e33cbd654450")
+  )
+  (wire
+    (pts
+      (xy 160 490) (xy 171.19 490)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "4f96c0d5-c105-406d-81b0-75858782cc5c")
+  )
+  (symbol
+    (lib_id "power:GND")
+    (at 167 490.46 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "fd520b5d-86da-46fc-8c63-ea10706d29f9")
+    (property "Reference" "#PWR024"
+      (at 167 493.0 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "GND"
+      (at 167 486.65 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "15b86f89-bc1a-4c21-b17e-079f226b0fba")
+    )
+  )
+  (wire
+    (pts
+      (xy 167 490.46) (xy 167 487.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "325746f2-47bb-4851-b45d-70d2efafcdfd")
+  )
+  (wire
+    (pts
+      (xy 167 487.46) (xy 171.19 487.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "e878c7f1-9ae9-4ad3-a500-583242a173a4")
+  )
+  (symbol
+    (lib_id "Device:Fuse")
+    (at 100 525 90)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "19e2c4b4-185a-47be-83ac-f27e3531fd9e")
+    (property "Reference" "F10"
+      (at 105 523 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "3A"
+      (at 105 527 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "e845ebe5-2567-47fb-88e8-86e24ddd993c")
+    )
+    (pin "2"
+      (uuid "1e35f66a-9590-476f-a2a7-42262a440799")
+    )
+  )
+  (symbol
+    (lib_id "power:+5V")
+    (at 96.19 517 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "ade4a1fe-302c-4456-8f1e-843fe5de8362")
+    (property "Reference" "#PWR025"
+      (at 96.19 511.92 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "+5V"
+      (at 96.19 520.81 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "f58fdf7f-26fb-43d6-a129-d093f4057b4e")
+    )
+  )
+  (wire
+    (pts
+      (xy 96.19 517) (xy 96.19 525)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "7fa877de-c353-4604-9a04-253165540793")
+  )
+  (wire
+    (pts
+      (xy 103.81 525) (xy 113.81 525)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "34be85dd-7d76-477c-9dd2-ed1050ab0be1")
+  )
+  (label "SV10_PWR"
+    (at 113.81 525 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "6dcceb8c-da0a-4ae5-a500-8976d5ef042f")
+  )
+  (symbol
+    (lib_id "Connector_Generic:Conn_01x03")
+    (at 175 525)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "8fa370e6-f7b7-438a-b8ac-c679d5b19aa8")
+    (property "Reference" "SV10"
+      (at 180 523 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "Arm2_WristPan"
+      (at 180 527 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "9498349e-d6d4-4264-a590-b0b0a95ac647")
+    )
+    (pin "2"
+      (uuid "ffee8d97-f2ef-452b-8f4a-ec8fd030ee1d")
+    )
+    (pin "3"
+      (uuid "4bfa05aa-8413-4ec3-bd6e-44110ebef02d")
+    )
+  )
+  (label "PWM_CH9"
+    (at 160 527.54 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "0cd80788-084b-4444-9666-861da5226327")
+  )
+  (wire
+    (pts
+      (xy 160 527.54) (xy 171.19 527.54)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "126e20d4-19f8-483f-9dc7-79939f1b6266")
+  )
+  (label "SV10_PWR"
+    (at 160 525 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "989fd049-8a50-48cd-a788-2a804512cb42")
+  )
+  (wire
+    (pts
+      (xy 160 525) (xy 171.19 525)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "990ca272-27ea-4b80-833e-2956ff917046")
+  )
+  (symbol
+    (lib_id "power:GND")
+    (at 167 525.46 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "d900890d-8404-44c0-8d87-ffdb9a9c6145")
+    (property "Reference" "#PWR026"
+      (at 167 528.0 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "GND"
+      (at 167 521.6500000000001 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "92fe5082-9298-48f0-9a4e-6145289d6624")
+    )
+  )
+  (wire
+    (pts
+      (xy 167 525.46) (xy 167 522.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "213d9700-d58f-4d13-8814-8b05b76b2538")
+  )
+  (wire
+    (pts
+      (xy 167 522.46) (xy 171.19 522.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "e30f1860-803a-40a1-b1a9-0a9da93dbec4")
+  )
+  (text "ESC + FAN"
+    (at 90 555 0)
+    (effects
+      (font
+        (size 2.54 2.54)
+      )
+    )
+    (uuid "3ee556a2-0a3a-4500-91aa-33050512d908")
+  )
+  (symbol
+    (lib_id "Connector_Generic:Conn_01x03")
+    (at 175 570)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "bbd1fb97-d936-4391-b5d2-91525844327d")
+    (property "Reference" "ESC"
+      (at 180 568 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "ESC"
+      (at 180 572 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "ad0a7973-1ef2-4ce7-b632-d5b5b1d5f7a6")
+    )
+    (pin "2"
+      (uuid "b12437b3-2a0f-450a-a8bd-2f3d7f7229c4")
+    )
+    (pin "3"
+      (uuid "3a3d3a1f-ed0a-4fd6-8bcb-74aea3262dfc")
+    )
+  )
+  (label "PWM_CH11"
+    (at 160 572.54 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "f4b50593-9b71-4e63-b9da-04c0dc304e9b")
+  )
+  (wire
+    (pts
+      (xy 160 572.54) (xy 171.19 572.54)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "878c84e8-4a8b-4097-b2b7-b937b26c5771")
+  )
+  (symbol
+    (lib_id "power:+12V")
+    (at 167 562 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "d64f1062-7572-41ed-a4ff-efc1861983e3")
+    (property "Reference" "#PWR027"
+      (at 167 556.92 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "+12V"
+      (at 167 565.81 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "8b35cc07-d941-4cbe-8789-d8a31e343095")
+    )
+  )
+  (wire
+    (pts
+      (xy 167 562) (xy 167 570)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "ecd67698-20c2-4da1-ac19-e2d8733e3e47")
+  )
+  (wire
+    (pts
+      (xy 167 570) (xy 171.19 570)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "a50a0265-ce26-4dcd-81c5-51f365d0fc4c")
+  )
+  (symbol
+    (lib_id "power:GND")
+    (at 167 570.46 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "ec80716c-5f7f-4e0e-9b75-40e08d253f21")
+    (property "Reference" "#PWR028"
+      (at 167 573.0 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "GND"
+      (at 167 566.6500000000001 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "37b08fb9-61f0-44aa-8352-80da3ea6b16a")
+    )
+  )
+  (wire
+    (pts
+      (xy 167 570.46) (xy 167 567.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "c165a06a-b59f-45d7-9c62-b31407d67a5c")
+  )
+  (wire
+    (pts
+      (xy 167 567.46) (xy 171.19 567.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "ec5a3589-dafe-44a2-a7ac-921fe04116aa")
+  )
+  (symbol
+    (lib_id "Connector_Generic:Conn_01x03")
+    (at 175 610)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "2cb94119-dec9-4ae2-9549-e5e19b677184")
+    (property "Reference" "FAN"
+      (at 180 608 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "FAN"
+      (at 180 612 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "83cdda77-06ef-4e34-a2e5-dd752ae015e2")
+    )
+    (pin "2"
+      (uuid "7b113115-6fcc-403d-9b99-30364d91fe52")
+    )
+    (pin "3"
+      (uuid "b9fd9d80-4429-4612-853a-fd63ca26f737")
+    )
+  )
+  (label "PWM_CH12"
+    (at 160 612.54 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "f431223b-6a13-402e-9df7-4b068421e84f")
+  )
+  (wire
+    (pts
+      (xy 160 612.54) (xy 171.19 612.54)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "6b995c3e-1231-4101-8962-b75aec3a10a6")
+  )
+  (symbol
+    (lib_id "power:+12V")
+    (at 167 602 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "8c8d7bc6-9db8-4ded-9db6-50ebb5ab350f")
+    (property "Reference" "#PWR029"
+      (at 167 596.92 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "+12V"
+      (at 167 605.81 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "6a399357-73df-4e51-946c-283b1ac27948")
+    )
+  )
+  (wire
+    (pts
+      (xy 167 602) (xy 167 610)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "910a2d8c-6dd8-4b94-baff-3b3097ebb4f9")
+  )
+  (wire
+    (pts
+      (xy 167 610) (xy 171.19 610)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "43ab3ea1-37c9-449f-9214-dcba1217014e")
+  )
+  (symbol
+    (lib_id "power:GND")
+    (at 167 610.46 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "8b592dca-de85-427f-80db-6a84fb5b1174")
+    (property "Reference" "#PWR030"
+      (at 167 613.0 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "GND"
+      (at 167 606.6500000000001 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "99616a83-1288-44bb-9865-65fc8b0aa303")
+    )
+  )
+  (wire
+    (pts
+      (xy 167 610.46) (xy 167 607.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "9ce5dd75-4c99-4103-8db2-f68d045c2632")
+  )
+  (wire
+    (pts
+      (xy 167 607.46) (xy 171.19 607.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "f5d08b47-455f-4a6e-938c-8f7af08e9110")
+  )
+  (text "PCA9685 BREAKOUT SOCKET"
+    (at 310 55 0)
+    (effects
+      (font
+        (size 3.0 3.0)
+      )
+    )
+    (uuid "3938ca98-9748-4f9b-a8c2-b0b65267e965")
+  )
+  (symbol
+    (lib_id "Connector_Generic:Conn_01x08")
+    (at 350 100)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "f5c6aee6-256f-48b9-8416-7a9c7eeb288b")
+    (property "Reference" "J_PCA_A"
+      (at 355 98 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "PCA9685_Ctrl"
+      (at 355 102 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "18a8e0f5-6578-431d-9d7b-a8a73b1d96a1")
+    )
+    (pin "2"
+      (uuid "62ef4819-6547-457e-b609-ec296c2ef15e")
+    )
+    (pin "3"
+      (uuid "dbdbf359-8a5d-41be-8852-17fd4216933d")
+    )
+    (pin "4"
+      (uuid "ca318985-e94f-44b6-9de5-30b4763b58fe")
+    )
+    (pin "5"
+      (uuid "7a70d5c5-927e-4499-ade8-4092d834fa56")
+    )
+    (pin "6"
+      (uuid "ee4f1f8c-6994-4105-aadf-9557ee7e929c")
+    )
+    (pin "7"
+      (uuid "510507cc-53d4-4bd6-9f02-5358aa955d83")
+    )
+    (pin "8"
+      (uuid "b41bffca-581a-451e-9726-eb106367035d")
+    )
+  )
+  (symbol
+    (lib_id "power:+5V")
+    (at 334.19 102.62 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "30d3fb02-a6a6-42a5-8ae5-720ee8db1b41")
+    (property "Reference" "#PWR031"
+      (at 334.19 97.54 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "+5V"
+      (at 334.19 106.43 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "d42e2ec5-71db-46c7-b52e-a8acff2df955")
+    )
+  )
+  (wire
+    (pts
+      (xy 334.19 102.62) (xy 334.19 107.62)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "d480646c-fb8c-4dfd-ac31-905479200ea1")
+  )
+  (wire
+    (pts
+      (xy 334.19 107.62) (xy 346.19 107.62)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "fc6d3a7b-6ceb-4bb6-9bc1-ad284e8dc8c9")
+  )
+  (symbol
+    (lib_id "power:GND")
+    (at 334.19 108.08 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "5ce38a3f-ac77-4aca-9cfe-06dd736f5c17")
+    (property "Reference" "#PWR032"
+      (at 334.19 110.62 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "GND"
+      (at 334.19 104.27 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "e80820c4-bab2-43e7-ac1c-2c3faf9e8642")
+    )
+  )
+  (wire
+    (pts
+      (xy 334.19 108.08) (xy 334.19 105.08)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "26e80121-373b-42da-854f-87e69fe9eb4e")
+  )
+  (wire
+    (pts
+      (xy 334.19 105.08) (xy 346.19 105.08)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "f0e93e9c-3489-42af-82c6-c8470853c0a5")
+  )
+  (symbol
+    (lib_id "power:GND")
+    (at 334.19 105.54 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "3711d317-4891-4ae2-8e0b-a7101b92b48d")
+    (property "Reference" "#PWR033"
+      (at 334.19 108.08000000000001 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "GND"
+      (at 334.19 101.73 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "211075b8-db43-4273-bcbb-e5007b0b03b9")
+    )
+  )
+  (wire
+    (pts
+      (xy 334.19 105.54) (xy 334.19 102.54)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "2d667b4f-a851-4121-8980-4ea10bcabb1b")
+  )
+  (wire
+    (pts
+      (xy 334.19 102.54) (xy 346.19 102.54)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "9a500d4e-3d1a-4446-99a0-6159ac31c4a9")
+  )
+  (label "SDA"
+    (at 334.19 100 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "5f28b59f-4830-4cb0-9286-5bce7d67c12f")
+  )
+  (wire
+    (pts
+      (xy 334.19 100) (xy 346.19 100)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "c85471e6-e94f-4c5b-90a9-1238c0710dfc")
+  )
+  (label "SCL"
+    (at 334.19 97.46 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "19c03f57-fce6-41b2-95cb-ff3a5042d298")
+  )
+  (wire
+    (pts
+      (xy 334.19 97.46) (xy 346.19 97.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "5620bd28-6bcf-4774-8364-87947e3831f2")
+  )
+  (label "PWM_CH0"
+    (at 334.19 94.92 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "bf398bca-4c58-4ddb-9ba5-4d82d1e159ae")
+  )
+  (wire
+    (pts
+      (xy 334.19 94.92) (xy 346.19 94.92)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "203450f4-116d-47b4-b0b3-aff399faec13")
+  )
+  (label "PWM_CH1"
+    (at 334.19 92.38 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "af9f3475-7bb3-4dda-8025-db95dd4cfe80")
+  )
+  (wire
+    (pts
+      (xy 334.19 92.38) (xy 346.19 92.38)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "94da3357-fe8b-4b43-b9ae-9259b1767581")
+  )
+  (label "PWM_CH2"
+    (at 334.19 89.84 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "3d8c1b6b-0570-4965-824a-c69bc65f9137")
+  )
+  (wire
+    (pts
+      (xy 334.19 89.84) (xy 346.19 89.84)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "5909466f-7a4a-4f1b-94d6-191a664530e4")
+  )
+  (text "OE tied to GND"
+    (at 320 99.54 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "dc89927f-01de-4dbe-9a6e-33eb0905b9df")
+  )
+  (symbol
+    (lib_id "Connector_Generic:Conn_01x08")
+    (at 350 220)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "7d917659-2e76-4681-8074-5d3596eaa1fb")
+    (property "Reference" "J_PCA_B"
+      (at 355 218 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "PCA9685_PWM1"
+      (at 355 222 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "37b90b60-53ed-4d48-9090-b6aa64034dd5")
+    )
+    (pin "2"
+      (uuid "f3ba6737-e70d-483f-a94d-b506db06a1f2")
+    )
+    (pin "3"
+      (uuid "ff5605c1-623b-439e-8a78-66f7039fbabf")
+    )
+    (pin "4"
+      (uuid "395e627f-9dc8-4526-a719-47ef6e734bb3")
+    )
+    (pin "5"
+      (uuid "86be0d79-6acb-4c28-b2c6-e1d9da1516d9")
+    )
+    (pin "6"
+      (uuid "c97d2695-b814-4627-aa3b-d9bb9a6d067b")
+    )
+    (pin "7"
+      (uuid "184c557a-5168-46a7-a773-3c779a0739d6")
+    )
+    (pin "8"
+      (uuid "150597b5-e0a5-49bf-bdf9-b646c67b08e0")
+    )
+  )
+  (label "PWM_CH3"
+    (at 334.19 227.62 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "651f5c26-3d91-4556-bbd4-c91d33aa6569")
+  )
+  (wire
+    (pts
+      (xy 334.19 227.62) (xy 346.19 227.62)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "feffb557-816b-4e19-bd12-73b8f870fc7e")
+  )
+  (label "PWM_CH4"
+    (at 334.19 225.08 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "5d5173db-dd5c-4768-b649-877c14b4bf00")
+  )
+  (wire
+    (pts
+      (xy 334.19 225.08) (xy 346.19 225.08)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "47e05663-9f36-4579-a27c-a2d294666f14")
+  )
+  (label "PWM_CH5"
+    (at 334.19 222.54 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "e6604b18-c410-4516-97e5-7acd41a7f002")
+  )
+  (wire
+    (pts
+      (xy 334.19 222.54) (xy 346.19 222.54)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "9cc8e7b6-f9b7-424d-862c-77418e0603ee")
+  )
+  (label "PWM_CH6"
+    (at 334.19 220 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "21fd83bb-7760-428a-9570-90d2eaebd6d6")
+  )
+  (wire
+    (pts
+      (xy 334.19 220) (xy 346.19 220)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "32f9987b-e3cb-4e54-aacd-a61324350741")
+  )
+  (label "PWM_CH7"
+    (at 334.19 217.46 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "012e969f-8eae-44f9-8e35-b3851800d70d")
+  )
+  (wire
+    (pts
+      (xy 334.19 217.46) (xy 346.19 217.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "249c29c2-d7aa-4695-a860-cf1cfb0eba79")
+  )
+  (label "PWM_CH8"
+    (at 334.19 214.92 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "ee12d2ae-c61f-4211-aea9-d20824923053")
+  )
+  (wire
+    (pts
+      (xy 334.19 214.92) (xy 346.19 214.92)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "aad6ff70-f13d-4e72-8abb-aa897e1db556")
+  )
+  (label "PWM_CH9"
+    (at 334.19 212.38 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "1e265398-fe74-4289-81fc-d197c884f0f5")
+  )
+  (wire
+    (pts
+      (xy 334.19 212.38) (xy 346.19 212.38)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "e8e85df5-0b49-4754-b8d6-fcc5e330481f")
+  )
+  (label "PWM_CH10"
+    (at 334.19 209.84 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "71cb773f-e4a9-4008-9642-2580f707e6ec")
+  )
+  (wire
+    (pts
+      (xy 334.19 209.84) (xy 346.19 209.84)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "84aa95bb-30f1-4eaf-9489-baf8283c6009")
+  )
+  (symbol
+    (lib_id "Connector_Generic:Conn_01x08")
+    (at 350 340)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "fa437479-bf82-4798-9db3-daad877e272f")
+    (property "Reference" "J_PCA_C"
+      (at 355 338 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "PCA9685_PWM2"
+      (at 355 342 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "45213ee9-8d73-4d4d-9336-2daa86c2f7ca")
+    )
+    (pin "2"
+      (uuid "a00f6f95-6958-410e-bcfa-5df843d0bee4")
+    )
+    (pin "3"
+      (uuid "998f94a9-ceaf-4e5c-8ccc-670e9070d493")
+    )
+    (pin "4"
+      (uuid "9ef7600b-4756-4fa2-bd13-2f52dbb53bee")
+    )
+    (pin "5"
+      (uuid "8a2c744b-1cf7-4811-884c-21044caadbac")
+    )
+    (pin "6"
+      (uuid "b8b7747e-144c-40cc-ac9a-704bb05af5c3")
+    )
+    (pin "7"
+      (uuid "8ee7b913-588d-401e-aee6-f78812c46a37")
+    )
+    (pin "8"
+      (uuid "ea90a4da-360b-4567-b16a-711b26a6c4d1")
+    )
+  )
+  (label "PWM_CH11"
+    (at 334.19 347.62 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "05ba77b7-6319-422e-b3b7-efc0e9e5bcd5")
+  )
+  (wire
+    (pts
+      (xy 334.19 347.62) (xy 346.19 347.62)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "50d74b68-9e0b-4fed-9273-750f6c43b422")
+  )
+  (label "PWM_CH12"
+    (at 334.19 345.08 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "ca95ca41-b382-471e-844e-26210101cb76")
+  )
+  (wire
+    (pts
+      (xy 334.19 345.08) (xy 346.19 345.08)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "b9441456-18fd-4b7a-b8ea-2d3883a95a46")
+  )
+  (label "PWM_CH13"
+    (at 334.19 342.54 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "d4c4fe3a-70d5-461d-92b9-4292ad6ed584")
+  )
+  (wire
+    (pts
+      (xy 334.19 342.54) (xy 346.19 342.54)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "c596edf6-b6a3-4d9b-bf0b-8a344058e04b")
+  )
+  (label "PWM_CH14"
+    (at 334.19 340 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "c65e4184-1418-43d9-aca2-01e96376ac91")
+  )
+  (wire
+    (pts
+      (xy 334.19 340) (xy 346.19 340)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "fef80cf8-6940-44d0-ab76-da1f0b957190")
+  )
+  (label "PWM_CH15"
+    (at 334.19 337.46 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "f35365d4-e735-40dc-bf13-e488a42671de")
+  )
+  (wire
+    (pts
+      (xy 334.19 337.46) (xy 346.19 337.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "c70d799e-3b29-45c6-af88-e8bab48c4afb")
+  )
+  (text "I2C BUS BREAKOUT"
+    (at 500 55 0)
+    (effects
+      (font
+        (size 3.0 3.0)
+      )
+    )
+    (uuid "1bae3685-3821-409f-b76a-bd1f942f499b")
+  )
+  (symbol
+    (lib_id "Connector:Screw_Terminal_01x04")
+    (at 560 100)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "fa9424f4-8b75-4561-81d1-65d0328ebdb1")
+    (property "Reference" "J_I2C1"
+      (at 565 98 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "I2C_Bus_1"
+      (at 565 102 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "e7a5bcb9-d76d-4e53-8d7c-157ff0d1f588")
+    )
+    (pin "2"
+      (uuid "5c4ae700-89ec-4c25-8645-26ffa662d1cc")
+    )
+    (pin "3"
+      (uuid "fe52925a-5e0e-4b5a-8f40-0cc4d903aeb6")
+    )
+    (pin "4"
+      (uuid "db907e69-7c4a-4daf-a85f-3ed818f49551")
+    )
+  )
+  (label "SDA"
+    (at 544.19 102.54 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "c2da9b07-e20a-4142-8369-b1b7cc5101ae")
+  )
+  (wire
+    (pts
+      (xy 544.19 102.54) (xy 556.19 102.54)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "34b323a2-8e0c-48c6-8727-59a41e5157e7")
+  )
+  (label "SCL"
+    (at 544.19 100 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "0329f30c-b97c-4f52-af0f-c3ddd8bdd359")
+  )
+  (wire
+    (pts
+      (xy 544.19 100) (xy 556.19 100)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "1a316906-1a32-48d4-9133-5d621944610e")
+  )
+  (symbol
+    (lib_id "power:+3.3V")
+    (at 544.19 92.46 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "6341f29a-b31d-40f3-8858-430767c7ed15")
+    (property "Reference" "#PWR034"
+      (at 544.19 87.38 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "+3.3V"
+      (at 544.19 96.27 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "8c984dc9-4576-4ce8-89cf-50c07e917e9a")
+    )
+  )
+  (wire
+    (pts
+      (xy 544.19 92.46) (xy 544.19 97.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "9b9551b2-a678-4f96-8bc5-dcd6a2f79848")
+  )
+  (wire
+    (pts
+      (xy 544.19 97.46) (xy 556.19 97.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "27ad080c-a5b7-4e24-ac72-7f6b325e2a34")
+  )
+  (symbol
+    (lib_id "power:GND")
+    (at 544.19 97.92 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "c56d3e4a-6c03-4629-be50-88ae67080fc0")
+    (property "Reference" "#PWR035"
+      (at 544.19 100.46000000000001 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "GND"
+      (at 544.19 94.11 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "da1ac459-1308-4376-b2fa-ad5cd3c17249")
+    )
+  )
+  (wire
+    (pts
+      (xy 544.19 97.92) (xy 544.19 94.92)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "d68d235e-cc44-4f21-95c4-10d0be1ba1a6")
+  )
+  (wire
+    (pts
+      (xy 544.19 94.92) (xy 556.19 94.92)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "b11f4575-d085-4723-867a-8bb214c5d6d5")
+  )
+  (symbol
+    (lib_id "Connector:Screw_Terminal_01x04")
+    (at 560 155)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "9dda396d-0b1d-4338-88c1-3d56aad20ef5")
+    (property "Reference" "J_I2C2"
+      (at 565 153 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "I2C_Bus_2"
+      (at 565 157 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "c0850b8f-32bd-46e7-986b-e8045e73057f")
+    )
+    (pin "2"
+      (uuid "017a1d1f-2b05-474a-8ff8-9648a8fad509")
+    )
+    (pin "3"
+      (uuid "9b1caa70-6db3-47c5-a4d6-c716975d965e")
+    )
+    (pin "4"
+      (uuid "7c346c0a-71ed-4070-a801-833d7c9f4e62")
+    )
+  )
+  (label "SDA"
+    (at 544.19 157.54 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "fbfe8b24-5c12-467e-8681-7bac8a0c7746")
+  )
+  (wire
+    (pts
+      (xy 544.19 157.54) (xy 556.19 157.54)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "ee09448a-d031-49a2-a711-1c79ccee59f7")
+  )
+  (label "SCL"
+    (at 544.19 155 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "77f76a84-9f22-4c85-9c94-2dc1f6b7039e")
+  )
+  (wire
+    (pts
+      (xy 544.19 155) (xy 556.19 155)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "92339a2c-0b85-4445-91eb-0eda1fb5d819")
+  )
+  (symbol
+    (lib_id "power:+3.3V")
+    (at 544.19 147.46 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "be255168-2422-416b-933d-7a82dd1c2826")
+    (property "Reference" "#PWR036"
+      (at 544.19 142.38 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "+3.3V"
+      (at 544.19 151.27 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "d3dda0eb-14a2-4d00-8824-074d84179432")
+    )
+  )
+  (wire
+    (pts
+      (xy 544.19 147.46) (xy 544.19 152.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "818108cc-8385-4197-ba8c-b09f5334e7be")
+  )
+  (wire
+    (pts
+      (xy 544.19 152.46) (xy 556.19 152.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "f3e3bd0e-d475-444b-a788-9752aa4a8f84")
+  )
+  (symbol
+    (lib_id "power:GND")
+    (at 544.19 152.92 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "7f204330-ff13-4934-a0a7-90e0908cf1cd")
+    (property "Reference" "#PWR037"
+      (at 544.19 155.45999999999998 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "GND"
+      (at 544.19 149.10999999999999 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "ceff0110-7f6a-4ebf-832b-f6e142262419")
+    )
+  )
+  (wire
+    (pts
+      (xy 544.19 152.92) (xy 544.19 149.92)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "59ce9235-cd33-4165-aa47-c61d86ace40c")
+  )
+  (wire
+    (pts
+      (xy 544.19 149.92) (xy 556.19 149.92)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "95f47801-bb9e-49c6-9578-8bfbbe17d872")
+  )
+  (symbol
+    (lib_id "Connector:Screw_Terminal_01x04")
+    (at 560 210)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "5ad31941-2e88-425e-8145-9ee1b3d8b620")
+    (property "Reference" "J_I2C3"
+      (at 565 208 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "I2C_Bus_3"
+      (at 565 212 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "b3812183-6976-47f8-9cce-965f19c480c4")
+    )
+    (pin "2"
+      (uuid "f7ce0af7-34ab-4d16-bde8-ab70d13b968f")
+    )
+    (pin "3"
+      (uuid "3d53281f-50cb-4cba-b959-83eb328e8592")
+    )
+    (pin "4"
+      (uuid "3caf1e67-de50-4724-92bc-48b63cf654ec")
+    )
+  )
+  (label "SDA"
+    (at 544.19 212.54 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "96ba9fa0-fb36-4aee-b515-b24c596e1189")
+  )
+  (wire
+    (pts
+      (xy 544.19 212.54) (xy 556.19 212.54)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "f3a401eb-f4da-4888-bd3d-28440b93be94")
+  )
+  (label "SCL"
+    (at 544.19 210 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "962e5a10-b483-4474-a902-f3d5b84aa36d")
+  )
+  (wire
+    (pts
+      (xy 544.19 210) (xy 556.19 210)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "be2d9d11-f49b-4562-8c34-a33a7b8ad1a5")
+  )
+  (symbol
+    (lib_id "power:+3.3V")
+    (at 544.19 202.46 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "7cf56948-afec-47d2-ad64-88dc5dc6501d")
+    (property "Reference" "#PWR038"
+      (at 544.19 197.38 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "+3.3V"
+      (at 544.19 206.27 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "32747d01-832f-41ca-8ae2-d990a5bac271")
+    )
+  )
+  (wire
+    (pts
+      (xy 544.19 202.46) (xy 544.19 207.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "de3e7bc7-9d01-4db7-8090-c548f09e84ef")
+  )
+  (wire
+    (pts
+      (xy 544.19 207.46) (xy 556.19 207.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "162caacd-c54c-4b2e-8994-a5633ea6d8e7")
+  )
+  (symbol
+    (lib_id "power:GND")
+    (at 544.19 207.92 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "8bfe7542-0969-4ca0-8205-9a2996153498")
+    (property "Reference" "#PWR039"
+      (at 544.19 210.45999999999998 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "GND"
+      (at 544.19 204.10999999999999 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "0c5cc72f-33ea-43bf-a105-c7125ec12a46")
+    )
+  )
+  (wire
+    (pts
+      (xy 544.19 207.92) (xy 544.19 204.92)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "7a9f7cac-48f0-4f19-9148-3d574d342ec1")
+  )
+  (wire
+    (pts
+      (xy 544.19 204.92) (xy 556.19 204.92)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "c3808910-72ad-44ea-a08a-da371d805160")
+  )
+  (symbol
+    (lib_id "Connector:Screw_Terminal_01x04")
+    (at 560 265)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "94226185-c792-4007-a15e-fdf742abd252")
+    (property "Reference" "J_I2C4"
+      (at 565 263 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "I2C_Bus_4"
+      (at 565 267 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "bfca05a7-a162-498e-9ca9-c6a5b9b69a44")
+    )
+    (pin "2"
+      (uuid "4513bdb0-79b4-475b-bfc5-c53963798ed4")
+    )
+    (pin "3"
+      (uuid "64aa8cba-da81-4583-8f23-6315f35703ad")
+    )
+    (pin "4"
+      (uuid "1276fa51-309e-403f-a83d-b87d1aeff90a")
+    )
+  )
+  (label "SDA"
+    (at 544.19 267.54 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "e4d3bd92-cd2f-4bc0-9b13-a98c6bac4554")
+  )
+  (wire
+    (pts
+      (xy 544.19 267.54) (xy 556.19 267.54)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "4d38607c-467f-4759-a3ee-c4dbdb9c8926")
+  )
+  (label "SCL"
+    (at 544.19 265 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "4532b2a8-e848-4a9d-ac13-90cafe10f10f")
+  )
+  (wire
+    (pts
+      (xy 544.19 265) (xy 556.19 265)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "0c498807-f96d-449b-b60f-59f442412a38")
+  )
+  (symbol
+    (lib_id "power:+3.3V")
+    (at 544.19 257.46 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "6e8c1950-8e3f-4a94-af1b-811e2dc7ec98")
+    (property "Reference" "#PWR040"
+      (at 544.19 252.37999999999997 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "+3.3V"
+      (at 544.19 261.27 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "845a47e2-f51c-4138-a7d5-0ec8f243bac0")
+    )
+  )
+  (wire
+    (pts
+      (xy 544.19 257.46) (xy 544.19 262.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "b16ea225-6085-42c6-a90a-ca44256b8298")
+  )
+  (wire
+    (pts
+      (xy 544.19 262.46) (xy 556.19 262.46)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "9a92d9c7-a8c5-4518-8be0-25f1295472c0")
+  )
+  (symbol
+    (lib_id "power:GND")
+    (at 544.19 262.92 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "e86acfbe-f9b1-46a4-a2a7-590d502cef35")
+    (property "Reference" "#PWR041"
+      (at 544.19 265.46000000000004 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        hide
+      )
+    )
+    (property "Value" "GND"
+      (at 544.19 259.11 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (pin "1"
+      (uuid "e6c3ede7-c2ba-4253-9eb0-beaae2a0d56c")
+    )
+  )
+  (wire
+    (pts
+      (xy 544.19 262.92) (xy 544.19 259.92)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "c7ab5902-0e5c-483a-93a2-6b67375c1f17")
+  )
+  (wire
+    (pts
+      (xy 544.19 259.92) (xy 556.19 259.92)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "6d8f4976-61ca-4cb0-8637-123c5e991107")
+  )
+  (text "DESIGN NOTES:"
+    (at 500 340 0)
+    (effects
+      (font
+        (size 2.54 2.54)
+      )
+    )
+    (uuid "fb6a07ba-015d-4758-8ff4-992f8b3b6b08")
+  )
+  (text "1. PCA9685 VCC = 5V logic supply"
+    (at 500 352 0)
+    (effects
+      (font
+        (size 1.8 1.8)
+      )
+    )
+    (uuid "aea07c63-59ab-43d5-9d81-41fc87b0142a")
+  )
+  (text "2. PCA9685 OE tied to GND = always enabled"
+    (at 500 362 0)
+    (effects
+      (font
+        (size 1.8 1.8)
+      )
+    )
+    (uuid "5f6b4239-d1d7-440d-aeb0-aad28f103c13")
+  )
+  (text "3. I2C bus (SDA/SCL) shared: PCA9685 + 4 breakout terminals"
+    (at 500 372 0)
+    (effects
+      (font
+        (size 1.8 1.8)
+      )
+    )
+    (uuid "15b5e9bf-a478-4578-9b38-71af24b89fac")
+  )
+  (text "4. 12V servos (SV1,SV2,SV6,SV7) fused at 8A"
+    (at 500 382 0)
+    (effects
+      (font
+        (size 1.8 1.8)
+      )
+    )
+    (uuid "ee960f87-5c71-4582-8151-e0a7da7c8f50")
+  )
+  (text "5. 7.4V servos (SV3,SV8) fused at 5A"
+    (at 500 392 0)
+    (effects
+      (font
+        (size 1.8 1.8)
+      )
+    )
+    (uuid "b511c017-0428-4035-b16c-cb9c116c8a96")
+  )
+  (text "6. 5V servos (SV4,SV5,SV9,SV10) fused at 3A"
+    (at 500 402 0)
+    (effects
+      (font
+        (size 1.8 1.8)
+      )
+    )
+    (uuid "d314e150-e527-47cc-aa16-07de448bffca")
+  )
+  (text "7. ESC (Ch11) and FAN (Ch12) on 12V direct, no fuse"
+    (at 500 412 0)
+    (effects
+      (font
+        (size 1.8 1.8)
+      )
+    )
+    (uuid "45111f4b-3408-4e44-876a-ccdd015828e7")
+  )
+  (text "8. All servo GND pins share common ground"
+    (at 500 422 0)
+    (effects
+      (font
+        (size 1.8 1.8)
+      )
+    )
+    (uuid "8a0addcd-6598-4ded-8811-758b32079edf")
+  )
+  (text "CHANNEL MAPPING:"
+    (at 500 445 0)
+    (effects
+      (font
+        (size 2.54 2.54)
+      )
+    )
+    (uuid "70c06d29-8741-4176-b123-9f1c8e4eb4e0")
+  )
+  (text "Ch0=SV1 (Arm1 Base, 12V/8A)"
+    (at 500 457 0)
+    (effects
+      (font
+        (size 1.5 1.5)
+      )
+    )
+    (uuid "25cc1c66-d0f7-49cb-8420-5ebf38f51589")
+  )
+  (text "Ch1=SV2 (Arm1 Shoulder, 12V/8A)"
+    (at 500 465 0)
+    (effects
+      (font
+        (size 1.5 1.5)
+      )
+    )
+    (uuid "e0ca070c-3f58-4876-b16f-fd88881c9410")
+  )
+  (text "Ch2=SV3 (Arm1 Elbow, 7.4V/5A)"
+    (at 500 473 0)
+    (effects
+      (font
+        (size 1.5 1.5)
+      )
+    )
+    (uuid "91504266-62e8-429a-870e-d1df58e2adff")
+  )
+  (text "Ch3=SV4 (Arm1 Wrist Rot, 5V/3A)"
+    (at 500 481 0)
+    (effects
+      (font
+        (size 1.5 1.5)
+      )
+    )
+    (uuid "0f42e4e6-e885-4edd-91f9-4b94dc10ad20")
+  )
+  (text "Ch4=SV5 (Arm1 Wrist Pan, 5V/3A)"
+    (at 500 489 0)
+    (effects
+      (font
+        (size 1.5 1.5)
+      )
+    )
+    (uuid "535b25e7-79e0-4608-a258-bb4a74a167e2")
+  )
+  (text "Ch5=SV6 (Arm2 Base, 12V/8A)"
+    (at 500 497 0)
+    (effects
+      (font
+        (size 1.5 1.5)
+      )
+    )
+    (uuid "a66fdea4-7a2d-4903-858f-434fc0c33137")
+  )
+  (text "Ch6=SV7 (Arm2 Shoulder, 12V/8A)"
+    (at 500 505 0)
+    (effects
+      (font
+        (size 1.5 1.5)
+      )
+    )
+    (uuid "74cf887c-3b0b-4230-8dc4-0ffdf3131d94")
+  )
+  (text "Ch7=SV8 (Arm2 Elbow, 7.4V/5A)"
+    (at 500 513 0)
+    (effects
+      (font
+        (size 1.5 1.5)
+      )
+    )
+    (uuid "b96dbe77-4707-47a3-a794-f1e67ba2c660")
+  )
+  (text "Ch8=SV9 (Arm2 Wrist Rot, 5V/3A)"
+    (at 500 521 0)
+    (effects
+      (font
+        (size 1.5 1.5)
+      )
+    )
+    (uuid "e971841e-fd6f-4442-b34d-9f03d35a2841")
+  )
+  (text "Ch9=SV10 (Arm2 Wrist Pan, 5V/3A)"
+    (at 500 529 0)
+    (effects
+      (font
+        (size 1.5 1.5)
+      )
+    )
+    (uuid "fb04b2e2-774b-46b8-bf5c-29a8f343b0ed")
+  )
+  (text "Ch11=ESC (12V direct)"
+    (at 500 537 0)
+    (effects
+      (font
+        (size 1.5 1.5)
+      )
+    )
+    (uuid "466a31ed-d221-4e75-bbad-11257276b9b5")
+  )
+  (text "Ch12=FAN (12V direct)"
+    (at 500 545 0)
+    (effects
+      (font
+        (size 1.5 1.5)
+      )
+    )
+    (uuid "1eb4693e-4578-44b8-baf9-f3d1005c9f50")
+  )
+)
