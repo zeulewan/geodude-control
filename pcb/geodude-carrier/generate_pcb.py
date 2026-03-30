@@ -119,7 +119,7 @@ def main():
     # ==============================================================
     # MIDDLE: Fuses (two columns)
     # ==============================================================
-    f1x, f2x = 63, 135
+    f1x, f2x = 58, 120
     fy, fsp = 48, 16
 
     for ref, val, rail, pwr, fx, row in [
@@ -167,42 +167,37 @@ def main():
     sv_y = BOARD_H - 8     # Servo row (bottom edge)
 
     # ESC + Fan row (centred)
-    f = place_fp(board, CONN, H3, "J_ESC", "ESC", 80, esc_y, 90)
+    f = place_fp(board, CONN, H3, "J_ESC", "ESC", BOARD_W/2 - 6, esc_y, 90)
     if f:
         set_pad(f, 1, nets["PWM_CH11"])
         # pin 2 NC
         set_pad(f, 3, nets["GND"])
 
-    f = place_fp(board, CONN, H3, "J_FAN", "Fan", 92, esc_y, 90)
+    f = place_fp(board, CONN, H3, "J_FAN", "Fan", BOARD_W/2 + 6, esc_y, 90)
     if f:
         set_pad(f, 1, nets["PWM_CH12"])
         set_pad(f, 2, nets["+12V"])
         set_pad(f, 3, nets["GND"])
 
-    # Arm 1 (left)
-    for i, (ref, val, sig, pwr) in enumerate([
+    # All 10 servos + ESC + Fan in one centred row
+    # 12 headers × 12mm spacing = 144mm. Board = 190mm. Start at (190-144)/2 = 23mm
+    all_servos = [
         ("SV1", "B1", "PWM_CH0", "SV1_PWR"),
         ("SV2", "S1", "PWM_CH1", "SV2_PWR"),
         ("SV3", "E1", "PWM_CH2", "SV3_PWR"),
         ("SV4", "W1A", "PWM_CH3", "SV4_PWR"),
         ("SV5", "W1B", "PWM_CH4", "SV5_PWR"),
-    ]):
-        f = place_fp(board, CONN, H3, ref, val, 20 + i*sv_sp, sv_y, 90,
-                     silk_angle=0, silk_offset=(0, 4))
-        if f:
-            set_pad(f, 1, nets[sig])
-            set_pad(f, 2, nets[pwr])
-            set_pad(f, 3, nets["GND"])
-
-    # Arm 2 (right)
-    for i, (ref, val, sig, pwr) in enumerate([
         ("SV6", "B2", "PWM_CH5", "SV6_PWR"),
         ("SV7", "S2", "PWM_CH6", "SV7_PWR"),
         ("SV8", "E2", "PWM_CH7", "SV8_PWR"),
         ("SV9", "W2A", "PWM_CH8", "SV9_PWR"),
         ("SV10", "W2B", "PWM_CH9", "SV10_PWR"),
-    ]):
-        f = place_fp(board, CONN, H3, ref, val, 120 + i*sv_sp, sv_y, 90,
+    ]
+    sv_total = len(all_servos) * sv_sp
+    sv_start = (BOARD_W - sv_total) / 2 + sv_sp / 2
+
+    for i, (ref, val, sig, pwr) in enumerate(all_servos):
+        f = place_fp(board, CONN, H3, ref, val, sv_start + i*sv_sp, sv_y, 90,
                      silk_angle=0, silk_offset=(0, 4))
         if f:
             set_pad(f, 1, nets[sig])
