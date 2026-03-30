@@ -1520,7 +1520,7 @@
 	(footprint "PinHeader_1x04_P2.54mm_Vertical"
 		(layer "F.Cu")
 		(uuid "1e6bb7e6-0f03-4b84-b1af-aa061737be1e")
-		(at 28 66)
+		(at 28 56)
 		(descr "Through hole straight pin header, 1x04, 2.54mm pitch, single row")
 		(tags "Through hole pin header THT 1x04 2.54mm single row")
 		(property "Reference" "J41"
@@ -4541,7 +4541,7 @@
 	(footprint "PinHeader_1x04_P2.54mm_Vertical"
 		(layer "F.Cu")
 		(uuid "4c654e52-c892-485d-b085-37df76f83cf2")
-		(at 28 108)
+		(at 28 128)
 		(descr "Through hole straight pin header, 1x04, 2.54mm pitch, single row")
 		(tags "Through hole pin header THT 1x04 2.54mm single row")
 		(property "Reference" "J44"
@@ -6714,7 +6714,7 @@
 	(footprint "PinHeader_1x04_P2.54mm_Vertical"
 		(layer "F.Cu")
 		(uuid "9b18b6d8-b9cf-459b-891d-f69d390413c4")
-		(at 28 94)
+		(at 28 104)
 		(descr "Through hole straight pin header, 1x04, 2.54mm pitch, single row")
 		(tags "Through hole pin header THT 1x04 2.54mm single row")
 		(property "Reference" "J43"
@@ -7610,7 +7610,7 @@
 	(footprint "PinHeader_1x04_P2.54mm_Vertical"
 		(layer "F.Cu")
 		(uuid "a6149f9f-0446-4bd3-8d02-8f619de0c0da")
-		(at 28 52)
+		(at 28 32)
 		(descr "Through hole straight pin header, 1x04, 2.54mm pitch, single row")
 		(tags "Through hole pin header THT 1x04 2.54mm single row")
 		(property "Reference" "J40"
