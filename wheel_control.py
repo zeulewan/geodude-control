@@ -158,7 +158,7 @@ def sensor_loop():
         except Exception:
             with lock:
                 state["connected"] = False
-        time.sleep(0.033)
+        time.sleep(0.1)
 
 
 HTML = """
@@ -239,6 +239,18 @@ HTML = """
       <div style="text-align:center">
         <img id="camFeed" src="/api/camera" style="width:100%;max-width:640px;border-radius:8px;background:#000" alt="Camera feed">
       </div>
+    </div>
+    <div class="card">
+      <h2>Groundstation</h2>
+      <div class="sensor-row"><span class="sensor-label">CPU</span><span class="sensor-value" id="gsCpu">--%</span></div>
+      <div class="sensor-row"><span class="sensor-label">Temp</span><span class="sensor-value" id="gsTemp">--&deg;C</span></div>
+      <div class="sensor-row"><span class="sensor-label">Load</span><span class="sensor-value" id="gsLoad">--</span></div>
+    </div>
+    <div class="card">
+      <h2>GEO-DUDe</h2>
+      <div class="sensor-row"><span class="sensor-label">CPU</span><span class="sensor-value" id="gdCpu">--%</span></div>
+      <div class="sensor-row"><span class="sensor-label">Temp</span><span class="sensor-value" id="gdTemp">--&deg;C</span></div>
+      <div class="sensor-row"><span class="sensor-label">Load</span><span class="sensor-value" id="gdLoad">--</span></div>
     </div>
     <div class="card">
       <h2>Gyroscope (deg/s)</h2>
@@ -630,7 +642,7 @@ function poll() {
   });
 }
 
-setInterval(poll, 33);
+setInterval(poll, 100);
 
 fetch('/api/sensors').then(r=>r.json()).then(d => {
   if (d.ramp_rate) {
@@ -770,6 +782,19 @@ function attPoll() {
 }
 
 setInterval(attPoll, 500);
+
+function sysPoll() {
+  fetch('/api/system').then(r=>r.json()).then(d => {
+    document.getElementById('gsCpu').textContent = d.groundstation.cpu + '%';
+    document.getElementById('gsTemp').innerHTML = d.groundstation.temp + '&deg;C';
+    document.getElementById('gsLoad').textContent = d.groundstation.load;
+    document.getElementById('gdCpu').textContent = d.geodude.cpu + '%';
+    document.getElementById('gdTemp').innerHTML = d.geodude.temp + '&deg;C';
+    document.getElementById('gdLoad').textContent = d.geodude.load;
+  }).catch(()=>{});
+}
+setInterval(sysPoll, 2000);
+sysPoll();
 </script>
 </body>
 </html>
@@ -893,6 +918,46 @@ def calibrate():
         time.sleep(0.5)
         send_motor(0)
     return jsonify({"ok": True})
+
+
+@app.route('/api/system')
+def system_stats():
+    """System stats for both Pis."""
+    # Groundstation stats
+    gs = {}
+    try:
+        with open("/sys/class/thermal/thermal_zone0/temp") as f:
+            gs["temp"] = round(int(f.read().strip()) / 1000.0, 1)
+    except Exception:
+        gs["temp"] = 0
+    try:
+        with open("/proc/loadavg") as f:
+            gs["load"] = round(float(f.read().split()[0]), 2)
+    except Exception:
+        gs["load"] = 0
+    try:
+        with open("/proc/stat") as f:
+            line = f.readline()
+            parts = line.split()
+            idle = int(parts[4])
+            total = sum(int(x) for x in parts[1:])
+        if not hasattr(system_stats, "_gs_prev"):
+            system_stats._gs_prev = (total, idle)
+        pt, pi = system_stats._gs_prev
+        dt = total - pt
+        di = idle - pi
+        gs["cpu"] = round((1.0 - di / dt) * 100, 1) if dt > 0 else 0
+        system_stats._gs_prev = (total, idle)
+    except Exception:
+        gs["cpu"] = 0
+    # GEO-DUDe stats
+    gd = {}
+    try:
+        resp = urllib.request.urlopen(f"{GEODUDE_URL}/system", timeout=2)
+        gd = json.loads(resp.read().decode())
+    except Exception:
+        gd = {"temp": 0, "cpu": 0, "load": 0}
+    return jsonify({"groundstation": gs, "geodude": gd})
 
 
 @app.route('/api/camera')

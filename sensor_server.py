@@ -123,6 +123,36 @@ def sensors():
     with lock:
         return jsonify(sensor_data)
 
+@app.route("/system")
+def system_stats():
+    """CPU usage and temperature."""
+    try:
+        with open("/sys/class/thermal/thermal_zone0/temp") as f:
+            temp = int(f.read().strip()) / 1000.0
+    except Exception:
+        temp = 0
+    try:
+        with open("/proc/loadavg") as f:
+            load = float(f.read().split()[0])
+    except Exception:
+        load = 0
+    try:
+        with open("/proc/stat") as f:
+            line = f.readline()
+            parts = line.split()
+            idle = int(parts[4])
+            total = sum(int(x) for x in parts[1:])
+        if not hasattr(system_stats, "_prev"):
+            system_stats._prev = (total, idle)
+        prev_total, prev_idle = system_stats._prev
+        dt = total - prev_total
+        di = idle - prev_idle
+        cpu_pct = round((1.0 - di / dt) * 100, 1) if dt > 0 else 0
+        system_stats._prev = (total, idle)
+    except Exception:
+        cpu_pct = 0
+    return jsonify({"temp": round(temp, 1), "cpu": cpu_pct, "load": round(load, 2)})
+
 @app.route("/motor", methods=["POST"])
 def motor():
     """Legacy endpoint — controls MACE channel."""
@@ -187,8 +217,9 @@ def get_camera_proc():
             camera_proc = subprocess.Popen([
                 "rpicam-vid", "-t", "0",
                 "--codec", "mjpeg",
-                "--width", "1280", "--height", "720",
-                "--framerate", "15",
+                "--width", "640", "--height", "480",
+                "--framerate", "10",
+                "--quality", "50",
                 "--vflip", "--hflip",
                 "--inline",
                 "-o", "-",
