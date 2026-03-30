@@ -220,6 +220,138 @@ def main():
             set_pad_net(fp, 4, nets["GND"])
 
     # ==============================================================
+    # ROUTING
+    # ==============================================================
+    print("Routing traces...")
+
+    def get_pad_pos(ref, pad_num):
+        """Get pad position by component reference and pad number."""
+        for fp in board.GetFootprints():
+            if fp.GetReference() == ref:
+                for pad in fp.Pads():
+                    if pad.GetNumber() == str(pad_num):
+                        return pad.GetPosition()
+        print(f"WARNING: pad {ref}:{pad_num} not found")
+        return None
+
+    def get_pad_net_code(ref, pad_num):
+        """Get net code of a pad."""
+        for fp in board.GetFootprints():
+            if fp.GetReference() == ref:
+                for pad in fp.Pads():
+                    if pad.GetNumber() == str(pad_num):
+                        return pad.GetNetCode()
+        return 0
+
+    def add_track(p1, p2, width_mm, layer, net_code):
+        """Add a copper trace between two points."""
+        if p1 is None or p2 is None:
+            return
+        track = pcbnew.PCB_TRACK(board)
+        track.SetStart(p1)
+        track.SetEnd(p2)
+        track.SetWidth(mm(width_mm))
+        track.SetLayer(layer)
+        track.SetNetCode(net_code)
+        board.Add(track)
+
+    def route_pads(ref1, pad1, ref2, pad2, width_mm, layer=pcbnew.F_Cu):
+        """Route a trace between two pads."""
+        p1 = get_pad_pos(ref1, pad1)
+        p2 = get_pad_pos(ref2, pad2)
+        nc = get_pad_net_code(ref1, pad1)
+        add_track(p1, p2, width_mm, layer, nc)
+
+    # Trace widths by current rating
+    W_8A = 3.0    # 12V base/shoulder (8A)
+    W_5A = 2.0    # 7.4V elbow (5A)
+    W_3A = 1.2    # 5V wrist (3A)
+    W_SIG = 0.4   # signal / I2C / PWM
+    W_PWR_LOW = 0.6  # low-current power (3.3V, 5V logic)
+
+    # --- Power: 12V input terminals paralleled ---
+    # Chain 12V terminals together
+    for i in range(3):
+        route_pads(f"J_12V_{i+1}", 1, f"J_12V_{i+2}", 1, W_8A)
+
+    # Chain GND terminals
+    route_pads("J_GND_1", 1, "J_GND_2", 1, W_8A)
+    route_pads("J_GND_1", 2, "J_GND_2", 2, W_8A)
+
+    # --- Power rails to fuse inputs ---
+    # 12V to base/shoulder fuses
+    for fuse in ["F1", "F2", "F6", "F7"]:
+        route_pads("J_12V_1", 1, fuse, 1, W_8A)
+
+    # 7.4V to elbow fuses
+    route_pads("J_7V4", 1, "F3", 1, W_5A)
+    route_pads("J_7V4", 1, "F8", 1, W_5A)
+
+    # 5V servo to wrist fuses
+    for fuse in ["F4", "F5", "F9", "F10"]:
+        route_pads("J_5VS", 1, fuse, 1, W_3A)
+
+    # --- Fuse outputs to servo power pins ---
+    for i in range(10):
+        route_pads(f"F{i+1}", 2, f"SV{i+1}", 2, W_8A if i in [0,1,5,6] else W_5A if i in [2,7] else W_3A)
+
+    # --- 12V direct to ESC and Fan ---
+    route_pads("J_12V_1", 1, "J_ESC", 2, W_8A)
+    route_pads("J_12V_1", 1, "J_FAN", 2, W_3A)
+
+    # --- PWM signals: PCA9685 to servo headers ---
+    # Ch0-4 (Arm1) from J_PCA_A pins 1-5
+    for i in range(5):
+        route_pads("J_PCA_A", i + 1, f"SV{i+1}", 1, W_SIG)
+
+    # Ch5-7 (Arm2 first 3) from J_PCA_A pins 6-8
+    for i in range(3):
+        route_pads("J_PCA_A", 6 + i, f"SV{6+i}", 1, W_SIG)
+
+    # Ch8-9 (Arm2 last 2) from J_PCA_B pins 1-2
+    route_pads("J_PCA_B", 1, "SV9", 1, W_SIG)
+    route_pads("J_PCA_B", 2, "SV10", 1, W_SIG)
+
+    # Ch11 (ESC) from J_PCA_B pin 4
+    route_pads("J_PCA_B", 4, "J_ESC", 1, W_SIG)
+
+    # Ch12 (Fan) from J_PCA_B pin 5
+    route_pads("J_PCA_B", 5, "J_FAN", 1, W_SIG)
+
+    # --- I2C bus: chain all I2C ports + PCA control ---
+    # SDA chain
+    route_pads("J_PCA_CTRL", 4, "J_I2C1", 1, W_SIG)
+    for i in range(3):
+        route_pads(f"J_I2C{i+1}", 1, f"J_I2C{i+2}", 1, W_SIG)
+
+    # SCL chain
+    route_pads("J_PCA_CTRL", 3, "J_I2C1", 2, W_SIG)
+    for i in range(3):
+        route_pads(f"J_I2C{i+1}", 2, f"J_I2C{i+2}", 2, W_SIG)
+
+    # 3.3V chain
+    route_pads("J_3V3", 1, "J_PCA_CTRL", 5, W_PWR_LOW)
+    route_pads("J_PCA_CTRL", 5, "J_I2C1", 3, W_PWR_LOW)
+    for i in range(3):
+        route_pads(f"J_I2C{i+1}", 3, f"J_I2C{i+2}", 3, W_PWR_LOW)
+
+    # --- GND: servo headers on back copper to GND pour ---
+    # Route all servo GND pins to nearest GND terminal via back copper
+    for i in range(10):
+        route_pads(f"SV{i+1}", 3, "J_GND_1", 1, W_8A, pcbnew.B_Cu)
+    route_pads("J_ESC", 3, "J_GND_1", 1, W_8A, pcbnew.B_Cu)
+    route_pads("J_FAN", 3, "J_GND_1", 1, W_8A, pcbnew.B_Cu)
+
+    # I2C GND on back copper
+    for i in range(4):
+        route_pads(f"J_I2C{i+1}", 4, "J_GND_1", 1, W_SIG, pcbnew.B_Cu)
+
+    # PCA control GND
+    route_pads("J_PCA_CTRL", 1, "J_GND_1", 1, W_SIG, pcbnew.B_Cu)
+
+    print(f"Routed {len(board.GetTracks())} traces")
+
+    # ==============================================================
     # SAVE
     # ==============================================================
     out = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -228,10 +360,11 @@ def main():
 
     n_fp = len(board.GetFootprints())
     n_nets = board.GetNetCount()
+    n_tracks = len(board.GetTracks())
     print(f"PCB saved: {out}")
     print(f"Board: {BOARD_W}x{BOARD_H}mm")
-    print(f"Components: {n_fp}, Nets: {n_nets}")
-    print("Ready to open in KiCad — all nets assigned, no import needed.")
+    print(f"Components: {n_fp}, Nets: {n_nets}, Traces: {n_tracks}")
+    print("Ready to open in KiCad.")
 
 if __name__ == "__main__":
     main()
