@@ -97,18 +97,35 @@ def throttle_to_pw(throttle, reverse):
     return max(0, min(2000, pw))
 
 
+MAX_WHEEL_RPM = 600
+RPM_RESUME_PCT = 0.7  # resume throttle when RPM drops to 70% of max
+
 def ramp_loop():
     """Server-side ramp: smoothly moves throttle toward target at ramp_rate %/s."""
     last_pw = None
+    saturated = False
     while True:
         time.sleep(1.0 / RAMP_HZ)
         with lock:
             if not state["armed"] or state["arming"]:
                 last_pw = None
+                saturated = False
                 continue
+            rpm = state.get("rpm", 0)
             target = state["target"]
             current = state["throttle"]
-            if abs(target - current) > 0.1:
+
+            # RPM saturation check with hysteresis
+            if rpm >= MAX_WHEEL_RPM:
+                saturated = True
+            elif saturated and rpm < MAX_WHEEL_RPM * RPM_RESUME_PCT:
+                saturated = False
+
+            if saturated:
+                # Coast until RPM drops
+                state["throttle"] = 0.0
+                pw = 1000
+            elif abs(target - current) > 0.1:
                 step = state["ramp_rate"] / RAMP_HZ
                 diff = target - current
                 if abs(diff) <= step:
@@ -117,9 +134,10 @@ def ramp_loop():
                     state["throttle"] = current + step
                 else:
                     state["throttle"] = current - step
+                pw = throttle_to_pw(state["throttle"], state["reverse"])
             else:
                 state["throttle"] = target
-            pw = throttle_to_pw(state["throttle"], state["reverse"])
+                pw = throttle_to_pw(state["throttle"], state["reverse"])
         # Only send if pw changed (avoid flooding)
         if pw != last_pw:
             send_motor(pw)
@@ -282,6 +300,8 @@ HTML = """
       <div class="sensor-row"><span class="sensor-label">Throttle</span><span class="sensor-value" id="throttleStatus">0%</span></div>
       <div class="sensor-row"><span class="sensor-label">PWM</span><span class="sensor-value" id="pwmStatus">1000us</span></div>
       <div class="sensor-row"><span class="sensor-label">Direction</span><span class="sensor-value" id="dirStatus">FWD</span></div>
+      <div class="sensor-row"><span class="sensor-label">Wheel RPM</span><span class="sensor-value" id="maceRpm">0</span></div>
+      <div class="sensor-row"><span class="sensor-label">Saturated</span><span class="sensor-value" id="maceSat" style="color:#22c55e">NO</span></div>
       <div class="motor-error" id="motorError"></div>
     </div>
     <div class="card full-width">
@@ -310,11 +330,11 @@ HTML = """
       </button>
       <div class="btn-row">
         <button class="btn btn-arm" id="armBtn" onclick="toggleArm()">ARM</button>
-        <button class="btn btn-stop" onclick="emergencyStop()">EMERGENCY STOP</button>
         <button class="btn" style="background:#f59e0b;color:#000" onclick="brake()">BRAKE</button>
         <button class="btn btn-reverse" onclick="toggleReverse()">REVERSE</button>
         <button class="btn" style="background:#334155;color:#94a3b8" onclick="startCalibrate()">CALIBRATE ESC</button>
       </div>
+      <div style="margin-top:8px;font-size:11px;color:#6b7280">Brake = coast (ESC brake mode not enabled). Disarm cuts signal entirely.</div>
       <div id="calPanel" style="display:none;margin-top:16px;padding:16px;background:#1e293b;border-radius:8px;border:1px solid #334155">
         <div id="calStep" style="font-size:14px;line-height:1.6"></div>
         <div class="btn-row" id="calBtns"></div>
@@ -633,6 +653,11 @@ function poll() {
     if (d.arming) { dot.className='status-dot arming'; txt.textContent='Arming ESC...'; }
     else if (d.connected) { dot.className='status-dot online'; txt.textContent='Geodude Online'; }
     else { dot.className='status-dot offline'; txt.textContent='Geodude Offline'; }
+    document.getElementById('maceRpm').textContent = Math.round(d.rpm);
+    let isSat = d.rpm >= 600;
+    let satEl = document.getElementById('maceSat');
+    satEl.textContent = isSat ? 'YES' : 'NO';
+    satEl.style.color = isSat ? '#ef4444' : '#22c55e';
     let errEl = document.getElementById('motorError');
     if (d.motor_error) { errEl.textContent = 'Motor: ' + d.motor_error; }
     else { errEl.textContent = ''; }
