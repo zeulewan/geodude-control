@@ -151,7 +151,7 @@ def main():
         ("SV4", "A1_WrRot", "PWM_CH3", "SV4_PWR"),
         ("SV5", "A1_WrPan", "PWM_CH4", "SV5_PWR"),
     ]):
-        f = place_fp(board, CONN, H3, ref, val, 30 + i*14, 135)
+        f = place_fp(board, CONN, H3, ref, val, 30 + i*14, 135, 90)
         if f:
             set_pad(f, 1, nets[sig])
             set_pad(f, 2, nets[pwr])
@@ -165,21 +165,21 @@ def main():
         ("SV9", "A2_WrRot", "PWM_CH8", "SV9_PWR"),
         ("SV10", "A2_WrPan", "PWM_CH9", "SV10_PWR"),
     ]):
-        f = place_fp(board, CONN, H3, ref, val, 105 + i*14, 135)
+        f = place_fp(board, CONN, H3, ref, val, 105 + i*14, 135, 90)
         if f:
             set_pad(f, 1, nets[sig])
             set_pad(f, 2, nets[pwr])
             set_pad(f, 3, nets["GND"])
 
     # ESC (3-pin: PWM, NC, GND)
-    f = place_fp(board, CONN, H3, "J_ESC", "ESC", 30, 148)
+    f = place_fp(board, CONN, H3, "J_ESC", "ESC", 30, 148, 90)
     if f:
         set_pad(f, 1, nets["PWM_CH11"])
         # pin 2 NC
         set_pad(f, 3, nets["GND"])
 
     # Fan (3-pin: PWM, 12V, GND)
-    f = place_fp(board, CONN, H3, "J_FAN", "Fan", 46, 148)
+    f = place_fp(board, CONN, H3, "J_FAN", "Fan", 46, 148, 90)
     if f:
         set_pad(f, 1, nets["PWM_CH12"])
         set_pad(f, 2, nets["+12V"])
