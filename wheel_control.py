@@ -6,8 +6,8 @@ import urllib.request
 
 app = Flask(__name__)
 
-GEODUDE_URL = "http://geodude.local:5000"
-ATTITUDE_URL = "http://geodude.local:5001"
+GEODUDE_URL = "http://192.168.4.166:5000"
+ATTITUDE_URL = "http://192.168.4.166:5001"
 WATCHDOG_TIMEOUT = 3  # seconds — auto-stop if no frontend heartbeat
 RAMP_HZ = 20  # ramp loop tick rate
 
