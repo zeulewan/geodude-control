@@ -167,13 +167,15 @@ def main():
     sv_y = BOARD_H - 8     # Servo row (bottom edge)
 
     # ESC + Fan row (centred)
-    f = place_fp(board, CONN, H3, "J_ESC", "ESC", BOARD_W/2 - 6, esc_y, 90)
+    f = place_fp(board, CONN, H3, "J_ESC", "ESC", BOARD_W/2 - 6, esc_y, 90,
+                 silk_angle=0, silk_offset=(0, 6))
     if f:
         set_pad(f, 1, nets["PWM_CH11"])
         # pin 2 NC
         set_pad(f, 3, nets["GND"])
 
-    f = place_fp(board, CONN, H3, "J_FAN", "Fan", BOARD_W/2 + 6, esc_y, 90)
+    f = place_fp(board, CONN, H3, "J_FAN", "Fan", BOARD_W/2 + 6, esc_y, 90,
+                 silk_angle=0, silk_offset=(0, 6))
     if f:
         set_pad(f, 1, nets["PWM_CH12"])
         set_pad(f, 2, nets["+12V"])
@@ -198,7 +200,7 @@ def main():
 
     for i, (ref, val, sig, pwr) in enumerate(all_servos):
         f = place_fp(board, CONN, H3, ref, val, sv_start + i*sv_sp, sv_y, 90,
-                     silk_angle=0, silk_offset=(0, 4))
+                     silk_angle=0, silk_offset=(0, 6))
         if f:
             set_pad(f, 1, nets[sig])
             set_pad(f, 2, nets[pwr])
