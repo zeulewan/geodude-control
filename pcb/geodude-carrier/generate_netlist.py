@@ -95,7 +95,7 @@ for ref, rating, rail, out_net in fuse_config:
 # Right side: 16 PWM outputs (0-15) in groups
 
 # Control header (6-pin)
-j_pca_ctrl = Part("Connector", "Conn_01x06",
+j_pca_ctrl = Part("Connector", "Conn_01x06_Pin",
                    ref="J_PCA_CTRL", value="PCA9685_Control",
                    footprint="Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical")
 j_pca_ctrl[1] += gnd       # GND
@@ -106,13 +106,13 @@ j_pca_ctrl[5] += vcc_3v3   # VCC (3.3V logic)
 j_pca_ctrl[6] += NC        # V+ (not used, servo power separate)
 
 # PWM output headers (2x 8-pin for Ch0-15)
-j_pca_pwm_a = Part("Connector", "Conn_01x08",
+j_pca_pwm_a = Part("Connector", "Conn_01x08_Pin",
                     ref="J_PCA_A", value="PCA9685_Ch0-7",
                     footprint="Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical")
 for i in range(8):
     j_pca_pwm_a[i+1] += pwm[i]
 
-j_pca_pwm_b = Part("Connector", "Conn_01x08",
+j_pca_pwm_b = Part("Connector", "Conn_01x08_Pin",
                     ref="J_PCA_B", value="PCA9685_Ch8-15",
                     footprint="Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical")
 for i in range(8):
@@ -139,7 +139,7 @@ servo_labels = [
 ]
 
 for i, label in enumerate(servo_labels):
-    sv = Part("Connector", "Conn_01x03",
+    sv = Part("Connector", "Conn_01x03_Pin",
               ref=f"SV{i+1}", value=label,
               footprint="Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical")
     sv[1] += pwm[i]       # Signal from PCA9685 Ch0-9
@@ -147,7 +147,7 @@ for i, label in enumerate(servo_labels):
     sv[3] += gnd           # GND
 
 # --- ESC header (3-pin, no fuse, 12V direct) ---
-esc = Part("Connector", "Conn_01x03",
+esc = Part("Connector", "Conn_01x03_Pin",
            ref="J_ESC", value="MACE_ESC",
            footprint="Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical")
 esc[1] += pwm[11]     # Signal from PCA9685 Ch11
@@ -155,7 +155,7 @@ esc[2] += vcc_12v     # 12V direct (ESC has built-in protection)
 esc[3] += gnd
 
 # --- Fan header (3-pin, no fuse, 12V direct) ---
-fan = Part("Connector", "Conn_01x03",
+fan = Part("Connector", "Conn_01x03_Pin",
            ref="J_FAN", value="Fan",
            footprint="Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical")
 fan[1] += pwm[12]     # Signal from PCA9685 Ch12
