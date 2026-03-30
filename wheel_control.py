@@ -37,6 +37,7 @@ state = {
     "encoder_angle": 0,
     "connected": False,
     "motor_error": None,
+    "rpm": 0,
 }
 
 lock = threading.Lock()
@@ -151,6 +152,7 @@ def sensor_loop():
                 state["gyro"] = {"x": data["gx"], "y": data["gy"], "z": data["gz"]}
                 state["accel"] = {"x": data["ax"], "y": data["ay"], "z": data["az"]}
                 state["encoder_angle"] = data["angle"]
+                state["rpm"] = data.get("rpm", 0)
                 state["connected"] = True
         except Exception:
             with lock:
