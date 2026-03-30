@@ -76,32 +76,33 @@ def main():
         add_net(board, f"SV{i+1}_PWR", nets)
 
     # ==============================================================
-    # TOP: Power input screw terminals
+    # TOP: All power screw terminals in one line
     # ==============================================================
+    # Order: 4x 12V | 7V4 | 5V_SERVO | 4x GND | 5V_LOGIC | 3V3
+    # 12 terminals x 12mm = 144mm, centered on 190mm board
     sp = 12
+    ty = 10
+    tx = 15
 
-    # Row 1: 4x 12V
-    for i in range(4):
-        f = place_fp(board, TB, TB2, f"J_12V_{i+1}", f"12V", 15 + i*sp, 12)
+    all_power = [
+        ("J_12V_1", "12V", "+12V", "GND"),
+        ("J_12V_2", "12V", "+12V", "GND"),
+        ("J_12V_3", "12V", "+12V", "GND"),
+        ("J_12V_4", "12V", "+12V", "GND"),
+        ("J_7V4", "7V4", "+7V4", "GND"),
+        ("J_5VS", "5V_S", "+5V_SERVO", "GND"),
+        ("J_GND_1", "GND", "GND", "GND"),
+        ("J_GND_2", "GND", "GND", "GND"),
+        ("J_GND_3", "GND", "GND", "GND"),
+        ("J_GND_4", "GND", "GND", "GND"),
+        ("J_5VL", "5V_L", "+5V_LOGIC", "GND_LOGIC"),
+        ("J_3V3", "3V3", "+3V3", "GND_LOGIC"),
+    ]
+    for i, (ref, val, net1, net2) in enumerate(all_power):
+        f = place_fp(board, TB, TB2, ref, val, tx + i*sp, ty)
         if f:
-            set_pad(f, 1, nets["+12V"])
-            set_pad(f, 2, nets["GND"])
-
-    # Row 2: 7V4, 5V servo
-    for i, (ref, val, net) in enumerate([
-        ("J_7V4", "7V4", "+7V4"), ("J_5VS", "5V_S", "+5V_SERVO"),
-    ]):
-        f = place_fp(board, TB, TB2, ref, val, 15 + i*sp, 24)
-        if f:
-            set_pad(f, 1, nets[net])
-            set_pad(f, 2, nets["GND"])
-
-    # Row 2 continued: Power GND bus (4x screw terminals)
-    for i in range(4):
-        f = place_fp(board, TB, TB2, f"J_GND_{i+1}", "GND", 45 + i*sp, 24)
-        if f:
-            set_pad(f, 1, nets["GND"])
-            set_pad(f, 2, nets["GND"])
+            set_pad(f, 1, nets[net1])
+            set_pad(f, 2, nets[net2])
 
     # ==============================================================
     # MIDDLE: Fuses (two columns)
