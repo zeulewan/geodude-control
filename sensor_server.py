@@ -1,5 +1,6 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, Response
 import smbus2
+import subprocess
 import threading
 import time
 import os
@@ -152,6 +153,53 @@ def pwm_all_off():
 def channels():
     """Return channel mapping."""
     return jsonify(CHANNELS)
+
+# --- Camera MJPEG stream ---
+
+camera_proc = None
+camera_lock = threading.Lock()
+
+def get_camera_proc():
+    global camera_proc
+    with camera_lock:
+        if camera_proc is None or camera_proc.poll() is not None:
+            camera_proc = subprocess.Popen([
+                "rpicam-vid", "-t", "0",
+                "--codec", "mjpeg",
+                "--width", "640", "--height", "480",
+                "--framerate", "15",
+                "--inline",
+                "-o", "-",
+            ], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        return camera_proc
+
+def mjpeg_frames():
+    proc = get_camera_proc()
+    buf = b""
+    while True:
+        chunk = proc.stdout.read(4096)
+        if not chunk:
+            break
+        buf += chunk
+        # JPEG frames start with FF D8, end with FF D9
+        while True:
+            start = buf.find(b"\xff\xd8")
+            if start == -1:
+                buf = b""
+                break
+            end = buf.find(b"\xff\xd9", start + 2)
+            if end == -1:
+                buf = buf[start:]
+                break
+            frame = buf[start:end + 2]
+            buf = buf[end + 2:]
+            yield (b"--frame\r\n"
+                   b"Content-Type: image/jpeg\r\n\r\n" + frame + b"\r\n")
+
+@app.route("/camera")
+def camera():
+    return Response(mjpeg_frames(),
+                    mimetype="multipart/x-mixed-replace; boundary=frame")
 
 if __name__ == "__main__":
     pca_init(freq=50)

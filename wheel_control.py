@@ -230,6 +230,12 @@ HTML = """
 </div>
 <div class="container">
   <div class="grid">
+    <div class="card full-width">
+      <h2>Camera</h2>
+      <div style="text-align:center">
+        <img id="camFeed" src="/api/camera" style="width:100%;max-width:640px;border-radius:8px;background:#000" alt="Camera feed">
+      </div>
+    </div>
     <div class="card">
       <h2>Gyroscope (deg/s)</h2>
       <div class="sensor-row"><span class="sensor-label">X</span><span class="sensor-value x" id="gx">--</span></div>
@@ -669,6 +675,23 @@ def calibrate():
         time.sleep(0.5)
         send_motor(0)
     return jsonify({"ok": True})
+
+
+@app.route('/api/camera')
+def camera():
+    """Proxy MJPEG stream from GEO-DUDe."""
+    import urllib.request as ur
+    try:
+        resp = ur.urlopen(f"{GEODUDE_URL}/camera", timeout=5)
+        def generate():
+            while True:
+                chunk = resp.read(4096)
+                if not chunk:
+                    break
+                yield chunk
+        return app.response_class(generate(), mimetype=resp.headers.get('Content-Type', 'multipart/x-mixed-replace; boundary=frame'))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
 
 
 @app.route('/api/stop', methods=['POST'])
