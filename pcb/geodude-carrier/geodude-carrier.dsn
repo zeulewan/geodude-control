@@ -21,8 +21,8 @@
       )
     )
     (boundary
-      (path pcb 0  130300 -145400  17800 -145400  17800 -4600  130300 -4600
-            130300 -145400)
+      (path pcb 0  137900 -152500  17800 -152500  17800 -4600  137900 -4600
+            137900 -152500)
     )
     (via "Via[0-1]_400:300_um")
     (rule
@@ -33,30 +33,29 @@
   )
   (placement
     (component "BLX-A_5x20mm"
-      (place F2 94285 -58900 front 0 (PN S1))
+      (place F2 94285 -60900 front 0 (PN S1))
       (place F6 57785 -43900 front 0 (PN B2))
-      (place F7 57785 -58900 front 0 (PN S2))
-      (place F4 94285 -88900 front 0 (PN W1A))
-      (place F3 94285 -73900 front 0 (PN E1))
-      (place F5 94285 -103900 front 0 (PN W1B))
-      (place F9 57785 -88900 front 0 (PN W2A))
-      (place F8 57785 -73900 front 0 (PN E2))
+      (place F7 57785 -60900 front 0 (PN S2))
+      (place F4 94285 -94900 front 0 (PN W1A))
+      (place F3 94285 -77900 front 0 (PN E1))
+      (place F5 94285 -111900 front 0 (PN W1B))
+      (place F9 57785 -94900 front 0 (PN W2A))
+      (place F8 57785 -77900 front 0 (PN E2))
       (place F1 94285 -43900 front 0 (PN B1))
-      (place F10 57785 -103900 front 0 (PN W2B))
+      (place F10 57785 -111900 front 0 (PN W2B))
     )
     (component PinHeader_1x03_P2.54mm_Vertical
-      (place SV4 85220 -124300 front 90 (PN W1A))
-      (place SV2 61220 -124300 front 90 (PN S1))
+      (place SV4 91220 -124300 front 90 (PN W1A))
+      (place SV2 63220 -124300 front 90 (PN S1))
       (place SV6 48960 -132500 front 90 (PN B2))
       (place SV1 49220 -124300 front 90 (PN B1))
-      (place J_ESC 116460 -132500 front 90 (PN ESC))
-      (place SV3 73220 -124300 front 90 (PN E1))
-      (place SV10 96780 -132500 front 90 (PN W2B))
-      (place SV7 60960 -132500 front 90 (PN S2))
-      (place SV9 84960 -132500 front 90 (PN W2A))
-      (place SV5 97220 -124300 front 90 (PN W1B))
-      (place SV8 72960 -132500 front 90 (PN E2))
-      (place J_FAN 116440 -132500 front 90 (PN Fan))
+      (place SV3 77220 -124300 front 90 (PN E1))
+      (place SV10 104960 -132500 front 90 (PN W2B))
+      (place SV7 62960 -132500 front 90 (PN S2))
+      (place SV9 90960 -132500 front 90 (PN W2A))
+      (place SV5 105220 -124300 front 90 (PN W1B))
+      (place SV8 76960 -132500 front 90 (PN E2))
+      (place J_FAN 116460 -120500 front 90 (PN Fan))
     )
     (component "TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm"
       (place J4 122900 -107000 front 90 (PN GND))
@@ -78,6 +77,9 @@
       (place J40 37000 -56100 front 0 (PN SCL))
       (place J42 37000 -80100 front 0 (PN 3V3))
     )
+    (component PinHeader_1x03_P2.54mm_Vertical::1
+      (place J_ESC 116460 -132500 front 90 (PN ESC))
+    )
     (component MountingHole_3.2mm_M3
       (place MH3 49300 -140500 front 0 (PN M3))
       (place MH1 48300 -31800 front 0 (PN M3))
@@ -90,7 +92,6 @@
   )
   (library
     (image "BLX-A_5x20mm"
-      (outline (polygon signal 0  14995 -5995  -14995 -5995  -14995 5995  14995 5995))
       (outline (path signal 120  -14000 5000  14000 5000))
       (outline (path signal 120  -14000 -5000  -14000 5000))
       (outline (path signal 120  14000 5000  14000 -5000))
@@ -99,7 +100,6 @@
       (pin Round[A]Pad_2800.000000_um 2 11100 0)
     )
     (image PinHeader_1x03_P2.54mm_Vertical
-      (outline (polygon signal 0  -1765 -6845  -1765 1765  1765 1765  1765 -6845))
       (outline (path signal 120  -1380 1380  0 1380))
       (outline (path signal 120  -1380 0  -1380 1380))
       (outline (path signal 120  1380 -1270  1380 -6460))
@@ -185,6 +185,23 @@
       (pin Round[A]Pad_1700.000000_um 2 0 -2540)
       (pin Round[A]Pad_1700.000000_um 3 0 -5080)
       (pin Round[A]Pad_1700.000000_um 4 0 -7620)
+    )
+    (image PinHeader_1x03_P2.54mm_Vertical::1
+      (outline (polygon signal 0  -1765 -6845  -1765 1765  1765 1765  1765 -6845))
+      (outline (path signal 120  -1380 1380  0 1380))
+      (outline (path signal 120  -1380 0  -1380 1380))
+      (outline (path signal 120  1380 -1270  1380 -6460))
+      (outline (path signal 120  -1380 -1270  1380 -1270))
+      (outline (path signal 120  -1380 -1270  -1380 -6460))
+      (outline (path signal 120  -1380 -6460  1380 -6460))
+      (outline (path signal 100  1270 1270  1270 -6350))
+      (outline (path signal 100  -635 1270  1270 1270))
+      (outline (path signal 100  -1270 635  -635 1270))
+      (outline (path signal 100  1270 -6350  -1270 -6350))
+      (outline (path signal 100  -1270 -6350  -1270 635))
+      (pin Rect[A]Pad_1700.000000x1700.000000_um 1 0 0)
+      (pin Round[A]Pad_1700.000000_um 2 0 -2540)
+      (pin Round[A]Pad_1700.000000_um 3 0 -5080)
     )
     (image MountingHole_3.2mm_M3
       (outline (polygon signal 0  372.747 3427.32  741.112 3366.93  1100.8 3267.06  1447.58 3128.89
