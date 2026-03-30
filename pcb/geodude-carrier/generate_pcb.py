@@ -29,6 +29,12 @@ def place_fp(board, lib, fp_name, ref, value, x, y, angle=0):
     fp.SetPosition(pcbnew.VECTOR2I(mm(x), mm(y)))
     if angle:
         fp.SetOrientationDegrees(angle)
+    # Show value on silkscreen, hide reference
+    ref_field = fp.Reference()
+    ref_field.SetVisible(False)
+    val_field = fp.Value()
+    val_field.SetLayer(pcbnew.F_SilkS)
+    val_field.SetVisible(True)
     board.Add(fp)
     return fp
 
