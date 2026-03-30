@@ -8,10 +8,13 @@ The 3-axis gimbal and linear rail system runs on a 24V system with an ESP32 cont
 
 | | |
 |---|---|
-| **MCU** | ESP32 (already have, Aidan M) |
+| **MCU** | ESP32 DOIT DevKit V1 (already have, Aidan M) |
 | **Power** | 5V USB adapter (separate from 24V system) |
 | **Role** | Gimbal axis control (3 axes) + belt drive motor |
-| **Comms to Pi** | WiFi (coordinated operation with GEO-DUDe) |
+| **WiFi** | Connects to "groundstation" network (base station Pi hotspot) |
+| **Web UI** | HTTP server on port 80 for motor control, driver scanning, current setting |
+| **OTA** | Firmware updates over WiFi (ArduinoOTA, hostname `esp32-tmc`) |
+| **Framework** | Arduino (ESP-IDF v4.4.4), TMCStepper library for UART driver control |
 
 ---
 
@@ -88,12 +91,46 @@ In UART mode, motor current is set digitally via IRUN/IHOLD registers (no potent
 
 | Driver | STEP | DIR |
 |--------|------|-----|
-| TMC2209 #1 (Yaw) | GPIO 13 | GPIO 14 |
-| TMC2209 #2 (Pitch) | GPIO 16 | GPIO 17 |
-| TMC2209 #3 (Roll) | GPIO 18 | GPIO 19 |
-| TMC2209 #4 (Belt) | GPIO 25 | GPIO 26 |
+| TMC2209 #1 (Yaw) | GPIO 32 | GPIO 33 |
+| TMC2209 #2 (Pitch) | GPIO 25 | GPIO 26 |
+| TMC2209 #3 (Roll) | GPIO 23 | GPIO 22 |
+| TMC2209 #4 (Belt) | GPIO 19 | GPIO 18 |
 
-UART bus: ESP32 GPIO TBD (one pin, bridged TX/RX with 1k resistor)
+UART bus: ESP32 GPIO 16 (RX) / GPIO 17 (TX), bridged with 1k resistor to TMC2209 RX pin (single-wire UART)
+
+!!! note "UART Wiring (BTT TMC2209 V1.3)"
+    The V1.3 board has separate RX and TX header pins, but by factory default only the **RX pin** is connected to PDN_UART. The TX pin is disconnected unless you solder R10 on the bottom of the board.
+
+    For single-wire UART (factory default, no R10 bridge):
+
+    - ESP32 GPIO 16 (RX) connects **directly** to TMC2209 RX pin
+    - ESP32 GPIO 17 (TX) connects through **1K resistor** to TMC2209 RX pin (same pin)
+    - TMC2209 TX pin is left unconnected
+
+    All 4 drivers share the same UART bus (all RX pins connected together).
+
+!!! note "24V Required for UART"
+    The TMC2209 chip is powered internally from VM, not VIO. VIO only sets the logic level. **UART will not respond without 24V on VM**, even if VIO is connected.
+
+### ESP32 Firmware
+
+Firmware source: `~/tmp/tmc2209_read/tmc2209_read.ino`
+
+The ESP32 runs a web server with:
+
+- **Driver scanning** - detects TMC2209s on the UART bus, reads version, microsteps, current, DRV_STATUS
+- **Motor control** - step any driver forward/backward with configurable step count
+- **Current setting** - adjustable 50-2000 mA via web UI (applies to all connected drivers)
+- **Speed control** - slow (5ms), medium (2ms), fast (500us) step delay
+- **Driver setup** - one-click configuration (400mA default, 16 microsteps, StealthChop)
+- **OTA updates** - flash new firmware wirelessly via `espota.py`
+- **UART debug** endpoint at `/debug`
+
+To flash OTA:
+```bash
+python3 ~/Library/Arduino15/packages/esp32/hardware/esp32/3.3.7/tools/espota.py \
+  -i 192.168.4.222 -p 3232 -f build/tmc2209_read.ino.bin
+```
 
 ---
 

@@ -26,15 +26,15 @@ Every wire connection in both systems. Use this as the wiring reference when bui
 
 | From | Pin | To | Pin | Cable | Notes |
 |------|-----|----|-----|-------|-------|
-| ESP32 | GPIO 13 (STEP) | TMC2209 #1 | STEP | Jumper | Yaw axis |
-| ESP32 | GPIO 14 (DIR) | TMC2209 #1 | DIR | Jumper | Yaw axis |
-| ESP32 | GPIO 16 (STEP) | TMC2209 #2 | STEP | Jumper | Pitch axis |
-| ESP32 | GPIO 17 (DIR) | TMC2209 #2 | DIR | Jumper | Pitch axis |
-| ESP32 | GPIO 18 (STEP) | TMC2209 #3 | STEP | Jumper | Roll axis |
-| ESP32 | GPIO 19 (DIR) | TMC2209 #3 | DIR | Jumper | Roll axis |
-| ESP32 | GPIO 25 (STEP) | TMC2209 #4 | STEP | Jumper | Belt motor |
-| ESP32 | GPIO 26 (DIR) | TMC2209 #4 | DIR | Jumper | Belt motor |
-| ESP32 | GPIO TBD (UART) | TMC2209 #1-4 | PDN_UART | Jumper | Shared bus, 1k bridge TX/RX |
+| ESP32 | GPIO 32 (STEP) | TMC2209 #1 | STEP | Jumper | Yaw axis |
+| ESP32 | GPIO 33 (DIR) | TMC2209 #1 | DIR | Jumper | Yaw axis |
+| ESP32 | GPIO 25 (STEP) | TMC2209 #2 | STEP | Jumper | Pitch axis |
+| ESP32 | GPIO 26 (DIR) | TMC2209 #2 | DIR | Jumper | Pitch axis |
+| ESP32 | GPIO 23 (STEP) | TMC2209 #3 | STEP | Jumper | Roll axis |
+| ESP32 | GPIO 22 (DIR) | TMC2209 #3 | DIR | Jumper | Roll axis |
+| ESP32 | GPIO 19 (STEP) | TMC2209 #4 | STEP | Jumper | Belt motor |
+| ESP32 | GPIO 18 (DIR) | TMC2209 #4 | DIR | Jumper | Belt motor |
+| ESP32 | GPIO 16 (RX) / GPIO 17 (TX) | TMC2209 #1-4 | RX (PDN_UART) | Jumper | Shared bus, 1k resistor on TX, direct RX |
 | TMC2209 #1 | MS1/MS2 | GND/GND | - | Jumper | Address 0 |
 | TMC2209 #2 | MS1/MS2 | 3.3V/GND | - | Jumper | Address 1 |
 | TMC2209 #3 | MS1/MS2 | GND/3.3V | - | Jumper | Address 2 |
