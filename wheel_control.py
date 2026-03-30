@@ -318,9 +318,6 @@ HTML = """
 let reverse = false;
 let holding = false;
 let currentNeedleAngle = 0;
-let lastAngle = null;
-let lastAngleTime = null;
-let rpmBuffer = [];
 let isArmed = false;
 let isArming = false;
 
@@ -534,21 +531,7 @@ function poll() {
     if (delta < -180) delta += 360;
     currentNeedleAngle += delta;
     document.getElementById('needle').style.transform = 'rotate(' + currentNeedleAngle + 'deg)';
-    // RPM calculation
-    let now = performance.now();
-    if (lastAngle !== null && lastAngleTime !== null) {
-      let dt = (now - lastAngleTime) / 1000;
-      if (dt > 0) {
-        let dps = delta / dt; // degrees per second
-        let rpm = Math.abs(dps) / 6; // 360 deg/s = 60 RPM
-        rpmBuffer.push(rpm);
-        if (rpmBuffer.length > 15) rpmBuffer.shift();
-        let avgRpm = rpmBuffer.reduce((a,b) => a+b, 0) / rpmBuffer.length;
-        document.getElementById('rpmText').textContent = Math.round(avgRpm) + ' RPM';
-      }
-    }
-    lastAngle = target;
-    lastAngleTime = now;
+    document.getElementById('rpmText').textContent = Math.round(d.rpm) + ' RPM';
     updateArmUI(d.armed, d.arming);
     document.getElementById('armedStatus').textContent = d.arming ? 'ARMING' : (d.armed ? 'YES' : 'NO');
     document.getElementById('armedStatus').style.color = d.arming ? '#f59e0b' : (d.armed ? '#22c55e' : '#ef4444');

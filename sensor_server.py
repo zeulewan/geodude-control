@@ -9,7 +9,7 @@ app = Flask(__name__)
 bus = smbus2.SMBus(1)
 lock = threading.Lock()
 
-sensor_data = {"ax":0,"ay":0,"az":0,"gx":0,"gy":0,"gz":0,"angle":0}
+sensor_data = {"ax":0,"ay":0,"az":0,"gx":0,"gy":0,"gz":0,"angle":0,"rpm":0}
 
 # --- PCA9685 PWM driver ---
 
@@ -76,6 +76,9 @@ def sensor_loop():
     with lock:
         bus.write_byte_data(0x69, 0x06, 0x01)
     time.sleep(0.05)
+    last_angle = None
+    last_time = None
+    rpm_buf = []
     while True:
         try:
             with lock:
@@ -88,10 +91,26 @@ def sensor_loop():
                 eh = bus.read_byte_data(0x36, 0x0c)
                 el = bus.read_byte_data(0x36, 0x0d)
             angle = ((eh & 0x0F) << 8 | el) / 4096.0 * 360
-            sensor_data.update({"ax":round(ax,3),"ay":round(ay,3),"az":round(az,3),"gx":round(gx,1),"gy":round(gy,1),"gz":round(gz,1),"angle":round(angle,1)})
+            # Compute RPM from encoder at 100Hz
+            now = time.monotonic()
+            rpm = 0.0
+            if last_angle is not None and last_time is not None:
+                dt = now - last_time
+                if dt > 0:
+                    delta = angle - last_angle
+                    if delta > 180: delta -= 360
+                    if delta < -180: delta += 360
+                    dps = delta / dt
+                    rpm_buf.append(abs(dps) / 6.0)
+                    if len(rpm_buf) > 50:
+                        rpm_buf.pop(0)
+                    rpm = sum(rpm_buf) / len(rpm_buf)
+            last_angle = angle
+            last_time = now
+            sensor_data.update({"ax":round(ax,3),"ay":round(ay,3),"az":round(az,3),"gx":round(gx,1),"gy":round(gy,1),"gz":round(gz,1),"angle":round(angle,1),"rpm":round(rpm,1)})
         except:
             pass
-        time.sleep(0.033)
+        time.sleep(0.01)
 
 # --- API ---
 
