@@ -198,7 +198,7 @@ All DC power distribution uses **Wago lever connectors** (from Mach). Each volta
     \-- GND Bus (2x 16 AWG parallel) --> Everything (star ground via Wago bus)
 ```
 
-**Fuse boards:** Two identical perfboard fuse boards, one per arm. Each board receives three voltage inputs (12V direct, 7.4V from buck conv 1, 5V from buck conv 3) and routes the correct voltage through the correct fuse to each of the arm's 5 servos. GND is shared across all fuses on the board.
+**Fuse board:** Single perfboard fuse board for both arms (merged from two separate boards). Receives three voltage inputs (12V direct, 7.4V from buck conv 1, 5V from buck conv 3) and routes the correct voltage through the correct fuse to each of the 10 servos across both arms. GND is shared across all fuses on the board.
 
 **Power-on sequence:** Pi and PCA9685 are always powered via buck 2 (before toggle switch, always on). When the operator is ready, they flip the panel-mount toggle switch to energize all fuse boards and the ESC. PCA9685 outputs are off until Pi sends I2C commands, so servos stay still even after the toggle switch is flipped on. ESC requires arming sequence (1000us PWM for ~2s) before accepting throttle.
 

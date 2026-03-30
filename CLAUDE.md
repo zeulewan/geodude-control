@@ -57,7 +57,7 @@ Port 8813 by default.
 - PCA9685 I2C PWM driver (all 10 servo signals): Ch 0-4 Arm 1, Ch 5-9 Arm 2, Ch 14 MACE ESC
 - 10 limit switches (one per joint per arm), connected to Pi GPIO with internal pull-ups
 - 3 buck converters (7.4V elbow, 5V Pi, 5V servo)
-- 2 per-arm fuse boards (perfboard, 5 fuses each: 8A base, 8A shoulder, 5A elbow, 3A wrist rot, 3A wrist pan)
+- 1 merged fuse board (perfboard, 10 fuses total: 8A base x2, 8A shoulder x2, 5A elbow x2, 3A wrist rot x2, 3A wrist pan x2)
 - 40A toggle switch for manual servo power control (Jtron Waterproof DC12V 40A/24V 20A, replaces relay + transistor driver)
 - 30A inline blade fuse on 12V trunk
 - 6A slow-blow AC fuse on mains hot (must be AC-rated, not blade fuse)
