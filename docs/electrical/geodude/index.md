@@ -8,13 +8,36 @@ The GEO-DUDe servicer subscale model runs on a 12V system. A Raspberry Pi contro
 
 | | |
 |---|---|
-| **Main controller** | Raspberry Pi (already have, Zeul) |
-| **PWM driver** | PCA9685 16-channel I2C PWM board (**add to BOM**) |
-| **Camera** | Raspberry Pi Camera (AI vision, already have, Zeul) |
-| **Comms to ESP32** | WiFi (both have built-in WiFi, no extra hardware) |
-| **Comms to base station** | WiFi |
+| **Main controller** | Raspberry Pi 4 Model B (4 GB RAM) |
+| **Hostname** | `geodude` |
+| **OS** | Debian 13 (Trixie) / Raspberry Pi OS, kernel 6.12, aarch64 |
+| **IP** | `192.168.4.166` (WiFi via groundstation hotspot) |
+| **PWM driver** | PCA9685 16-channel I2C PWM board |
+| **Camera** | RPi Camera Module 3 (IMX708, CSI) |
+| **Comms to ESP32** | WiFi |
+| **Comms to base station** | WiFi (SSID: `groundstation`) |
+
+### SSH Access
+
+```bash
+ssh zeul@192.168.4.166
+```
+
+| | |
+|---|---|
+| **User** | `zeul` |
+| **Auth** | SSH key from groundstation (`/home/zeul/.ssh/id_ed25519`) |
+
+### Services
+
+| Service | Port | Description |
+|---------|------|-------------|
+| `sensor-server.service` | 5000 | Sensor polling, PCA9685 control, camera stream |
+| `attitude-controller.service` | 5001 | PID attitude control loop |
 
 The PCA9685 drives all 10 servo signal lines and the ESC PWM signal over I2C (2 Pi pins). The IMU and magnetic encoder also share the I2C bus (different addresses). Limit switches connect directly to Pi GPIO (10 needed, one per joint across both arms).
+
+I2C address: `0x40`. Initialized at 50Hz. Servo range: 500-2500us (center 1500us). ESC range: 1000-2000us.
 
 ### Pi Connections
 
@@ -33,7 +56,7 @@ The PCA9685 drives all 10 servo signal lines and the ESC PWM signal over I2C (2 
 | GPIO 25 | Arm 2 Wrist Rotate limit switch | Digital input | Internal pull-up |
 | GPIO 26 | Arm 2 Wrist Pan limit switch | Digital input | Internal pull-up |
 | CSI connector | Pi Camera | Ribbon cable | Fixed mount near Pi |
-| I2C SDA (GPIO 2) | ICM20948 IMU | I2C | MACE attitude sensing (addr 0x68) |
+| I2C SDA (GPIO 2) | ICM20948 IMU | I2C | MACE attitude sensing (addr 0x69) |
 | I2C SDA (GPIO 2) | AS5600 Encoder | I2C | MACE wheel speed sensing (addr 0x36) |
 | WiFi | ESP32 | Wireless | Coordinated operation |
 | WiFi | Base station Pi | Wireless | Ground control commands |
@@ -108,15 +131,21 @@ Momentum Attitude Control Electronics - a single-axis reaction wheel for attitud
 | Component | Model | Voltage | Current | Interface | I2C Addr |
 |-----------|-------|---------|---------|-----------|----------|
 | Motor | Uangel X2807 1700KV BLDC | 12V (via ESC) | ~1-3A realistic | PWM via ESC | - |
-| ESC | Drfeify 40A | 7.4-14.8V | - | PWM (PCA9685 Ch 14) | - |
-| IMU | ICM20948 | 3.3V | ~mA | I2C | 0x68 |
+| ESC | Drfeify 40A | 7.4-14.8V | - | PWM (PCA9685 pin 12 / ch 11) | - |
+| IMU | ICM20948 | 3.3V | ~mA | I2C | 0x69 |
 | Magnetic encoder | AS5600 | 3.3V | ~mA | I2C | 0x36 |
 
 **Power:** ESC powered from 12V bus through the toggle switch (no separate fuse needed -- ESC has built-in overcurrent protection, and the motor draws only ~1-3A as a reaction wheel).
 
-**Control:** PCA9685 Ch 14 sends PWM to ESC. ESC needs arming sequence on boot (send 1000us for ~2 seconds before accepting throttle commands).
+**Control:** PCA9685 pin 12 (channel 11) sends PWM to ESC. Standard ESC PWM range: 1000us (idle) to 2000us (full throttle). Minimum to spin motor from standstill is ~1075us (~10% throttle). ESC needs arming sequence on boot (send 1000us for ~3 seconds before accepting throttle commands). ESC has not been calibrated — using factory defaults. Brake mode not enabled (1000us = coast). Max wheel RPM limited to 600 in software.
 
-**Sensors:** IMU and encoder share the I2C bus with PCA9685 (all different addresses: PCA9685 0x40, ICM20948 0x68, AS5600 0x36).
+**Attitude Control:** Closed-loop PID controller (`attitude-controller.service`, port 5001) integrates gz gyro for body angle and commands the reaction wheel to hold a setpoint. 100Hz control loop with rate-limited output (40.5%/s max). Gyro bias calibrated on enable. Uni-directional ESC constraint: can only apply torque in one direction, relies on friction for the other.
+
+**RPM Limiting:** Software-limited to 600 RPM. Saturation triggers coast with hysteresis (resumes at 420 RPM / 70%). RPM computed server-side with 10-sample rolling average (~330ms window at 30Hz). Overshoot observed to ~1000 RPM at initial 50-sample window — reduced to 10 samples for faster response.
+
+**Sensors:** IMU (ICM20948 at 0x69, ±2g accel / ±250°/s gyro) and encoder (AS5600 at 0x36) share the I2C bus with PCA9685 (0x40). Sensor loop runs at 30Hz (100Hz caused I2C lock contention with motor writes).
+
+**Camera:** RPi Camera Module 3 (IMX708, CSI) — 640x480 MJPEG @ 10fps, streamed via sensor server.
 
 ---
 
