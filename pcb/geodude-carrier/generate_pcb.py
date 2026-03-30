@@ -86,7 +86,6 @@ def main():
     # ==============================================================
     sp = 12
     px = BOARD_W - 10
-    py = 10
 
     all_power = [
         ("J1", "12V", "+12V", "GND"),
@@ -102,6 +101,8 @@ def main():
         ("J11", "5V Logic", "+5V_LOGIC", "GND_LOGIC"),
         ("J12", "3.3V", "+3V3", "GND_LOGIC"),
     ]
+    pwr_total = len(all_power) * sp
+    py = (BOARD_H - pwr_total) / 2 + sp / 2
     for i, (ref, val, net1, net2) in enumerate(all_power):
         f = place_fp(board, TB, TB2, ref, val, px, py + i*sp, 90)
         if f:
@@ -211,10 +212,12 @@ def main():
         ("GND_L", "GND_LOGIC"),
     ]
 
-    # Screw terminals: single column, 2 per bus stacked vertically
-    scr_sp = 12  # spacing between screw terminals
+    # Screw terminals: single column, 2 per bus, centred vertically
+    scr_sp = 12
+    scr_total = 10 * scr_sp  # 10 terminals
+    scr_y_start = (BOARD_H - scr_total) / 2 + scr_sp / 2
     jnum = 30
-    scr_y = 15
+    scr_y = scr_y_start
     for row, (label, net_name) in enumerate(buses):
         for j in range(2):
             f = place_fp(board, TB, TB2, f"J{jnum}", label, lx, scr_y, 90)
@@ -224,9 +227,11 @@ def main():
                 set_pad(f, 1, nets[net_name])
                 set_pad(f, 2, nets[net_name])
 
-    # Pin headers: single column to the right
+    # Pin headers: single column, centred vertically
+    hdr_total = len(buses) * bus_sp
+    hdr_y_start = (BOARD_H - hdr_total) / 2 + bus_sp / 2
     for row, (label, net_name) in enumerate(buses):
-        y = 25 + row * bus_sp
+        y = hdr_y_start + row * bus_sp
         f = place_fp(board, CONN, H4, f"J{jnum}", label, lx + 18, y)
         jnum += 1
         if f:
