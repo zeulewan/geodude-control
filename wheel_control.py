@@ -559,7 +559,11 @@ function calCancel() {
   document.getElementById('calPanel').style.display = 'none';
 }
 
+let lastArmState = null;
 function updateArmUI(armed, arming) {
+  let key = (arming ? 'arming' : armed ? 'armed' : 'off');
+  if (key === lastArmState) return;
+  lastArmState = key;
   isArmed = armed;
   isArming = arming;
   let armBtn = document.getElementById('armBtn');
@@ -765,7 +769,7 @@ function attPoll() {
   }).catch(() => {});
 }
 
-setInterval(attPoll, 100);
+setInterval(attPoll, 500);
 </script>
 </body>
 </html>
