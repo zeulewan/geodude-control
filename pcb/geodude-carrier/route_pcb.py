@@ -39,6 +39,8 @@ NET_WIDTHS_MM = {
     "+3V3": 0.6,
     # GND gets wide traces too
     "GND": 3.0,
+    # Logic GND — low current
+    "GND_LOGIC": 0.6,
 }
 # Convert to um for DSN file
 NET_WIDTHS = {k: mm_to_um(v) for k, v in NET_WIDTHS_MM.items()}
