@@ -1,0 +1,153 @@
+direction: right
+
+title: |md
+  # GEO-DUDe Power Distribution
+| {
+  near: top-center
+  shape: text
+  style.font-size: 20
+}
+
+# === PSU ===
+psu: "12V 600W PSU (50A max)" {
+  shape: rectangle
+  style.fill: "#BBDEFB"
+  style.stroke: "#1565C0"
+  style.stroke-width: 2
+}
+
+# === V+ BUS BAR ===
+busbar: "V+ Bus Bar (250A, 5/16\" stud)" {
+  shape: rectangle
+  style.fill: "#BBDEFB"
+  style.stroke: "#1565C0"
+  style.stroke-width: 2
+}
+
+psu -> busbar: "16 AWG (fork connectors)" {style.stroke: "#1565C0"; style.stroke-width: 2}
+
+# === Branch 1: Servo path (fused + switched) ===
+fuse_main: "40A Blade Fuse (10 AWG pigtails)" {
+  shape: diamond
+  style.fill: "#BBDEFB"
+  style.stroke: "#1565C0"
+}
+toggle: "Jtron 40A Toggle Switch (manual)" {
+  shape: rectangle
+  style.fill: "#FFF9C4"
+  style.stroke: "#F9A825"
+  style.stroke-width: 2
+}
+
+busbar -> fuse_main: "10 AWG (ring terminal)" {style.stroke: "#1565C0"; style.stroke-width: 2}
+fuse_main -> toggle: "10 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
+
+# === POST-TOGGLE: Single Wago ===
+wago: "Wago (distribution)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+
+toggle -> wago: "10 AWG" {style.stroke: "#1565C0"; style.stroke-width: 2}
+
+# === Branch 2: MACE (direct from bus bar, no fuse) ===
+mace: "MACE Reaction Wheel" {
+  style.fill: "#E8EAF6"
+  style.stroke: "#3949AB"
+  style.stroke-width: 2
+  style.border-radius: 8
+
+  esc: "Drfeify 40A ESC" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+  motor: "X2807 1700KV BLDC (up to 40A)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
+  encoder: "AS5600 Encoder (0x36)" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
+  imu: "ICM20948 IMU (0x68)" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
+
+  esc -> motor: "motor drive (bullet connectors)" {style.stroke: "#1565C0"}
+  motor -> encoder: "magnet" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+}
+
+busbar -> mace.esc: "12 AWG (ring terminal, XT60 to ESC)" {style.stroke: "#3949AB"; style.stroke-width: 2}
+
+# === Branch 3: Pi (always on, no fuse) ===
+buck2: "Buck 2: 12V to 5V" {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"}
+pi: "Raspberry Pi (2.5A) + Screw Terminal HAT | 1000-2200uF 10V cap on 5V input" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"; style.stroke-width: 2}
+
+busbar -> buck2: "18 AWG (ring terminal, always on)" {style.stroke: "#2E7D32"}
+buck2 -> pi: "5V, 18 AWG" {style.stroke: "#43A047"}
+
+# === BUCK CONVERTERS (from Wago) ===
+buck1: "Buck 1: 12V to 7.4V" {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"; style.stroke-width: 2}
+buck3: "Buck 3: 12V to 5V" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"; style.stroke-width: 2}
+
+wago -> buck1: "18 AWG" {style.stroke: "#1565C0"}
+wago -> buck3: "18 AWG" {style.stroke: "#1565C0"}
+
+# === SERVO FUSE BOARD (single board, both arms) ===
+board: "Servo Fuse Board (1 board, 10 servos)" {
+  style.fill: "#E3F2FD"
+  style.stroke: "#1565C0"
+  style.stroke-width: 2
+  style.border-radius: 8
+  direction: right
+
+  screw_in: "~12x Screw Terminals (in) | 4x 12V+ | 4x GND | 2x 7.4V | 2x 5V" {
+    shape: rectangle
+    style.fill: "#B0BEC5"
+    style.stroke: "#546E7A"
+    style.stroke-width: 2
+    width: 80
+    height: 500
+  }
+
+  fuses_12v: "4x 8A fuses\n(12V base + shoulder)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"; width: 250}
+  fuses_74v: "2x 5A fuses\n(7.4V elbow)" {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#2E7D32"; width: 250}
+  fuses_5v: "4x 3A fuses\n(5V wrist)" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"; width: 250}
+
+  headers_out: "11x Male 3-pin Headers (out) | 10 servos + 1 MACE ESC" {
+    shape: rectangle
+    style.fill: "#B0BEC5"
+    style.stroke: "#546E7A"
+    style.stroke-width: 2
+    width: 80
+    height: 400
+  }
+
+  pca: "PCA9685 16-Ch PWM Driver | VCC: 5V from Pi | V+: not connected" {
+    shape: rectangle
+    style.fill: "#F3E5F5"
+    style.stroke: "#7B1FA2"
+    width: 400
+  }
+
+  screw_in -> fuses_12v -> headers_out: "12V" {style.stroke: "#1565C0"}
+  screw_in -> fuses_74v -> headers_out: "7.4V" {style.stroke: "#2E7D32"}
+  screw_in -> fuses_5v -> headers_out: "5V" {style.stroke: "#43A047"}
+  pca -> headers_out: "Ch 0-9 PWM (10 servos) + Ch 14 (MACE)" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+}
+
+# Power to fuse board
+wago -> board.screw_in: "12V, 16 AWG (to 4x 12V+ screw terminals)" {style.stroke: "#1565C0"}
+buck1 -> board.screw_in: "7.4V, 18 AWG" {style.stroke: "#2E7D32"}
+buck3 -> board.screw_in: "5V, 18 AWG" {style.stroke: "#43A047"}
+
+# Pi to PCA on the board
+pi -> board.pca: "I2C + 5V power" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+pi -> mace.encoder: "I2C + 3.3V" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+pi -> mace.imu: "I2C + 3.3V" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+
+# === LIMIT SWITCHES ===
+limits: "10x Limit Switches | GPIO 4-6, 17, 22-27 | Pi pull-ups, 22 AWG" {
+  shape: rectangle
+  style.fill: "#FFF3E0"
+  style.stroke: "#EF6C00"
+  style.stroke-width: 2
+  style.border-radius: 8
+}
+
+pi -> limits: "GPIO, 22 AWG" {style.stroke: "#EF6C00"; style.stroke-dash: 3}
+
+# === GND ===
+gnd: "GND Bus Bar (250A, 5/16\" stud) | PSU GND -> 16 AWG -> bus bar | 16 AWG to fuse board | 18 AWG to each buck | 12 AWG to MACE ESC" {
+  shape: rectangle
+  style.fill: "#ECEFF1"
+  style.stroke: "#546E7A"
+  style.stroke-width: 2
+  near: bottom-center
+}

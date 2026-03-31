@@ -1,0 +1,93 @@
+direction: right
+
+title: |md
+  # Gimbal Apparatus - 24V System
+  3-Axis Gimbal + Linear Rail
+| {
+  near: top-center
+  shape: text
+  style.font-size: 20
+}
+
+# === PSU ===
+wall: "Wall Outlet (120V AC)" {shape: page; style.fill: "#FFCDD2"; style.stroke: "#C62828"}
+psu: "24V 480W PSU (20A max)" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"; style.stroke-width: 2}
+busbar: "V+ Bus Bar (250A, 5/16\" stud)" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"; style.stroke-width: 2}
+
+wall2: "Wall Outlet 2 (120V AC)" {shape: page; style.fill: "#FFCDD2"; style.stroke: "#C62828"}
+usb_adapter: "5V USB Wall Adapter" {shape: rectangle; style.fill: "#E8F5E9"; style.stroke: "#43A047"}
+
+wall -> psu: "120V AC" {style.stroke: "#C62828"; style.stroke-width: 2}
+wall2 -> usb_adapter: "120V AC" {style.stroke: "#C62828"}
+usb_adapter -> perfboard.edge_in.barrel: "5V, barrel jack cable" {style.stroke: "#43A047"}
+psu -> busbar: "14 AWG" {style.stroke: "#EF6C00"; style.stroke-width: 2}
+
+# === PERFBOARD ===
+perfboard: "Gimbal Perfboard" {
+  style.fill: "#F3E5F5"
+  style.stroke: "#7B1FA2"
+  style.stroke-width: 2
+  style.border-radius: 8
+
+  direction: right
+
+  edge_in: "Board Edge (in)" {
+    style.fill: "#ECEFF1"
+    style.stroke: "#78909C"
+    style.border-radius: 6
+
+    screw_24v: "Screw Terminals | 24V VMOT x4 + GND" {shape: rectangle; style.fill: "#B0BEC5"; style.stroke: "#546E7A"; style.stroke-width: 2}
+    barrel: "5V Barrel Jack" {shape: rectangle; style.fill: "#C8E6C9"; style.stroke: "#43A047"; style.stroke-width: 2}
+  }
+
+  esp32: "ESP32 DOIT DevKit V1 | WiFi to Raspberry Pi" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"; style.stroke-width: 2}
+  drivers: "4x TMC2209 Drivers | EN: active LOW | 2A RMS each" {shape: rectangle; style.fill: "#FFE0B2"; style.stroke: "#EF6C00"; style.stroke-width: 2}
+  addr_table: "UART Addressing:\nAddr 0: MS1=L, MS2=L\nAddr 1: MS1=H, MS2=L\nAddr 2: MS1=L, MS2=H\nAddr 3: MS1=H, MS2=H" {
+    shape: rectangle
+    style.font-size: 11
+    style.fill: "#FFF3E0"
+    style.stroke: "#EF6C00"
+    style.border-radius: 6
+  }
+  caps: "4x 100uF 50V + 4x 100nF caps" {shape: rectangle; style.fill: "#FFCDD2"; style.stroke: "#C62828"; style.font-size: 11}
+  resistor: "1k resistor (UART bridge)" {shape: rectangle; style.fill: "#ECEFF1"; style.stroke: "#78909C"; style.font-size: 11}
+
+  edge_out: "Board Edge (out)" {
+    style.fill: "#ECEFF1"
+    style.stroke: "#78909C"
+    style.border-radius: 6
+
+    jst_out: "4x JST-XH 4-pin sockets" {shape: rectangle; style.fill: "#B0BEC5"; style.stroke: "#546E7A"; style.stroke-width: 2}
+  }
+
+  edge_in.barrel -> esp32: "5V, 22 AWG" {style.stroke: "#43A047"}
+  edge_in.screw_24v -> caps -> drivers: "24V VMOT, 18 AWG" {style.stroke: "#EF6C00"}
+  esp32 -> drivers: "STEP/DIR + 3.3V VIO, 22 AWG" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+  esp32 -> resistor -> drivers: "UART shared bus, 22 AWG" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+  drivers -> edge_out.jst_out: "coil A/B, 22 AWG" {style.stroke: "#EF6C00"}
+}
+
+# === 4x NEMA 17 MOTORS ===
+motors: "4x NEMA 17 Steppers | Yaw, Pitch, Roll, Belt" {
+  shape: rectangle
+  style.fill: "#FFE0B2"
+  style.stroke: "#EF6C00"
+  style.stroke-width: 2
+  style.border-radius: 8
+}
+
+# === POWER: Bus bar to perfboard ===
+busbar -> perfboard.edge_in.screw_24v: "24V, 18 AWG each" {style.stroke: "#EF6C00"; style.stroke-width: 2}
+
+# === MOTOR CABLES ===
+perfboard.edge_out.jst_out -> motors: "6-to-4 pin cables, 1M" {style.stroke: "#EF6C00"}
+
+
+# === GND ===
+gnd: "GND Bus Bar (250A, 5/16\" stud) | PSU GND -> 14 AWG -> bus bar | 18 AWG to perfboard GND" {
+  shape: rectangle
+  style.fill: "#ECEFF1"
+  style.stroke: "#546E7A"
+  style.stroke-width: 2
+  near: bottom-center
+}
