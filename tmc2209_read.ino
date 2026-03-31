@@ -37,9 +37,12 @@ String scanResult;
 // Motor state
 bool motorRunning[4] = {false, false, false, false};
 bool motorDir[4] = {true, true, true, true};
-int stepDelay = 2000; // microseconds between steps (lower = faster)
+int stepDelay = 2000; // target microseconds between steps (lower = faster)
 int stepsRemaining[4] = {0, 0, 0, 0};
+int currentDelay[4] = {0, 0, 0, 0}; // actual current step delay (for ramping)
 int currentMA = 400;
+const int RAMP_START_DELAY = 8000; // start speed (us) — slow
+const int RAMP_ACCEL = 50;         // decrease delay by this many us per step
 
 void initDrivers() {
   for (int i = 0; i < 4; i++) drivers[i]->begin();
@@ -154,10 +157,10 @@ void handleSetup() {
       drivers[i]->toff(4);
       drivers[i]->rms_current(currentMA, 0.0f); // hold_multiplier=0 → IHOLD=0
       drivers[i]->microsteps(16);
-      drivers[i]->en_spreadCycle(false); // StealthChop
-      drivers[i]->pwm_autoscale(true);
+      drivers[i]->en_spreadCycle(true); // SpreadCycle (not StealthChop)
+      drivers[i]->pwm_autoscale(false);
       drivers[i]->GSTAT(0x07); // Clear flags
-      r += "Driver " + String(i) + ": configured (" + String(currentMA) + "mA, IHOLD=0, 16 microsteps, StealthChop)\n";
+      r += "Driver " + String(i) + ": configured (" + String(currentMA) + "mA, IHOLD=0, 16 microsteps, SpreadCycle)\n";
       drivers[i]->toff(0); // disable driver output — zero current until stepping
       r += "  toff=0 (driver disabled, zero current)\n";
     }
@@ -175,6 +178,7 @@ void handleMove() {
     digitalWrite(drvPins[d].dir, motorDir[d] ? HIGH : LOW);
     stepsRemaining[d] = abs(steps);
     motorRunning[d] = true;
+    currentDelay[d] = RAMP_START_DELAY; // start slow
     drivers[d]->toff(4); // enable driver output before stepping
   }
   server.sendHeader("Location", "/");
@@ -333,7 +337,12 @@ void loop() {
       digitalWrite(drvPins[i].step, HIGH);
       delayMicroseconds(10);
       digitalWrite(drvPins[i].step, LOW);
-      delayMicroseconds(stepDelay);
+      delayMicroseconds(currentDelay[i]);
+      // Ramp: accelerate toward target speed
+      if (currentDelay[i] > stepDelay) {
+        currentDelay[i] -= RAMP_ACCEL;
+        if (currentDelay[i] < stepDelay) currentDelay[i] = stepDelay;
+      }
       stepsRemaining[i]--;
       if (stepsRemaining[i] <= 0) {
         motorRunning[i] = false;
