@@ -19,11 +19,13 @@ struct DriverPins {
 };
 
 DriverPins drvPins[4] = {
-  {32, 33},  // Driver 0
-  {25, 26},  // Driver 1
-  {22, 23},  // Driver 2
-  {19, 18},  // Driver 3
+  {32, 33},  // Driver 0 (Yaw)
+  {25, 26},  // Driver 1 (Pitch)
+  {22, 23},  // Driver 2 (Roll)
+  {19, 18},  // Driver 3 (Belt)
 };
+
+const char* drvNames[] = {"Yaw", "Pitch", "Roll", "Belt"};
 
 TMC2209Stepper driver0(&Serial2, R_SENSE, 0x00);
 TMC2209Stepper driver1(&Serial2, R_SENSE, 0x01);
@@ -32,273 +34,165 @@ TMC2209Stepper driver3(&Serial2, R_SENSE, 0x03);
 TMC2209Stepper* drivers[] = {&driver0, &driver1, &driver2, &driver3};
 
 int driversFound = 0;
-String scanResult;
 
 // Motor state
 bool motorRunning[4] = {false, false, false, false};
 bool motorDir[4] = {true, true, true, true};
-int stepDelay = 2000; // target microseconds between steps (lower = faster)
+int stepDelay = 2000;
 int stepsRemaining[4] = {0, 0, 0, 0};
 int totalSteps[4] = {0, 0, 0, 0};
-int currentDelay[4] = {0, 0, 0, 0}; // actual current step delay (for ramping)
-int accelSteps[4] = {0, 0, 0, 0};   // steps spent accelerating
+int currentDelay[4] = {0, 0, 0, 0};
+int accelSteps[4] = {0, 0, 0, 0};
 int currentMA = 400;
-const int RAMP_START_DELAY = 8000; // start speed (us) — slow
-const int RAMP_ACCEL = 50;         // decrease delay by this many us per step
+bool setupDone = false;
+const int RAMP_START_DELAY = 8000;
+const int RAMP_ACCEL = 50;
 
 void initDrivers() {
-  for (int i = 0; i < 4; i++) {
-    drivers[i]->begin();
-  }
+  for (int i = 0; i < 4; i++) drivers[i]->begin();
   delay(100);
-  // Immediately disable all driver outputs — zero current at boot
-  for (int i = 0; i < 4; i++) {
-    drivers[i]->toff(0);
-  }
+  for (int i = 0; i < 4; i++) drivers[i]->toff(0);
 }
 
-String doScan() {
-  String r = "";
-  driversFound = 0;
+// --- JSON API ---
 
+void sendJson(String json) {
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.send(200, "application/json", json);
+}
+
+void handleStatus() {
+  String r = "{\"drivers_found\":" + String(driversFound) +
+    ",\"step_delay\":" + String(stepDelay) +
+    ",\"current_ma\":" + String(currentMA) +
+    ",\"setup_done\":" + String(setupDone ? "true" : "false") +
+    ",\"uptime\":" + String(millis() / 1000) +
+    ",\"ip\":\"" + WiFi.localIP().toString() + "\"" +
+    ",\"drivers\":[";
   for (int i = 0; i < 4; i++) {
+    if (i > 0) r += ",";
     uint8_t ver = drivers[i]->version();
-    char buf[256];
-    if (ver == 0x21) {
-      driversFound++;
-      uint32_t ds = drivers[i]->DRV_STATUS();
-      snprintf(buf, sizeof(buf),
-        "Driver %d (0x%02X): TMC2209\n"
-        "  Microsteps:  %d\n"
-        "  RMS Current: %d mA\n"
-        "  IRUN: %d  IHOLD: %d\n"
-        "  GSTAT: 0x%02X\n"
-        "  DRV_STATUS: 0x%08X\n"
-        "  standstill:%d stealth:%d cs_actual:%d\n"
-        "  ot:%d otpw:%d\n\n",
-        i, i, drivers[i]->microsteps(), drivers[i]->rms_current(),
-        drivers[i]->irun(), drivers[i]->ihold(),
-        drivers[i]->GSTAT(), ds,
-        (ds >> 31) & 1, (ds >> 30) & 1, (ds >> 16) & 0x1F,
-        (ds >> 1) & 1, ds & 1);
-    } else {
-      snprintf(buf, sizeof(buf), "Driver %d (0x%02X): not found\n", i, i);
+    bool found = (ver == 0x21);
+    uint32_t ds = found ? drivers[i]->DRV_STATUS() : 0;
+    r += "{\"index\":" + String(i) +
+      ",\"name\":\"" + String(drvNames[i]) + "\"" +
+      ",\"found\":" + String(found ? "true" : "false") +
+      ",\"running\":" + String(motorRunning[i] ? "true" : "false") +
+      ",\"dir\":\"" + String(motorDir[i] ? "CW" : "CCW") + "\"" +
+      ",\"steps_remaining\":" + String(stepsRemaining[i]);
+    if (found) {
+      r += ",\"microsteps\":" + String(drivers[i]->microsteps()) +
+        ",\"rms_current\":" + String(drivers[i]->rms_current()) +
+        ",\"irun\":" + String(drivers[i]->irun()) +
+        ",\"ihold\":" + String(drivers[i]->ihold()) +
+        ",\"cs_actual\":" + String((ds >> 16) & 0x1F) +
+        ",\"standstill\":" + String((ds >> 31) & 1 ? "true" : "false") +
+        ",\"ot\":" + String((ds >> 1) & 1 ? "true" : "false") +
+        ",\"otpw\":" + String(ds & 1 ? "true" : "false");
     }
-    r += buf;
+    r += "}";
   }
-  return r;
-}
-
-void handleRoot() {
-  String statusColor = driversFound > 0 ? "#0f0" : "#f00";
-  String statusText = driversFound > 0
-    ? String(driversFound) + " driver(s) connected"
-    : "No drivers found - check wiring / 24V power";
-
-  String motorStatus = "";
-  for (int i = 0; i < 4; i++) {
-    String state = motorRunning[i] ? "RUNNING" : "stopped";
-    String dir = motorDir[i] ? "CW" : "CCW";
-    motorStatus += "<tr><td>Driver " + String(i) + "</td>"
-      "<td>" + state + " (" + dir + ")</td>"
-      "<td>"
-      "<a class='btn' href='/move?d=" + String(i) + "&steps=200'>200</a> "
-      "<a class='btn' href='/move?d=" + String(i) + "&steps=1000'>1000</a> "
-      "<a class='btn' href='/move?d=" + String(i) + "&steps=-200'>-200</a> "
-      "<a class='btn' href='/move?d=" + String(i) + "&steps=-1000'>-1000</a> "
-      "<form style='display:inline' action='/move' method='get'>"
-      "<input type='hidden' name='d' value='" + String(i) + "'>"
-      "<input type='number' name='steps' value='500' style='width:70px;background:#000;color:#0ff;border:1px solid #0ff;padding:4px;font-family:monospace;'>"
-      "<input type='submit' value='GO' class='btn' style='border:none;cursor:pointer;'>"
-      "</form> "
-      "<a class='btn stop' href='/stop?d=" + String(i) + "'>STOP</a>"
-      "</td></tr>";
-  }
-
-  String html = "<html><head><title>ESP32-TMC</title>"
-    "<meta name='viewport' content='width=device-width'>"
-    "<style>body{font-family:monospace;background:#111;color:#eee;padding:20px;}"
-    "pre{background:#000;padding:15px;border:1px solid #333;margin-top:15px;}"
-    ".status{padding:12px;border-radius:6px;font-size:1.2em;margin:15px 0;}"
-    ".btn{display:inline-block;padding:6px 12px;background:#333;color:#0ff;"
-    "text-decoration:none;border:1px solid #0ff;border-radius:4px;margin:2px;font-size:0.9em;}"
-    ".btn:hover{background:#0ff;color:#000;}"
-    ".btn.stop{border-color:#f00;color:#f00;}.btn.stop:hover{background:#f00;color:#000;}"
-    "table{border-collapse:collapse;width:100%;margin:15px 0;}"
-    "td,th{padding:8px;border:1px solid #333;text-align:left;}"
-    "h3{color:#0ff;margin-top:25px;}"
-    ".controls{margin:15px 0;}"
-    "</style></head><body>"
-    "<h2>ESP32-TMC Controller</h2>"
-    "<div class='status' style='border:2px solid " + statusColor + ";color:" + statusColor + ";'>"
-    + statusText + "</div>"
-    "<p>WiFi: " + WiFi.localIP().toString() + " | Uptime: " + String(millis()/1000) + "s"
-    " | Step delay: " + String(stepDelay) + "us</p>"
-    "<div class='controls'>"
-    "<a class='btn' href='/scan'>Scan Drivers</a> "
-    "<a class='btn' href='/speed?us=5000'>Slow</a> "
-    "<a class='btn' href='/speed?us=2000'>Medium</a> "
-    "<a class='btn' href='/speed?us=500'>Fast</a> "
-    "<a class='btn' href='/setup'>Setup Drivers</a>"
-    "</div>"
-    "<h3>Current Setting</h3>"
-    "<form action='/current' method='get' style='margin:10px 0;'>"
-    "<input type='number' name='ma' min='50' max='2000' value='" + String(currentMA) + "' "
-    "style='background:#000;color:#0ff;border:1px solid #0ff;padding:6px;width:80px;font-family:monospace;'>"
-    " mA <input type='submit' value='Set' class='btn' style='border:none;cursor:pointer;'>"
-    "</form>"
-    "<p style='color:#666;'>Range: 50-2000 mA. Motor rated current recommended.</p>"
-    "<h3>Motor Control</h3>"
-    "<table><tr><th>Driver</th><th>Status</th><th>Actions</th></tr>"
-    + motorStatus + "</table>"
-    "<h3>Driver Info</h3>"
-    "<pre>" + scanResult + "</pre>"
-    "</body></html>";
-  server.send(200, "text/html", html);
+  r += "]}";
+  sendJson(r);
 }
 
 void handleScan() {
-  scanResult = doScan();
-  server.sendHeader("Location", "/");
-  server.send(302);
+  driversFound = 0;
+  for (int i = 0; i < 4; i++) {
+    if (drivers[i]->version() == 0x21) driversFound++;
+  }
+  sendJson("{\"ok\":true,\"drivers_found\":" + String(driversFound) + "}");
 }
 
 void handleSetup() {
-  String r = "Setting up drivers...\n";
+  int configured = 0;
   for (int i = 0; i < 4; i++) {
     if (drivers[i]->version() == 0x21) {
       drivers[i]->toff(4);
-      drivers[i]->rms_current(currentMA, 0.0f); // hold_multiplier=0 → IHOLD=0
+      drivers[i]->rms_current(currentMA, 0.0f);
       drivers[i]->microsteps(16);
-      drivers[i]->en_spreadCycle(true); // SpreadCycle (not StealthChop)
+      drivers[i]->en_spreadCycle(true);
       drivers[i]->pwm_autoscale(false);
-      drivers[i]->GSTAT(0x07); // Clear flags
-      r += "Driver " + String(i) + ": configured (" + String(currentMA) + "mA, IHOLD=0, 16 microsteps, SpreadCycle)\n";
-      drivers[i]->toff(0); // disable driver output — zero current until stepping
-      r += "  toff=0 (driver disabled, zero current)\n";
+      drivers[i]->GSTAT(0x07);
+      drivers[i]->toff(0);
+      configured++;
     }
   }
-  scanResult = doScan();
-  server.sendHeader("Location", "/");
-  server.send(302);
+  setupDone = true;
+  driversFound = configured;
+  sendJson("{\"ok\":true,\"configured\":" + String(configured) + "}");
 }
 
 void handleMove() {
   int d = server.arg("d").toInt();
   int steps = server.arg("steps").toInt();
-  if (d >= 0 && d < 4) {
-    motorDir[d] = steps > 0;
-    digitalWrite(drvPins[d].dir, motorDir[d] ? HIGH : LOW);
-    stepsRemaining[d] = abs(steps);
-    totalSteps[d] = abs(steps);
-    motorRunning[d] = true;
-    currentDelay[d] = RAMP_START_DELAY; // start slow
-    accelSteps[d] = 0;
-    drivers[d]->toff(4); // enable driver output before stepping
+  if (d < 0 || d >= 4) {
+    server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid driver\"}");
+    return;
   }
-  server.sendHeader("Location", "/");
-  server.send(302);
+  if (!setupDone) {
+    server.send(400, "application/json", "{\"ok\":false,\"error\":\"run setup first\"}");
+    return;
+  }
+  motorDir[d] = steps > 0;
+  digitalWrite(drvPins[d].dir, motorDir[d] ? HIGH : LOW);
+  stepsRemaining[d] = abs(steps);
+  totalSteps[d] = abs(steps);
+  motorRunning[d] = true;
+  currentDelay[d] = RAMP_START_DELAY;
+  accelSteps[d] = 0;
+  drivers[d]->toff(4);
+  sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"steps\":" + String(steps) + "}");
 }
 
 void handleStop() {
   int d = server.arg("d").toInt();
-  if (d >= 0 && d < 4) {
-    motorRunning[d] = false;
-    stepsRemaining[d] = 0;
-    drivers[d]->toff(0); // disable driver — zero current
+  if (d < 0 || d >= 4) {
+    server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid driver\"}");
+    return;
   }
-  server.sendHeader("Location", "/");
-  server.send(302);
+  motorRunning[d] = false;
+  stepsRemaining[d] = 0;
+  drivers[d]->toff(0);
+  sendJson("{\"ok\":true,\"driver\":" + String(d) + "}");
+}
+
+void handleStopAll() {
+  for (int i = 0; i < 4; i++) {
+    motorRunning[i] = false;
+    stepsRemaining[i] = 0;
+    drivers[i]->toff(0);
+  }
+  sendJson("{\"ok\":true}");
 }
 
 void handleSpeed() {
-  stepDelay = server.arg("us").toInt();
-  if (stepDelay < 100) stepDelay = 100;
-  if (stepDelay > 50000) stepDelay = 50000;
-  server.sendHeader("Location", "/");
-  server.send(302);
+  int us = server.arg("us").toInt();
+  if (us < 100) us = 100;
+  if (us > 50000) us = 50000;
+  stepDelay = us;
+  sendJson("{\"ok\":true,\"step_delay\":" + String(stepDelay) + "}");
 }
 
 void handleCurrent() {
   int ma = server.arg("ma").toInt();
-  if (ma >= 50 && ma <= 2000) {
-    currentMA = ma;
-    for (int i = 0; i < 4; i++) {
-      if (drivers[i]->version() == 0x21) {
-        drivers[i]->rms_current(currentMA, 0.0f);
-      }
-    }
-    scanResult = doScan();
+  if (ma < 50 || ma > 2000) {
+    server.send(400, "application/json", "{\"ok\":false,\"error\":\"range 50-2000\"}");
+    return;
   }
-  server.sendHeader("Location", "/");
-  server.send(302);
-}
-
-void handleDebug() {
-  String r = "UART Debug\n";
-  r += "GPIO 16: " + String(digitalRead(16)) + "\n";
-  r += "GPIO 17: " + String(digitalRead(17)) + "\n";
-  while (Serial2.available()) Serial2.read();
-  uint8_t test[] = {0x05, 0x00, 0x00, 0x48};
-  Serial2.write(test, 4);
-  Serial2.flush();
-  delay(100);
-  int avail = Serial2.available();
-  r += "Sent 4 bytes, got back: " + String(avail) + "\n";
-  if (avail > 0) {
-    r += "Received: ";
-    while (Serial2.available()) {
-      char buf[8];
-      snprintf(buf, sizeof(buf), "0x%02X ", Serial2.read());
-      r += buf;
+  currentMA = ma;
+  for (int i = 0; i < 4; i++) {
+    if (drivers[i]->version() == 0x21) {
+      drivers[i]->rms_current(currentMA, 0.0f);
     }
-    r += "\n";
   }
-  server.send(200, "text/plain", r);
-}
-
-void handleIholdTest() {
-  String r = "IHOLD Debug Test (Driver 0)\n\n";
-
-  // Step 1: read current state
-  uint8_t ver = drivers[0]->version();
-  r += "1. Driver version: 0x" + String(ver, HEX) + "\n";
-  r += "   ihold() cached = " + String(drivers[0]->ihold()) + "\n";
-  r += "   irun() cached = " + String(drivers[0]->irun()) + "\n";
-  r += "   IHOLD_IRUN cached = 0x" + String(drivers[0]->IHOLD_IRUN(), HEX) + "\n\n";
-
-  // Step 2: set rms_current normally
-  drivers[0]->rms_current(400);
-  r += "2. After rms_current(400):\n";
-  r += "   ihold() = " + String(drivers[0]->ihold()) + "\n";
-  r += "   irun() = " + String(drivers[0]->irun()) + "\n\n";
-
-  // Step 3: try ihold(0)
-  drivers[0]->ihold(0);
-  r += "3. After ihold(0):\n";
-  r += "   ihold() = " + String(drivers[0]->ihold()) + "\n";
-  r += "   IHOLD_IRUN = 0x" + String(drivers[0]->IHOLD_IRUN(), HEX) + "\n\n";
-
-  // Step 4: try rms_current with multiplier
-  drivers[0]->rms_current(400, 0.0f);
-  r += "4. After rms_current(400, 0.0f):\n";
-  r += "   ihold() = " + String(drivers[0]->ihold()) + "\n";
-  r += "   IHOLD_IRUN = 0x" + String(drivers[0]->IHOLD_IRUN(), HEX) + "\n\n";
-
-  // Step 5: check DRV_STATUS cs_actual
-  uint32_t ds = drivers[0]->DRV_STATUS();
-  r += "5. DRV_STATUS = 0x" + String(ds, HEX) + "\n";
-  r += "   cs_actual = " + String((ds >> 16) & 0x1F) + "\n";
-  r += "   standstill = " + String((ds >> 31) & 1) + "\n";
-
-  server.send(200, "text/plain", r);
+  sendJson("{\"ok\":true,\"current_ma\":" + String(currentMA) + "}");
 }
 
 void setup() {
   Serial.begin(115200);
   delay(500);
 
-  // Setup step/dir pins
   for (int i = 0; i < 4; i++) {
     pinMode(drvPins[i].step, OUTPUT);
     pinMode(drvPins[i].dir, OUTPUT);
@@ -306,60 +200,48 @@ void setup() {
     digitalWrite(drvPins[i].dir, LOW);
   }
 
-  Serial.printf("Connecting to: '%s'\n", ssid);
   WiFi.begin(ssid, password);
   int attempts = 0;
   while (WiFi.status() != WL_CONNECTED && attempts < 30) {
     delay(500);
-    Serial.printf("WiFi status: %d\n", WiFi.status());
     attempts++;
   }
 
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.printf("WiFi: %s\n", WiFi.localIP().toString().c_str());
     ArduinoOTA.setHostname("esp32-tmc");
     ArduinoOTA.begin();
-  } else {
-    Serial.printf("WiFi FAILED. Status: %d\n", WiFi.status());
   }
 
   Serial2.begin(115200, SERIAL_8N1, TMC_RX_PIN, TMC_TX_PIN);
   delay(200);
 
   initDrivers();
-  scanResult = doScan();
 
-  server.on("/", handleRoot);
+  server.on("/status", handleStatus);
   server.on("/scan", handleScan);
   server.on("/setup", handleSetup);
   server.on("/move", handleMove);
   server.on("/stop", handleStop);
+  server.on("/stop_all", handleStopAll);
   server.on("/speed", handleSpeed);
   server.on("/current", handleCurrent);
-  server.on("/debug", handleDebug);
-  server.on("/ihold_test", handleIholdTest);
   server.begin();
-  Serial.println("Web server: http://" + WiFi.localIP().toString());
 }
 
 void loop() {
   ArduinoOTA.handle();
   server.handleClient();
 
-  // Step motors
   for (int i = 0; i < 4; i++) {
     if (motorRunning[i] && stepsRemaining[i] > 0) {
       digitalWrite(drvPins[i].step, HIGH);
       delayMicroseconds(10);
       digitalWrite(drvPins[i].step, LOW);
       delayMicroseconds(currentDelay[i]);
-      // Ramp: accelerate then decelerate
       if (stepsRemaining[i] <= accelSteps[i]) {
-        // Decelerate — mirror the acceleration
         currentDelay[i] += RAMP_ACCEL;
         if (currentDelay[i] > RAMP_START_DELAY) currentDelay[i] = RAMP_START_DELAY;
       } else if (currentDelay[i] > stepDelay) {
-        // Accelerate toward target speed
         currentDelay[i] -= RAMP_ACCEL;
         if (currentDelay[i] < stepDelay) currentDelay[i] = stepDelay;
         accelSteps[i]++;
@@ -367,7 +249,7 @@ void loop() {
       stepsRemaining[i]--;
       if (stepsRemaining[i] <= 0) {
         motorRunning[i] = false;
-        drivers[i]->toff(0); // disable driver — zero current at idle
+        drivers[i]->toff(0);
       }
     }
   }

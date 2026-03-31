@@ -8,6 +8,7 @@ app = Flask(__name__)
 
 GEODUDE_URL = "http://192.168.4.166:5000"
 ATTITUDE_URL = "http://192.168.4.166:5001"
+GIMBAL_URL = "http://192.168.4.222"
 WATCHDOG_TIMEOUT = 3  # seconds — auto-stop if no frontend heartbeat
 RAMP_HZ = 20  # ramp loop tick rate
 
@@ -410,6 +411,26 @@ HTML = """
         <button class="btn btn-sm" style="background:#1e3a5f;color:#60a5fa" onclick="allChannelsCenter()">ALL CENTER</button>
       </div>
       <div class="ch-grid" id="chGrid"></div>
+    </div>
+    <div class="card full-width" id="gimbalCard">
+      <h2>Gimbal — Stepper Motors</h2>
+      <div id="gimbalStatus" style="margin-bottom:12px;font-size:13px;color:#6b7280">Connecting...</div>
+      <div class="btn-row" style="margin-bottom:16px">
+        <button class="btn" style="background:#1e3a5f;color:#60a5fa" onclick="gimbalSetup()">SETUP DRIVERS</button>
+        <button class="btn" style="background:#1e3a5f;color:#60a5fa" onclick="gimbalScan()">SCAN</button>
+        <button class="btn btn-stop" onclick="gimbalStopAll()">STOP ALL</button>
+      </div>
+      <div class="slider-container" style="margin-bottom:12px">
+        <span class="sensor-label">Speed:</span>
+        <input type="range" id="gimbalSpeed" min="100" max="8000" step="100" value="2000" oninput="gimbalSetSpeed(this.value)">
+        <span class="sensor-value" id="gimbalSpeedVal" style="min-width:80px;text-align:right">2000us</span>
+      </div>
+      <div class="slider-container" style="margin-bottom:16px">
+        <span class="sensor-label">Current:</span>
+        <input type="range" id="gimbalCurrent" min="50" max="2000" step="50" value="400" oninput="gimbalSetCurrent(this.value)">
+        <span class="sensor-value" id="gimbalCurrentVal" style="min-width:80px;text-align:right">400mA</span>
+      </div>
+      <div id="gimbalDrivers"></div>
     </div>
   </div>
 </div>
@@ -820,6 +841,69 @@ function sysPoll() {
 }
 setInterval(sysPoll, 2000);
 sysPoll();
+
+// --- Gimbal ---
+function gimbalSetup() {
+  fetch('/api/gimbal/setup', {method:'POST'}).then(r=>r.json()).then(d => {
+    if (d.ok) gimbalPoll();
+  });
+}
+function gimbalScan() {
+  fetch('/api/gimbal/scan', {method:'POST'}).then(r=>r.json()).then(d => {
+    gimbalPoll();
+  });
+}
+function gimbalStopAll() {
+  fetch('/api/gimbal/stop_all', {method:'POST'});
+}
+function gimbalMove(driver, steps) {
+  fetch('/api/gimbal/move', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({driver: driver, steps: steps})});
+}
+function gimbalStop(driver) {
+  fetch('/api/gimbal/stop', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({driver: driver})});
+}
+function gimbalSetSpeed(us) {
+  document.getElementById('gimbalSpeedVal').textContent = us + 'us';
+  fetch('/api/gimbal/speed', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({us: parseInt(us)})});
+}
+function gimbalSetCurrent(ma) {
+  document.getElementById('gimbalCurrentVal').textContent = ma + 'mA';
+  fetch('/api/gimbal/current', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ma: parseInt(ma)})});
+}
+
+function gimbalPoll() {
+  fetch('/api/gimbal/status').then(r=>r.json()).then(d => {
+    let s = document.getElementById('gimbalStatus');
+    if (d.error) { s.textContent = 'ESP32 Offline'; s.style.color = '#ef4444'; return; }
+    s.textContent = d.drivers_found + ' driver(s) | ' + d.step_delay + 'us | ' + d.current_ma + 'mA' + (d.setup_done ? '' : ' — click SETUP');
+    s.style.color = d.drivers_found > 0 ? '#22c55e' : '#ef4444';
+    document.getElementById('gimbalSpeed').value = d.step_delay;
+    document.getElementById('gimbalSpeedVal').textContent = d.step_delay + 'us';
+    document.getElementById('gimbalCurrent').value = d.current_ma;
+    document.getElementById('gimbalCurrentVal').textContent = d.current_ma + 'mA';
+    let html = '';
+    d.drivers.forEach(function(drv) {
+      let status = drv.found ? (drv.running ? '<span style="color:#22c55e">RUNNING ' + drv.dir + '</span>' : '<span style="color:#6b7280">idle</span>') : '<span style="color:#ef4444">not found</span>';
+      let info = drv.found ? 'cs=' + drv.cs_actual + ' ' + drv.rms_current + 'mA' : '';
+      html += '<div class="ch-item" style="margin-bottom:8px"><div class="ch-name">' + drv.name + ' (Driver ' + drv.index + ') ' + status + ' <span class="ch-pin">' + info + '</span></div>';
+      html += '<div style="margin-top:6px">';
+      html += '<button class="btn btn-sm" style="background:#334155;color:#94a3b8" onclick="gimbalMove(' + drv.index + ',200)">200</button> ';
+      html += '<button class="btn btn-sm" style="background:#334155;color:#94a3b8" onclick="gimbalMove(' + drv.index + ',1000)">1000</button> ';
+      html += '<button class="btn btn-sm" style="background:#334155;color:#94a3b8" onclick="gimbalMove(' + drv.index + ',-200)">-200</button> ';
+      html += '<button class="btn btn-sm" style="background:#334155;color:#94a3b8" onclick="gimbalMove(' + drv.index + ',-1000)">-1000</button> ';
+      html += '<input type="number" value="500" id="gsteps_' + drv.index + '" style="width:70px;background:#1e293b;color:#e0e6f0;border:1px solid #334155;border-radius:4px;padding:4px;font-family:monospace;font-size:13px"> ';
+      html += '<button class="btn btn-sm" style="background:#1e3a5f;color:#60a5fa" onclick="gimbalMove(' + drv.index + ',parseInt(document.getElementById(\'gsteps_' + drv.index + '\').value))">GO</button> ';
+      html += '<button class="btn btn-sm" style="background:#7f1d1d;color:#fca5a5" onclick="gimbalStop(' + drv.index + ')">STOP</button>';
+      html += '</div></div>';
+    });
+    document.getElementById('gimbalDrivers').innerHTML = html;
+  }).catch(() => {
+    document.getElementById('gimbalStatus').textContent = 'ESP32 Offline';
+    document.getElementById('gimbalStatus').style.color = '#ef4444';
+  });
+}
+setInterval(gimbalPoll, 1000);
+gimbalPoll();
 </script>
 </body>
 </html>
@@ -1086,6 +1170,70 @@ def attitude_calibrate():
 @app.route('/api/attitude/stop', methods=['POST'])
 def attitude_stop():
     data, code = attitude_proxy("stop", "POST")
+    return jsonify(data), code
+
+
+# --- Gimbal proxy ---
+
+def gimbal_get(path):
+    """GET request to gimbal ESP32."""
+    try:
+        resp = urllib.request.urlopen(f"{GIMBAL_URL}/{path}", timeout=3)
+        return json.loads(resp.read().decode()), resp.status
+    except Exception as e:
+        return {"error": str(e)}, 502
+
+
+@app.route('/api/gimbal/status')
+def gimbal_status():
+    data, code = gimbal_get("status")
+    return jsonify(data), code
+
+
+@app.route('/api/gimbal/scan', methods=['POST'])
+def gimbal_scan():
+    data, code = gimbal_get("scan")
+    return jsonify(data), code
+
+
+@app.route('/api/gimbal/setup', methods=['POST'])
+def gimbal_setup():
+    data, code = gimbal_get("setup")
+    return jsonify(data), code
+
+
+@app.route('/api/gimbal/move', methods=['POST'])
+def gimbal_move():
+    d = request.json.get("driver", 0)
+    steps = request.json.get("steps", 0)
+    data, code = gimbal_get(f"move?d={d}&steps={steps}")
+    return jsonify(data), code
+
+
+@app.route('/api/gimbal/stop', methods=['POST'])
+def gimbal_stop_motor():
+    d = request.json.get("driver", 0)
+    data, code = gimbal_get(f"stop?d={d}")
+    return jsonify(data), code
+
+
+@app.route('/api/gimbal/stop_all', methods=['POST'])
+def gimbal_stop_all():
+    data, code = gimbal_get("stop_all")
+    return jsonify(data), code
+
+
+@app.route('/api/gimbal/speed', methods=['POST'])
+def gimbal_speed():
+    us = request.json.get("us", 2000)
+    data, code = gimbal_get(f"speed?us={us}")
+    return jsonify(data), code
+
+
+@app.route('/api/gimbal/current', methods=['POST'])
+def gimbal_current():
+    ma = request.json.get("ma", 400)
+    data, code = gimbal_get(f"current?ma={ma}")
     return jsonify(data), code
 
 
