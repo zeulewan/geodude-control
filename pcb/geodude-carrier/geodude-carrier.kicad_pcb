@@ -480,14 +480,14 @@
 	(footprint "PinHeader_2x04_P2.54mm_Vertical"
 		(layer "F.Cu")
 		(uuid "124cea02-a97b-4b58-b2f6-98d6dea28812")
-		(at 81 122 90)
+		(at 127.42 143.34 90)
 		(descr "Through hole straight pin header, 2x04, 2.54mm pitch, double rows")
 		(tags "Through hole pin header THT 2x04 2.54mm double row")
 		(property "Reference" "J_FAN"
 			(at 1.27 -2.38 90)
 			(layer "F.SilkS")
 			(hide yes)
-			(uuid "fd636ddd-c6eb-443b-bbb1-0b71d42d3550")
+			(uuid "5ab003bf-cbbf-4133-97ae-b204c8ab0472")
 			(effects
 				(font
 					(size 1 1)
@@ -498,7 +498,7 @@
 		(property "Value" "Fan"
 			(at 1.27 10 90)
 			(layer "F.SilkS")
-			(uuid "59f44f7a-080f-4791-b0e4-161dfe610c92")
+			(uuid "9d31b2fa-89b7-44c2-a53d-5317b35f78c2")
 			(effects
 				(font
 					(size 1.5 1.5)
@@ -510,7 +510,7 @@
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
-			(uuid "04b3c0f3-d1a9-4c6d-869a-4a38e7316fa8")
+			(uuid "0f9d37b3-7fb3-400e-a828-ebc3761093af")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -521,7 +521,7 @@
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
-			(uuid "3eb5863a-cc64-45c1-8f1c-e582ccbf720f")
+			(uuid "4370891f-1635-431e-83a8-a8529583787e")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -684,7 +684,7 @@
 			(uuid "e775eb94-ca5f-4bc2-b43e-be563d46f7df")
 		)
 		(fp_text user "${REFERENCE}"
-			(at 1.27 3.81 180)
+			(at 1.2 3.92 180)
 			(layer "F.Fab")
 			(uuid "4947ed6a-df27-4e58-845e-6b5290478eaa")
 			(effects
@@ -3543,7 +3543,7 @@
 	(footprint "PinHeader_1x03_P2.54mm_Vertical"
 		(layer "F.Cu")
 		(uuid "357977c3-046c-4c02-9ec5-52c641053d12")
-		(at 69 122 90)
+		(at 113.42 141.6 90)
 		(descr "Through hole straight pin header, 1x03, 2.54mm pitch, single row")
 		(tags "Through hole pin header THT 1x03 2.54mm single row")
 		(property "Reference" "J_ESC"
