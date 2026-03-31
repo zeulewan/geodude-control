@@ -401,9 +401,38 @@ void setup() {
   server.begin();
 }
 
+// Auto-disable drivers when 24V appears
+bool driversInitialized = false;
+unsigned long lastDriverCheck = 0;
+
+void checkDriverPower() {
+  // Check every 500ms if drivers just appeared (24V turned on)
+  if (millis() - lastDriverCheck < 500) return;
+  lastDriverCheck = millis();
+
+  bool anyFound = false;
+  for (int i = 0; i < 4; i++) {
+    if (drivers[i]->version() == 0x21) { anyFound = true; break; }
+  }
+
+  if (anyFound && !driversInitialized) {
+    // 24V just came on — immediately disable all drivers
+    for (int i = 0; i < 4; i++) {
+      drivers[i]->en_spreadCycle(true);
+      drivers[i]->pwm_autoscale(false);
+      drivers[i]->toff(0);
+      motorEnabled[i] = false;
+    }
+    driversInitialized = true;
+  } else if (!anyFound) {
+    driversInitialized = false; // 24V is off, reset for next power-on
+  }
+}
+
 void loop() {
   ArduinoOTA.handle();
   server.handleClient();
+  checkDriverPower();
 
   for (int i = 0; i < 4; i++) {
     if (motorRunning[i] && stepsRemaining[i] > 0) {
