@@ -150,11 +150,16 @@ void handleSetup() {
     if (drivers[i]->version() == 0x21) {
       drivers[i]->toff(4);
       drivers[i]->rms_current(currentMA);
-      drivers[i]->ihold(0); // zero idle current — motors free-spin when not stepping
       drivers[i]->microsteps(16);
       drivers[i]->en_spreadCycle(false); // StealthChop
       drivers[i]->pwm_autoscale(true);
       drivers[i]->GSTAT(0x07); // Clear flags
+      // Force IHOLD=0 after all other config (rms_current sets IHOLD internally)
+      uint32_t reg = drivers[i]->IHOLD_IRUN();
+      reg &= ~(0x1F);       // clear IHOLD bits [4:0]
+      reg &= ~(0xF << 16);  // clear IHOLDDELAY bits [19:16]
+      reg |= (1 << 16);     // IHOLDDELAY=1 (fast transition to IHOLD)
+      drivers[i]->IHOLD_IRUN(reg);
       r += "Driver " + String(i) + ": configured (" + String(currentMA) + "mA, IHOLD=0, 16 microsteps, StealthChop)\n";
     }
   }
@@ -201,6 +206,12 @@ void handleCurrent() {
     for (int i = 0; i < 4; i++) {
       if (drivers[i]->version() == 0x21) {
         drivers[i]->rms_current(currentMA);
+        // Re-apply IHOLD=0 since rms_current overwrites it
+        uint32_t reg = drivers[i]->IHOLD_IRUN();
+        reg &= ~(0x1F);       // clear IHOLD bits [4:0]
+        reg &= ~(0xF << 16);  // clear IHOLDDELAY bits [19:16]
+        reg |= (1 << 16);     // IHOLDDELAY=1
+        drivers[i]->IHOLD_IRUN(reg);
       }
     }
     scanResult = doScan();
