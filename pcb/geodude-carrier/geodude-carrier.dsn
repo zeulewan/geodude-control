@@ -65,7 +65,7 @@
       (place SV2 93000 -132000 front 90 (PN S1))
       (place SV6 21000 -132000 front 90 (PN B2))
       (place SV1 81000 -132000 front 90 (PN B1))
-      (place J_ESC 69000 -118000 front 90 (PN ESC))
+      (place J_ESC 113420 -141600 front 90 (PN ESC))
       (place SV3 105000 -132000 front 90 (PN E1))
       (place SV10 69000 -132000 front 90 (PN W2B))
       (place SV7 33000 -132000 front 90 (PN S2))
@@ -74,7 +74,7 @@
       (place SV8 45000 -132000 front 90 (PN E2))
     )
     (component PinHeader_2x04_P2.54mm_Vertical
-      (place J_FAN 81000 -118000 front 90 (PN Fan))
+      (place J_FAN 127420 -143340 front 90 (PN Fan))
     )
     (component "TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm"
       (place J4 130900 -107000 front 90 (PN GND))
