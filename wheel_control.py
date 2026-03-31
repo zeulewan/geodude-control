@@ -1930,6 +1930,81 @@ def gimbal_current():
     return jsonify(data), code
 
 
+@app.route('/api/gimbal/move_deg', methods=['POST'])
+def gimbal_move_deg():
+    d = request.json.get("driver", 0)
+    deg = request.json.get("deg", 0)
+    data, code = gimbal_get(f"move_deg?d={d}&deg={deg}")
+    return jsonify(data), code
+
+
+@app.route('/api/gimbal/enable', methods=['POST'])
+def gimbal_enable():
+    d = request.json.get("driver", 0)
+    data, code = gimbal_get(f"enable?d={d}")
+    return jsonify(data), code
+
+
+@app.route('/api/gimbal/disable', methods=['POST'])
+def gimbal_disable():
+    d = request.json.get("driver", 0)
+    data, code = gimbal_get(f"disable?d={d}")
+    return jsonify(data), code
+
+
+@app.route('/api/gimbal/motor_current', methods=['POST'])
+def gimbal_motor_current():
+    d = request.json.get("driver", 0)
+    ma = request.json.get("ma", 400)
+    data, code = gimbal_get(f"motor_current?d={d}&ma={ma}")
+    return jsonify(data), code
+
+
+@app.route('/api/gimbal/motor_ihold', methods=['POST'])
+def gimbal_motor_ihold():
+    d = request.json.get("driver", 0)
+    ma = request.json.get("ma", 0)
+    data, code = gimbal_get(f"motor_ihold?d={d}&ma={ma}")
+    return jsonify(data), code
+
+
+@app.route('/api/gimbal/jerk', methods=['POST'])
+def gimbal_jerk():
+    level = request.json.get("level", 5)
+    data, code = gimbal_get(f"jerk?level={level}")
+    return jsonify(data), code
+
+
+@app.route('/api/gimbal/estop', methods=['POST'])
+def gimbal_estop():
+    data, code = gimbal_get("estop")
+    return jsonify(data), code
+
+
+@app.route('/api/gimbal/sequence', methods=['POST'])
+def gimbal_sequence():
+    """Execute a timed sequence of gimbal movements."""
+    entries = request.json.get("entries", [])
+    entries.sort(key=lambda e: e.get("time_ms", 0))
+    threading.Thread(target=_run_gimbal_sequence, args=(entries,), daemon=True).start()
+    return jsonify({"ok": True, "entries": len(entries)})
+
+
+def _run_gimbal_sequence(entries):
+    """Execute sequence entries at their scheduled times."""
+    start = time.monotonic()
+    for entry in entries:
+        target_time = start + entry.get("time_ms", 0) / 1000.0
+        now = time.monotonic()
+        if target_time > now:
+            time.sleep(target_time - now)
+        d = entry.get("driver", 0)
+        if "deg" in entry:
+            gimbal_get(f"move_deg?d={d}&deg={entry['deg']}")
+        elif "steps" in entry:
+            gimbal_get(f"move?d={d}&steps={entry['steps']}")
+
+
 if __name__ == '__main__':
     threading.Thread(target=sensor_loop, daemon=True).start()
     threading.Thread(target=ramp_loop, daemon=True).start()
