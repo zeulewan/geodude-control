@@ -2,9 +2,9 @@
 site_name = "Subscale Satellite"
 site_description = "Documentation for the SOOS-1 subscale satellite test apparatus and servicer model."
 site_author = "Zeul"
-site_url = "https://zeulewan.github.io/subscale-docs/"
-repo_url = "https://github.com/zeulewan/subscale-docs"
-repo_name = "zeulewan/subscale-docs"
+site_url = "https://zeulewan.github.io/geodude-control/"
+repo_url = "https://github.com/zeulewan/geodude-control"
+repo_name = "zeulewan/geodude-control"
 copyright = "&copy; 2026 AER813 Capstone"
 
 
