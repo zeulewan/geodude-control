@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'site/**'
   workflow_dispatch:
 
 permissions:
@@ -29,6 +31,7 @@ jobs:
         run: pip install zensical
 
       - name: Build documentation
+        working-directory: site
         run: zensical build --clean
 
       - name: Setup Pages
@@ -37,7 +40,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
         with:
-          path: site
+          path: site/_build
 
   deploy:
     environment:

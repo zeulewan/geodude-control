@@ -6,6 +6,8 @@ site_url = "https://zeulewan.github.io/geodude-control/"
 repo_url = "https://github.com/zeulewan/geodude-control"
 repo_name = "zeulewan/geodude-control"
 copyright = "&copy; 2026 AER813 Capstone"
+docs_dir = "docs"
+site_dir = "_build"
 
 
 [project.theme]
