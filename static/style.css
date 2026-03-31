@@ -1,0 +1,760 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #0a0e17;
+  color: #e0e6f0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  min-height: 100vh;
+}
+.header {
+  background: #141824;
+  border-bottom: 1px solid #1e2433;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.header h1 {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+.header-status {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #9ca3af;
+}
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ef4444;
+  transition: background 0.3s;
+}
+.status-dot.ok { background: #22c55e; }
+.status-dot.warn { background: #f59e0b; }
+
+/* Sections */
+.section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #6b7280; margin: 10px 0 6px; padding-bottom: 4px; border-bottom: 1px solid #1e2433; }
+
+.container {
+  max-width: 100%;
+  padding: 8px 10px;
+}
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.card {
+  background: #141824;
+  border: 1px solid #1e2433;
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 8px;
+}
+.card h3 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #6b7280;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+.inner {
+  background: #1e293b;
+  border-radius: 6px;
+  padding: 8px;
+}
+.inner + .inner { margin-top: 6px; }
+
+/* Camera */
+.cam-wrapper {
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  line-height: 0;
+}
+.cam-wrapper img {
+  width: 100%;
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+/* Sensor values */
+.sensor-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.sensor-val {
+  flex: 1;
+  text-align: center;
+}
+.sensor-val .label {
+  font-size: 11px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.sensor-val .value {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 15px;
+  font-weight: 600;
+  margin-top: 2px;
+}
+.sensor-val .value.red { color: #ef4444; }
+.sensor-val .value.green { color: #22c55e; }
+.sensor-val .value.blue { color: #3b82f6; }
+
+/* Encoder dial */
+.encoder-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+.dial-wrapper {
+  position: relative;
+  width: 60px;
+  height: 60px;
+}
+.dial-ring {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: 3px solid #1e2433;
+  position: relative;
+}
+.dial-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  background: #3b82f6;
+  border-radius: 50%;
+}
+#needle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 32px;
+  background: #3b82f6;
+  transform-origin: 50% 0%;
+  transform: rotate(0deg);
+  border-radius: 1px;
+}
+.encoder-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.encoder-text .value {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 24px;
+  font-weight: 700;
+}
+.encoder-text .sub {
+  font-size: 13px;
+  color: #9ca3af;
+}
+
+/* System stats */
+.sys-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.sys-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: 13px;
+}
+.sys-item .label { color: #6b7280; }
+.sys-item .value {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-weight: 600;
+}
+
+/* MACE status */
+.status-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 12px;
+}
+.status-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  padding: 2px 0;
+}
+.status-row .label { color: #6b7280; }
+.status-row .value {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-weight: 600;
+}
+#motorError {
+  color: #ef4444;
+  font-size: 12px;
+  margin-top: 8px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  word-break: break-all;
+}
+
+/* Buttons */
+.btn {
+  display: inline-block;
+  padding: 7px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: background 0.2s, opacity 0.2s;
+  color: #fff;
+  background: #3b82f6;
+}
+.btn:hover { opacity: 0.85; }
+.btn:active { opacity: 0.7; }
+.btn-green { background: #22c55e; }
+.btn-red { background: #ef4444; }
+.btn-amber { background: #f59e0b; color: #000; }
+.btn-dark { background: #1e293b; color: #9ca3af; }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+.btn.disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+.btn-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+/* Hold button */
+.btn-hold {
+  width: 100%;
+  padding: 10px;
+  font-size: 14px;
+  letter-spacing: 2px;
+  background: #1e293b;
+  color: #6b7280;
+  border: 2px solid #1e2433;
+  margin-top: 10px;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+.btn-hold.armed {
+  background: #1e3a5f;
+  color: #3b82f6;
+  border-color: #3b82f6;
+}
+.btn-hold.armed:hover { background: #1e4a7f; }
+.btn-hold.active-spin {
+  background: #3b82f6;
+  color: #fff;
+  border-color: #60a5fa;
+}
+
+/* Sliders */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  background: #1e293b;
+  border-radius: 3px;
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  background: #3b82f6;
+  border-radius: 50%;
+  cursor: pointer;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  background: #3b82f6;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+}
+
+.slider-group {
+  margin-bottom: 6px;
+}
+.slider-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  margin-bottom: 2px;
+}
+.slider-label .label { color: #6b7280; }
+.slider-label .value {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  color: #e0e6f0;
+}
+
+/* Throttle bar */
+.throttle-bar-bg {
+  width: 100%;
+  height: 24px;
+  background: #1e293b;
+  border-radius: 6px;
+  position: relative;
+  overflow: hidden;
+  margin: 12px 0;
+}
+#targetBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: rgba(59, 130, 246, 0.25);
+  border-radius: 6px;
+  transition: width 0.1s;
+}
+#currentBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: #3b82f6;
+  border-radius: 6px;
+  transition: width 0.15s;
+}
+
+/* Calibration panel */
+#calPanel {
+  background: #1e293b;
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 12px;
+}
+#calPanel p {
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+/* Attitude control */
+.att-cols {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: start;
+}
+.att-dial-section {
+  text-align: center;
+}
+.att-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 12px;
+}
+.att-stat {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  padding: 2px 0;
+}
+.att-stat .label { color: #6b7280; }
+.att-stat .value {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-weight: 600;
+}
+#attitudeBanner {
+  background: #f59e0b;
+  color: #000;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  text-align: center;
+}
+.att-setpoint-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 16px;
+}
+.att-setpoint-row input[type="number"] {
+  background: #1e293b;
+  border: 1px solid #1e2433;
+  border-radius: 8px;
+  color: #e0e6f0;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  width: 120px;
+}
+
+/* Gimbal */
+.gimbal-status-line {
+  font-size: 13px;
+  color: #9ca3af;
+  margin-bottom: 12px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+.driver-card {
+  background: #1e293b;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.driver-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.driver-name {
+  font-weight: 700;
+  font-size: 15px;
+}
+.driver-badge {
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.badge-running { background: #22c55e; color: #000; }
+.badge-idle { background: #6b7280; color: #fff; }
+.badge-notfound { background: #ef4444; color: #fff; }
+.badge-warn { background: #f59e0b; color: #000; margin-left: 6px; }
+.driver-stats {
+  font-size: 12px;
+  color: #9ca3af;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  margin-bottom: 10px;
+}
+.driver-btns {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.driver-btns input[type="number"] {
+  background: #141824;
+  border: 1px solid #1e2433;
+  border-radius: 6px;
+  color: #e0e6f0;
+  padding: 6px 8px;
+  font-size: 12px;
+  width: 80px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+/* Servo channels */
+.ch-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.ch-item {
+  background: #1e293b;
+  border-radius: 8px;
+  padding: 14px;
+}
+.ch-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.ch-name {
+  font-weight: 700;
+  font-size: 14px;
+}
+.ch-val {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 13px;
+  color: #3b82f6;
+}
+.ch-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+}
+.ch-controls input[type="range"] {
+  flex: 1;
+}
+
+/* Number input */
+input[type="number"] {
+  background: #1e293b;
+  border: 1px solid #1e2433;
+  border-radius: 6px;
+  color: #e0e6f0;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  opacity: 1;
+}
+
+/* ========== Gimbal New UI ========== */
+
+/* Driver card 2x2 grid */
+.gimbal-driver-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* Toggle switch */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+  vertical-align: middle;
+}
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: #374151;
+  border-radius: 22px;
+  transition: background 0.2s;
+}
+.toggle-slider:before {
+  content: "";
+  position: absolute;
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background: #9ca3af;
+  border-radius: 50%;
+  transition: transform 0.2s, background 0.2s;
+}
+.toggle-switch input:checked + .toggle-slider {
+  background: #22c55e;
+}
+.toggle-switch input:checked + .toggle-slider:before {
+  transform: translateX(18px);
+  background: #fff;
+}
+
+/* Emergency stop button */
+.btn-estop {
+  background: #dc2626;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  padding: 10px 24px;
+  border: 3px solid #ef4444;
+  border-radius: 8px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  animation: estop-pulse 1.5s infinite;
+}
+.btn-estop:hover {
+  background: #b91c1c;
+}
+.btn-estop:active {
+  background: #991b1b;
+  animation: none;
+}
+@keyframes estop-pulse {
+  0%, 100% { border-color: #ef4444; }
+  50% { border-color: #fca5a5; }
+}
+
+/* Gimbal global controls bar */
+.gimbal-global-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.gimbal-global-status {
+  font-size: 12px;
+  color: #9ca3af;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  margin-top: 6px;
+}
+
+/* Angle quick-buttons grid */
+.angle-btns {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  margin: 6px 0;
+}
+.angle-btns .btn {
+  padding: 4px 2px;
+  font-size: 11px;
+  text-align: center;
+  min-width: 0;
+}
+
+/* Steps quick-buttons grid */
+.step-btns {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  margin: 6px 0;
+}
+.step-btns .btn {
+  padding: 4px 2px;
+  font-size: 11px;
+  text-align: center;
+  min-width: 0;
+}
+
+/* Per-motor current slider */
+.motor-slider-group {
+  margin: 6px 0;
+}
+.motor-slider-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  margin-bottom: 2px;
+}
+.motor-slider-label .label { color: #6b7280; }
+.motor-slider-label .value {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  color: #e0e6f0;
+  font-size: 11px;
+}
+
+/* Driver card position display */
+.motor-position {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 18px;
+  font-weight: 700;
+  color: #3b82f6;
+  margin: 4px 0;
+}
+.motor-position-label {
+  font-size: 11px;
+  color: #6b7280;
+  text-transform: uppercase;
+}
+
+/* Gear ratio info */
+.gear-info {
+  font-size: 11px;
+  color: #6b7280;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  margin-top: 2px;
+}
+
+/* Move input row */
+.move-input-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  margin: 6px 0;
+}
+.move-input-row input[type="number"] {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Driver card status indicators */
+.driver-status-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+/* Sequence programmer */
+.seq-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+}
+.seq-table th {
+  font-size: 11px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid #1e2433;
+}
+.seq-table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid #1e2433;
+}
+.seq-table select {
+  background: #141824;
+  border: 1px solid #1e2433;
+  border-radius: 6px;
+  color: #e0e6f0;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+.seq-table input[type="number"] {
+  width: 80px;
+  padding: 4px 6px;
+  font-size: 12px;
+}
+.seq-btn-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  align-items: center;
+}
+.btn-seq-run {
+  background: #22c55e;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 8px 20px;
+}
+.seq-status {
+  font-size: 12px;
+  color: #9ca3af;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  margin-top: 6px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .two-col { grid-template-columns: 1fr; }
+  .att-cols { grid-template-columns: 1fr; }
+  .sys-grid { grid-template-columns: 1fr; }
+  .ch-grid { grid-template-columns: 1fr; }
+  .status-grid { grid-template-columns: 1fr; }
+  .att-stats { grid-template-columns: 1fr; }
+  .gimbal-driver-grid { grid-template-columns: 1fr; }
+  .angle-btns { grid-template-columns: repeat(5, 1fr); }
+}
