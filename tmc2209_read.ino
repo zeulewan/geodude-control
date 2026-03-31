@@ -45,8 +45,14 @@ const int RAMP_START_DELAY = 8000; // start speed (us) — slow
 const int RAMP_ACCEL = 50;         // decrease delay by this many us per step
 
 void initDrivers() {
-  for (int i = 0; i < 4; i++) drivers[i]->begin();
+  for (int i = 0; i < 4; i++) {
+    drivers[i]->begin();
+  }
   delay(100);
+  // Immediately disable all driver outputs — zero current at boot
+  for (int i = 0; i < 4; i++) {
+    drivers[i]->toff(0);
+  }
 }
 
 String doScan() {
