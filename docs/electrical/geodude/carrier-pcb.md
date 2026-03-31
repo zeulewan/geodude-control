@@ -90,7 +90,7 @@ Pin 1 on the right side (facing board).
 
 ## Middle — Fuse Holders
 
-10x BLX-A 5x20mm PCB-mount fuse holders (22.63mm pin pitch, 1.5mm drill). Two columns: arm 1 (left), arm 2 (right). Silkscreen labeled with servo name.
+10x BLX-A 5x20mm PCB-mount fuse holders (22.2mm pin pitch, 1.5mm drill). Two columns: arm 1 (left), arm 2 (right). Silkscreen labeled with servo name.
 
 | Fuse | Label | Rating | Rail | Servo |
 |------|-------|--------|------|-------|
@@ -126,21 +126,50 @@ Pin order: Signal (PWM) | Power (fused V+) | GND
 | SV9 | W2A | Ch 8 | F9 |
 | SV10 | W2B | Ch 9 | F10 |
 
-### ESC Header (3-pin male)
+### Fan Header (2x4 pin male)
 
-| Pin | Net |
-|-----|-----|
-| 1 | PWM Ch 11 |
-| 2 | NC (ESC has own power) |
-| 3 | GND |
+Row 1 (fan connector): GND, +12V_FAN, Tach, PWM (Ch 12)
+Row 2 (Pi jumper): NC, NC, Tach, PWM (mirror for wiring to Pi GPIO)
 
-### Fan Header (3-pin male)
+### SimpleFOC Motor Control
 
-| Pin | Net |
-|-----|-----|
-| 1 | PWM Ch 12 |
-| 2 | +12V |
-| 3 | GND |
+Replaces the old ESC. Uses Pi Pico + SimpleFOC mini driver + 2804 hollow shaft motor with AS5600 encoder.
+
+| Header | Pins | Description |
+|--------|------|-------------|
+| J_PICO | 2x20 female | Pi Pico socket — runs SimpleFOC firmware |
+| J_FOC | 1x11 male | SimpleFOC mini v1.1 driver board socket |
+| J_MOTOR | 1x3 male | Motor UVW phase outputs |
+| J_IMU | 1x9 male | SparkFun ICM-20948 9DoF IMU breakout (Qwiic) |
+| J_ENC | 1x4 male | AS5600 encoder (I2C, on motor) |
+| J_SERIAL | 1x4 male | Pico ↔ Pi serial link (TX, RX, GND, 3V3) |
+
+**Pico pin assignments:**
+
+| Pico Pin | GPIO | Function |
+|----------|------|----------|
+| 1 | GP0 | TX → Pi serial |
+| 2 | GP1 | RX ← Pi serial |
+| 6 | GP4 | SDA (IMU + encoder I2C) |
+| 7 | GP5 | SCL (IMU + encoder I2C) |
+| 9 | GP6 | FOC IN1 (PWM) |
+| 10 | GP7 | FOC IN2 (PWM) |
+| 11 | GP8 | FOC IN3 (PWM) |
+| 12 | GP9 | FOC EN (enable) |
+| 38 | GND | Ground |
+
+**SimpleFOC mini v1.1 pins:**
+
+| Pin | Signal | Connection |
+|-----|--------|------------|
+| 1 | GND | GND |
+| 2 | VIN | +12V bus |
+| 3 | EN | Pico GP9 |
+| 4 | IN3 | Pico GP8 |
+| 5 | IN2 | Pico GP7 |
+| 6 | IN1 | Pico GP6 |
+| 7 | GND | GND |
+| 8-11 | nRT/nSP/nFT/3V3 | NC (optional) |
 
 ---
 
