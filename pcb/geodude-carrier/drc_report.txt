@@ -1,26 +1,81 @@
 ** Drc report for geodude-carrier.kicad_pcb **
-** Created on 2026-03-30T15:06:16 **
-** Report includes: Errors, Warnings **
+** Created on 2026-03-31T04:49:38 **
+** Report includes: Errors, Warnings, Exclusions **
 
-** Found 3 DRC violations **
+** Found 15 DRC violations **
+[clearance]: Clearance violation (zone clearance 0.5000 mm; actual 0.0000 mm)
+    Local override; error
+    @(107.9662 mm, 34.3962 mm): Track [+3V3] on F.Cu, length 15.7124 mm
+    @(54.0000 mm, 28.0000 mm): Zone [GND_LOGIC] on F.Cu, priority 0
+[clearance]: Clearance violation (zone clearance 0.5000 mm; actual 0.0000 mm)
+    Local override; error
+    @(72.6717 mm, 80.6600 mm): Track [MOTOR_W] on F.Cu, length 4.8932 mm
+    @(54.0000 mm, 28.0000 mm): Zone [GND_LOGIC] on F.Cu, priority 0
+[clearance]: Clearance violation (zone clearance 0.5000 mm; actual 0.0000 mm)
+    Local override; error
+    @(119.4300 mm, 45.8600 mm): Track [+3V3] on F.Cu, length 16.2123 mm
+    @(54.0000 mm, 28.0000 mm): Zone [GND_LOGIC] on F.Cu, priority 0
+[clearance]: Clearance violation (zone clearance 0.5000 mm; actual 0.0000 mm)
+    Local override; error
+    @(67.4100 mm, 77.2000 mm): Track [MOTOR_W] on F.Cu, length 1.8017 mm
+    @(54.0000 mm, 28.0000 mm): Zone [GND_LOGIC] on F.Cu, priority 0
+[clearance]: Clearance violation (zone clearance 0.5000 mm; actual 0.0000 mm)
+    Local override; error
+    @(125.3900 mm, 50.0600 mm): Track [+3V3] on F.Cu, length 5.9397 mm
+    @(54.0000 mm, 28.0000 mm): Zone [GND_LOGIC] on F.Cu, priority 0
+[clearance]: Clearance violation (zone clearance 0.5000 mm; actual 0.0000 mm)
+    Local override; error
+    @(75.8100 mm, 80.6600 mm): Track [MOTOR_W] on F.Cu, length 3.1383 mm
+    @(54.0000 mm, 28.0000 mm): Zone [GND_LOGIC] on F.Cu, priority 0
+[clearance]: Clearance violation (zone clearance 0.5000 mm; actual 0.0000 mm)
+    Local override; error
+    @(121.1900 mm, 45.8600 mm): Track [+3V3] on F.Cu, length 1.7600 mm
+    @(54.0000 mm, 28.0000 mm): Zone [GND_LOGIC] on F.Cu, priority 0
+[clearance]: Clearance violation (zone clearance 0.5000 mm; actual 0.0000 mm)
+    Local override; error
+    @(92.2538 mm, 34.3962 mm): Track [+3V3] on F.Cu, length 5.6339 mm
+    @(54.0000 mm, 28.0000 mm): Zone [GND_LOGIC] on F.Cu, priority 0
+[clearance]: Clearance violation (zone clearance 0.5000 mm; actual 0.0000 mm)
+    Local override; error
+    @(74.3648 mm, 78.1200 mm): Track [MOTOR_V] on F.Cu, length 4.8932 mm
+    @(54.0000 mm, 28.0000 mm): Zone [GND_LOGIC] on F.Cu, priority 0
+[clearance]: Clearance violation (zone clearance 0.5000 mm; actual 0.0000 mm)
+    Local override; error
+    @(70.9048 mm, 74.6600 mm): Track [MOTOR_V] on F.Cu, length 3.4948 mm
+    @(54.0000 mm, 28.0000 mm): Zone [GND_LOGIC] on F.Cu, priority 0
+[clearance]: Clearance violation (zone clearance 0.5000 mm; actual 0.0000 mm)
+    Local override; error
+    @(75.8100 mm, 78.1200 mm): Track [MOTOR_V] on F.Cu, length 1.4452 mm
+    @(54.0000 mm, 28.0000 mm): Zone [GND_LOGIC] on F.Cu, priority 0
+[clearance]: Clearance violation (zone clearance 0.5000 mm; actual 0.0000 mm)
+    Local override; error
+    @(72.3500 mm, 72.1200 mm): Track [MOTOR_U] on F.Cu, length 4.9400 mm
+    @(54.0000 mm, 28.0000 mm): Zone [GND_LOGIC] on F.Cu, priority 0
+[clearance]: Clearance violation (zone clearance 0.5000 mm; actual 0.0000 mm)
+    Local override; error
+    @(75.8100 mm, 75.5800 mm): Track [MOTOR_U] on F.Cu, length 4.8932 mm
+    @(54.0000 mm, 28.0000 mm): Zone [GND_LOGIC] on F.Cu, priority 0
 [silk_overlap]: Silkscreen clearance
     Rule: board setup constraints silk; warning
-    @(13.9200 mm, 134.0000 mm): Polygon of J39 on F.Silkscreen
-    @(14.9200 mm, 131.7500 mm): Value field of J39 (GND_L)
-[silk_overlap]: Silkscreen clearance
-    Rule: board setup constraints silk; warning
-    @(14.9200 mm, 119.7500 mm): Value field of J38 (GND_L)
-    @(13.9200 mm, 122.0000 mm): Polygon of J38 on F.Silkscreen
-[silk_overlap]: Silkscreen clearance
-    Rule: board setup constraints silk; warning
-    @(183.9200 mm, 110.0000 mm): Polygon of J6 on F.Silkscreen
-    @(184.9200 mm, 107.7500 mm): Value field of J6 (5V Servo)
+    @(64.0200 mm, 90.3000 mm): Polygon of J_FOC_12V on F.Silkscreen
+    @(63.0200 mm, 92.5500 mm): Value field of J_FOC_12V (12V FOC)
+[mirrored_text_on_front_layer]: Mirrored text on front layer
+    Local override; warning
+    @(72.7000 mm, 75.2000 mm): Value field of J_FOC (SimpleFOC)
 
-** Found 1 unconnected pads **
+** Found 3 unconnected pads **
 [unconnected_items]: Missing connection between items
     Local override; error
-    @(65.0000 mm, 152.0000 mm): PTH pad 1 [PWM_CH2] of SV3
-    @(112.7800 mm, 10.0000 mm): PTH pad 3 [PWM_CH2] of J_PCA
+    @(67.9400 mm, 95.3000 mm): PTH pad 2 [GND] of J_FOC_12V
+    @(62.0000 mm, 141.0000 mm): Zone [GND] on F.Cu, priority 0
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(89.6500 mm, 65.8000 mm): PTH pad 14 [GND] of J_FOC
+    @(67.9400 mm, 95.3000 mm): PTH pad 2 [GND] of J_FOC_12V
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(67.9400 mm, 90.3000 mm): PTH pad 1 [+12V_FOC] of J_FOC_12V
+    @(84.7000 mm, 65.8000 mm): PTH pad 15 [+12V_FOC] of J_FOC
 
 ** Found 0 Footprint errors **
 

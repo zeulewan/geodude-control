@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Full headless routing pipeline: generate PCB → export DSN → patch widths → Freerouting → import SES.
+"""Headless routing pipeline: export DSN → patch widths/vias/layers → Freerouting → import SES.
 
 Run with KiCad's Python:
 /Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3 route_pcb.py
+
+Does NOT regenerate the PCB — routes whatever placement is currently saved.
 """
 
 import pcbnew
@@ -17,157 +19,236 @@ SES_FILE = os.path.join(BASE, "geodude-carrier.ses")
 JAVA = "/tmp/jdk-21.0.2.jdk/Contents/Home/bin/java"
 FREEROUTING = "/tmp/freerouting.jar"
 
-# Net-to-width mapping in mm, converted to um for DSN
-# KiCad DSN export uses micrometers (um)
-def mm_to_um(v):
-    return int(v * 1000)
+MAX_PASSES = 200
 
-NET_WIDTHS_MM = {
-    # 8A power (12V base/shoulder, ESC)
-    "+12V": 3.0,
-    "SV1_PWR": 3.0, "SV2_PWR": 3.0,
-    "SV6_PWR": 3.0, "SV7_PWR": 3.0,
-    # 5A power (7.4V elbow)
-    "+7V4": 2.0,
-    "SV3_PWR": 2.0, "SV8_PWR": 2.0,
-    # 3A power (5V wrist)
-    "+5V_SERVO": 1.5,
-    "SV4_PWR": 1.5, "SV5_PWR": 1.5,
-    "SV9_PWR": 1.5, "SV10_PWR": 1.5,
-    # Low current power
-    "+5V_LOGIC": 0.6,
-    "+3V3": 0.6,
-    # GND gets wide traces too
-    "GND": 3.0,
-    # Logic GND — low current
-    "GND_LOGIC": 0.6,
+# ==============================================================
+# Nets to exclude from autorouting (route manually)
+# ==============================================================
+EXCLUDE_NETS = [
+    "GND",          # handled by F.Cu pour
+    "+12V",         # handled by F.Cu pour
+    "GND_LOGIC",    # handled by F.Cu pour
+    "+12V_FOC",     # manual routing
+]
+
+# ==============================================================
+# Trace widths — 1oz copper, 10°C rise (IPC-2221)
+# ==============================================================
+# 8A = 3.8mm, 5A = 2.0mm, 3A = 1.0mm, 2.5A = 1.5mm, <1A = 0.6mm, signal = 0.4mm
+
+DEFAULT_WIDTH_UM = 400  # 0.4mm for signals
+
+NET_CLASSES = {
+    # name: (width_um, via_type, layer, nets)
+    # via_type: "power" = 0.6mm drill/1.0mm pad, "signal" = 0.3mm/0.6mm
+    # layer: "F.Cu", "B.Cu", or None (both)
+
+    "pwr_8a": (3800, "power", "F.Cu", [
+        "+12V", "SV1_PWR", "SV2_PWR", "SV6_PWR", "SV7_PWR",
+    ]),
+    "pwr_5a": (2000, "power", "F.Cu", [
+        "+7V4", "SV3_PWR", "SV8_PWR",
+    ]),
+    "pwr_3a": (1000, "power", "F.Cu", [
+        "+5V_SERVO", "SV4_PWR", "SV5_PWR", "SV9_PWR", "SV10_PWR",
+    ]),
+    "pwr_motor": (1500, "power", "F.Cu", [
+        "+12V_FOC", "MOTOR_U", "MOTOR_V", "MOTOR_W",
+    ]),
+    "pwr_low": (600, "signal", None, [
+        "+5V_LOGIC", "+3V3", "+12V_FAN",
+    ]),
+    "gnd_power": (3800, "power", None, [
+        "GND",
+    ]),
+    "gnd_logic": (600, "signal", None, [
+        "GND_LOGIC",
+    ]),
+    "sig_pwm": (400, "signal", "B.Cu", [
+        "PWM_CH0", "PWM_CH1", "PWM_CH2", "PWM_CH3", "PWM_CH4",
+        "PWM_CH5", "PWM_CH6", "PWM_CH7", "PWM_CH8", "PWM_CH9",
+        "PWM_CH10", "PWM_CH11", "PWM_CH12", "PWM_CH13", "PWM_CH14", "PWM_CH15",
+    ]),
+    "sig_i2c": (400, "signal", None, [
+        "SDA", "SCL", "PICO_SDA", "PICO_SCL",
+    ]),
+    "sig_foc": (400, "signal", "B.Cu", [
+        "FOC_IN1", "FOC_IN2", "FOC_IN3", "FOC_EN",
+    ]),
+    "sig_serial": (400, "signal", "B.Cu", [
+        "PICO_TX", "PICO_RX",
+    ]),
+    "sig_fan": (400, "signal", "B.Cu", [
+        "TACH",
+    ]),
 }
-# Convert to um for DSN file
-NET_WIDTHS = {k: mm_to_um(v) for k, v in NET_WIDTHS_MM.items()}
-DEFAULT_WIDTH = 400  # 0.4mm = 400um for signal traces
+
+# ==============================================================
+# Via definitions
+# ==============================================================
+POWER_VIA = 'Via[0-1]_1000:600_um'   # 0.6mm drill, 1.0mm pad
+SIGNAL_VIA = 'Via[0-1]_600:300_um'   # 0.3mm drill, 0.6mm pad
 
 
-def patch_dsn_widths(dsn_file):
-    """Patch the DSN file to set per-net trace widths via net classes."""
+def patch_dsn(dsn_file):
+    """Patch the DSN file with trace widths, via sizes, and layer restrictions."""
     with open(dsn_file, "r") as f:
         content = f.read()
 
-    # Find the (network section and inject net class rules
-    # Freerouting DSN uses (rule ... (width X)) in the (structure section
-    # We'll modify the default width and add net-specific rules
+    # 0. Remove excluded nets from DSN (they won't be autorouted)
+    for net_name in EXCLUDE_NETS:
+        # DSN format: (net GND (pins J1-1 J2-1 ...)) — no quotes around net name
+        # Match with or without quotes
+        for pattern in [
+            r'\(net\s+%s\s+\(pins[^)]*\)\s*\)' % re.escape(net_name),
+            r'\(net\s+"%s"\s+\(pins[^)]*\)\s*\)' % re.escape(net_name),
+        ]:
+            removed = len(re.findall(pattern, content))
+            if removed:
+                content = re.sub(pattern, '', content)
+                print("  Excluded net %s from routing (%d blocks removed)" % (net_name, removed))
+                break
+        else:
+            print("  WARNING: net %s not found in DSN" % net_name)
 
-    # Replace the default width in the structure/rule section
+    # 1. Set default trace width
     content = re.sub(
         r'(\(rule\s*\(width\s+)[\d.]+(\))',
-        f'\\g<1>{DEFAULT_WIDTH}\\2',  # default 400um for signals
+        r'\g<1>%d\2' % DEFAULT_WIDTH_UM,
         content
     )
 
-    # Add net class rules before the closing of the structure section
-    # Build class definitions
-    classes = {}
-    for net, width in NET_WIDTHS.items():
-        w_key = f"w{int(width*10)}"
-        if w_key not in classes:
-            classes[w_key] = {"width": width, "nets": []}
-        classes[w_key]["nets"].append(net)
+    # 2. Add power via padstack to library if missing
+    if POWER_VIA not in content:
+        fp = content.find('(padstack')
+        if fp >= 0:
+            pv = (
+                '    (padstack %s\n'
+                '      (shape (circle "F.Cu" 1000))\n'
+                '      (shape (circle "B.Cu" 1000))\n'
+                '      (attach off)\n'
+                '    )\n' % POWER_VIA
+            )
+            content = content[:fp] + pv + content[fp:]
+
+    # 3. Register both vias in structure section
+    old_via = '(via "%s")' % SIGNAL_VIA
+    new_via = '(via "%s" "%s")' % (SIGNAL_VIA, POWER_VIA)
+    struct_start = content.find('(structure')
+    if struct_start >= 0:
+        struct_chunk = content[struct_start:struct_start + 500]
+        if POWER_VIA not in struct_chunk:
+            content = content.replace(old_via, new_via, 1)
+
+    # 4. Build net class definitions with via_rule + layer restrictions
+    # Via info and rules (in network section)
+    via_defs = '    (via "PowerViaInfo" "%s" default)\n' % POWER_VIA
+    via_defs += '    (via "SignalViaInfo" "%s" default)\n' % SIGNAL_VIA
+    via_defs += '    (via_rule power_via_rule PowerViaInfo)\n'
+    via_defs += '    (via_rule signal_via_rule SignalViaInfo)\n'
 
     class_defs = ""
-    for cls_name, cls_data in classes.items():
-        net_list = " ".join(f'"{n}"' for n in cls_data["nets"])
-        class_defs += f'    (class {cls_name} {net_list}\n'
-        class_defs += f'      (rule (width {cls_data["width"]}))\n'  # already in um
-        class_defs += f'    )\n'
+    for cls_name, (width, via_type, layer, nets) in NET_CLASSES.items():
+        net_list = " ".join('"%s"' % n for n in nets)
+        via_rule = "power_via_rule" if via_type == "power" else "signal_via_rule"
 
-    # Insert classes into the network section
-    # Find "(network" and add classes before the closing ")"
-    # Actually, in Specctra DSN, classes go in the (network section
-    network_end = content.rfind(")")  # last closing paren
-    # Find the network section
-    net_section_start = content.find("(network")
-    if net_section_start >= 0:
-        # Find the matching closing paren for network
+        class_defs += '    (class %s %s\n' % (cls_name, net_list)
+        class_defs += '      (via_rule %s)\n' % via_rule
+        class_defs += '      (rule (width %d))\n' % width
+        if layer:
+            class_defs += '      (circuit\n'
+            class_defs += '        (use_layer "%s")\n' % layer
+            class_defs += '      )\n'
+        class_defs += '    )\n'
+
+    # 5. Insert into network section
+    ns = content.find("(network")
+    if ns >= 0:
         depth = 0
-        pos = net_section_start
-        for i in range(net_section_start, len(content)):
+        for i in range(ns, len(content)):
             if content[i] == '(':
                 depth += 1
             elif content[i] == ')':
                 depth -= 1
                 if depth == 0:
-                    # Insert before this closing paren
-                    content = content[:i] + "\n" + class_defs + content[i:]
+                    content = content[:i] + "\n" + via_defs + class_defs + content[i:]
                     break
 
     with open(dsn_file, "w") as f:
         f.write(content)
 
-    print(f"Patched DSN with {len(classes)} net classes")
+    print("Patched DSN: %d net classes" % len(NET_CLASSES))
+    print("  Power traces on F.Cu, signals on B.Cu")
+    print("  Power vias: 0.6mm drill / 1.0mm pad")
+    print("  Signal vias: 0.3mm drill / 0.6mm pad")
 
 
 def main():
-    # Step 1: Generate PCB
-    print("Step 1: Generating PCB...")
-    result = subprocess.run(
-        ["/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3",
-         os.path.join(BASE, "generate_pcb.py")],
-        capture_output=True, text=True
-    )
-    print(result.stdout)
-    if result.returncode != 0:
-        print(f"ERROR: {result.stderr}")
-        return
+    # Step 1: Strip autorouted tracks only (preserve manual tracks on excluded nets)
+    print("Step 1: Stripping tracks (preserving excluded net tracks)...")
+    board = pcbnew.LoadBoard(PCB_FILE)
+    stripped = kept = 0
+    for t in list(board.GetTracks()):
+        if t.GetNetname() in EXCLUDE_NETS:
+            kept += 1
+        else:
+            board.Remove(t)
+            stripped += 1
+    board.Save(PCB_FILE)
+    print("  Stripped %d tracks, kept %d on excluded nets" % (stripped, kept))
 
     # Step 2: Export DSN
     print("Step 2: Exporting DSN...")
     board = pcbnew.LoadBoard(PCB_FILE)
     pcbnew.ExportSpecctraDSN(board, DSN_FILE)
-    print(f"DSN exported: {DSN_FILE}")
 
-    # Step 3: Patch DSN with trace width rules
-    print("Step 3: Patching DSN trace widths...")
-    patch_dsn_widths(DSN_FILE)
+    # Step 3: Patch DSN
+    print("Step 3: Patching DSN...")
+    patch_dsn(DSN_FILE)
 
     # Step 4: Run Freerouting
-    print("Step 4: Running Freerouting...")
+    print("Step 4: Running Freerouting (max %d passes)..." % MAX_PASSES)
     result = subprocess.run(
-        [JAVA, "-jar", FREEROUTING, "-de", DSN_FILE, "-do", SES_FILE, "-mp", "50"],
-        capture_output=True, text=True, timeout=120
+        [JAVA, "-jar", FREEROUTING, "-de", DSN_FILE, "-do", SES_FILE,
+         "-mp", str(MAX_PASSES)],
+        capture_output=True, text=True, timeout=600
     )
-    print(result.stdout)
+    print(result.stdout[-400:] if len(result.stdout) > 400 else result.stdout)
     if result.returncode != 0:
-        print(f"Freerouting stderr: {result.stderr}")
+        print("STDERR: " + result.stderr[-300:])
 
     if not os.path.exists(SES_FILE):
         print("ERROR: Freerouting did not produce SES file")
         return
 
-    # Step 5: Import SES back into PCB
+    # Step 5: Import SES
     print("Step 5: Importing routed traces...")
     board = pcbnew.LoadBoard(PCB_FILE)
     pcbnew.ImportSpecctraSES(board, SES_FILE)
     board.Save(PCB_FILE)
-    print(f"Imported. Tracks: {len(board.GetTracks())}")
 
-    # Step 6: Run DRC
-    print("Step 6: DRC check...")
+    # Report
+    ToMM = pcbnew.ToMM
+    via_sizes = {}
+    for t in board.GetTracks():
+        if t.GetClass() == "PCB_VIA":
+            d = ToMM(t.GetDrillValue())
+            via_sizes[d] = via_sizes.get(d, 0) + 1
+
+    print("\nDone! Tracks: %d" % len(board.GetTracks()))
+    for d, c in sorted(via_sizes.items()):
+        print("  Via %.1fmm drill: %d" % (d, c))
+
+    # Step 6: DRC
+    print("\nStep 6: DRC check...")
+    kicad_cli = "/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli"
+    drc_report = os.path.join(BASE, "drc_report.txt")
     result = subprocess.run(
-        ["/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli",
-         "pcb", "drc", PCB_FILE, "-o", os.path.join(BASE, "drc_report.txt")],
+        [kicad_cli, "pcb", "drc", PCB_FILE, "-o", drc_report, "--severity-all"],
         capture_output=True, text=True
     )
     print(result.stdout)
 
-    # Step 7: Export SVG
-    print("Step 7: Exporting SVG preview...")
-    subprocess.run(
-        ["/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli",
-         "pcb", "export", "svg", PCB_FILE,
-         "-o", os.path.join(BASE, "geodude-carrier.svg"),
-         "-l", "F.Cu,B.Cu,Edge.Cuts,F.SilkS"],
-        capture_output=True, text=True
-    )
-    print("Done! Open geodude-carrier.kicad_pcb in KiCad to review.")
 
 if __name__ == "__main__":
     main()
