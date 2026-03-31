@@ -152,18 +152,14 @@ void handleSetup() {
   for (int i = 0; i < 4; i++) {
     if (drivers[i]->version() == 0x21) {
       drivers[i]->toff(4);
-      drivers[i]->rms_current(currentMA);
+      drivers[i]->rms_current(currentMA, 0.0f); // hold_multiplier=0 → IHOLD=0
       drivers[i]->microsteps(16);
       drivers[i]->en_spreadCycle(false); // StealthChop
       drivers[i]->pwm_autoscale(true);
       drivers[i]->GSTAT(0x07); // Clear flags
-      // Force IHOLD=0 after all other config (rms_current sets IHOLD internally)
-      uint32_t reg = drivers[i]->IHOLD_IRUN();
-      reg &= ~(0x1F);       // clear IHOLD bits [4:0]
-      reg &= ~(0xF << 16);  // clear IHOLDDELAY bits [19:16]
-      reg |= (1 << 16);     // IHOLDDELAY=1 (fast transition to IHOLD)
-      drivers[i]->IHOLD_IRUN(reg);
       r += "Driver " + String(i) + ": configured (" + String(currentMA) + "mA, IHOLD=0, 16 microsteps, StealthChop)\n";
+      drivers[i]->toff(0); // disable driver output — zero current until stepping
+      r += "  toff=0 (driver disabled, zero current)\n";
     }
   }
   scanResult = doScan();
@@ -179,6 +175,7 @@ void handleMove() {
     digitalWrite(drvPins[d].dir, motorDir[d] ? HIGH : LOW);
     stepsRemaining[d] = abs(steps);
     motorRunning[d] = true;
+    drivers[d]->toff(4); // enable driver output before stepping
   }
   server.sendHeader("Location", "/");
   server.send(302);
@@ -189,6 +186,7 @@ void handleStop() {
   if (d >= 0 && d < 4) {
     motorRunning[d] = false;
     stepsRemaining[d] = 0;
+    drivers[d]->toff(0); // disable driver — zero current
   }
   server.sendHeader("Location", "/");
   server.send(302);
@@ -208,13 +206,7 @@ void handleCurrent() {
     currentMA = ma;
     for (int i = 0; i < 4; i++) {
       if (drivers[i]->version() == 0x21) {
-        drivers[i]->rms_current(currentMA);
-        // Re-apply IHOLD=0 since rms_current overwrites it
-        uint32_t reg = drivers[i]->IHOLD_IRUN();
-        reg &= ~(0x1F);       // clear IHOLD bits [4:0]
-        reg &= ~(0xF << 16);  // clear IHOLDDELAY bits [19:16]
-        reg |= (1 << 16);     // IHOLDDELAY=1
-        drivers[i]->IHOLD_IRUN(reg);
+        drivers[i]->rms_current(currentMA, 0.0f);
       }
     }
     scanResult = doScan();
@@ -243,6 +235,43 @@ void handleDebug() {
     }
     r += "\n";
   }
+  server.send(200, "text/plain", r);
+}
+
+void handleIholdTest() {
+  String r = "IHOLD Debug Test (Driver 0)\n\n";
+
+  // Step 1: read current state
+  uint8_t ver = drivers[0]->version();
+  r += "1. Driver version: 0x" + String(ver, HEX) + "\n";
+  r += "   ihold() cached = " + String(drivers[0]->ihold()) + "\n";
+  r += "   irun() cached = " + String(drivers[0]->irun()) + "\n";
+  r += "   IHOLD_IRUN cached = 0x" + String(drivers[0]->IHOLD_IRUN(), HEX) + "\n\n";
+
+  // Step 2: set rms_current normally
+  drivers[0]->rms_current(400);
+  r += "2. After rms_current(400):\n";
+  r += "   ihold() = " + String(drivers[0]->ihold()) + "\n";
+  r += "   irun() = " + String(drivers[0]->irun()) + "\n\n";
+
+  // Step 3: try ihold(0)
+  drivers[0]->ihold(0);
+  r += "3. After ihold(0):\n";
+  r += "   ihold() = " + String(drivers[0]->ihold()) + "\n";
+  r += "   IHOLD_IRUN = 0x" + String(drivers[0]->IHOLD_IRUN(), HEX) + "\n\n";
+
+  // Step 4: try rms_current with multiplier
+  drivers[0]->rms_current(400, 0.0f);
+  r += "4. After rms_current(400, 0.0f):\n";
+  r += "   ihold() = " + String(drivers[0]->ihold()) + "\n";
+  r += "   IHOLD_IRUN = 0x" + String(drivers[0]->IHOLD_IRUN(), HEX) + "\n\n";
+
+  // Step 5: check DRV_STATUS cs_actual
+  uint32_t ds = drivers[0]->DRV_STATUS();
+  r += "5. DRV_STATUS = 0x" + String(ds, HEX) + "\n";
+  r += "   cs_actual = " + String((ds >> 16) & 0x1F) + "\n";
+  r += "   standstill = " + String((ds >> 31) & 1) + "\n";
+
   server.send(200, "text/plain", r);
 }
 
@@ -289,6 +318,7 @@ void setup() {
   server.on("/speed", handleSpeed);
   server.on("/current", handleCurrent);
   server.on("/debug", handleDebug);
+  server.on("/ihold_test", handleIholdTest);
   server.begin();
   Serial.println("Web server: http://" + WiFi.localIP().toString());
 }
@@ -307,6 +337,7 @@ void loop() {
       stepsRemaining[i]--;
       if (stepsRemaining[i] <= 0) {
         motorRunning[i] = false;
+        drivers[i]->toff(0); // disable driver — zero current at idle
       }
     }
   }
