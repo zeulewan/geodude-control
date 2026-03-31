@@ -61,7 +61,13 @@ void initDrivers() {
     stepsPerDeg[i] = gearRatio[i] * MICROSTEPS_PER_REV / 360.0;
   }
   delay(100);
-  for (int i = 0; i < 4; i++) drivers[i]->toff(0);
+  // Aggressively disable all drivers: SpreadCycle + toff(0)
+  for (int i = 0; i < 4; i++) {
+    drivers[i]->en_spreadCycle(true);
+    drivers[i]->pwm_autoscale(false);
+    drivers[i]->toff(0);
+    motorEnabled[i] = false;
+  }
 }
 
 // --- S-curve ramping ---
@@ -412,14 +418,10 @@ void loop() {
       if (stepsRemaining[i] <= 0) {
         motorRunning[i] = false;
         if (motorIholdMA[i] > 0) {
-          // Keep toff active, set ihold current
-          drivers[i]->toff(4);
-          // Set ihold register via IHOLD_IRUN register
-          uint8_t iholdVal = (uint8_t)((float)motorIholdMA[i] / (float)motorCurrentMA[i] * (float)drivers[i]->irun());
-          if (iholdVal > 31) iholdVal = 31;
-          drivers[i]->ihold(iholdVal);
+          // Hold position with reduced current
+          drivers[i]->rms_current(motorIholdMA[i], 1.0f);
         } else {
-          drivers[i]->toff(0);
+          drivers[i]->toff(0); // fully disable — zero current
         }
       }
     }
