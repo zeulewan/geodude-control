@@ -41,11 +41,14 @@ int stepDelay = 2000; // microseconds between steps (lower = faster)
 int stepsRemaining[4] = {0, 0, 0, 0};
 int currentMA = 400;
 
+void initDrivers() {
+  for (int i = 0; i < 4; i++) drivers[i]->begin();
+  delay(100);
+}
+
 String doScan() {
   String r = "";
   driversFound = 0;
-  for (int i = 0; i < 4; i++) drivers[i]->begin();
-  delay(100);
 
   for (int i = 0; i < 4; i++) {
     uint8_t ver = drivers[i]->version();
@@ -275,6 +278,7 @@ void setup() {
   Serial2.begin(115200, SERIAL_8N1, TMC_RX_PIN, TMC_TX_PIN);
   delay(200);
 
+  initDrivers();
   scanResult = doScan();
 
   server.on("/", handleRoot);
