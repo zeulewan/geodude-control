@@ -97,10 +97,10 @@ def main():
     px = BOARD_W - 10
 
     all_power = [
-        ("J1", "12V", "+12V", "GND"),
-        ("J2", "12V", "+12V", "GND"),
-        ("J3", "12V", "+12V", "GND"),
-        ("J4", "12V", "+12V", "GND"),
+        ("J1", "12V", "+12V", "+12V"),
+        ("J2", "12V", "+12V", "+12V"),
+        ("J3", "GND", "GND", "GND"),
+        ("J4", "GND", "GND", "GND"),
         ("J5", "7.4V", "+7V4", "GND"),
         ("J6", "5V Servo", "+5V_SERVO", "GND"),
     ]
@@ -115,8 +115,12 @@ def main():
     # ==============================================================
     # MIDDLE: Fuses (two columns)
     # ==============================================================
-    f1x, f2x = 58, 120
-    fy, fsp = 48, 16
+    # 5mm vertical gap (10mm body + 5mm = 15mm pitch), 8.5mm horizontal gap (28mm body + 8.5mm = 36.5mm between centres)
+    fsp = 15  # vertical centre-to-centre
+    f_gap_h = 36.5  # horizontal centre-to-centre
+    f1x = 58
+    f2x = f1x + f_gap_h
+    fy = 48
 
     for ref, val, rail, pwr, fx, row in [
         ("F1", "8A", "+12V", "SV1_PWR", f1x, 0),
@@ -201,48 +205,6 @@ def main():
             set_pad(f, 1, nets[sig])
             set_pad(f, 2, nets[pwr])
             set_pad(f, 3, nets["GND"])
-
-    # ==============================================================
-    # LEFT EDGE: Logic bus section
-    # Each bus: 4x single pin headers + 2x screw terminals
-    # ==============================================================
-    H4 = "PinHeader_1x04_P2.54mm_Vertical"
-    bus_sp = 14
-    lx = 10  # left edge x
-
-    buses = [
-        ("SCL", "SCL"),
-        ("SDA", "SDA"),
-        ("3V3", "+3V3"),
-        ("5V", "+5V_LOGIC"),
-        ("GND_L", "GND_LOGIC"),
-    ]
-
-    # Screw terminals: single column, 2 per bus, centred vertically
-    scr_sp = 12
-    scr_total = 10 * scr_sp  # 10 terminals
-    scr_y_start = (BOARD_H - scr_total) / 2 + scr_sp / 2
-    jnum = 30
-    scr_y = scr_y_start
-    for row, (label, net_name) in enumerate(buses):
-        for j in range(2):
-            f = place_fp(board, TB, TB2, f"J{jnum}", label, lx, scr_y, 90)
-            scr_y += scr_sp
-            jnum += 1
-            if f:
-                set_pad(f, 1, nets[net_name])
-                set_pad(f, 2, nets[net_name])
-
-    # Pin headers: single column, centred vertically
-    hdr_total = len(buses) * bus_sp
-    hdr_y_start = (BOARD_H - hdr_total) / 2 + bus_sp / 2
-    for row, (label, net_name) in enumerate(buses):
-        y = hdr_y_start + row * bus_sp
-        f = place_fp(board, CONN, H4, f"J{jnum}", label, lx + 18, y)
-        jnum += 1
-        if f:
-            for p in range(1, 5):
-                set_pad(f, p, nets[net_name])
 
     # ==============================================================
     # SAVE
