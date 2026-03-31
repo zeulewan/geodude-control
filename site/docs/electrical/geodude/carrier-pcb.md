@@ -146,7 +146,7 @@ Replaces the old ESC. Uses Pi Pico + SimpleFOC Mini v1.0 driver (DRV8313) + 2804
 
 Motor UVW order doesn't matter — SimpleFOC handles commutation direction in firmware.
 
-**Pico pin assignments:**
+**Pico pin assignments (PCB version):**
 
 | Pico Pin | GPIO | Function |
 |----------|------|----------|
@@ -154,11 +154,14 @@ Motor UVW order doesn't matter — SimpleFOC handles commutation direction in fi
 | 2 | GP1 | RX ← Pi serial |
 | 6 | GP4 | SDA (IMU + encoder I2C) |
 | 7 | GP5 | SCL (IMU + encoder I2C) |
-| 9 | GP6 | FOC IN1 (PWM) |
-| 10 | GP7 | FOC IN2 (PWM) |
-| 11 | GP8 | FOC IN3 (PWM) |
-| 12 | GP9 | FOC EN (enable) |
+| 14 | GP10 | FOC EN (enable) |
+| 15 | GP11 | FOC IN3 (PWM) |
+| 16 | GP12 | FOC IN2 (PWM) |
+| 19 | GP14 | FOC IN1 (PWM) |
 | 38 | GND | Ground |
+
+!!! note "Two hardware versions"
+    The table above is for the **carrier PCB** (routed layout). The **perfboard prototype** uses different Pico GPIO pins for the FOC signals — update this section once perfboard wiring is confirmed. Serial (GP0/1) and I2C (GP4/5) are the same on both versions.
 
 ---
 
