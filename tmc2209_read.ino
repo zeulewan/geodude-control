@@ -424,30 +424,48 @@ void checkDriverPower() {
   }
 }
 
-void loop() {
-  ArduinoOTA.handle();
-  server.handleClient();
-  checkDriverPower();
+bool anyMotorRunning() {
+  for (int i = 0; i < 4; i++) {
+    if (motorRunning[i] && stepsRemaining[i] > 0) return true;
+  }
+  return false;
+}
 
+void loop() {
+  // Only handle WiFi/OTA when no motors are stepping — prevents timing jitter
+  if (!anyMotorRunning()) {
+    ArduinoOTA.handle();
+    server.handleClient();
+    checkDriverPower();
+    return;
+  }
+
+  // Step all active motors (one step per motor per loop iteration)
   for (int i = 0; i < 4; i++) {
     if (motorRunning[i] && stepsRemaining[i] > 0) {
+      int d = computeDelay(totalSteps[i] - stepsRemaining[i], totalSteps[i], stepDelay, RAMP_START_DELAY, jerkLevel);
+
       digitalWrite(drvPins[i].step, HIGH);
       delayMicroseconds(10);
       digitalWrite(drvPins[i].step, LOW);
-
-      int d = computeDelay(totalSteps[i] - stepsRemaining[i], totalSteps[i], stepDelay, RAMP_START_DELAY, jerkLevel);
       delayMicroseconds(d);
 
       stepsRemaining[i]--;
       if (stepsRemaining[i] <= 0) {
         motorRunning[i] = false;
         if (motorIholdMA[i] > 0) {
-          // Hold position with reduced current
           drivers[i]->rms_current(motorIholdMA[i], 1.0f);
         } else {
-          drivers[i]->toff(0); // fully disable — zero current
+          drivers[i]->toff(0);
         }
       }
     }
+  }
+
+  // Briefly yield to WiFi every 100 steps so estop can get through
+  static int stepCounter = 0;
+  if (++stepCounter >= 100) {
+    stepCounter = 0;
+    server.handleClient();
   }
 }
