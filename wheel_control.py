@@ -198,13 +198,13 @@ body {
 .header {
   background: #141824;
   border-bottom: 1px solid #1e2433;
-  padding: 12px 24px;
+  padding: 8px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 .header h1 {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
   letter-spacing: 1px;
 }
@@ -231,39 +231,38 @@ body {
 .status-dot.warn { background: #f59e0b; }
 
 /* Sections */
-.section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #6b7280; margin: 24px 0 12px; padding-bottom: 8px; border-bottom: 1px solid #1e2433; }
+.section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #6b7280; margin: 16px 0 8px; padding-bottom: 6px; border-bottom: 1px solid #1e2433; }
 
 .container {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 20px;
+  max-width: 100%;
+  padding: 12px 16px;
 }
 .two-col {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 20px;
+  gap: 12px;
 }
 .card {
   background: #141824;
   border: 1px solid #1e2433;
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 20px;
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 12px;
 }
 .card h3 {
-  font-size: 13px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 1px;
   color: #6b7280;
-  margin-bottom: 16px;
+  margin-bottom: 10px;
   font-weight: 600;
 }
 .inner {
   background: #1e293b;
-  border-radius: 8px;
-  padding: 12px;
+  border-radius: 6px;
+  padding: 10px;
 }
-.inner + .inner { margin-top: 10px; }
+.inner + .inner { margin-top: 8px; }
 
 /* Camera */
 .cam-wrapper {
@@ -405,7 +404,7 @@ body {
 /* Buttons */
 .btn {
   display: inline-block;
-  padding: 10px 20px;
+  padding: 7px 16px;
   border: none;
   border-radius: 8px;
   font-size: 13px;
@@ -438,13 +437,13 @@ body {
 /* Hold button */
 .btn-hold {
   width: 100%;
-  padding: 20px;
-  font-size: 18px;
+  padding: 14px;
+  font-size: 16px;
   letter-spacing: 2px;
   background: #1e293b;
   color: #6b7280;
   border: 2px solid #1e2433;
-  margin-top: 16px;
+  margin-top: 10px;
   user-select: none;
   -webkit-user-select: none;
   touch-action: none;
@@ -490,13 +489,13 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .slider-group {
-  margin-bottom: 16px;
+  margin-bottom: 10px;
 }
 .slider-label {
   display: flex;
   justify-content: space-between;
-  font-size: 13px;
-  margin-bottom: 6px;
+  font-size: 12px;
+  margin-bottom: 4px;
 }
 .slider-label .label { color: #6b7280; }
 .slider-label .value {
@@ -937,7 +936,7 @@ input[type="number"]::-webkit-outer-spin-button {
         <button class="btn btn-sm btn-dark" onclick="attNudge(90)">+90</button>
       </div>
 
-      <div style="margin-top:16px;">
+      <div style="margin-top:10px;">
         <div class="slider-group">
           <div class="slider-label"><span class="label">Kp</span><span class="value" id="attKpVal">0</span></div>
           <input type="range" id="attKp" min="0" max="50" step="0.1" value="0" oninput="attUpdateGain()">
@@ -977,7 +976,7 @@ input[type="number"]::-webkit-outer-spin-button {
     <button class="btn btn-sm btn-red" onclick="gimbalStopAll()">STOP ALL</button>
   </div>
 
-  <div style="margin-top:16px;">
+  <div style="margin-top:10px;">
     <div class="slider-group">
       <div class="slider-label"><span class="label">Speed</span><span class="value" id="gimbalSpeedVal">2000 us</span></div>
       <input type="range" id="gimbalSpeed" min="100" max="8000" value="2000"
@@ -990,7 +989,7 @@ input[type="number"]::-webkit-outer-spin-button {
     </div>
   </div>
 
-  <div style="margin-top:16px;">
+  <div style="margin-top:10px;">
     <div class="slider-group">
       <div class="slider-label"><span class="label">Current</span><span class="value" id="gimbalCurrentVal">400 mA</span></div>
       <input type="range" id="gimbalCurrent" min="50" max="2000" step="50" value="400"
@@ -1009,7 +1008,7 @@ input[type="number"]::-webkit-outer-spin-button {
 
 <div class="card">
   <h3>PCA9685 Channels</h3>
-  <div style="margin-bottom:16px;">
+  <div style="margin-bottom:10px;">
     <button class="btn btn-dark" onclick="allChannelsCenter()">ALL CENTER</button>
   </div>
   <div class="ch-grid" id="chGrid"></div>
