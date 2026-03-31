@@ -143,13 +143,10 @@ Flask web app on port **8080** (`http://192.168.50.2:8080`). Controls GEO-DUDe h
 
 **MACE (Reaction Wheel) panel:**
 
-- Arm/disarm ESC (3s arming sequence at 1000us)
-- Hold-to-spin with configurable power (10-100%) and server-side ramp rate (0.1-100 %/s)
-- Ramp starts from 10% floor (ESC deadband), ramp down is instant (coast)
+- Hold-to-spin with configurable power and server-side ramp rate (0.1-100 %/s)
+- **Bidirectional ESC** — center-stick control (1500us=stop, forward/reverse proportional)
 - Ramp progress bar showing target vs current throttle
-- Brake button (sends 1000us idle — ESC brake mode not enabled, same as coast)
-- Reverse direction
-- ESC calibration wizard
+- No arming sequence needed (plug and play ESC)
 - RPM display from encoder (computed server-side at 30Hz, 10-sample rolling average)
 - RPM saturation limit at 600 RPM with hysteresis (coast at 600, resume at 420)
 - 3-second watchdog — auto-stops motor if browser disconnects
@@ -163,7 +160,7 @@ Flask web app on port **8080** (`http://192.168.50.2:8080`). Controls GEO-DUDe h
 - Live-adjustable PID gains (Kp, Ki, Kd) and max throttle ceiling
 - Wheel saturation detection (600 RPM max, auto-coast when saturated)
 - Rate-limited output (40.5%/s max)
-- Deadband-skip mapping (PID output → 10-100% motor range)
+- Deadband-skip mapping (PID output → bidirectional motor range, skipping ±50-75us center deadband)
 - 5-second watchdog auto-disable
 - Mutual exclusion with manual MACE control
 
@@ -185,7 +182,7 @@ Flask API on GEO-DUDe (`192.168.4.166:5000`). Controls PCA9685 over I2C and read
 
 - `GET /sensors` — gyro, accel, encoder angle, RPM (30Hz I2C polling)
 - `GET /system` — CPU%, temperature, load average
-- `POST /motor` — MACE ESC control (pulse width in us, blocked when attitude controller active)
+- `POST /motor` — MACE ESC control (pulse width in us, 1500=stop, >1500=forward, <1500=reverse, blocked when attitude controller active)
 - `POST /pwm` — per-channel PCA9685 control (`{"channel": "B1", "pw": 1500}`)
 - `POST /pwm/off` — all channels off
 - `GET /channels` — channel mapping

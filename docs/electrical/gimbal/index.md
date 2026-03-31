@@ -93,7 +93,7 @@ In UART mode, motor current is set digitally via IRUN/IHOLD registers (no potent
 |--------|------|-----|
 | TMC2209 #1 (Yaw) | GPIO 32 | GPIO 33 |
 | TMC2209 #2 (Pitch) | GPIO 25 | GPIO 26 |
-| TMC2209 #3 (Roll) | GPIO 23 | GPIO 22 |
+| TMC2209 #3 (Roll) | GPIO 22 | GPIO 23 |
 | TMC2209 #4 (Belt) | GPIO 19 | GPIO 18 |
 
 UART bus: ESP32 GPIO 16 (RX) / GPIO 17 (TX), bridged with 1k resistor to TMC2209 RX pin (single-wire UART)

@@ -131,15 +131,18 @@ Momentum Attitude Control Electronics - a single-axis reaction wheel for attitud
 | Component | Model | Voltage | Current | Interface | I2C Addr |
 |-----------|-------|---------|---------|-----------|----------|
 | Motor | Uangel X2807 1700KV BLDC | 12V (via ESC) | ~1-3A realistic | PWM via ESC | - |
-| ESC | Drfeify 40A | 7.4-14.8V | - | PWM (PCA9685 pin 12 / ch 11) | - |
+| ESC | ~~Drfeify 40A~~ → **Bidirectional 40A 2-6S** ([Amazon.ca](https://www.amazon.ca/dp/B0BSSP61XW)) | 7.4-25.2V (2-6S) | 40A cont / 50A burst | PWM (PCA9685 pin 12 / ch 11) | - |
 | IMU | ICM20948 | 3.3V | ~mA | I2C | 0x69 |
 | Magnetic encoder | AS5600 | 3.3V | ~mA | I2C | 0x36 |
 
 **Power:** ESC powered from 12V bus through the toggle switch (no separate fuse needed -- ESC has built-in overcurrent protection, and the motor draws only ~1-3A as a reaction wheel).
 
-**Control:** PCA9685 pin 12 (channel 11) sends PWM to ESC. Standard ESC PWM range: 1000us (idle) to 2000us (full throttle). Minimum to spin motor from standstill is ~1075us (~10% throttle). ESC needs arming sequence on boot (send 1000us for ~3 seconds before accepting throttle commands). ESC has not been calibrated — using factory defaults. Brake mode not enabled (1000us = coast). Max wheel RPM limited to 600 in software.
+**Control:** PCA9685 pin 12 (channel 11) sends PWM to ESC. **Bidirectional ESC** — center-stick protocol: 1500us = stopped, 1500-1900us = forward, 1100-1500us = reverse. No arming sequence needed (plug and play, no calibration). Small deadband around 1500us (~±50-75us) handled in software. 5V/3A BEC output (unused). Max wheel RPM limited to 600 in software.
 
-**Attitude Control:** Closed-loop PID controller (`attitude-controller.service`, port 5001) integrates gz gyro for body angle and commands the reaction wheel to hold a setpoint. 100Hz control loop with rate-limited output (40.5%/s max). Gyro bias calibrated on enable. Uni-directional ESC constraint: can only apply torque in one direction, relies on friction for the other.
+**Attitude Control:** Closed-loop PID controller (`attitude-controller.service`, port 5001) integrates gz gyro for body angle and commands the reaction wheel to hold a setpoint. 100Hz control loop with rate-limited output (40.5%/s max). Gyro bias calibrated on enable. **Bidirectional ESC provides full proportional torque in both directions** — PID has symmetric authority, no longer relies on friction for reverse torque.
+
+!!! note "ESC upgrade (ordered 2026-03-30)"
+    Replaced uni-directional Drfeify 40A with bidirectional 40A ESC. The old ESC could only apply torque in one direction (forward throttle 1000-2000us), relying on friction for the reverse direction. The new ESC provides proportional forward and reverse torque from a single PWM signal centered at 1500us. No brake mode needed — active reverse torque is more controllable and effective than passive phase-shorting brake at all RPMs. Software changes required: remap PID output and manual control from 1000-2000us to center-stick 1500us ± 500us.
 
 **RPM Limiting:** Software-limited to 600 RPM. Saturation triggers coast with hysteresis (resumes at 420 RPM / 70%). RPM computed server-side with 10-sample rolling average (~330ms window at 30Hz). Overshoot observed to ~1000 RPM at initial 50-sample window — reduced to 10 samples for faster response.
 
