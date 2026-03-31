@@ -1,3 +1,17 @@
+/* ========== Snapshot ========== */
+function takeSnapshot() {
+  var img = document.getElementById('camFeed');
+  var canvas = document.createElement('canvas');
+  canvas.width = img.naturalWidth || img.width;
+  canvas.height = img.naturalHeight || img.height;
+  canvas.getContext('2d').drawImage(img, 0, 0);
+  var a = document.createElement('a');
+  a.href = canvas.toDataURL('image/jpeg', 0.95);
+  var d = new Date();
+  a.download = 'snapshot_' + d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') + '_' + String(d.getHours()).padStart(2,'0') + String(d.getMinutes()).padStart(2,'0') + String(d.getSeconds()).padStart(2,'0') + '.jpg';
+  a.click();
+}
+
 /* ========== Channel controls ========== */
 var CHANNELS = {
   "W2B": {ch: 0, pin: 1}, "W2A": {ch: 1, pin: 2}, "W1B": {ch: 2, pin: 3},
