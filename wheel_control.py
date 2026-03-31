@@ -231,38 +231,38 @@ body {
 .status-dot.warn { background: #f59e0b; }
 
 /* Sections */
-.section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #6b7280; margin: 16px 0 8px; padding-bottom: 6px; border-bottom: 1px solid #1e2433; }
+.section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #6b7280; margin: 10px 0 6px; padding-bottom: 4px; border-bottom: 1px solid #1e2433; }
 
 .container {
   max-width: 100%;
-  padding: 12px 16px;
+  padding: 8px 10px;
 }
 .two-col {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 8px;
 }
 .card {
   background: #141824;
   border: 1px solid #1e2433;
-  border-radius: 10px;
-  padding: 14px;
-  margin-bottom: 12px;
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 8px;
 }
 .card h3 {
-  font-size: 12px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 1px;
   color: #6b7280;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
   font-weight: 600;
 }
 .inner {
   background: #1e293b;
   border-radius: 6px;
-  padding: 10px;
+  padding: 8px;
 }
-.inner + .inner { margin-top: 8px; }
+.inner + .inner { margin-top: 6px; }
 
 /* Camera */
 .cam-wrapper {
@@ -280,8 +280,8 @@ body {
 /* Sensor values */
 .sensor-row {
   display: flex;
-  gap: 12px;
-  margin-bottom: 8px;
+  gap: 8px;
+  margin-bottom: 4px;
 }
 .sensor-val {
   flex: 1;
@@ -295,7 +295,7 @@ body {
 }
 .sensor-val .value {
   font-family: 'SF Mono', 'Fira Code', monospace;
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 600;
   margin-top: 2px;
 }
@@ -307,17 +307,17 @@ body {
 .encoder-section {
   display: flex;
   align-items: center;
-  gap: 20px;
-  margin-top: 12px;
+  gap: 10px;
+  margin-top: 6px;
 }
 .dial-wrapper {
   position: relative;
-  width: 80px;
-  height: 80px;
+  width: 60px;
+  height: 60px;
 }
 .dial-ring {
-  width: 80px;
-  height: 80px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
   border: 3px solid #1e2433;
   position: relative;
@@ -380,13 +380,13 @@ body {
 .status-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 6px 16px;
+  gap: 2px 12px;
 }
 .status-row {
   display: flex;
   justify-content: space-between;
-  font-size: 13px;
-  padding: 4px 0;
+  font-size: 12px;
+  padding: 2px 0;
 }
 .status-row .label { color: #6b7280; }
 .status-row .value {
@@ -429,16 +429,16 @@ body {
 }
 .btn-row {
   display: flex;
-  gap: 10px;
+  gap: 6px;
   flex-wrap: wrap;
-  margin-top: 12px;
+  margin-top: 8px;
 }
 
 /* Hold button */
 .btn-hold {
   width: 100%;
-  padding: 14px;
-  font-size: 16px;
+  padding: 10px;
+  font-size: 14px;
   letter-spacing: 2px;
   background: #1e293b;
   color: #6b7280;
@@ -489,13 +489,13 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .slider-group {
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 .slider-label {
   display: flex;
   justify-content: space-between;
-  font-size: 12px;
-  margin-bottom: 4px;
+  font-size: 11px;
+  margin-bottom: 2px;
 }
 .slider-label .label { color: #6b7280; }
 .slider-label .value {
@@ -548,7 +548,7 @@ input[type="range"]::-moz-range-thumb {
 .att-cols {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 24px;
+  gap: 12px;
   align-items: start;
 }
 .att-dial-section {
@@ -557,13 +557,13 @@ input[type="range"]::-moz-range-thumb {
 .att-stats {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 6px 16px;
+  gap: 2px 12px;
 }
 .att-stat {
   display: flex;
   justify-content: space-between;
-  font-size: 13px;
-  padding: 4px 0;
+  font-size: 12px;
+  padding: 2px 0;
 }
 .att-stat .label { color: #6b7280; }
 .att-stat .value {
@@ -936,7 +936,7 @@ input[type="number"]::-webkit-outer-spin-button {
         <button class="btn btn-sm btn-dark" onclick="attNudge(90)">+90</button>
       </div>
 
-      <div style="margin-top:10px;">
+      <div style="margin-top:6px;">
         <div class="slider-group">
           <div class="slider-label"><span class="label">Kp</span><span class="value" id="attKpVal">0</span></div>
           <input type="range" id="attKp" min="0" max="50" step="0.1" value="0" oninput="attUpdateGain()">
@@ -976,7 +976,7 @@ input[type="number"]::-webkit-outer-spin-button {
     <button class="btn btn-sm btn-red" onclick="gimbalStopAll()">STOP ALL</button>
   </div>
 
-  <div style="margin-top:10px;">
+  <div style="margin-top:6px;">
     <div class="slider-group">
       <div class="slider-label"><span class="label">Speed</span><span class="value" id="gimbalSpeedVal">2000 us</span></div>
       <input type="range" id="gimbalSpeed" min="100" max="8000" value="2000"
@@ -989,7 +989,7 @@ input[type="number"]::-webkit-outer-spin-button {
     </div>
   </div>
 
-  <div style="margin-top:10px;">
+  <div style="margin-top:6px;">
     <div class="slider-group">
       <div class="slider-label"><span class="label">Current</span><span class="value" id="gimbalCurrentVal">400 mA</span></div>
       <input type="range" id="gimbalCurrent" min="50" max="2000" step="50" value="400"
@@ -1008,7 +1008,7 @@ input[type="number"]::-webkit-outer-spin-button {
 
 <div class="card">
   <h3>PCA9685 Channels</h3>
-  <div style="margin-bottom:10px;">
+  <div style="margin-bottom:6px;">
     <button class="btn btn-dark" onclick="allChannelsCenter()">ALL CENTER</button>
   </div>
   <div class="ch-grid" id="chGrid"></div>
