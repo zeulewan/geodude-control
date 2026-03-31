@@ -21,7 +21,7 @@ struct DriverPins {
 DriverPins drvPins[4] = {
   {32, 33},  // Driver 0
   {25, 26},  // Driver 1
-  {23, 22},  // Driver 2
+  {22, 23},  // Driver 2
   {19, 18},  // Driver 3
 };
 
