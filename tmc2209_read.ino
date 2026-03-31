@@ -102,10 +102,15 @@ void handleRoot() {
     motorStatus += "<tr><td>Driver " + String(i) + "</td>"
       "<td>" + state + " (" + dir + ")</td>"
       "<td>"
-      "<a class='btn' href='/move?d=" + String(i) + "&steps=200'>200 steps</a> "
+      "<a class='btn' href='/move?d=" + String(i) + "&steps=200'>200</a> "
       "<a class='btn' href='/move?d=" + String(i) + "&steps=1000'>1000</a> "
       "<a class='btn' href='/move?d=" + String(i) + "&steps=-200'>-200</a> "
       "<a class='btn' href='/move?d=" + String(i) + "&steps=-1000'>-1000</a> "
+      "<form style='display:inline' action='/move' method='get'>"
+      "<input type='hidden' name='d' value='" + String(i) + "'>"
+      "<input type='number' name='steps' value='500' style='width:70px;background:#000;color:#0ff;border:1px solid #0ff;padding:4px;font-family:monospace;'>"
+      "<input type='submit' value='GO' class='btn' style='border:none;cursor:pointer;'>"
+      "</form> "
       "<a class='btn stop' href='/stop?d=" + String(i) + "'>STOP</a>"
       "</td></tr>";
   }
