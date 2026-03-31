@@ -63,8 +63,8 @@ void initDrivers() {
   delay(100);
   // Aggressively disable all drivers: SpreadCycle + toff(0)
   for (int i = 0; i < 4; i++) {
-    drivers[i]->en_spreadCycle(true);
-    drivers[i]->pwm_autoscale(false);
+    drivers[i]->en_spreadCycle(false);
+    drivers[i]->pwm_autoscale(true);
     drivers[i]->toff(0);
     motorEnabled[i] = false;
   }
@@ -158,8 +158,8 @@ void handleSetup() {
       drivers[i]->toff(4);
       drivers[i]->rms_current(motorCurrentMA[i], 0.0f);
       drivers[i]->microsteps(16);
-      drivers[i]->en_spreadCycle(true);
-      drivers[i]->pwm_autoscale(false);
+      drivers[i]->en_spreadCycle(false);
+      drivers[i]->pwm_autoscale(true);
       drivers[i]->GSTAT(0x07);
       drivers[i]->toff(0);
       configured++;
@@ -229,8 +229,8 @@ void handleEnable() {
   drivers[d]->toff(4);
   drivers[d]->rms_current(motorCurrentMA[d], 0.0f);
   drivers[d]->microsteps(16);
-  drivers[d]->en_spreadCycle(true);
-  drivers[d]->pwm_autoscale(false);
+  drivers[d]->en_spreadCycle(false);
+  drivers[d]->pwm_autoscale(true);
   drivers[d]->GSTAT(0x07);
   sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"enabled\":true}");
 }
@@ -413,8 +413,8 @@ void checkDriverPower() {
   if (anyFound && !driversInitialized) {
     // 24V just came on — immediately disable all drivers
     for (int i = 0; i < 4; i++) {
-      drivers[i]->en_spreadCycle(true);
-      drivers[i]->pwm_autoscale(false);
+      drivers[i]->en_spreadCycle(false);
+      drivers[i]->pwm_autoscale(true);
       drivers[i]->toff(0);
       motorEnabled[i] = false;
     }
