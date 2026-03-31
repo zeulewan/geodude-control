@@ -53,7 +53,7 @@ int stepDelay = 2000;
 int stepsRemaining[4] = {0, 0, 0, 0};
 int totalSteps[4] = {0, 0, 0, 0};
 bool setupDone = false; // legacy, kept for /status but not required
-const int RAMP_START_DELAY = 8000;
+const int RAMP_START_DELAY = 4000;
 
 void initDrivers() {
   for (int i = 0; i < 4; i++) {
@@ -81,7 +81,7 @@ int computeDelay(int stepNum, int totalSteps, int targetDelay, int startDelay, i
   if (totalSteps <= 1) return targetDelay;
   float progress = (float)stepNum / (float)totalSteps;
   float blend = jerk / 10.0f;
-  float accelFrac = 0.25f;
+  float accelFrac = 0.15f;
   float vel;
   if (progress < accelFrac) {
     float t = progress / accelFrac;
