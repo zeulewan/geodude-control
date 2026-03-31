@@ -230,33 +230,8 @@ body {
 .status-dot.ok { background: #22c55e; }
 .status-dot.warn { background: #f59e0b; }
 
-.tab-bar {
-  background: #141824;
-  border-bottom: 1px solid #1e2433;
-  display: flex;
-  gap: 0;
-  padding: 0 24px;
-}
-.tab-btn {
-  background: none;
-  border: none;
-  color: #6b7280;
-  font-size: 14px;
-  font-weight: 600;
-  padding: 12px 24px;
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  transition: color 0.2s, border-color 0.2s;
-}
-.tab-btn:hover { color: #9ca3af; }
-.tab-btn.active {
-  color: #3b82f6;
-  border-bottom-color: #3b82f6;
-}
-.tab-panel { display: none; }
-.tab-panel.active { display: block; }
+/* Sections */
+.section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #6b7280; margin: 24px 0 12px; padding-bottom: 8px; border-bottom: 1px solid #1e2433; }
 
 .container {
   max-width: 1100px;
@@ -759,15 +734,6 @@ input[type="number"]::-webkit-outer-spin-button {
   </div>
 </div>
 
-<!-- Tab Bar -->
-<div class="tab-bar">
-  <button class="tab-btn active" onclick="switchTab('geodude',this)">GEO-DUDe</button>
-  <button class="tab-btn" onclick="switchTab('gimbal',this)">Gimbal</button>
-  <button class="tab-btn" onclick="switchTab('servos',this)">Servos</button>
-</div>
-
-<!-- ===================== GEO-DUDe TAB ===================== -->
-<div class="tab-panel active" id="tab-geodude">
 <div class="container">
 
 <div class="two-col">
@@ -1000,12 +966,7 @@ input[type="number"]::-webkit-outer-spin-button {
   </div>
 </div>
 
-</div>
-</div>
-
-<!-- ===================== GIMBAL TAB ===================== -->
-<div class="tab-panel" id="tab-gimbal">
-<div class="container">
+<div class="section-title">Gimbal</div>
 
 <div class="card">
   <h3>Gimbal Settings</h3>
@@ -1044,12 +1005,7 @@ input[type="number"]::-webkit-outer-spin-button {
 
 <div id="gimbalDrivers"></div>
 
-</div>
-</div>
-
-<!-- ===================== SERVOS TAB ===================== -->
-<div class="tab-panel" id="tab-servos">
-<div class="container">
+<div class="section-title">Servos</div>
 
 <div class="card">
   <h3>PCA9685 Channels</h3>
@@ -1059,18 +1015,9 @@ input[type="number"]::-webkit-outer-spin-button {
   <div class="ch-grid" id="chGrid"></div>
 </div>
 
-</div>
-</div>
+</div><!-- end container -->
 
 <script>
-/* ========== Tab switching ========== */
-function switchTab(name, btn) {
-  document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
-  document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
-  document.getElementById('tab-' + name).classList.add('active');
-  btn.classList.add('active');
-}
-
 /* ========== Channel controls ========== */
 var CHANNELS = {
   "W2B": {ch: 0, pin: 1}, "W2A": {ch: 1, pin: 2}, "W1B": {ch: 2, pin: 3},
