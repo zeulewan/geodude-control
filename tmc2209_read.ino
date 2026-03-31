@@ -52,7 +52,7 @@ bool motorDir[4] = {true, true, true, true};
 int stepDelay = 2000;
 int stepsRemaining[4] = {0, 0, 0, 0};
 int totalSteps[4] = {0, 0, 0, 0};
-bool setupDone = false;
+bool setupDone = false; // legacy, kept for /status but not required
 const int RAMP_START_DELAY = 8000;
 
 void initDrivers() {
@@ -178,11 +178,6 @@ void handleMove() {
     server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid driver\"}");
     return;
   }
-  if (!setupDone) {
-    server.sendHeader("Access-Control-Allow-Origin", "*");
-    server.send(400, "application/json", "{\"ok\":false,\"error\":\"run setup first\"}");
-    return;
-  }
   if (!motorEnabled[d]) {
     server.sendHeader("Access-Control-Allow-Origin", "*");
     server.send(400, "application/json", "{\"ok\":false,\"error\":\"motor not enabled\"}");
@@ -204,11 +199,6 @@ void handleMoveDeg() {
   if (d < 0 || d >= 4) {
     server.sendHeader("Access-Control-Allow-Origin", "*");
     server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid driver\"}");
-    return;
-  }
-  if (!setupDone) {
-    server.sendHeader("Access-Control-Allow-Origin", "*");
-    server.send(400, "application/json", "{\"ok\":false,\"error\":\"run setup first\"}");
     return;
   }
   if (!motorEnabled[d]) {
@@ -234,9 +224,14 @@ void handleEnable() {
     server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid driver\"}");
     return;
   }
+  // Full driver configuration on enable
   motorEnabled[d] = true;
   drivers[d]->toff(4);
   drivers[d]->rms_current(motorCurrentMA[d], 0.0f);
+  drivers[d]->microsteps(16);
+  drivers[d]->en_spreadCycle(true);
+  drivers[d]->pwm_autoscale(false);
+  drivers[d]->GSTAT(0x07);
   sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"enabled\":true}");
 }
 
