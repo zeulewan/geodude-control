@@ -184,38 +184,65 @@ HTML = """
 <!DOCTYPE html>
 <html>
 <head>
-<title>GEO-DUDe Control</title>
+<title>SOOS-1 Control</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0e17; color: #e0e6f0; min-height: 100vh; }
-  .header { background: linear-gradient(135deg, #1a1f2e, #252b3b); padding: 20px 30px; border-bottom: 1px solid #2a3040; display: flex; justify-content: space-between; align-items: center; }
-  .header h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.5px; }
-  .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; }
-  .status-dot.online { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
-  .status-dot.offline { background: #ef4444; box-shadow: 0 0 8px #ef4444; }
-  .status-dot.arming { background: #f59e0b; box-shadow: 0 0 8px #f59e0b; animation: pulse 1s infinite; }
+  .header { background: linear-gradient(135deg, #1a1f2e, #252b3b); padding: 12px 24px; border-bottom: 1px solid #2a3040; }
+  .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .header h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.5px; }
+  .conn-dots { display: flex; gap: 16px; align-items: center; font-size: 13px; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+  .status-dot.online { background: #22c55e; box-shadow: 0 0 6px #22c55e; }
+  .status-dot.offline { background: #ef4444; box-shadow: 0 0 6px #ef4444; }
+  .status-dot.arming { background: #f59e0b; box-shadow: 0 0 6px #f59e0b; animation: pulse 1s infinite; }
   @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
-  .container { max-width: 960px; margin: 0 auto; padding: 24px; }
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
-  .card { background: #141824; border: 1px solid #1e2433; border-radius: 12px; padding: 20px; }
-  .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: #6b7280; margin-bottom: 16px; }
-  .sensor-row { display: flex; justify-content: space-between; margin-bottom: 10px; }
-  .sensor-label { color: #9ca3af; font-size: 14px; }
-  .sensor-value { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 16px; font-weight: 500; }
+  .header-body { display: flex; gap: 16px; align-items: flex-start; }
+  .cam-wrap { flex: 0 0 400px; }
+  .cam-wrap img { width: 100%; border-radius: 6px; background: #000; display: block; }
+  .header-right { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+  .stats-row { display: flex; gap: 12px; }
+  .stat-card { background: #141824; border: 1px solid #1e2433; border-radius: 8px; padding: 8px 12px; flex: 1; }
+  .stat-card h3 { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: #6b7280; margin-bottom: 4px; }
+  .stat-item { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 2px; }
+  .stat-item .sl { color: #9ca3af; }
+  .stat-item .sv { font-family: 'SF Mono','Fira Code',monospace; font-weight: 500; font-size: 12px; }
+  .sensor-strip { background: #141824; border: 1px solid #1e2433; border-radius: 8px; padding: 8px 12px; display: flex; gap: 16px; flex-wrap: wrap; }
+  .sensor-strip .sg { display: flex; gap: 8px; align-items: center; }
+  .sensor-strip .sg-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280; margin-right: 2px; }
+  .sensor-strip .sv { font-family: 'SF Mono',monospace; font-size: 12px; font-weight: 500; }
+  .sv.x { color: #f87171; } .sv.y { color: #4ade80; } .sv.z { color: #60a5fa; }
+
+  /* Tabs */
+  .tab-bar { display: flex; gap: 0; background: #141824; border-bottom: 2px solid #1e2433; }
+  .tab-btn { padding: 10px 24px; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280; background: transparent; border: none; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }
+  .tab-btn:hover { color: #e0e6f0; }
+  .tab-btn.active { color: #3b82f6; border-bottom-color: #3b82f6; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 16px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .card { background: #141824; border: 1px solid #1e2433; border-radius: 10px; padding: 16px; }
+  .card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #6b7280; margin-bottom: 12px; }
+  .sensor-row { display: flex; justify-content: space-between; margin-bottom: 6px; }
+  .sensor-label { color: #9ca3af; font-size: 13px; }
+  .sensor-value { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 14px; font-weight: 500; }
   .sensor-value.x { color: #f87171; }
   .sensor-value.y { color: #4ade80; }
   .sensor-value.z { color: #60a5fa; }
   .full-width { grid-column: 1 / -1; }
-  .slider-container { display: flex; align-items: center; gap: 16px; margin-top: 10px; }
-  .slider-container input[type=range] { flex: 1; -webkit-appearance: none; height: 8px; border-radius: 4px; background: #1e293b; outline: none; }
-  .slider-container input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; border-radius: 50%; background: #3b82f6; cursor: pointer; border: 2px solid #60a5fa; }
-  .throttle-bar-bg { height: 8px; border-radius: 4px; background: #1e293b; position: relative; flex: 1; }
-  .throttle-bar-target { height: 100%; border-radius: 4px; background: #334155; position: absolute; top: 0; left: 0; transition: width 0.1s; }
-  .throttle-bar-current { height: 100%; border-radius: 4px; background: #3b82f6; position: absolute; top: 0; left: 0; transition: width 0.05s linear; }
-  .btn-row { display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
-  .btn { padding: 12px 28px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; text-transform: uppercase; letter-spacing: 0.5px; }
-  .btn-sm { padding: 6px 14px; font-size: 12px; }
+  .slider-container { display: flex; align-items: center; gap: 12px; margin-top: 6px; }
+  .slider-container input[type=range] { flex: 1; -webkit-appearance: none; height: 6px; border-radius: 3px; background: #1e293b; outline: none; }
+  .slider-container input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #3b82f6; cursor: pointer; border: 2px solid #60a5fa; }
+  .throttle-bar-bg { height: 6px; border-radius: 3px; background: #1e293b; position: relative; flex: 1; }
+  .throttle-bar-target { height: 100%; border-radius: 3px; background: #334155; position: absolute; top: 0; left: 0; transition: width 0.1s; }
+  .throttle-bar-current { height: 100%; border-radius: 3px; background: #3b82f6; position: absolute; top: 0; left: 0; transition: width 0.05s linear; }
+  .btn-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .btn { padding: 8px 20px; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; text-transform: uppercase; letter-spacing: 0.5px; }
+  .btn-sm { padding: 5px 12px; font-size: 11px; }
+  .btn-xs { padding: 3px 8px; font-size: 10px; }
   .btn-arm { background: #22c55e; color: #000; }
   .btn-arm:hover { background: #16a34a; }
   .btn-arm.armed { background: #ef4444; }
@@ -225,215 +252,301 @@ HTML = """
   .btn-stop:hover { background: #dc2626; }
   .btn-reverse { background: #8b5cf6; color: #fff; }
   .btn-reverse:hover { background: #7c3aed; }
-  .btn-hold { background: #f59e0b; color: #000; font-size: 18px; padding: 20px 40px; user-select: none; -webkit-user-select: none; touch-action: manipulation; width: 100%; }
+  .btn-hold { background: #f59e0b; color: #000; font-size: 16px; padding: 16px 32px; user-select: none; -webkit-user-select: none; touch-action: manipulation; width: 100%; }
   .btn-hold:hover { background: #d97706; }
   .btn-hold:active, .btn-hold.active { background: #22c55e; color: #000; box-shadow: 0 0 20px rgba(34,197,94,0.4); }
   .btn-hold.disabled { background: #334155; color: #6b7280; pointer-events: none; }
-  .angle-display { position: relative; width: 160px; height: 160px; margin: 0 auto; }
-  .angle-ring { width: 160px; height: 160px; border-radius: 50%; border: 3px solid #1e2433; position: relative; }
-  .angle-needle { position: absolute; top: 50%; left: 50%; width: 3px; height: 60px; background: #f59e0b; transform-origin: bottom center; border-radius: 2px; margin-left: -1.5px; margin-top: -60px; transition: transform 0.033s linear; }
-  .angle-center { position: absolute; top: 50%; left: 50%; width: 10px; height: 10px; background: #f59e0b; border-radius: 50%; margin: -5px 0 0 -5px; }
-  .angle-text { text-align: center; margin-top: 12px; font-family: 'SF Mono', monospace; font-size: 24px; color: #f59e0b; }
-  .motor-error { color: #ef4444; font-size: 12px; margin-top: 8px; font-family: monospace; }
-  .ch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
-  .ch-item { background: #1e293b; border-radius: 8px; padding: 12px; }
-  .ch-item .ch-name { font-weight: 600; font-size: 14px; margin-bottom: 8px; color: #e0e6f0; }
-  .ch-item .ch-pin { font-size: 11px; color: #6b7280; }
-  .ch-slider { width: 100%; margin: 8px 0 4px; }
-  .ch-val { font-family: 'SF Mono', monospace; font-size: 13px; color: #94a3b8; }
-  .ch-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #3b82f6; cursor: pointer; border: 2px solid #60a5fa; }
-  .ch-slider::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: #0f172a; }
-  @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+  .angle-display { position: relative; width: 140px; height: 140px; margin: 0 auto; }
+  .angle-ring { width: 140px; height: 140px; border-radius: 50%; border: 3px solid #1e2433; position: relative; }
+  .angle-needle { position: absolute; top: 50%; left: 50%; width: 3px; height: 50px; background: #f59e0b; transform-origin: bottom center; border-radius: 2px; margin-left: -1.5px; margin-top: -50px; transition: transform 0.033s linear; }
+  .angle-center { position: absolute; top: 50%; left: 50%; width: 8px; height: 8px; background: #f59e0b; border-radius: 50%; margin: -4px 0 0 -4px; }
+  .angle-text { text-align: center; margin-top: 8px; font-family: 'SF Mono', monospace; font-size: 20px; color: #f59e0b; }
+  .motor-error { color: #ef4444; font-size: 11px; margin-top: 6px; font-family: monospace; }
+  .ch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+  .ch-item { background: #1e293b; border-radius: 8px; padding: 10px; }
+  .ch-item .ch-name { font-weight: 600; font-size: 13px; margin-bottom: 6px; color: #e0e6f0; }
+  .ch-item .ch-pin { font-size: 10px; color: #6b7280; }
+  .ch-slider { width: 100%; margin: 6px 0 4px; }
+  .ch-val { font-family: 'SF Mono', monospace; font-size: 12px; color: #94a3b8; }
+  .ch-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #3b82f6; cursor: pointer; border: 2px solid #60a5fa; }
+  .ch-slider::-webkit-slider-runnable-track { height: 5px; border-radius: 3px; background: #0f172a; }
+
+  /* Gimbal-specific */
+  .gimbal-drv-card { background: #1e293b; border-radius: 8px; padding: 12px; margin-bottom: 10px; border: 1px solid #2a3040; }
+  .gimbal-drv-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .gimbal-drv-name { font-weight: 600; font-size: 14px; }
+  .gimbal-drv-status { font-size: 12px; }
+  .gimbal-drv-info { font-size: 11px; color: #6b7280; margin-bottom: 6px; }
+  .gimbal-drv-controls { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+  .gimbal-details { margin-top: 8px; padding-top: 8px; border-top: 1px solid #334155; font-size: 11px; color: #6b7280; display: none; }
+  .gimbal-details.open { display: block; }
+  .gimbal-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; }
+  .gimbal-detail-grid span:nth-child(odd) { color: #9ca3af; }
+  .gimbal-toggle-details { font-size: 10px; color: #3b82f6; cursor: pointer; background: none; border: none; padding: 2px 0; text-transform: uppercase; letter-spacing: 0.5px; }
+  .gimbal-toggle-details:hover { color: #60a5fa; }
+  .speed-presets { display: flex; gap: 4px; }
+  .current-input-group { display: flex; gap: 4px; align-items: center; }
+  .num-input { width: 70px; background: #1e293b; color: #e0e6f0; border: 1px solid #334155; border-radius: 4px; padding: 4px 6px; font-family: monospace; font-size: 12px; }
+  .warn-badge { display: inline-block; padding: 1px 5px; border-radius: 3px; font-size: 9px; font-weight: 700; margin-left: 4px; }
+  .warn-ot { background: #ef4444; color: #fff; }
+  .warn-otpw { background: #f59e0b; color: #000; }
+
+  @media (max-width: 900px) {
+    .grid { grid-template-columns: 1fr; }
+    .header-body { flex-direction: column; }
+    .cam-wrap { flex: 0 0 auto; max-width: 100%; }
+    .stats-row { flex-direction: column; }
+  }
 </style>
 </head>
 <body>
+<!-- HEADER: always visible -->
 <div class="header">
-  <h1>GEO-DUDe Control</h1>
-  <div><span class="status-dot" id="statusDot"></span><span id="statusText">Connecting...</span></div>
+  <div class="header-top">
+    <h1>SOOS-1 Control</h1>
+    <div class="conn-dots">
+      <span><span class="status-dot" id="statusDot"></span><span id="statusText">Connecting...</span></span>
+      <span><span class="status-dot" id="gimbalDot" class="offline"></span><span id="gimbalDotText">Gimbal...</span></span>
+    </div>
+  </div>
+  <div class="header-body">
+    <div class="cam-wrap">
+      <img id="camFeed" src="/api/camera" alt="Camera feed">
+    </div>
+    <div class="header-right">
+      <div class="stats-row">
+        <div class="stat-card">
+          <h3>Groundstation</h3>
+          <div class="stat-item"><span class="sl">CPU</span><span class="sv" id="gsCpu">--%</span></div>
+          <div class="stat-item"><span class="sl">Temp</span><span class="sv" id="gsTemp">--&deg;C</span></div>
+          <div class="stat-item"><span class="sl">Load</span><span class="sv" id="gsLoad">--</span></div>
+        </div>
+        <div class="stat-card">
+          <h3>GEO-DUDe</h3>
+          <div class="stat-item"><span class="sl">CPU</span><span class="sv" id="gdCpu">--%</span></div>
+          <div class="stat-item"><span class="sl">Temp</span><span class="sv" id="gdTemp">--&deg;C</span></div>
+          <div class="stat-item"><span class="sl">Load</span><span class="sv" id="gdLoad">--</span></div>
+        </div>
+      </div>
+      <div class="sensor-strip">
+        <div class="sg"><span class="sg-label">Gyro</span><span class="sv x" id="gx">--</span><span class="sv y" id="gy">--</span><span class="sv z" id="gz">--</span><span style="font-size:10px;color:#6b7280">&deg;/s</span></div>
+        <div class="sg"><span class="sg-label">Accel</span><span class="sv x" id="ax">--</span><span class="sv y" id="ay">--</span><span class="sv z" id="az">--</span><span style="font-size:10px;color:#6b7280">g</span></div>
+        <div class="sg">
+          <span class="sg-label">Enc</span>
+          <span class="sv" id="angleText" style="color:#f59e0b">--</span>
+          <span class="sv" id="rpmText" style="color:#3b82f6">0 RPM</span>
+        </div>
+      </div>
+      <!-- Tiny encoder dial -->
+      <div style="display:flex;justify-content:center;margin-top:4px">
+        <div class="angle-display" style="width:80px;height:80px">
+          <div class="angle-ring" style="width:80px;height:80px;border-width:2px">
+            <div class="angle-needle" id="needle" style="height:30px;margin-top:-30px;width:2px;margin-left:-1px"></div>
+            <div class="angle-center" style="width:6px;height:6px;margin:-3px 0 0 -3px"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
+
+<!-- TABS -->
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('geodude')">GEO-DUDe</button>
+  <button class="tab-btn" onclick="switchTab('gimbal')">Gimbal</button>
+  <button class="tab-btn" onclick="switchTab('servos')">Servos</button>
+</div>
+
 <div class="container">
-  <div class="grid">
-    <div class="card full-width">
-      <h2>Camera</h2>
-      <div style="text-align:center">
-        <img id="camFeed" src="/api/camera" style="width:100%;max-width:640px;border-radius:8px;background:#000" alt="Camera feed">
-      </div>
-    </div>
-    <div class="card">
-      <h2>Groundstation</h2>
-      <div class="sensor-row"><span class="sensor-label">CPU</span><span class="sensor-value" id="gsCpu">--%</span></div>
-      <div class="sensor-row"><span class="sensor-label">Temp</span><span class="sensor-value" id="gsTemp">--&deg;C</span></div>
-      <div class="sensor-row"><span class="sensor-label">Load</span><span class="sensor-value" id="gsLoad">--</span></div>
-    </div>
-    <div class="card">
-      <h2>GEO-DUDe</h2>
-      <div class="sensor-row"><span class="sensor-label">CPU</span><span class="sensor-value" id="gdCpu">--%</span></div>
-      <div class="sensor-row"><span class="sensor-label">Temp</span><span class="sensor-value" id="gdTemp">--&deg;C</span></div>
-      <div class="sensor-row"><span class="sensor-label">Load</span><span class="sensor-value" id="gdLoad">--</span></div>
-    </div>
-    <div class="card">
-      <h2>Gyroscope (deg/s)</h2>
-      <div class="sensor-row"><span class="sensor-label">X</span><span class="sensor-value x" id="gx">--</span></div>
-      <div class="sensor-row"><span class="sensor-label">Y</span><span class="sensor-value y" id="gy">--</span></div>
-      <div class="sensor-row"><span class="sensor-label">Z</span><span class="sensor-value z" id="gz">--</span></div>
-    </div>
-    <div class="card">
-      <h2>Accelerometer (g)</h2>
-      <div class="sensor-row"><span class="sensor-label">X</span><span class="sensor-value x" id="ax">--</span></div>
-      <div class="sensor-row"><span class="sensor-label">Y</span><span class="sensor-value y" id="ay">--</span></div>
-      <div class="sensor-row"><span class="sensor-label">Z</span><span class="sensor-value z" id="az">--</span></div>
-    </div>
-    <div class="card">
-      <h2>Encoder</h2>
-      <div class="angle-display">
-        <div class="angle-ring">
-          <div class="angle-needle" id="needle"></div>
-          <div class="angle-center"></div>
+
+  <!-- ========== GEO-DUDe TAB ========== -->
+  <div class="tab-panel active" id="tab-geodude">
+    <div class="grid">
+      <div class="card full-width">
+        <h2>MACE -- Reaction Wheel</h2>
+        <div class="slider-container" style="margin-bottom:12px">
+          <span class="sensor-label">Power:</span>
+          <input type="range" id="holdPower" min="10" max="100" value="10" oninput="document.getElementById('holdPowerVal').textContent=this.value+'%'">
+          <span class="sensor-value" id="holdPowerVal" style="min-width:50px;text-align:right">10%</span>
+        </div>
+        <div class="slider-container" style="margin-bottom:12px">
+          <span class="sensor-label">Ramp:</span>
+          <input type="range" id="rampRate" min="0.1" max="100" step="0.1" value="0.1" oninput="updateRampLabel(this.value); sendRampRate(this.value)">
+          <span class="sensor-value" id="rampVal" style="min-width:100px;text-align:right">0.1%/s</span>
+        </div>
+        <div style="margin-bottom:12px">
+          <div class="sensor-label" style="margin-bottom:4px;font-size:12px">Ramp progress:</div>
+          <div class="throttle-bar-bg">
+            <div class="throttle-bar-target" id="targetBar" style="width:0%"></div>
+            <div class="throttle-bar-current" id="currentBar" style="width:0%"></div>
+          </div>
+        </div>
+        <button class="btn btn-hold disabled" id="holdBtn"
+          onmousedown="holdStart()" onmouseup="holdStop()" onmouseleave="holdStop()"
+          ontouchstart="holdStart(event)" ontouchend="holdStop()" ontouchcancel="holdStop()">
+          ARM FIRST
+        </button>
+        <div class="btn-row">
+          <button class="btn btn-arm" id="armBtn" onclick="toggleArm()">ARM</button>
+          <button class="btn" style="background:#f59e0b;color:#000" onclick="brake()">BRAKE</button>
+          <button class="btn btn-reverse" onclick="toggleReverse()">REVERSE</button>
+          <button class="btn" style="background:#334155;color:#94a3b8" onclick="startCalibrate()">CALIBRATE ESC</button>
+        </div>
+        <div style="margin-top:6px;font-size:10px;color:#6b7280">Brake = coast (ESC brake mode not enabled). Disarm cuts signal entirely.</div>
+        <div id="calPanel" style="display:none;margin-top:12px;padding:12px;background:#1e293b;border-radius:8px;border:1px solid #334155">
+          <div id="calStep" style="font-size:13px;line-height:1.5"></div>
+          <div class="btn-row" id="calBtns"></div>
         </div>
       </div>
-      <div class="angle-text" id="angleText">--</div>
-      <div class="angle-text" id="rpmText" style="font-size:18px;color:#3b82f6;margin-top:4px">0 RPM</div>
-    </div>
-    <div class="card">
-      <h2>System</h2>
-      <div class="sensor-row"><span class="sensor-label">Armed</span><span class="sensor-value" id="armedStatus" style="color:#ef4444">NO</span></div>
-      <div class="sensor-row"><span class="sensor-label">Target</span><span class="sensor-value" id="targetStatus">0%</span></div>
-      <div class="sensor-row"><span class="sensor-label">Throttle</span><span class="sensor-value" id="throttleStatus">0%</span></div>
-      <div class="sensor-row"><span class="sensor-label">PWM</span><span class="sensor-value" id="pwmStatus">1000us</span></div>
-      <div class="sensor-row"><span class="sensor-label">Direction</span><span class="sensor-value" id="dirStatus">FWD</span></div>
-      <div class="sensor-row"><span class="sensor-label">Wheel RPM</span><span class="sensor-value" id="maceRpm">0</span></div>
-      <div class="sensor-row"><span class="sensor-label">Saturated</span><span class="sensor-value" id="maceSat" style="color:#22c55e">NO</span></div>
-      <div class="motor-error" id="motorError"></div>
-    </div>
-    <div class="card full-width">
-      <h2>MACE — Reaction Wheel</h2>
-      <div class="slider-container" style="margin-bottom:16px">
-        <span class="sensor-label">Power:</span>
-        <input type="range" id="holdPower" min="10" max="100" value="10" oninput="document.getElementById('holdPowerVal').textContent=this.value+'%'">
-        <span class="sensor-value" id="holdPowerVal" style="min-width:50px;text-align:right">10%</span>
-      </div>
-      <div class="slider-container" style="margin-bottom:16px">
-        <span class="sensor-label">Ramp:</span>
-        <input type="range" id="rampRate" min="0.1" max="100" step="0.1" value="0.1" oninput="updateRampLabel(this.value); sendRampRate(this.value)">
-        <span class="sensor-value" id="rampVal" style="min-width:100px;text-align:right">0.1%/s</span>
-      </div>
-      <div style="margin-bottom:16px">
-        <div class="sensor-label" style="margin-bottom:6px">Ramp progress:</div>
-        <div class="throttle-bar-bg">
-          <div class="throttle-bar-target" id="targetBar" style="width:0%"></div>
-          <div class="throttle-bar-current" id="currentBar" style="width:0%"></div>
+
+      <div class="card full-width" id="attitudeCard">
+        <h2>Attitude Control</h2>
+        <div id="attitudeBanner" style="display:none;background:#22c55e;color:#000;padding:6px 14px;border-radius:6px;margin-bottom:10px;font-weight:600;text-align:center;font-size:13px">ATTITUDE CONTROL ACTIVE -- Manual MACE disabled</div>
+        <div class="grid" style="gap:12px;margin-bottom:12px">
+          <div style="text-align:center">
+            <svg width="160" height="160" viewBox="-90 -90 180 180" id="attDial">
+              <circle cx="0" cy="0" r="80" fill="none" stroke="#1e2433" stroke-width="3"/>
+              <line x1="0" y1="0" x2="0" y2="-70" stroke="#f59e0b" stroke-width="2" id="attSetpointNeedle" transform="rotate(0)"/>
+              <line x1="0" y1="0" x2="0" y2="-70" stroke="#3b82f6" stroke-width="3" id="attAngleNeedle" transform="rotate(0)"/>
+              <circle cx="0" cy="0" r="5" fill="#3b82f6"/>
+              <text x="0" y="55" text-anchor="middle" fill="#6b7280" font-size="10" id="attRevs">0 rev</text>
+            </svg>
+            <div style="font-family:monospace;font-size:18px;color:#3b82f6" id="attAngleText">0.0&deg;</div>
+            <div style="font-family:monospace;font-size:13px;color:#f59e0b" id="attSetpointText">SP: 0.0&deg;</div>
+          </div>
+          <div>
+            <div class="sensor-row"><span class="sensor-label">Error</span><span class="sensor-value" id="attError">0.0&deg;</span></div>
+            <div class="sensor-row"><span class="sensor-label">Output</span><span class="sensor-value" id="attOutput">0%</span></div>
+            <div class="sensor-row"><span class="sensor-label">Motor</span><span class="sensor-value" id="attMotor">0%</span></div>
+            <div class="sensor-row"><span class="sensor-label">PWM</span><span class="sensor-value" id="attPwm">1000us</span></div>
+            <div class="sensor-row"><span class="sensor-label">Wheel RPM</span><span class="sensor-value" id="attRpm">0</span></div>
+            <div class="sensor-row"><span class="sensor-label">Gz</span><span class="sensor-value" id="attGz">0.0 &deg;/s</span></div>
+            <div class="sensor-row"><span class="sensor-label">Bias</span><span class="sensor-value" id="attBias">0.0</span></div>
+            <div class="sensor-row"><span class="sensor-label">Saturation</span><span class="sensor-value" id="attSat" style="color:#22c55e">ok</span></div>
+          </div>
+        </div>
+        <div style="margin-bottom:8px">
+          <span class="sensor-label">Setpoint:</span>
+          <input type="number" id="attSetpointInput" value="0" step="1" style="width:80px;background:#1e293b;color:#e0e6f0;border:1px solid #334155;border-radius:4px;padding:4px 8px;font-family:monospace;font-size:13px">
+          <button class="btn btn-sm" style="background:#3b82f6;color:#fff;padding:4px 12px" onclick="attSetpoint()">SET</button>
+        </div>
+        <div class="btn-row" style="margin-bottom:8px">
+          <button class="btn btn-sm" style="background:#334155;color:#94a3b8" onclick="attNudge(-90)">-90&deg;</button>
+          <button class="btn btn-sm" style="background:#334155;color:#94a3b8" onclick="attNudge(-10)">-10&deg;</button>
+          <button class="btn btn-sm" style="background:#334155;color:#94a3b8" onclick="attNudge(10)">+10&deg;</button>
+          <button class="btn btn-sm" style="background:#334155;color:#94a3b8" onclick="attNudge(90)">+90&deg;</button>
+        </div>
+        <div class="slider-container" style="margin-bottom:6px">
+          <span class="sensor-label">Kp:</span>
+          <input type="range" min="0" max="10" step="0.1" value="1.5" id="attKp" oninput="attUpdateGain()">
+          <span class="sensor-value" id="attKpVal" style="min-width:40px">1.5</span>
+        </div>
+        <div class="slider-container" style="margin-bottom:6px">
+          <span class="sensor-label">Ki:</span>
+          <input type="range" min="0" max="1" step="0.01" value="0.05" id="attKi" oninput="attUpdateGain()">
+          <span class="sensor-value" id="attKiVal" style="min-width:40px">0.05</span>
+        </div>
+        <div class="slider-container" style="margin-bottom:6px">
+          <span class="sensor-label">Kd:</span>
+          <input type="range" min="0" max="5" step="0.1" value="0.8" id="attKd" oninput="attUpdateGain()">
+          <span class="sensor-value" id="attKdVal" style="min-width:40px">0.8</span>
+        </div>
+        <div class="slider-container" style="margin-bottom:12px">
+          <span class="sensor-label">Max %:</span>
+          <input type="range" min="10" max="100" step="1" value="60" id="attMaxThrottle" oninput="attUpdateGain()">
+          <span class="sensor-value" id="attMaxVal" style="min-width:40px">60</span>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-arm" id="attEnableBtn" onclick="attToggleEnable()">ENABLE</button>
+          <button class="btn btn-stop" onclick="attStop()">STOP</button>
+          <button class="btn" style="background:#334155;color:#94a3b8" onclick="attZero()">ZERO</button>
+          <button class="btn" style="background:#334155;color:#94a3b8" onclick="attRecalibrate()">RECALIBRATE</button>
         </div>
       </div>
-      <button class="btn btn-hold disabled" id="holdBtn"
-        onmousedown="holdStart()" onmouseup="holdStop()" onmouseleave="holdStop()"
-        ontouchstart="holdStart(event)" ontouchend="holdStop()" ontouchcancel="holdStop()">
-        ARM FIRST
-      </button>
-      <div class="btn-row">
-        <button class="btn btn-arm" id="armBtn" onclick="toggleArm()">ARM</button>
-        <button class="btn" style="background:#f59e0b;color:#000" onclick="brake()">BRAKE</button>
-        <button class="btn btn-reverse" onclick="toggleReverse()">REVERSE</button>
-        <button class="btn" style="background:#334155;color:#94a3b8" onclick="startCalibrate()">CALIBRATE ESC</button>
+
+      <div class="card">
+        <h2>System</h2>
+        <div class="sensor-row"><span class="sensor-label">Armed</span><span class="sensor-value" id="armedStatus" style="color:#ef4444">NO</span></div>
+        <div class="sensor-row"><span class="sensor-label">Target</span><span class="sensor-value" id="targetStatus">0%</span></div>
+        <div class="sensor-row"><span class="sensor-label">Throttle</span><span class="sensor-value" id="throttleStatus">0%</span></div>
+        <div class="sensor-row"><span class="sensor-label">PWM</span><span class="sensor-value" id="pwmStatus">1000us</span></div>
+        <div class="sensor-row"><span class="sensor-label">Direction</span><span class="sensor-value" id="dirStatus">FWD</span></div>
+        <div class="sensor-row"><span class="sensor-label">Wheel RPM</span><span class="sensor-value" id="maceRpm">0</span></div>
+        <div class="sensor-row"><span class="sensor-label">Saturated</span><span class="sensor-value" id="maceSat" style="color:#22c55e">NO</span></div>
+        <div class="motor-error" id="motorError"></div>
       </div>
-      <div style="margin-top:8px;font-size:11px;color:#6b7280">Brake = coast (ESC brake mode not enabled). Disarm cuts signal entirely.</div>
-      <div id="calPanel" style="display:none;margin-top:16px;padding:16px;background:#1e293b;border-radius:8px;border:1px solid #334155">
-        <div id="calStep" style="font-size:14px;line-height:1.6"></div>
-        <div class="btn-row" id="calBtns"></div>
-      </div>
-    </div>
-    <div class="card full-width" id="attitudeCard">
-      <h2>Attitude Control</h2>
-      <div id="attitudeBanner" style="display:none;background:#22c55e;color:#000;padding:8px 16px;border-radius:6px;margin-bottom:12px;font-weight:600;text-align:center">ATTITUDE CONTROL ACTIVE — Manual MACE disabled</div>
-      <div class="grid" style="gap:16px;margin-bottom:16px">
-        <div style="text-align:center">
-          <svg width="180" height="180" viewBox="-90 -90 180 180" id="attDial">
-            <circle cx="0" cy="0" r="80" fill="none" stroke="#1e2433" stroke-width="3"/>
-            <line x1="0" y1="0" x2="0" y2="-70" stroke="#f59e0b" stroke-width="2" id="attSetpointNeedle" transform="rotate(0)"/>
-            <line x1="0" y1="0" x2="0" y2="-70" stroke="#3b82f6" stroke-width="3" id="attAngleNeedle" transform="rotate(0)"/>
-            <circle cx="0" cy="0" r="5" fill="#3b82f6"/>
-            <text x="0" y="55" text-anchor="middle" fill="#6b7280" font-size="10" id="attRevs">0 rev</text>
-          </svg>
-          <div style="font-family:monospace;font-size:20px;color:#3b82f6" id="attAngleText">0.0&deg;</div>
-          <div style="font-family:monospace;font-size:14px;color:#f59e0b" id="attSetpointText">SP: 0.0&deg;</div>
+
+      <div class="card">
+        <h2>Encoder</h2>
+        <div class="angle-display">
+          <div class="angle-ring">
+            <div class="angle-needle" id="needleLarge"></div>
+            <div class="angle-center"></div>
+          </div>
         </div>
-        <div>
-          <div class="sensor-row"><span class="sensor-label">Error</span><span class="sensor-value" id="attError">0.0&deg;</span></div>
-          <div class="sensor-row"><span class="sensor-label">Output</span><span class="sensor-value" id="attOutput">0%</span></div>
-          <div class="sensor-row"><span class="sensor-label">Motor</span><span class="sensor-value" id="attMotor">0%</span></div>
-          <div class="sensor-row"><span class="sensor-label">PWM</span><span class="sensor-value" id="attPwm">1000us</span></div>
-          <div class="sensor-row"><span class="sensor-label">Wheel RPM</span><span class="sensor-value" id="attRpm">0</span></div>
-          <div class="sensor-row"><span class="sensor-label">Gz</span><span class="sensor-value" id="attGz">0.0 &deg;/s</span></div>
-          <div class="sensor-row"><span class="sensor-label">Bias</span><span class="sensor-value" id="attBias">0.0</span></div>
-          <div class="sensor-row"><span class="sensor-label">Saturation</span><span class="sensor-value" id="attSat" style="color:#22c55e">ok</span></div>
-        </div>
-      </div>
-      <div style="margin-bottom:12px">
-        <span class="sensor-label">Setpoint:</span>
-        <input type="number" id="attSetpointInput" value="0" step="1" style="width:80px;background:#1e293b;color:#e0e6f0;border:1px solid #334155;border-radius:4px;padding:4px 8px;font-family:monospace;font-size:14px">
-        <button class="btn btn-sm" style="background:#3b82f6;color:#fff;padding:4px 12px" onclick="attSetpoint()">SET</button>
-      </div>
-      <div class="btn-row" style="margin-bottom:12px">
-        <button class="btn btn-sm" style="background:#334155;color:#94a3b8" onclick="attNudge(-90)">-90&deg;</button>
-        <button class="btn btn-sm" style="background:#334155;color:#94a3b8" onclick="attNudge(-10)">-10&deg;</button>
-        <button class="btn btn-sm" style="background:#334155;color:#94a3b8" onclick="attNudge(10)">+10&deg;</button>
-        <button class="btn btn-sm" style="background:#334155;color:#94a3b8" onclick="attNudge(90)">+90&deg;</button>
-      </div>
-      <div class="slider-container" style="margin-bottom:8px">
-        <span class="sensor-label">Kp:</span>
-        <input type="range" min="0" max="10" step="0.1" value="1.5" id="attKp" oninput="attUpdateGain()">
-        <span class="sensor-value" id="attKpVal" style="min-width:40px">1.5</span>
-      </div>
-      <div class="slider-container" style="margin-bottom:8px">
-        <span class="sensor-label">Ki:</span>
-        <input type="range" min="0" max="1" step="0.01" value="0.05" id="attKi" oninput="attUpdateGain()">
-        <span class="sensor-value" id="attKiVal" style="min-width:40px">0.05</span>
-      </div>
-      <div class="slider-container" style="margin-bottom:8px">
-        <span class="sensor-label">Kd:</span>
-        <input type="range" min="0" max="5" step="0.1" value="0.8" id="attKd" oninput="attUpdateGain()">
-        <span class="sensor-value" id="attKdVal" style="min-width:40px">0.8</span>
-      </div>
-      <div class="slider-container" style="margin-bottom:16px">
-        <span class="sensor-label">Max %:</span>
-        <input type="range" min="10" max="100" step="1" value="60" id="attMaxThrottle" oninput="attUpdateGain()">
-        <span class="sensor-value" id="attMaxVal" style="min-width:40px">60</span>
-      </div>
-      <div class="btn-row">
-        <button class="btn btn-arm" id="attEnableBtn" onclick="attToggleEnable()">ENABLE</button>
-        <button class="btn btn-stop" onclick="attStop()">STOP</button>
-        <button class="btn" style="background:#334155;color:#94a3b8" onclick="attZero()">ZERO</button>
-        <button class="btn" style="background:#334155;color:#94a3b8" onclick="attRecalibrate()">RECALIBRATE</button>
+        <div class="angle-text" id="angleTextLarge">--</div>
+        <div class="angle-text" id="rpmTextLarge" style="font-size:16px;color:#3b82f6;margin-top:4px">0 RPM</div>
       </div>
     </div>
-    <div class="card full-width">
-      <h2>PCA9685 Channels</h2>
-      <div style="margin-bottom:12px">
-        <button class="btn btn-sm" style="background:#1e3a5f;color:#60a5fa" onclick="allChannelsCenter()">ALL CENTER</button>
-      </div>
-      <div class="ch-grid" id="chGrid"></div>
-    </div>
-    <div class="card full-width" id="gimbalCard">
-      <h2>Gimbal — Stepper Motors</h2>
-      <div id="gimbalStatus" style="margin-bottom:12px;font-size:13px;color:#6b7280">Connecting...</div>
-      <div class="btn-row" style="margin-bottom:16px">
+  </div>
+
+  <!-- ========== GIMBAL TAB ========== -->
+  <div class="tab-panel" id="tab-gimbal">
+    <div class="card" style="margin-bottom:16px">
+      <h2>Gimbal -- Stepper Motors (TMC2209)</h2>
+      <div id="gimbalStatus" style="margin-bottom:10px;font-size:13px;color:#6b7280">Connecting...</div>
+      <div class="btn-row" style="margin-bottom:12px;margin-top:0">
         <button class="btn" style="background:#1e3a5f;color:#60a5fa" onclick="gimbalSetup()">SETUP DRIVERS</button>
         <button class="btn" style="background:#1e3a5f;color:#60a5fa" onclick="gimbalScan()">SCAN</button>
         <button class="btn btn-stop" onclick="gimbalStopAll()">STOP ALL</button>
       </div>
-      <div class="slider-container" style="margin-bottom:12px">
-        <span class="sensor-label">Speed:</span>
-        <input type="range" id="gimbalSpeed" min="100" max="8000" step="100" value="2000" oninput="gimbalSetSpeed(this.value)">
-        <span class="sensor-value" id="gimbalSpeedVal" style="min-width:80px;text-align:right">2000us</span>
+
+      <!-- Speed -->
+      <div style="margin-bottom:12px">
+        <div class="slider-container" style="margin-top:0">
+          <span class="sensor-label">Speed:</span>
+          <input type="range" id="gimbalSpeed" min="100" max="8000" step="100" value="2000" oninput="gimbalSetSpeed(this.value)">
+          <span class="sensor-value" id="gimbalSpeedVal" style="min-width:70px;text-align:right">2000us</span>
+        </div>
+        <div class="speed-presets" style="margin-top:6px;margin-left:52px">
+          <button class="btn btn-xs" style="background:#334155;color:#94a3b8" onclick="gimbalSetSpeedPreset(5000)">Slow 5000</button>
+          <button class="btn btn-xs" style="background:#334155;color:#94a3b8" onclick="gimbalSetSpeedPreset(2000)">Med 2000</button>
+          <button class="btn btn-xs" style="background:#334155;color:#94a3b8" onclick="gimbalSetSpeedPreset(500)">Fast 500</button>
+        </div>
       </div>
-      <div class="slider-container" style="margin-bottom:16px">
-        <span class="sensor-label">Current:</span>
-        <input type="range" id="gimbalCurrent" min="50" max="2000" step="50" value="400" oninput="gimbalSetCurrent(this.value)">
-        <span class="sensor-value" id="gimbalCurrentVal" style="min-width:80px;text-align:right">400mA</span>
+
+      <!-- Current -->
+      <div style="margin-bottom:16px">
+        <div class="slider-container" style="margin-top:0">
+          <span class="sensor-label">Current:</span>
+          <input type="range" id="gimbalCurrent" min="50" max="2000" step="50" value="400" oninput="gimbalSetCurrent(this.value)">
+          <span class="sensor-value" id="gimbalCurrentVal" style="min-width:70px;text-align:right">400mA</span>
+        </div>
+        <div class="current-input-group" style="margin-top:6px;margin-left:52px">
+          <input type="number" id="gimbalCurrentInput" value="400" min="50" max="2000" step="50" class="num-input">
+          <span style="font-size:11px;color:#6b7280">mA</span>
+          <button class="btn btn-xs" style="background:#1e3a5f;color:#60a5fa" onclick="gimbalSetCurrentFromInput()">Set</button>
+        </div>
       </div>
-      <div id="gimbalDrivers"></div>
+    </div>
+
+    <!-- Driver cards -->
+    <div id="gimbalDrivers"></div>
+  </div>
+
+  <!-- ========== SERVOS TAB ========== -->
+  <div class="tab-panel" id="tab-servos">
+    <div class="card">
+      <h2>PCA9685 Channels</h2>
+      <div style="margin-bottom:10px">
+        <button class="btn btn-sm" style="background:#1e3a5f;color:#60a5fa" onclick="allChannelsCenter()">ALL CENTER</button>
+      </div>
+      <div class="ch-grid" id="chGrid"></div>
     </div>
   </div>
+
 </div>
+
 <script>
 let reverse = false;
 let holding = false;
@@ -454,6 +567,16 @@ const CHANNELS = {
   "S1":  {ch: 14, pin: 15},
   "B1":  {ch: 15, pin: 16},
 };
+
+// --- Tab switching ---
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(function(btn) { btn.classList.remove('active'); });
+  document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+  document.getElementById('tab-' + name).classList.add('active');
+  var btns = document.querySelectorAll('.tab-btn');
+  var map = {'geodude': 0, 'gimbal': 1, 'servos': 2};
+  if (map[name] !== undefined) btns[map[name]].classList.add('active');
+}
 
 // Build channel controls
 const chOrder = ["B1","S1","B2","S2","MACE","E1","E2","W1A","W1B","W2A","W2B"];
@@ -656,6 +779,13 @@ function poll() {
     currentNeedleAngle += delta;
     document.getElementById('needle').style.transform = 'rotate(' + currentNeedleAngle + 'deg)';
     document.getElementById('rpmText').textContent = Math.round(d.rpm) + ' RPM';
+    // Also update the large encoder dial on GEO-DUDe tab
+    var nl = document.getElementById('needleLarge');
+    if (nl) nl.style.transform = 'rotate(' + currentNeedleAngle + 'deg)';
+    var atl = document.getElementById('angleTextLarge');
+    if (atl) atl.textContent = d.encoder_angle.toFixed(1) + '\u00b0';
+    var rtl = document.getElementById('rpmTextLarge');
+    if (rtl) rtl.textContent = Math.round(d.rpm) + ' RPM';
     updateArmUI(d.armed, d.arming);
     document.getElementById('armedStatus').textContent = d.arming ? 'ARMING' : (d.armed ? 'YES' : 'NO');
     document.getElementById('armedStatus').style.color = d.arming ? '#f59e0b' : (d.armed ? '#22c55e' : '#ef4444');
@@ -871,35 +1001,104 @@ function gimbalSetCurrent(ma) {
   fetch('/api/gimbal/current', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ma: parseInt(ma)})});
 }
 
+function gimbalSetSpeedPreset(us) {
+  document.getElementById('gimbalSpeed').value = us;
+  gimbalSetSpeed(us);
+}
+
+function gimbalSetCurrentFromInput() {
+  var ma = parseInt(document.getElementById('gimbalCurrentInput').value) || 400;
+  ma = Math.max(50, Math.min(2000, ma));
+  document.getElementById('gimbalCurrent').value = ma;
+  gimbalSetCurrent(ma);
+}
+
+function toggleDriverDetails(idx) {
+  var el = document.getElementById('gimbal-details-' + idx);
+  if (el) el.classList.toggle('open');
+}
+
 function gimbalPoll() {
   fetch('/api/gimbal/status').then(r=>r.json()).then(d => {
     let s = document.getElementById('gimbalStatus');
-    if (d.error) { s.textContent = 'ESP32 Offline'; s.style.color = '#ef4444'; return; }
-    s.textContent = d.drivers_found + ' driver(s) | ' + d.step_delay + 'us | ' + d.current_ma + 'mA' + (d.setup_done ? '' : ' — click SETUP');
-    s.style.color = d.drivers_found > 0 ? '#22c55e' : '#ef4444';
+    let gDot = document.getElementById('gimbalDot');
+    let gTxt = document.getElementById('gimbalDotText');
+    if (d.error) {
+      s.textContent = 'ESP32 Offline';
+      s.style.color = '#ef4444';
+      if (gDot) { gDot.className = 'status-dot offline'; }
+      if (gTxt) { gTxt.textContent = 'Gimbal Offline'; }
+      return;
+    }
+    s.innerHTML = '<strong>' + d.drivers_found + '</strong> driver(s) found | step delay <strong>' + d.step_delay + '</strong>us | <strong>' + d.current_ma + '</strong>mA' + (d.setup_done ? ' | <span style="color:#22c55e">Setup OK</span>' : ' | <span style="color:#f59e0b">click SETUP</span>');
+    s.style.color = '#e0e6f0';
+    if (gDot) { gDot.className = d.drivers_found > 0 ? 'status-dot online' : 'status-dot offline'; }
+    if (gTxt) { gTxt.textContent = d.drivers_found > 0 ? 'Gimbal Online' : 'Gimbal No Drivers'; }
     document.getElementById('gimbalSpeed').value = d.step_delay;
     document.getElementById('gimbalSpeedVal').textContent = d.step_delay + 'us';
     document.getElementById('gimbalCurrent').value = d.current_ma;
     document.getElementById('gimbalCurrentVal').textContent = d.current_ma + 'mA';
+    document.getElementById('gimbalCurrentInput').value = d.current_ma;
     let html = '';
     d.drivers.forEach(function(drv) {
-      let status = drv.found ? (drv.running ? '<span style="color:#22c55e">RUNNING ' + drv.dir + '</span>' : '<span style="color:#6b7280">idle</span>') : '<span style="color:#ef4444">not found</span>';
-      let info = drv.found ? 'cs=' + drv.cs_actual + ' ' + drv.rms_current + 'mA' : '';
-      html += '<div class="ch-item" style="margin-bottom:8px"><div class="ch-name">' + drv.name + ' (Driver ' + drv.index + ') ' + status + ' <span class="ch-pin">' + info + '</span></div>';
-      html += '<div style="margin-top:6px">';
-      html += '<button class="btn btn-sm" style="background:#334155;color:#94a3b8" onclick="gimbalMove(' + drv.index + ',200)">200</button> ';
-      html += '<button class="btn btn-sm" style="background:#334155;color:#94a3b8" onclick="gimbalMove(' + drv.index + ',1000)">1000</button> ';
-      html += '<button class="btn btn-sm" style="background:#334155;color:#94a3b8" onclick="gimbalMove(' + drv.index + ',-200)">-200</button> ';
-      html += '<button class="btn btn-sm" style="background:#334155;color:#94a3b8" onclick="gimbalMove(' + drv.index + ',-1000)">-1000</button> ';
-      html += '<input type="number" value="500" id="gsteps_' + drv.index + '" style="width:70px;background:#1e293b;color:#e0e6f0;border:1px solid #334155;border-radius:4px;padding:4px;font-family:monospace;font-size:13px"> ';
-      html += '<button class="btn btn-sm" style="background:#1e3a5f;color:#60a5fa" onclick="gimbalMove(' + drv.index + ',parseInt(document.getElementById(\'gsteps_' + drv.index + '\').value))">GO</button> ';
-      html += '<button class="btn btn-sm" style="background:#7f1d1d;color:#fca5a5" onclick="gimbalStop(' + drv.index + ')">STOP</button>';
-      html += '</div></div>';
+      let statusHtml, statusColor;
+      if (!drv.found) {
+        statusHtml = '<span style="color:#ef4444">NOT FOUND</span>';
+      } else if (drv.running) {
+        statusHtml = '<span style="color:#22c55e">RUNNING ' + drv.dir + '</span>';
+        if (drv.steps_remaining > 0) statusHtml += ' <span style="color:#6b7280;font-size:10px">(' + drv.steps_remaining + ' left)</span>';
+      } else {
+        statusHtml = '<span style="color:#6b7280">IDLE</span>';
+      }
+      // Warnings
+      let warns = '';
+      if (drv.ot) warns += '<span class="warn-badge warn-ot">OT</span>';
+      if (drv.otpw) warns += '<span class="warn-badge warn-otpw">OTPW</span>';
+
+      html += '<div class="gimbal-drv-card">';
+      html += '<div class="gimbal-drv-header">';
+      html += '<span class="gimbal-drv-name">' + drv.name + ' <span style="color:#6b7280;font-size:11px">(Driver ' + drv.index + ')</span></span>';
+      html += '<span class="gimbal-drv-status">' + statusHtml + warns + '</span>';
+      html += '</div>';
+      if (drv.found) {
+        html += '<div class="gimbal-drv-info">cs_actual=' + drv.cs_actual + ' | rms_current=' + drv.rms_current + 'mA' + (drv.standstill ? ' | standstill' : '') + '</div>';
+      }
+      html += '<div class="gimbal-drv-controls">';
+      html += '<button class="btn btn-xs" style="background:#334155;color:#94a3b8" onclick="gimbalMove(' + drv.index + ',-5000)">-5000</button>';
+      html += '<button class="btn btn-xs" style="background:#334155;color:#94a3b8" onclick="gimbalMove(' + drv.index + ',-1000)">-1000</button>';
+      html += '<button class="btn btn-xs" style="background:#334155;color:#94a3b8" onclick="gimbalMove(' + drv.index + ',-200)">-200</button>';
+      html += '<button class="btn btn-xs" style="background:#334155;color:#94a3b8" onclick="gimbalMove(' + drv.index + ',200)">+200</button>';
+      html += '<button class="btn btn-xs" style="background:#334155;color:#94a3b8" onclick="gimbalMove(' + drv.index + ',1000)">+1000</button>';
+      html += '<button class="btn btn-xs" style="background:#334155;color:#94a3b8" onclick="gimbalMove(' + drv.index + ',5000)">+5000</button>';
+      html += '<input type="number" value="500" id="gsteps_' + drv.index + '" class="num-input" style="width:60px;margin-left:4px">';
+      html += '<button class="btn btn-xs" style="background:#1e3a5f;color:#60a5fa" onclick="gimbalMove(' + drv.index + ',parseInt(document.getElementById(\'gsteps_' + drv.index + '\').value))">GO</button>';
+      html += '<button class="btn btn-xs" style="background:#7f1d1d;color:#fca5a5" onclick="gimbalStop(' + drv.index + ')">STOP</button>';
+      html += '</div>';
+      // Collapsible details
+      if (drv.found) {
+        html += '<button class="gimbal-toggle-details" onclick="toggleDriverDetails(' + drv.index + ')">Driver Details</button>';
+        html += '<div class="gimbal-details" id="gimbal-details-' + drv.index + '">';
+        html += '<div class="gimbal-detail-grid">';
+        html += '<span>Microsteps</span><span>' + drv.microsteps + '</span>';
+        html += '<span>IRUN</span><span>' + drv.irun + '</span>';
+        html += '<span>IHOLD</span><span>' + drv.ihold + '</span>';
+        html += '<span>cs_actual</span><span>' + drv.cs_actual + '</span>';
+        html += '<span>rms_current</span><span>' + drv.rms_current + 'mA</span>';
+        html += '<span>Standstill</span><span>' + (drv.standstill ? 'yes' : 'no') + '</span>';
+        html += '<span>OT (overtemp)</span><span style="color:' + (drv.ot ? '#ef4444' : '#22c55e') + '">' + (drv.ot ? 'YES' : 'no') + '</span>';
+        html += '<span>OTPW (warning)</span><span style="color:' + (drv.otpw ? '#f59e0b' : '#22c55e') + '">' + (drv.otpw ? 'YES' : 'no') + '</span>';
+        html += '</div></div>';
+      }
+      html += '</div>';
     });
     document.getElementById('gimbalDrivers').innerHTML = html;
   }).catch(() => {
     document.getElementById('gimbalStatus').textContent = 'ESP32 Offline';
     document.getElementById('gimbalStatus').style.color = '#ef4444';
+    var gDot = document.getElementById('gimbalDot');
+    var gTxt = document.getElementById('gimbalDotText');
+    if (gDot) gDot.className = 'status-dot offline';
+    if (gTxt) gTxt.textContent = 'Gimbal Offline';
   });
 }
 setInterval(gimbalPoll, 1000);
