@@ -150,11 +150,12 @@ void handleSetup() {
     if (drivers[i]->version() == 0x21) {
       drivers[i]->toff(4);
       drivers[i]->rms_current(currentMA);
+      drivers[i]->ihold(0); // zero idle current — motors free-spin when not stepping
       drivers[i]->microsteps(16);
       drivers[i]->en_spreadCycle(false); // StealthChop
       drivers[i]->pwm_autoscale(true);
       drivers[i]->GSTAT(0x07); // Clear flags
-      r += "Driver " + String(i) + ": configured (400mA, 16 microsteps, StealthChop)\n";
+      r += "Driver " + String(i) + ": configured (" + String(currentMA) + "mA, IHOLD=0, 16 microsteps, StealthChop)\n";
     }
   }
   scanResult = doScan();
