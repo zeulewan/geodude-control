@@ -39,7 +39,9 @@ bool motorRunning[4] = {false, false, false, false};
 bool motorDir[4] = {true, true, true, true};
 int stepDelay = 2000; // target microseconds between steps (lower = faster)
 int stepsRemaining[4] = {0, 0, 0, 0};
+int totalSteps[4] = {0, 0, 0, 0};
 int currentDelay[4] = {0, 0, 0, 0}; // actual current step delay (for ramping)
+int accelSteps[4] = {0, 0, 0, 0};   // steps spent accelerating
 int currentMA = 400;
 const int RAMP_START_DELAY = 8000; // start speed (us) — slow
 const int RAMP_ACCEL = 50;         // decrease delay by this many us per step
@@ -183,8 +185,10 @@ void handleMove() {
     motorDir[d] = steps > 0;
     digitalWrite(drvPins[d].dir, motorDir[d] ? HIGH : LOW);
     stepsRemaining[d] = abs(steps);
+    totalSteps[d] = abs(steps);
     motorRunning[d] = true;
     currentDelay[d] = RAMP_START_DELAY; // start slow
+    accelSteps[d] = 0;
     drivers[d]->toff(4); // enable driver output before stepping
   }
   server.sendHeader("Location", "/");
@@ -344,10 +348,16 @@ void loop() {
       delayMicroseconds(10);
       digitalWrite(drvPins[i].step, LOW);
       delayMicroseconds(currentDelay[i]);
-      // Ramp: accelerate toward target speed
-      if (currentDelay[i] > stepDelay) {
+      // Ramp: accelerate then decelerate
+      if (stepsRemaining[i] <= accelSteps[i]) {
+        // Decelerate — mirror the acceleration
+        currentDelay[i] += RAMP_ACCEL;
+        if (currentDelay[i] > RAMP_START_DELAY) currentDelay[i] = RAMP_START_DELAY;
+      } else if (currentDelay[i] > stepDelay) {
+        // Accelerate toward target speed
         currentDelay[i] -= RAMP_ACCEL;
         if (currentDelay[i] < stepDelay) currentDelay[i] = stepDelay;
+        accelSteps[i]++;
       }
       stepsRemaining[i]--;
       if (stepsRemaining[i] <= 0) {
