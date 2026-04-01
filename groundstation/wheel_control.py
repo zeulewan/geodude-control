@@ -2,6 +2,7 @@ from flask import Flask, render_template, jsonify, request
 import threading
 import time
 import json
+import os
 import urllib.request
 
 app = Flask(__name__)
@@ -44,6 +45,22 @@ state = {
 
 # Server-side servo position tracking — survives page reloads
 servo_positions = {}  # {channel_name: pw_us}
+
+# Neutral positions — persisted to disk, survives reboots
+NEUTRAL_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "servo_neutral.json")
+
+def load_neutral():
+    try:
+        with open(NEUTRAL_FILE) as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+def save_neutral(data):
+    with open(NEUTRAL_FILE, "w") as f:
+        json.dump(data, f)
+
+servo_neutral = load_neutral()
 
 lock = threading.Lock()
 last_heartbeat = time.monotonic()
@@ -277,6 +294,24 @@ def pwm():
 def get_servo_positions():
     """Return last-known servo positions (survives page reload)."""
     return jsonify(servo_positions)
+
+
+@app.route('/api/servo_neutral')
+def get_servo_neutral():
+    """Return neutral positions (persisted to disk)."""
+    return jsonify(servo_neutral)
+
+
+@app.route('/api/servo_neutral', methods=['POST'])
+def set_servo_neutral():
+    """Set neutral position for a channel. Body: {"channel": "B1", "pw": 1500}"""
+    data = request.json
+    name = data.get("channel", "")
+    pw = int(data.get("pw", 1500))
+    if name in CHANNELS:
+        servo_neutral[name] = pw
+        save_neutral(servo_neutral)
+    return jsonify({"ok": True})
 
 
 @app.route('/api/all_off', methods=['POST'])

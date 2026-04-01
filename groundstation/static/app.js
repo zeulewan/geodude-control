@@ -23,18 +23,8 @@ var chOrder = ["B1","S1","B2","S2","MACE","E1","E2","W1A","W1B","W2A","W2B"];
 var CH_RAMP_HZ = 30;
 var chActual = {};  // actual PWM value sent to hardware per channel
 
-/* Per-channel neutral positions (persisted in localStorage) */
+/* Per-channel neutral positions (server-side, persisted to disk) */
 var chNeutral = {};
-(function() {
-  try {
-    var saved = localStorage.getItem('servoNeutral');
-    if (saved) chNeutral = JSON.parse(saved);
-  } catch(e) {}
-})();
-
-function saveNeutral() {
-  try { localStorage.setItem('servoNeutral', JSON.stringify(chNeutral)); } catch(e) {}
-}
 
 function getNeutral(name) {
   return chNeutral[name] != null ? chNeutral[name] : 1500;
@@ -114,9 +104,13 @@ function chSetNeutral(name) {
   var slider = document.getElementById('ch_' + name);
   var val = parseInt(slider.value);
   chNeutral[name] = val;
-  saveNeutral();
   var label = document.getElementById('chn_' + name);
   if (label) label.textContent = val + ' us';
+  fetch('/api/servo_neutral', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({channel: name, pw: val})
+  });
 }
 
 function allChannelsCenter() {
@@ -981,6 +975,16 @@ function seqRun() {
 
 /* ========== Init ========== */
 (function() {
+  /* Fetch neutral positions from server */
+  fetch('/api/servo_neutral').then(function(r) { return r.json(); }).then(function(neutrals) {
+    chNeutral = neutrals;
+    chOrder.forEach(function(name) {
+      if (name === 'MACE') return;
+      var label = document.getElementById('chn_' + name);
+      if (label) label.textContent = getNeutral(name) + ' us';
+    });
+  }).catch(function() {});
+
   /* Fetch last-known servo positions from server (survives reload) */
   fetch('/api/servo_positions').then(function(r) { return r.json(); }).then(function(positions) {
     chOrder.forEach(function(name) {
