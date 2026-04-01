@@ -39,7 +39,6 @@ int driversFound = 0;
 int motorCurrentMA[4] = {400, 400, 400, 400};
 int motorIholdMA[4] = {0, 0, 0, 0};
 bool motorEnabled[4] = {false, false, false, false};
-int jerkLevel = 5;
 
 // Gear ratios and angle conversion
 const float MICROSTEPS_PER_REV = 3200.0;  // 200 full steps * 16 microsteps
@@ -51,9 +50,7 @@ bool motorRunning[4] = {false, false, false, false};
 bool motorDir[4] = {true, true, true, true};
 int stepDelay = 2000;
 int stepsRemaining[4] = {0, 0, 0, 0};
-int totalSteps[4] = {0, 0, 0, 0};
 bool setupDone = false; // legacy, kept for /status but not required
-const int RAMP_START_DELAY = 4000;
 
 void initDrivers() {
   for (int i = 0; i < 4; i++) {
@@ -70,32 +67,6 @@ void initDrivers() {
   }
 }
 
-// --- S-curve ramping ---
-
-float smoothstep(float t) {
-  t = constrain(t, 0.0f, 1.0f);
-  return t * t * (3.0f - 2.0f * t);
-}
-
-int computeDelay(int stepNum, int totalSteps, int targetDelay, int startDelay, int jerk) {
-  if (totalSteps <= 1) return targetDelay;
-  float progress = (float)stepNum / (float)totalSteps;
-  float blend = jerk / 10.0f;
-  float accelFrac = 0.15f;
-  float vel;
-  if (progress < accelFrac) {
-    float t = progress / accelFrac;
-    vel = (1.0f - blend) * t + blend * smoothstep(t);
-  } else if (progress > (1.0f - accelFrac)) {
-    float t = (1.0f - progress) / accelFrac;
-    vel = (1.0f - blend) * t + blend * smoothstep(t);
-  } else {
-    vel = 1.0f;
-  }
-  if (vel < 0.05f) vel = 0.05f;
-  return (int)(targetDelay + (startDelay - targetDelay) * (1.0f - vel));
-}
-
 // --- JSON API ---
 
 void sendJson(String json) {
@@ -104,18 +75,23 @@ void sendJson(String json) {
 }
 
 void handleStatus() {
+  bool stepping = anyMotorRunning();
   String r = "{\"drivers_found\":" + String(driversFound) +
     ",\"step_delay\":" + String(stepDelay) +
-    ",\"jerk_level\":" + String(jerkLevel) +
     ",\"setup_done\":" + String(setupDone ? "true" : "false") +
     ",\"uptime\":" + String(millis() / 1000) +
     ",\"ip\":\"" + WiFi.localIP().toString() + "\"" +
     ",\"drivers\":[";
   for (int i = 0; i < 4; i++) {
     if (i > 0) r += ",";
-    uint8_t ver = drivers[i]->version();
-    bool found = (ver == 0x21);
-    uint32_t ds = found ? drivers[i]->DRV_STATUS() : 0;
+    // Skip slow UART reads while motors are stepping to avoid pauses
+    bool found = false;
+    uint32_t ds = 0;
+    if (!stepping) {
+      uint8_t ver = drivers[i]->version();
+      found = (ver == 0x21);
+      ds = found ? drivers[i]->DRV_STATUS() : 0;
+    }
     r += "{\"index\":" + String(i) +
       ",\"name\":\"" + String(drvNames[i]) + "\"" +
       ",\"found\":" + String(found ? "true" : "false") +
@@ -127,7 +103,7 @@ void handleStatus() {
       ",\"ihold_ma\":" + String(motorIholdMA[i]) +
       ",\"gear_ratio\":" + String(gearRatio[i], 2) +
       ",\"steps_per_deg\":" + String(stepsPerDeg[i], 4);
-    if (found) {
+    if (found && !stepping) {
       r += ",\"microsteps\":" + String(drivers[i]->microsteps()) +
         ",\"rms_current\":" + String(drivers[i]->rms_current()) +
         ",\"irun\":" + String(drivers[i]->irun()) +
@@ -186,7 +162,7 @@ void handleMove() {
   motorDir[d] = steps > 0;
   digitalWrite(drvPins[d].dir, motorDir[d] ? HIGH : LOW);
   stepsRemaining[d] = abs(steps);
-  totalSteps[d] = abs(steps);
+
   motorRunning[d] = true;
   drivers[d]->toff(4);
   drivers[d]->rms_current(motorCurrentMA[d], 0.0f);
@@ -210,7 +186,7 @@ void handleMoveDeg() {
   motorDir[d] = steps > 0;
   digitalWrite(drvPins[d].dir, motorDir[d] ? HIGH : LOW);
   stepsRemaining[d] = abs(steps);
-  totalSteps[d] = abs(steps);
+
   motorRunning[d] = true;
   drivers[d]->toff(4);
   drivers[d]->rms_current(motorCurrentMA[d], 0.0f);
@@ -282,13 +258,6 @@ void handleMotorIhold() {
   sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"ihold_ma\":" + String(ma) + "}");
 }
 
-void handleJerk() {
-  int level = server.arg("level").toInt();
-  if (level < 0) level = 0;
-  if (level > 10) level = 10;
-  jerkLevel = level;
-  sendJson("{\"ok\":true,\"jerk_level\":" + String(jerkLevel) + "}");
-}
 
 void handleEstop() {
   for (int i = 0; i < 4; i++) {
@@ -387,7 +356,6 @@ void setup() {
   server.on("/disable", handleDisable);
   server.on("/motor_current", handleMotorCurrent);
   server.on("/motor_ihold", handleMotorIhold);
-  server.on("/jerk", handleJerk);
   server.on("/estop", handleEstop);
   server.on("/stop", handleStop);
   server.on("/stop_all", handleStopAll);
@@ -443,12 +411,10 @@ void loop() {
   // Step all active motors (one step per motor per loop iteration)
   for (int i = 0; i < 4; i++) {
     if (motorRunning[i] && stepsRemaining[i] > 0) {
-      int d = computeDelay(totalSteps[i] - stepsRemaining[i], totalSteps[i], stepDelay, RAMP_START_DELAY, jerkLevel);
-
       digitalWrite(drvPins[i].step, HIGH);
       delayMicroseconds(10);
       digitalWrite(drvPins[i].step, LOW);
-      delayMicroseconds(d);
+      delayMicroseconds(stepDelay);
 
       stepsRemaining[i]--;
       if (stepsRemaining[i] <= 0) {

@@ -684,16 +684,6 @@ function gimbalSetSpeed(us) {
   });
 }
 
-function gimbalSetJerk(level) {
-  level = parseInt(level);
-  var label = document.getElementById('gimbalJerkVal');
-  if (label) label.textContent = level;
-  fetch('/api/gimbal/jerk', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({level: level})
-  });
-}
 
 function gimbalEnable(driver) {
   fetch('/api/gimbal/enable', {
@@ -758,7 +748,6 @@ function gimbalPoll() {
     var statusParts = [];
     statusParts.push('Found: ' + (d.drivers_found != null ? d.drivers_found : drivers.length));
     if (d.step_delay != null) statusParts.push('Speed: ' + d.step_delay + ' us');
-    if (d.jerk_level != null) statusParts.push('Jerk: ' + d.jerk_level);
     statusParts.push('Setup: ' + (gimbalSetupDone ? 'YES' : 'NO'));
     document.getElementById('gimbalStatus').textContent = statusParts.join(' | ');
 
@@ -768,14 +757,6 @@ function gimbalPoll() {
       if (speedSlider && !speedSlider.matches(':active')) {
         speedSlider.value = d.step_delay;
         document.getElementById('gimbalSpeedVal').textContent = d.step_delay + ' us';
-      }
-    }
-    /* Sync jerk slider */
-    if (d.jerk_level != null) {
-      var jerkSlider = document.getElementById('gimbalJerk');
-      if (jerkSlider && !jerkSlider.matches(':active')) {
-        jerkSlider.value = d.jerk_level;
-        document.getElementById('gimbalJerkVal').textContent = d.jerk_level;
       }
     }
 

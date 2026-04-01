@@ -622,13 +622,6 @@ def gimbal_motor_ihold():
     return jsonify(data), code
 
 
-@app.route('/api/gimbal/jerk', methods=['POST'])
-def gimbal_jerk():
-    level = request.json.get("level", 5)
-    data, code = gimbal_get(f"jerk?level={level}")
-    return jsonify(data), code
-
-
 @app.route('/api/gimbal/estop', methods=['POST'])
 def gimbal_estop():
     data, code = gimbal_get("estop")
