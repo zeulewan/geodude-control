@@ -12,48 +12,65 @@ site/             — Documentation site (Zensical/MkDocs)
   └── zensical.toml
 ```
 
-## Deployment
+## Live Deployment
 
-Workstation cannot SSH to the Pis directly — must go through the Mac (100.117.222.41 via Tailscale).
+The repo is cloned on the groundstation Pi at `/opt/geodude-control/`. The `main` branch is the live deployment. The systemd service runs directly from there:
 
-```bash
-# Groundstation Pi (192.168.50.2) — deploy web UI
-scp groundstation/wheel_control.py zmac:/tmp/ && ssh zmac "scp /tmp/wheel_control.py zeul@192.168.50.2:/home/zeul/"
-# Also deploy templates/ and static/ if changed:
-scp -r groundstation/templates zmac:/tmp/ && ssh zmac "scp -r /tmp/templates/* zeul@192.168.50.2:/home/zeul/templates/"
-scp -r groundstation/static zmac:/tmp/ && ssh zmac "scp -r /tmp/static/* zeul@192.168.50.2:/home/zeul/static/"
-ssh zmac "ssh zeul@192.168.50.2 'sudo systemctl restart wheel-control.service'"
-
-# GEO-DUDe Pi (192.168.4.166 via groundstation) — deploy sensor/attitude
-scp geodude/sensor_server.py zmac:/tmp/ && ssh zmac "scp /tmp/sensor_server.py zeul@192.168.50.2:/tmp/ && ssh zeul@192.168.50.2 'scp /tmp/sensor_server.py zeul@192.168.4.166:/home/zeul/ && ssh zeul@192.168.4.166 sudo systemctl restart sensor-server.service'"
-
-# ESP32 (192.168.4.222 via groundstation) — compile on Mac, flash OTA
-scp gimbal/gimbal_controller.ino zmac:/Users/zeul/tmp/tmc2209_read/tmc2209_read.ino
-ssh zmac "arduino-cli compile --fqbn esp32:esp32:esp32doit-devkit-v1 --output-dir build ~/tmp/tmc2209_read/"
-ssh zmac "scp ~/tmp/tmc2209_read/build/tmc2209_read.ino.bin zeul@192.168.50.2:/tmp/"
-ssh zmac "ssh zeul@192.168.50.2 'python3 /tmp/espota.py -i 192.168.4.222 -p 3232 -f /tmp/tmc2209_read.bin'"
+```
+ExecStart=/usr/bin/python3 /opt/geodude-control/groundstation/wheel_control.py
+WorkingDirectory=/opt/geodude-control/groundstation
 ```
 
-Note: `zmac` = 100.117.222.41. The Mac needs `arduino-cli` (homebrew) with esp32 board package and TMCStepper library.
+Persistent data files (not in git, created at runtime):
+- `groundstation/servo_neutral.json` — saved neutral positions
+- `groundstation/servo_positions.json` — last-known servo positions
 
-When deploying from zmac directly (not via workstation):
+## Users
+
+Two user accounts on the groundstation Pi, both in the `geodude` group with write access to `/opt/geodude-control/`:
+
+| User | Role |
+|------|------|
+| `zeul` | Project lead |
+| `mizi` | Team member (onboarding at `/home/mizi/ONBOARDING.md`) |
+
+## Deployment
+
+The groundstation Pi has no internet access. Updates are pushed from zmac via git bundle.
+
+### Groundstation (from zmac)
 ```bash
-# Groundstation Pi (192.168.50.2) — deploy web UI
-scp groundstation/wheel_control.py zeul@192.168.50.2:/home/zeul/wheel_control.py
-scp groundstation/static/app.js zeul@192.168.50.2:/home/zeul/static/app.js
-scp groundstation/templates/index.html zeul@192.168.50.2:/home/zeul/templates/index.html
-ssh zeul@192.168.50.2 'sudo systemctl restart wheel-control.service'
+# Push commits to Pi
+git bundle create /tmp/geodude.bundle main
+scp /tmp/geodude.bundle zeul@192.168.50.2:/tmp/
+ssh zeul@192.168.50.2 'cd /opt/geodude-control && git pull /tmp/geodude.bundle main && sudo systemctl restart wheel-control.service'
+```
 
-# GEO-DUDe Pi (192.168.4.166 via groundstation)
-scp geodude/sensor_server.py zeul@192.168.50.2:/tmp/sensor_server.py
-ssh zeul@192.168.50.2 'scp /tmp/sensor_server.py zeul@192.168.4.166:/home/zeul/sensor_server.py && ssh zeul@192.168.4.166 sudo systemctl restart sensor-server.service'
+### Groundstation (editing directly on Pi)
+```bash
+# Edit files in /opt/geodude-control/, then:
+sudo systemctl restart wheel-control.service
+```
 
-# ESP32 (192.168.4.222 via groundstation) — compile on Mac, flash OTA
+### GEO-DUDe Pi (from groundstation)
+```bash
+scp /opt/geodude-control/geodude/sensor_server.py zeul@192.168.4.166:/home/zeul/sensor_server.py
+ssh zeul@192.168.4.166 'sudo systemctl restart sensor-server.service'
+```
+
+### ESP32 Gimbal (compile on zmac, flash via groundstation)
+```bash
+# On zmac:
 cp gimbal/gimbal_controller.ino ~/tmp/tmc2209_read/tmc2209_read.ino
 arduino-cli compile --fqbn esp32:esp32:esp32doit-devkit-v1 --output-dir ~/tmp/tmc2209_read/build ~/tmp/tmc2209_read/
 scp ~/tmp/tmc2209_read/build/tmc2209_read.ino.bin zeul@192.168.50.2:/tmp/
 ssh zeul@192.168.50.2 'python3 /tmp/espota.py -i 192.168.4.222 -p 3232 -f /tmp/tmc2209_read.ino.bin'
 ```
+
+Note: zmac needs `arduino-cli` (homebrew) with esp32 board package and TMCStepper library. `espota.py` is at `/Users/zeul/Library/Arduino15/packages/esp32/hardware/esp32/3.3.7/tools/espota.py` (copy to groundstation `/tmp/` if missing).
+
+### GitHub
+Pushes to GitHub happen from zmac periodically. The Pi will pull from GitHub directly once it gets internet access.
 
 ## Servo Startup & Safety
 
