@@ -125,6 +125,19 @@ function allChannelsNeutral() {
   });
 }
 
+function startupNeutral() {
+  chOrder.forEach(function(name) {
+    if (name === 'MACE') return;
+    var pw = getNeutral(name);
+    chActual[name] = pw;
+    chVelocity[name] = 0;
+    var slider = document.getElementById('ch_' + name);
+    if (slider) slider.value = pw;
+    chUpdateLabel(name, pw);
+    chSendPwm(name, pw);
+  });
+}
+
 function updateServoSpeedLabel(val) {
   val = parseInt(val);
   var speed = (val * CH_RAMP_HZ).toFixed(0);
