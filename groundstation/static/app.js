@@ -99,34 +99,15 @@ function chSliderInput(name, val) {
   // Actual PWM is sent by the servo ramp loop, not here
 }
 
-var chRampTimers = {};
-
-function chRampTo(name, target) {
-  if (chRampTimers[name]) clearInterval(chRampTimers[name]);
-  target = parseInt(target);
-  chRampTimers[name] = setInterval(function() {
-    var slider = document.getElementById('ch_' + name);
-    var current = parseInt(slider.value);
-    if (current === target) {
-      clearInterval(chRampTimers[name]);
-      chRampTimers[name] = null;
-      return;
-    }
-    var step = getServoRampRate();
-    if (Math.abs(target - current) < step) step = Math.abs(target - current);
-    if (target > current) current += step;
-    else current -= step;
-    slider.value = current;
-    chUpdateLabel(name, current);
-  }, 1000 / CH_RAMP_HZ);
-}
-
 function chCenter(name) {
-  chRampTo(name, 1500);
+  var slider = document.getElementById('ch_' + name);
+  if (slider) { slider.value = 1500; chUpdateLabel(name, 1500); }
 }
 
 function chGoNeutral(name) {
-  chRampTo(name, getNeutral(name));
+  var target = getNeutral(name);
+  var slider = document.getElementById('ch_' + name);
+  if (slider) { slider.value = target; chUpdateLabel(name, target); }
 }
 
 function chSetNeutral(name) {
@@ -162,23 +143,49 @@ function updateServoRampLabel(val) {
   document.getElementById('servoRampVal').textContent = val + ' us/tick (' + speed + ' us/s)';
 }
 
-/* Servo ramp loop: runs continuously, moves chActual toward slider target at servo speed */
+var chVelocity = {};  // current velocity per channel (us/tick, signed)
+
+/* Servo ramp loop: trapezoidal velocity profile
+   - Accelerates at ramp rate toward max servo speed
+   - Decelerates as it approaches the target
+*/
 function startServoRampLoop() {
   setInterval(function() {
-    var maxStep = getServoSpeed();
+    var maxSpeed = getServoSpeed();
+    var accel = getServoRampRate();
     chOrder.forEach(function(name) {
       if (name === 'MACE') return;
       var slider = document.getElementById('ch_' + name);
       if (!slider) return;
       var target = parseInt(slider.value);
       var actual = chActual[name] != null ? chActual[name] : 1500;
-      if (actual === target) return;
-      var diff = target - actual;
-      if (Math.abs(diff) <= maxStep) {
-        actual = target;
-      } else {
-        actual += (diff > 0 ? maxStep : -maxStep);
+      if (actual === target) {
+        chVelocity[name] = 0;
+        return;
       }
+      var diff = target - actual;
+      var dir = diff > 0 ? 1 : -1;
+      var dist = Math.abs(diff);
+      var vel = chVelocity[name] || 0;
+
+      // Decel distance: how far it takes to stop from current speed
+      var absVel = Math.abs(vel);
+      var decelDist = (absVel * (absVel + accel)) / (2 * accel);
+
+      if (dist <= decelDist || dist <= accel) {
+        // Decelerate
+        absVel = Math.max(absVel - accel, 1);
+      } else {
+        // Accelerate toward max speed
+        absVel = Math.min(absVel + accel, maxSpeed);
+      }
+
+      vel = dir * absVel;
+      var step = Math.round(Math.abs(vel));
+      if (step > dist) step = dist;
+
+      actual += dir * step;
+      chVelocity[name] = vel;
       chActual[name] = actual;
       chSendPwm(name, actual);
     });
