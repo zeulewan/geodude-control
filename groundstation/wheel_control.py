@@ -659,9 +659,30 @@ def _run_gimbal_sequence(entries):
             gimbal_get(f"move?d={d}&steps={entry['steps']}")
 
 
+def restore_positions_loop():
+    """On startup, wait for GEO-DUDe to come online, then send last known positions."""
+    if not servo_positions:
+        return
+    # Wait for GEO-DUDe to be reachable
+    for _ in range(60):
+        try:
+            urllib.request.urlopen(f"{GEODUDE_URL}/sensors", timeout=2)
+            break
+        except Exception:
+            time.sleep(2)
+    else:
+        return  # gave up after 2 minutes
+    # Send all saved positions
+    for name, pw in servo_positions.items():
+        if name in CHANNELS:
+            send_pwm(name, pw)
+            time.sleep(0.05)  # small gap between commands
+
+
 if __name__ == '__main__':
     threading.Thread(target=sensor_loop, daemon=True).start()
     threading.Thread(target=ramp_loop, daemon=True).start()
     threading.Thread(target=watchdog_loop, daemon=True).start()
     threading.Thread(target=positions_flush_loop, daemon=True).start()
+    threading.Thread(target=restore_positions_loop, daemon=True).start()
     app.run(host='0.0.0.0', port=8080, threaded=True)
