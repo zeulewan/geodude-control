@@ -138,7 +138,7 @@ Groundstation Pi — 192.168.50.2 (USB Ethernet from zmac)
 
 ## Git Workflow
 
-Two developers work on this repo: **zeul** and **mizi**. Both have accounts on the groundstation Pi with shared write access to `/opt/geodude-control/` via the `geodude` group.
+Two developers work on this repo: **zeul** (uses zmac) and **mizi** (uses his own Mac). Both have accounts on the groundstation Pi with shared write access to `/opt/geodude-control/` via the `geodude` group. Both connect to the groundstation Pi over USB Ethernet or the local network.
 
 ### Editing directly on the Pi
 ```bash
