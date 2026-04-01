@@ -100,12 +100,74 @@ Pushes to GitHub happen from zmac periodically. The Pi will pull from GitHub dir
 
 **NEVER send motor, PWM, or actuator commands to hardware without explicit user permission.** Read-only debugging only.
 
-## Network
+## Network Architecture
 
-| Device | IP | Access |
-|--------|-----|--------|
-| Workstation | 100.101.214.44 | You are here |
-| Mac (zmac) | 100.117.222.41 | Tailscale |
-| Groundstation Pi | 192.168.50.2 | Via Mac USB Ethernet |
-| GEO-DUDe Pi | 192.168.4.166 | Via groundstation WiFi |
-| ESP32 (gimbal) | 192.168.4.222 | Via groundstation WiFi |
+The groundstation Pi has **no internet access**. It connects to zmac via USB Ethernet and hosts its own WiFi hotspot (`groundstation` / `Temp1234`) for the GEO-DUDe Pi and ESP32.
+
+```
+Internet
+  |
+zmac (MacBook, Toronto) — 100.117.222.41 (Tailscale)
+  |                        192.168.50.1 (USB Ethernet to groundstation)
+  |
+  USB Ethernet
+  |
+Groundstation Pi — 192.168.50.2 (USB Ethernet from zmac)
+  |                 NO INTERNET — isolated local network
+  |                 Runs: wheel_control.py (Flask web UI, port 8080)
+  |                 Repo: /opt/geodude-control (main branch = live)
+  |                 WiFi hotspot: "groundstation"
+  |
+  WiFi (groundstation hotspot)
+  |
+  +— GEO-DUDe Pi — 192.168.4.166
+  |    Runs: sensor_server.py (sensors, PCA9685, camera)
+  |    Runs: attitude_controller.py (PID control)
+  |
+  +— ESP32 (gimbal) — 192.168.4.222
+       Runs: gimbal_controller.ino (TMC2209 stepper control)
+       OTA updates via espota.py from groundstation
+```
+
+| Device | IP | Role |
+|--------|-----|------|
+| zmac (MacBook) | 100.117.222.41 / 192.168.50.1 | Development, ESP32 compilation, GitHub push |
+| Groundstation Pi | 192.168.50.2 | Web UI server, command relay to GEO-DUDe/ESP32 |
+| GEO-DUDe Pi | 192.168.4.166 | Sensor reading, servo/motor control, camera |
+| ESP32 (gimbal) | 192.168.4.222 | Stepper motor control (4x TMC2209) |
+
+## Git Workflow
+
+Two developers work on this repo: **zeul** and **mizi**. Both have accounts on the groundstation Pi with shared write access to `/opt/geodude-control/` via the `geodude` group.
+
+### Editing directly on the Pi
+```bash
+ssh zeul@192.168.50.2   # or mizi@192.168.50.2
+cd /opt/geodude-control
+# edit files
+git add -A && git commit -m "description of change"
+sudo systemctl restart wheel-control.service
+```
+
+### Pushing from zmac to the Pi (no internet on Pi)
+```bash
+# On zmac, after committing:
+git bundle create /tmp/geodude.bundle main
+scp /tmp/geodude.bundle zeul@192.168.50.2:/tmp/
+ssh zeul@192.168.50.2 'cd /opt/geodude-control && git pull /tmp/geodude.bundle main && sudo systemctl restart wheel-control.service'
+```
+
+### Pulling from Pi to zmac
+```bash
+# On zmac:
+ssh zeul@192.168.50.2 'cd /opt/geodude-control && git bundle create /tmp/geodude.bundle main'
+scp zeul@192.168.50.2:/tmp/geodude.bundle /tmp/
+git pull /tmp/geodude.bundle main
+```
+
+### Pushing to GitHub (from zmac only)
+```bash
+git push origin main
+```
+
+The Pi cannot reach GitHub. All GitHub pushes happen from zmac. Sync between zmac and Pi using git bundles.
