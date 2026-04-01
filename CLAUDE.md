@@ -36,13 +36,48 @@ ssh zmac "ssh zeul@192.168.50.2 'python3 /tmp/espota.py -i 192.168.4.222 -p 3232
 
 Note: `zmac` = 100.117.222.41. The Mac needs `arduino-cli` (homebrew) with esp32 board package and TMCStepper library.
 
+When deploying from zmac directly (not via workstation):
+```bash
+# Groundstation Pi (192.168.50.2) — deploy web UI
+scp groundstation/wheel_control.py zeul@192.168.50.2:/home/zeul/wheel_control.py
+scp groundstation/static/app.js zeul@192.168.50.2:/home/zeul/static/app.js
+scp groundstation/templates/index.html zeul@192.168.50.2:/home/zeul/templates/index.html
+ssh zeul@192.168.50.2 'sudo systemctl restart wheel-control.service'
+
+# GEO-DUDe Pi (192.168.4.166 via groundstation)
+scp geodude/sensor_server.py zeul@192.168.50.2:/tmp/sensor_server.py
+ssh zeul@192.168.50.2 'scp /tmp/sensor_server.py zeul@192.168.4.166:/home/zeul/sensor_server.py && ssh zeul@192.168.4.166 sudo systemctl restart sensor-server.service'
+
+# ESP32 (192.168.4.222 via groundstation) — compile on Mac, flash OTA
+cp gimbal/gimbal_controller.ino ~/tmp/tmc2209_read/tmc2209_read.ino
+arduino-cli compile --fqbn esp32:esp32:esp32doit-devkit-v1 --output-dir ~/tmp/tmc2209_read/build ~/tmp/tmc2209_read/
+scp ~/tmp/tmc2209_read/build/tmc2209_read.ino.bin zeul@192.168.50.2:/tmp/
+ssh zeul@192.168.50.2 'python3 /tmp/espota.py -i 192.168.4.222 -p 3232 -f /tmp/tmc2209_read.ino.bin'
+```
+
+## Servo Startup & Safety
+
+- **1500us (center/middle) is DANGEROUS** — fully extends arms outward. Never send 1500us as a default.
+- **Neutral positions** are the safe home. Stored server-side in `servo_neutral.json` on the groundstation Pi.
+- **Servo positions** tracked server-side in `servo_positions.json`, persisted to disk (debounced 1s). Survives reboots.
+- **On groundstation boot**: restore loop waits for GEO-DUDe, then sends last-known positions to resume where servos were before shutdown.
+- **STARTUP button**: sends neutral positions directly (no ramp) when user knows arms may have been moved manually.
+- **sensor_server.py does NOT call pca_all_off() on boot** — lets groundstation handle position restore.
+- **Multi-client**: multiple browsers can connect. Camera uses fan-out (single rpicam-vid reader, shared frame buffer). Servo sliders sync from server every 500ms.
+
 ## Known Code Issues (TODO)
 
-- **Groundstation paths:** The systemd service on the groundstation Pi runs `/home/zeul/wheel_control.py`. After the repo reorganization, the deployed file is still at that path (flat copy), but Flask looks for `templates/` and `static/` relative to the .py file. These must be deployed to `/home/zeul/templates/` and `/home/zeul/static/` on the Pi.
 - **ESP32 OTA filename:** The Mac compile path still uses `tmc2209_read/` as the sketch folder name. The ESP32 doesn't care, but the Mac-side paths in the deploy script reference this old name.
 - **Docs site CI:** The GitHub Actions workflow (`.github/workflows/docs.yml`) needs updating — it was written for the old standalone repo structure. The docs source is now at `site/docs/` and config at `site/zensical.toml`.
 - **AGENT_ONBOARDING.md** references file paths at repo root — needs updating to reflect `groundstation/`, `geodude/`, `gimbal/` subdirectories.
 - **Pico pin assignments — two hardware versions:** The perfboard prototype and the carrier PCB use different Pico GPIO pins for FOC signals (IN1/IN2/IN3/EN). Serial (GP0/1) and I2C (GP4/5) are the same on both. PCB version is documented in `pcb/CLAUDE.md` and `site/docs/electrical/geodude/carrier-pcb.md`. Perfboard version TBD — needs confirming from physical wiring.
+
+## Gimbal (ESP32 + TMC2209)
+
+- 4 stepper drivers: Yaw, Pitch, Roll, Belt
+- Constant-speed stepping (no S-curve/jerk)
+- Status endpoint skips slow TMC UART reads while motors are stepping to avoid stutter
+- Speed controlled via `stepDelay` (us between steps)
 
 ## Safety
 
