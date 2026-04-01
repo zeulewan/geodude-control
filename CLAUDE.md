@@ -136,6 +136,15 @@ Groundstation Pi — 192.168.50.2 (USB Ethernet from zmac)
 | GEO-DUDe Pi | 192.168.4.166 | Sensor reading, servo/motor control, camera |
 | ESP32 (gimbal) | 192.168.4.222 | Stepper motor control (4x TMC2209) |
 
+## Services (all auto-start on boot)
+
+| Service | Device | Unit | Runs From |
+|---------|--------|------|-----------|
+| Web UI | Groundstation Pi | `wheel-control.service` | `/opt/geodude-control/groundstation/wheel_control.py` |
+| Sensor/Motor API | GEO-DUDe Pi | `sensor-server.service` | `/home/zeul/sensor_server.py` |
+| Attitude Controller | GEO-DUDe Pi | `attitude-controller.service` | `/home/zeul/attitude_controller.py` |
+| Gimbal | ESP32 | firmware in flash | boots automatically on power |
+
 ## Git Workflow
 
 Two developers work on this repo: **zeul** (uses zmac) and **mizi** (uses his own Mac). Both have accounts on the groundstation Pi with shared write access to `/opt/geodude-control/` via the `geodude` group. Both connect to the groundstation Pi over USB Ethernet or the local network.
