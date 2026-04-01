@@ -58,6 +58,22 @@ def save_positions():
         json.dump(servo_positions, f)
 
 servo_positions = load_positions()
+_positions_dirty = False
+_positions_last_change = 0
+
+def mark_positions_dirty():
+    global _positions_dirty, _positions_last_change
+    _positions_dirty = True
+    _positions_last_change = time.monotonic()
+
+def positions_flush_loop():
+    """Write positions to disk 1s after last change. Runs in background."""
+    global _positions_dirty
+    while True:
+        time.sleep(1)
+        if _positions_dirty and time.monotonic() - _positions_last_change >= 1.0:
+            _positions_dirty = False
+            save_positions()
 
 # Neutral positions — persisted to disk, survives reboots
 NEUTRAL_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "servo_neutral.json")
@@ -300,7 +316,7 @@ def pwm():
     ok = send_pwm(name, pw)
     if ok and name in CHANNELS:
         servo_positions[name] = pw
-        save_positions()
+        mark_positions_dirty()
     return jsonify({"ok": ok})
 
 
@@ -647,4 +663,5 @@ if __name__ == '__main__':
     threading.Thread(target=sensor_loop, daemon=True).start()
     threading.Thread(target=ramp_loop, daemon=True).start()
     threading.Thread(target=watchdog_loop, daemon=True).start()
+    threading.Thread(target=positions_flush_loop, daemon=True).start()
     app.run(host='0.0.0.0', port=8080, threaded=True)
