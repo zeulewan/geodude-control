@@ -19,7 +19,7 @@ var CHANNELS = {
   "MACE": {ch: 11, pin: 12}, "S2": {ch: 12, pin: 13}, "B2": {ch: 13, pin: 14},
   "S1": {ch: 14, pin: 15}, "B1": {ch: 15, pin: 16}
 };
-var chOrder = ["B1","S1","B2","S2","MACE","E1","E2","W1A","W1B","W2A","W2B"];
+var chOrder = ["B1","B2","S1","S2","E1","E2","W1A","W2A","W1B","W2B","MACE"];
 var CH_RAMP_HZ = 30;
 var chActual = {};  // actual PWM value sent to hardware per channel
 
@@ -233,6 +233,15 @@ function preventSliderJump(slider) {
 /* Build servo channel UI */
 (function() {
   var grid = document.getElementById('chGrid');
+  /* Column headers */
+  var h1 = document.createElement('div');
+  h1.style.cssText = 'font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#6b7280;padding:4px 0;';
+  h1.textContent = 'Arm 1';
+  grid.appendChild(h1);
+  var h2 = document.createElement('div');
+  h2.style.cssText = 'font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#6b7280;padding:4px 0;';
+  h2.textContent = 'Arm 2';
+  grid.appendChild(h2);
   chOrder.forEach(function(name) {
     if (name === 'MACE') return;
     var item = document.createElement('div');
