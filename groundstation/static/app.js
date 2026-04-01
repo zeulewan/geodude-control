@@ -228,7 +228,7 @@ function preventSliderJump(slider) {
       '<div class="ch-controls">' +
       '<button class="btn btn-sm btn-dark" onclick="chCenter(&quot;' + name + '&quot;)">Center</button>' +
       '<button class="btn btn-sm" onclick="chGoNeutral(&quot;' + name + '&quot;)">Neutral</button>' +
-      '<button class="btn btn-sm btn-dark" onclick="chSetNeutral(&quot;' + name + '&quot;)" title="Save current position as neutral">Set Neutral</button>' +
+      '<button class="btn btn-sm btn-red" onclick="chSetNeutral(&quot;' + name + '&quot;)" title="Save current position as neutral">Set Neutral</button>' +
       '<span style="font-size:11px;color:#6b7280;margin-left:4px;">N: <span id="chn_' + name + '">' + neutralVal + ' us</span></span>' +
       '</div>';
     grid.appendChild(item);
