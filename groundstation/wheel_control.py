@@ -42,6 +42,9 @@ state = {
     "rpm": 0,
 }
 
+# Server-side servo position tracking — survives page reloads
+servo_positions = {}  # {channel_name: pw_us}
+
 lock = threading.Lock()
 last_heartbeat = time.monotonic()
 
@@ -265,7 +268,15 @@ def pwm():
     name = data.get("channel", "")
     pw = int(data.get("pw", 0))
     ok = send_pwm(name, pw)
+    if ok and name in CHANNELS:
+        servo_positions[name] = pw
     return jsonify({"ok": ok})
+
+
+@app.route('/api/servo_positions')
+def get_servo_positions():
+    """Return last-known servo positions (survives page reload)."""
+    return jsonify(servo_positions)
 
 
 @app.route('/api/all_off', methods=['POST'])

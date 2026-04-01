@@ -948,11 +948,22 @@ function seqRun() {
 
 /* ========== Init ========== */
 (function() {
-  /* Init all servos to 1500us */
-  chOrder.forEach(function(name) {
-    if (name === 'MACE') return;
-    chActual[name] = 1500;
-    chSendPwm(name, 1500);
+  /* Fetch last-known servo positions from server (survives reload) */
+  fetch('/api/servo_positions').then(function(r) { return r.json(); }).then(function(positions) {
+    chOrder.forEach(function(name) {
+      if (name === 'MACE') return;
+      var pw = positions[name] != null ? positions[name] : 1500;
+      chActual[name] = pw;
+      var slider = document.getElementById('ch_' + name);
+      if (slider) slider.value = pw;
+      chUpdateLabel(name, pw);
+    });
+  }).catch(function() {
+    /* Server unreachable — set sliders to 1500 but do NOT send PWM */
+    chOrder.forEach(function(name) {
+      if (name === 'MACE') return;
+      chActual[name] = 1500;
+    });
   });
 
   /* Start servo ramp loop (rate-limits all servo movements) */
