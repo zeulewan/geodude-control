@@ -320,8 +320,17 @@
 
 <div class="card">
   <h3>PCA9685 Channels</h3>
-  <div style="margin-bottom:6px;">
+  <div class="slider-group" style="margin-bottom:8px;">
+    <div class="slider-label">
+      <span class="label">Servo Ramp Speed</span>
+      <span class="value" id="servoRampVal">20 us/tick (600 us/s)</span>
+    </div>
+    <input type="range" id="servoRampRate" min="1" max="100" step="1" value="20"
+           oninput="updateServoRampLabel(this.value)">
+  </div>
+  <div class="btn-row" style="margin-bottom:8px;margin-top:0;">
     <button class="btn btn-dark" onclick="allChannelsCenter()">ALL CENTER</button>
+    <button class="btn" onclick="allChannelsNeutral()">ALL NEUTRAL</button>
   </div>
   <div class="ch-grid" id="chGrid"></div>
 </div>

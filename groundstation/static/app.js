@@ -20,9 +20,30 @@ var CHANNELS = {
   "S1": {ch: 14, pin: 15}, "B1": {ch: 15, pin: 16}
 };
 var chOrder = ["B1","S1","B2","S2","MACE","E1","E2","W1A","W1B","W2A","W2B"];
-var CH_RAMP_RATE = 20;
 var CH_RAMP_HZ = 30;
 var chRampTimers = {};
+
+/* Per-channel neutral positions (persisted in localStorage) */
+var chNeutral = {};
+(function() {
+  try {
+    var saved = localStorage.getItem('servoNeutral');
+    if (saved) chNeutral = JSON.parse(saved);
+  } catch(e) {}
+})();
+
+function saveNeutral() {
+  try { localStorage.setItem('servoNeutral', JSON.stringify(chNeutral)); } catch(e) {}
+}
+
+function getNeutral(name) {
+  return chNeutral[name] != null ? chNeutral[name] : 1500;
+}
+
+function getServoRampRate() {
+  var el = document.getElementById('servoRampRate');
+  return el ? parseInt(el.value) : 20;
+}
 
 function usToDuty(us) {
   return (us / 20000 * 100).toFixed(1);
@@ -49,7 +70,7 @@ function chRampTo(name, target) {
       chRampTimers[name] = null;
       return;
     }
-    var step = CH_RAMP_RATE;
+    var step = getServoRampRate();
     if (Math.abs(target - current) < step) step = Math.abs(target - current);
     if (target > current) current += step;
     else current -= step;
@@ -62,10 +83,35 @@ function chCenter(name) {
   chRampTo(name, 1500);
 }
 
+function chGoNeutral(name) {
+  chRampTo(name, getNeutral(name));
+}
+
+function chSetNeutral(name) {
+  var slider = document.getElementById('ch_' + name);
+  var val = parseInt(slider.value);
+  chNeutral[name] = val;
+  saveNeutral();
+  var label = document.getElementById('chn_' + name);
+  if (label) label.textContent = val + ' us';
+}
+
 function allChannelsCenter() {
   chOrder.forEach(function(name) {
     if (name !== 'MACE') chCenter(name);
   });
+}
+
+function allChannelsNeutral() {
+  chOrder.forEach(function(name) {
+    if (name !== 'MACE') chGoNeutral(name);
+  });
+}
+
+function updateServoRampLabel(val) {
+  val = parseInt(val);
+  var speed = (val * CH_RAMP_HZ).toFixed(0);
+  document.getElementById('servoRampVal').textContent = val + ' us/tick (' + speed + ' us/s)';
 }
 
 function preventSliderJump(slider) {
@@ -94,6 +140,7 @@ function preventSliderJump(slider) {
     if (name === 'MACE') return;
     var item = document.createElement('div');
     item.className = 'ch-item';
+    var neutralVal = getNeutral(name);
     item.innerHTML = '<div class="ch-header">' +
       '<span class="ch-name">' + name + ' <span style="font-size:11px;color:#6b7280;">(ch ' + CHANNELS[name].ch + ', pin ' + CHANNELS[name].pin + ')</span></span>' +
       '<span class="ch-val" id="chv_' + name + '">1500 us (' + usToDuty(1500) + '%)</span>' +
@@ -102,6 +149,9 @@ function preventSliderJump(slider) {
       'oninput="chSlide(&quot;' + name + '&quot;, this.value)">' +
       '<div class="ch-controls">' +
       '<button class="btn btn-sm btn-dark" onclick="chCenter(&quot;' + name + '&quot;)">Center</button>' +
+      '<button class="btn btn-sm" onclick="chGoNeutral(&quot;' + name + '&quot;)">Neutral</button>' +
+      '<button class="btn btn-sm btn-dark" onclick="chSetNeutral(&quot;' + name + '&quot;)" title="Save current position as neutral">Set Neutral</button>' +
+      '<span style="font-size:11px;color:#6b7280;margin-left:4px;">N: <span id="chn_' + name + '">' + neutralVal + ' us</span></span>' +
       '</div>';
     grid.appendChild(item);
 
