@@ -40,14 +40,9 @@ function getNeutral(name) {
   return chNeutral[name] != null ? chNeutral[name] : 1500;
 }
 
-function getServoMaxSpeed() {
-  var el = document.getElementById('servoMaxSpeed');
+function getServoSpeed() {
+  var el = document.getElementById('servoSpeed');
   return el ? parseInt(el.value) : 50;
-}
-
-function getServoRampRate() {
-  var el = document.getElementById('servoRampRate');
-  return el ? parseInt(el.value) : 20;
 }
 
 function usToDuty(us) {
@@ -73,34 +68,15 @@ function chSliderInput(name, val) {
   // Actual PWM is sent by the servo ramp loop, not here
 }
 
-var chRampTimers = {};
-
-function chRampTo(name, target) {
-  if (chRampTimers[name]) clearInterval(chRampTimers[name]);
-  target = parseInt(target);
-  chRampTimers[name] = setInterval(function() {
-    var slider = document.getElementById('ch_' + name);
-    var current = parseInt(slider.value);
-    if (current === target) {
-      clearInterval(chRampTimers[name]);
-      chRampTimers[name] = null;
-      return;
-    }
-    var step = getServoRampRate();
-    if (Math.abs(target - current) < step) step = Math.abs(target - current);
-    if (target > current) current += step;
-    else current -= step;
-    slider.value = current;
-    chUpdateLabel(name, current);
-  }, 1000 / CH_RAMP_HZ);
-}
-
 function chCenter(name) {
-  chRampTo(name, 1500);
+  var slider = document.getElementById('ch_' + name);
+  if (slider) { slider.value = 1500; chUpdateLabel(name, 1500); }
 }
 
 function chGoNeutral(name) {
-  chRampTo(name, getNeutral(name));
+  var target = getNeutral(name);
+  var slider = document.getElementById('ch_' + name);
+  if (slider) { slider.value = target; chUpdateLabel(name, target); }
 }
 
 function chSetNeutral(name) {
@@ -130,16 +106,10 @@ function updateServoSpeedLabel(val) {
   document.getElementById('servoSpeedVal').textContent = val + ' us/tick (' + speed + ' us/s)';
 }
 
-function updateServoRampLabel(val) {
-  val = parseInt(val);
-  var speed = (val * CH_RAMP_HZ).toFixed(0);
-  document.getElementById('servoRampVal').textContent = val + ' us/tick (' + speed + ' us/s)';
-}
-
-/* Servo ramp loop: runs continuously, moves chActual toward slider target at max speed */
+/* Servo ramp loop: runs continuously, moves chActual toward slider target at servo speed */
 function startServoRampLoop() {
   setInterval(function() {
-    var maxStep = getServoMaxSpeed();
+    var maxStep = getServoSpeed();
     chOrder.forEach(function(name) {
       if (name === 'MACE') return;
       var slider = document.getElementById('ch_' + name);
