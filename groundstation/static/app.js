@@ -45,6 +45,11 @@ function getServoMaxSpeed() {
   return el ? parseInt(el.value) : 50;
 }
 
+function getServoRampRate() {
+  var el = document.getElementById('servoRampRate');
+  return el ? parseInt(el.value) : 20;
+}
+
 function usToDuty(us) {
   return (us / 20000 * 100).toFixed(1);
 }
@@ -68,15 +73,34 @@ function chSliderInput(name, val) {
   // Actual PWM is sent by the servo ramp loop, not here
 }
 
+var chRampTimers = {};
+
+function chRampTo(name, target) {
+  if (chRampTimers[name]) clearInterval(chRampTimers[name]);
+  target = parseInt(target);
+  chRampTimers[name] = setInterval(function() {
+    var slider = document.getElementById('ch_' + name);
+    var current = parseInt(slider.value);
+    if (current === target) {
+      clearInterval(chRampTimers[name]);
+      chRampTimers[name] = null;
+      return;
+    }
+    var step = getServoRampRate();
+    if (Math.abs(target - current) < step) step = Math.abs(target - current);
+    if (target > current) current += step;
+    else current -= step;
+    slider.value = current;
+    chUpdateLabel(name, current);
+  }, 1000 / CH_RAMP_HZ);
+}
+
 function chCenter(name) {
-  var slider = document.getElementById('ch_' + name);
-  if (slider) { slider.value = 1500; chUpdateLabel(name, 1500); }
+  chRampTo(name, 1500);
 }
 
 function chGoNeutral(name) {
-  var target = getNeutral(name);
-  var slider = document.getElementById('ch_' + name);
-  if (slider) { slider.value = target; chUpdateLabel(name, target); }
+  chRampTo(name, getNeutral(name));
 }
 
 function chSetNeutral(name) {
@@ -104,6 +128,12 @@ function updateServoSpeedLabel(val) {
   val = parseInt(val);
   var speed = (val * CH_RAMP_HZ).toFixed(0);
   document.getElementById('servoSpeedVal').textContent = val + ' us/tick (' + speed + ' us/s)';
+}
+
+function updateServoRampLabel(val) {
+  val = parseInt(val);
+  var speed = (val * CH_RAMP_HZ).toFixed(0);
+  document.getElementById('servoRampVal').textContent = val + ' us/tick (' + speed + ' us/s)';
 }
 
 /* Servo ramp loop: runs continuously, moves chActual toward slider target at max speed */

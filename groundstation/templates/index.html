@@ -320,13 +320,21 @@
 
 <div class="card">
   <h3>PCA9685 Channels</h3>
-  <div class="slider-group" style="margin-bottom:8px;">
+  <div class="slider-group" style="margin-bottom:4px;">
     <div class="slider-label">
-      <span class="label">Max Servo Speed</span>
+      <span class="label">Max Slider Speed</span>
       <span class="value" id="servoSpeedVal">50 us/tick (1500 us/s)</span>
     </div>
     <input type="range" id="servoMaxSpeed" min="1" max="200" step="1" value="50"
            oninput="updateServoSpeedLabel(this.value)">
+  </div>
+  <div class="slider-group" style="margin-bottom:8px;">
+    <div class="slider-label">
+      <span class="label">Button Ramp Rate</span>
+      <span class="value" id="servoRampVal">20 us/tick (600 us/s)</span>
+    </div>
+    <input type="range" id="servoRampRate" min="1" max="100" step="1" value="20"
+           oninput="updateServoRampLabel(this.value)">
   </div>
   <div class="btn-row" style="margin-bottom:8px;margin-top:0;">
     <button class="btn btn-dark" onclick="allChannelsCenter()">ALL CENTER</button>
