@@ -205,57 +205,72 @@ def channels():
     """Return channel mapping."""
     return jsonify(CHANNELS)
 
-# --- Camera MJPEG stream ---
+# --- Camera MJPEG stream (fan-out to multiple clients) ---
 
 camera_proc = None
 camera_lock = threading.Lock()
+camera_frame = None        # latest JPEG frame bytes
+camera_frame_id = 0        # increments each new frame
+camera_event = threading.Event()
 
-def get_camera_proc():
-    global camera_proc
-    with camera_lock:
-        if camera_proc is None or camera_proc.poll() is not None:
-            camera_proc = subprocess.Popen([
-                "rpicam-vid", "-t", "0",
-                "--codec", "mjpeg",
-                "--width", "640", "--height", "480",
-                "--framerate", "10",
-                "--quality", "50",
-                "--vflip", "--hflip",
-                "--inline",
-                "-o", "-",
-            ], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-        return camera_proc
-
-def mjpeg_frames():
-    proc = get_camera_proc()
-    buf = b""
+def camera_reader_thread():
+    """Single thread reads from rpicam-vid and buffers the latest frame."""
+    global camera_proc, camera_frame, camera_frame_id
     while True:
-        chunk = proc.stdout.read(4096)
-        if not chunk:
-            break
-        buf += chunk
-        # JPEG frames start with FF D8, end with FF D9
+        with camera_lock:
+            if camera_proc is None or camera_proc.poll() is not None:
+                camera_proc = subprocess.Popen([
+                    "rpicam-vid", "-t", "0",
+                    "--codec", "mjpeg",
+                    "--width", "640", "--height", "480",
+                    "--framerate", "10",
+                    "--quality", "50",
+                    "--vflip", "--hflip",
+                    "--inline",
+                    "-o", "-",
+                ], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+            proc = camera_proc
+        buf = b""
         while True:
-            start = buf.find(b"\xff\xd8")
-            if start == -1:
-                buf = b""
+            chunk = proc.stdout.read(4096)
+            if not chunk:
                 break
-            end = buf.find(b"\xff\xd9", start + 2)
-            if end == -1:
-                buf = buf[start:]
-                break
-            frame = buf[start:end + 2]
-            buf = buf[end + 2:]
+            buf += chunk
+            while True:
+                start = buf.find(b"\xff\xd8")
+                if start == -1:
+                    buf = b""
+                    break
+                end = buf.find(b"\xff\xd9", start + 2)
+                if end == -1:
+                    buf = buf[start:]
+                    break
+                camera_frame = buf[start:end + 2]
+                camera_frame_id += 1
+                camera_event.set()
+                camera_event.clear()
+                buf = buf[end + 2:]
+        time.sleep(1)  # restart delay if process dies
+
+def mjpeg_fanout():
+    """Generator that yields MJPEG frames from the shared buffer."""
+    last_id = 0
+    while True:
+        camera_event.wait(timeout=2)
+        fid = camera_frame_id
+        if fid != last_id and camera_frame is not None:
+            last_id = fid
             yield (b"--frame\r\n"
-                   b"Content-Type: image/jpeg\r\n\r\n" + frame + b"\r\n")
+                   b"Content-Type: image/jpeg\r\n\r\n" + camera_frame + b"\r\n")
 
 @app.route("/camera")
 def camera():
-    return Response(mjpeg_frames(),
+    return Response(mjpeg_fanout(),
                     mimetype="multipart/x-mixed-replace; boundary=frame")
 
 if __name__ == "__main__":
     pca_init(freq=50)
     pca_all_off()
     threading.Thread(target=sensor_loop, daemon=True).start()
+    threading.Thread(target=camera_reader_thread, daemon=True).start()
     app.run(host="0.0.0.0", port=5000, threaded=True)
