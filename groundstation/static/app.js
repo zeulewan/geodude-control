@@ -21,7 +21,7 @@ var CHANNELS = {
 };
 var chOrder = ["B1","S1","B2","S2","MACE","E1","E2","W1A","W1B","W2A","W2B"];
 var CH_RAMP_HZ = 30;
-var chRampTimers = {};
+var chActual = {};  // actual PWM value sent to hardware per channel
 
 /* Per-channel neutral positions (persisted in localStorage) */
 var chNeutral = {};
@@ -40,18 +40,21 @@ function getNeutral(name) {
   return chNeutral[name] != null ? chNeutral[name] : 1500;
 }
 
-function getServoRampRate() {
-  var el = document.getElementById('servoRampRate');
-  return el ? parseInt(el.value) : 20;
+function getServoMaxSpeed() {
+  var el = document.getElementById('servoMaxSpeed');
+  return el ? parseInt(el.value) : 50;
 }
 
 function usToDuty(us) {
   return (us / 20000 * 100).toFixed(1);
 }
 
-function chSlide(name, val) {
-  val = parseInt(val);
-  document.getElementById('chv_' + name).textContent = val + ' us (' + usToDuty(val) + '%)';
+function chUpdateLabel(name, val) {
+  var el = document.getElementById('chv_' + name);
+  if (el) el.textContent = val + ' us (' + usToDuty(val) + '%)';
+}
+
+function chSendPwm(name, val) {
   fetch('/api/pwm', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
@@ -59,32 +62,21 @@ function chSlide(name, val) {
   });
 }
 
-function chRampTo(name, target) {
-  if (chRampTimers[name]) clearInterval(chRampTimers[name]);
-  target = parseInt(target);
-  chRampTimers[name] = setInterval(function() {
-    var slider = document.getElementById('ch_' + name);
-    var current = parseInt(slider.value);
-    if (current === target) {
-      clearInterval(chRampTimers[name]);
-      chRampTimers[name] = null;
-      return;
-    }
-    var step = getServoRampRate();
-    if (Math.abs(target - current) < step) step = Math.abs(target - current);
-    if (target > current) current += step;
-    else current -= step;
-    slider.value = current;
-    chSlide(name, current);
-  }, 1000 / CH_RAMP_HZ);
+function chSliderInput(name, val) {
+  val = parseInt(val);
+  chUpdateLabel(name, val);
+  // Actual PWM is sent by the servo ramp loop, not here
 }
 
 function chCenter(name) {
-  chRampTo(name, 1500);
+  var slider = document.getElementById('ch_' + name);
+  if (slider) { slider.value = 1500; chUpdateLabel(name, 1500); }
 }
 
 function chGoNeutral(name) {
-  chRampTo(name, getNeutral(name));
+  var target = getNeutral(name);
+  var slider = document.getElementById('ch_' + name);
+  if (slider) { slider.value = target; chUpdateLabel(name, target); }
 }
 
 function chSetNeutral(name) {
@@ -108,10 +100,33 @@ function allChannelsNeutral() {
   });
 }
 
-function updateServoRampLabel(val) {
+function updateServoSpeedLabel(val) {
   val = parseInt(val);
   var speed = (val * CH_RAMP_HZ).toFixed(0);
-  document.getElementById('servoRampVal').textContent = val + ' us/tick (' + speed + ' us/s)';
+  document.getElementById('servoSpeedVal').textContent = val + ' us/tick (' + speed + ' us/s)';
+}
+
+/* Servo ramp loop: runs continuously, moves chActual toward slider target at max speed */
+function startServoRampLoop() {
+  setInterval(function() {
+    var maxStep = getServoMaxSpeed();
+    chOrder.forEach(function(name) {
+      if (name === 'MACE') return;
+      var slider = document.getElementById('ch_' + name);
+      if (!slider) return;
+      var target = parseInt(slider.value);
+      var actual = chActual[name] != null ? chActual[name] : 1500;
+      if (actual === target) return;
+      var diff = target - actual;
+      if (Math.abs(diff) <= maxStep) {
+        actual = target;
+      } else {
+        actual += (diff > 0 ? maxStep : -maxStep);
+      }
+      chActual[name] = actual;
+      chSendPwm(name, actual);
+    });
+  }, 1000 / CH_RAMP_HZ);
 }
 
 function preventSliderJump(slider) {
@@ -146,7 +161,7 @@ function preventSliderJump(slider) {
       '<span class="ch-val" id="chv_' + name + '">1500 us (' + usToDuty(1500) + '%)</span>' +
       '</div>' +
       '<input type="range" id="ch_' + name + '" min="500" max="2500" step="10" value="1500" ' +
-      'oninput="chSlide(&quot;' + name + '&quot;, this.value)">' +
+      'oninput="chSliderInput(&quot;' + name + '&quot;, this.value)">' +
       '<div class="ch-controls">' +
       '<button class="btn btn-sm btn-dark" onclick="chCenter(&quot;' + name + '&quot;)">Center</button>' +
       '<button class="btn btn-sm" onclick="chGoNeutral(&quot;' + name + '&quot;)">Neutral</button>' +
@@ -906,12 +921,12 @@ function seqRun() {
   /* Init all servos to 1500us */
   chOrder.forEach(function(name) {
     if (name === 'MACE') return;
-    fetch('/api/pwm', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({channel: name, pw: 1500})
-    });
+    chActual[name] = 1500;
+    chSendPwm(name, 1500);
   });
+
+  /* Start servo ramp loop (rate-limits all servo movements) */
+  startServoRampLoop();
 
   /* Start polling */
   setInterval(poll, 100);
