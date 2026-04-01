@@ -43,8 +43,21 @@ state = {
     "rpm": 0,
 }
 
-# Server-side servo position tracking — survives page reloads
-servo_positions = {}  # {channel_name: pw_us}
+# Server-side servo position tracking — persisted to disk, survives reboots
+POSITIONS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "servo_positions.json")
+
+def load_positions():
+    try:
+        with open(POSITIONS_FILE) as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+def save_positions():
+    with open(POSITIONS_FILE, "w") as f:
+        json.dump(servo_positions, f)
+
+servo_positions = load_positions()
 
 # Neutral positions — persisted to disk, survives reboots
 NEUTRAL_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "servo_neutral.json")
@@ -287,6 +300,7 @@ def pwm():
     ok = send_pwm(name, pw)
     if ok and name in CHANNELS:
         servo_positions[name] = pw
+        save_positions()
     return jsonify({"ok": ok})
 
 
