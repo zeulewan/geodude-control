@@ -147,36 +147,46 @@ Groundstation Pi — 192.168.50.2 (USB Ethernet from zmac)
 
 ## Git Workflow
 
-Two developers work on this repo: **zeul** (uses zmac) and **mizi** (uses his own Mac). Both have accounts on the groundstation Pi with shared write access to `/opt/geodude-control/` via the `geodude` group. Both connect to the groundstation Pi over USB Ethernet or the local network.
+Two developers: **zeul** (uses zmac) and **mizi** (uses his own Mac). Both SSH into the groundstation Pi to develop.
 
-### Editing directly on the Pi
+### Worktree Setup
+
+`/opt/geodude-control/` is the **deployment** on `main`. Nobody edits it directly. Each developer has their own worktree:
+
+| Developer | Worktree | Branch |
+|-----------|----------|--------|
+| zeul | `/home/zeul/geodude-dev` | `zeul-dev` |
+| mizi | `/home/mizi/geodude-dev` | `mizi-dev` |
+| (deploy) | `/opt/geodude-control` | `main` |
+
+### Development Flow
 ```bash
+# SSH into the Pi
 ssh zeul@192.168.50.2   # or mizi@192.168.50.2
-cd /opt/geodude-control
-# edit files
+
+# Work in your worktree
+cd ~/geodude-dev
+# edit files, test, etc.
 git add -A && git commit -m "description of change"
+
+# When ready to deploy: merge to main
+cd /opt/geodude-control
+git merge zeul-dev   # or mizi-dev
 sudo systemctl restart wheel-control.service
 ```
 
-### Pushing from zmac to the Pi (no internet on Pi)
+### Syncing with zmac / GitHub (Pi has no internet)
 ```bash
-# On zmac, after committing:
-git bundle create /tmp/geodude.bundle main
-scp /tmp/geodude.bundle zeul@192.168.50.2:/tmp/
-ssh zeul@192.168.50.2 'cd /opt/geodude-control && git pull /tmp/geodude.bundle main && sudo systemctl restart wheel-control.service'
-```
-
-### Pulling from Pi to zmac
-```bash
-# On zmac:
-ssh zeul@192.168.50.2 'cd /opt/geodude-control && git bundle create /tmp/geodude.bundle main'
+# Push Pi commits to zmac:
+ssh zeul@192.168.50.2 'cd /opt/geodude-control && git bundle create /tmp/geodude.bundle --all'
 scp zeul@192.168.50.2:/tmp/geodude.bundle /tmp/
 git pull /tmp/geodude.bundle main
-```
 
-### Pushing to GitHub (from zmac only)
-```bash
+# Push zmac commits to Pi:
+git bundle create /tmp/geodude.bundle main
+scp /tmp/geodude.bundle zeul@192.168.50.2:/tmp/
+ssh zeul@192.168.50.2 'cd /opt/geodude-control && git pull /tmp/geodude.bundle main'
+
+# Push to GitHub (from zmac only):
 git push origin main
 ```
-
-The Pi cannot reach GitHub. All GitHub pushes happen from zmac. Sync between zmac and Pi using git bundles.
