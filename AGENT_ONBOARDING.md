@@ -18,7 +18,7 @@ The operator controls everything from a laptop through a groundstation Raspberry
 Laptop (browser)
     ↓ Ethernet (192.168.50.x)
 Groundstation Pi (192.168.50.2)
-    - wheel_control.py (Flask, port 8080) — web UI
+    - wheel_control.py (Flask, internal port 8080, exposed at http://192.168.50.2/) — web UI
     ↓ WiFi (192.168.4.x)
 GEO-DUDe Pi (192.168.4.166)
     - sensor_server.py (Flask, port 5000) — sensors, PCA9685, camera
@@ -44,7 +44,7 @@ All in `~/GIT/geodude-control/`:
 
 | File | Port | Description |
 |------|------|-------------|
-| `wheel_control.py` | 8080 | Web UI — MACE reaction wheel control (arm, hold-to-spin, ramp), attitude control panel, PCA9685 servo sliders, camera preview, system stats |
+| `wheel_control.py` | 8080 internally, exposed at `http://192.168.50.2/` | Web UI — MACE reaction wheel control (arm, hold-to-spin, ramp), attitude control panel, PCA9685 servo sliders, camera preview, system stats |
 
 ### GEO-DUDe (runs on GEO-DUDe Pi, 192.168.4.166)
 
@@ -186,11 +186,11 @@ All in `~/Documents/subscale-docs/docs/`:
 
 | Device | IP | Access |
 |--------|-----|--------|
-| Laptop (Mac) | 192.168.50.1 | USB Ethernet to groundstation |
+| Laptop (Mac) | 192.168.50.x (DHCP) | USB Ethernet to groundstation/switch |
 | Groundstation Pi | 192.168.50.2 (eth), 192.168.4.1 (wlan hotspot) | `ssh zeul@192.168.50.2` pw: `Temp1234` |
 | GEO-DUDe Pi | 192.168.4.166 (WiFi) | `ssh zeul@192.168.4.166` (key auth from groundstation) |
 
-Offline local network — no internet, no DNS. All IPs hardcoded.
+Offline local network — no internet. Ethernet clients get DHCP leases from the groundstation Pi. Use `http://192.168.50.2/` for the web UI; do not rely on hostname discovery.
 
 WiFi SSID: `groundstation`, WPA2, password: `Temp1234`, ~3 Mbps bandwidth.
 

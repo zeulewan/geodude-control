@@ -22,17 +22,19 @@ Standalone ground control station. Separate Raspberry Pi powered by its own wall
 
 ### Ethernet (eth0) — Laptop Link
 
-The Pi's built-in Ethernet port connects directly to the operator laptop via a USB Ethernet adapter. Static IP, no DHCP.
+The Pi's built-in Ethernet port connects directly to the operator laptop via a USB Ethernet adapter or small unmanaged switch. The Pi keeps a static IP on `eth0` and runs DHCP for connected laptops, so the laptop side should be left on automatic/DHCP.
 
 | | Pi (`eth0`) | Laptop (USB Ethernet) |
 |---|---|---|
-| **IP** | `192.168.50.2/24` | `192.168.50.1/24` |
-| **Config** | Static (NetworkManager `netplan-eth0`) | Manual (see below) |
+| **IP** | `192.168.50.2/24` | `192.168.50.x/24` |
+| **Config** | Static (NetworkManager `netplan-eth0`) | DHCP / automatic |
 
-On macOS, the USB adapter appears as **"USB 10/100/1000 LAN"** (`en13`). To configure:
+On macOS, the USB adapter may appear under names like **"USB 10/100/1000 LAN"** or a custom renamed service. Leave it on **Using DHCP**. No manual IP assignment is required.
 
-```bash
-sudo ifconfig en13 192.168.50.1 netmask 255.255.255.0 up
+The reliable operator URL is:
+
+```text
+http://192.168.50.2/
 ```
 
 ### WiFi Hotspot (wlan0) — Subsystem Link
@@ -80,7 +82,7 @@ The base station Pi acts as the central coordinator. The operator controls the s
 
 ```mermaid
 graph LR
-    LAPTOP["Laptop<br/>(Operator)<br/>192.168.50.1"] -->|Ethernet| BASEPI["Base Station Pi<br/>(Ground Control)<br/>eth0: 192.168.50.2<br/>wlan0: 192.168.4.1"]
+    LAPTOP["Laptop<br/>(Operator)<br/>DHCP on 192.168.50.x"] -->|Ethernet| BASEPI["Base Station Pi<br/>(Ground Control)<br/>eth0: 192.168.50.2<br/>wlan0: 192.168.4.1"]
     BASEPI -->|WiFi| GEOPI["GEO-DUDe Pi<br/>(Servicer)<br/>192.168.4.166"]
     BASEPI -->|WiFi| ESP["ESP32<br/>(Gimbal)<br/>192.168.4.x"]
     GEOPI -->|WiFi| ESP
@@ -128,7 +130,7 @@ sudo route add -net 192.168.4.0/24 192.168.50.2
 
 ### GEO-DUDe Control Web UI (`wheel-control.service`)
 
-Flask web app on port **8080** (`http://192.168.50.2:8080`). Controls GEO-DUDe hardware via HTTP to `192.168.4.166:5000`. Source: [zeulewan/geodude-control](https://github.com/zeulewan/geodude-control) (private).
+Flask web app exposed to operators at **`http://192.168.50.2/`**. Internally the service still runs on port `8080`, with port `80` redirected to it on the groundstation Pi. Controls GEO-DUDe hardware via HTTP to `192.168.4.166:5000`. Source: [zeulewan/geodude-control](https://github.com/zeulewan/geodude-control) (private).
 
 **Camera:**
 
@@ -204,6 +206,8 @@ Separate Flask API on GEO-DUDe (`192.168.4.166:5001`). PID control loop for body
 
 ### Networking Notes
 
-- Offline local network — no internet, no DNS. All addresses hardcoded by IP
+- Offline local network — no internet
+- Ethernet clients get `192.168.50.x` addresses automatically by DHCP from the groundstation Pi
+- Use `http://192.168.50.2/` for the UI; do not rely on hostname discovery for demos or field use
 - WiFi bandwidth ~3 Mbps — camera stream and sensor polling are bandwidth-conscious
 - GEO-DUDe SSID configured as `groundstation` (no space) in NetworkManager
