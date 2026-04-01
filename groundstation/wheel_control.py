@@ -660,8 +660,8 @@ def _run_gimbal_sequence(entries):
 
 
 def restore_positions_loop():
-    """On startup, wait for GEO-DUDe to come online, then send last known positions."""
-    if not servo_positions:
+    """On startup, wait for GEO-DUDe to come online, then send neutral positions."""
+    if not servo_neutral:
         return
     # Wait for GEO-DUDe to be reachable
     for _ in range(60):
@@ -672,11 +672,13 @@ def restore_positions_loop():
             time.sleep(2)
     else:
         return  # gave up after 2 minutes
-    # Send all saved positions
-    for name, pw in servo_positions.items():
+    # Send neutral positions (safe home)
+    for name, pw in servo_neutral.items():
         if name in CHANNELS:
             send_pwm(name, pw)
-            time.sleep(0.05)  # small gap between commands
+            servo_positions[name] = pw
+            time.sleep(0.05)
+    mark_positions_dirty()
 
 
 if __name__ == '__main__':

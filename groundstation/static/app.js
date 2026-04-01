@@ -89,11 +89,6 @@ function chSliderInput(name, val) {
   // Actual PWM is sent by the servo ramp loop, not here
 }
 
-function chCenter(name) {
-  var slider = document.getElementById('ch_' + name);
-  if (slider) { slider.value = 1500; chUpdateLabel(name, 1500); }
-}
-
 function chGoNeutral(name) {
   var target = getNeutral(name);
   var slider = document.getElementById('ch_' + name);
@@ -110,12 +105,6 @@ function chSetNeutral(name) {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({channel: name, pw: val})
-  });
-}
-
-function allChannelsCenter() {
-  chOrder.forEach(function(name) {
-    if (name !== 'MACE') chCenter(name);
   });
 }
 
@@ -267,7 +256,6 @@ function preventSliderJump(slider) {
       '<input type="range" id="ch_' + name + '" min="500" max="2500" step="10" value="1500" ' +
       'oninput="chSliderInput(&quot;' + name + '&quot;, this.value)">' +
       '<div class="ch-controls">' +
-      '<button class="btn btn-sm btn-dark" onclick="chCenter(&quot;' + name + '&quot;)">Center</button>' +
       '<button class="btn btn-sm" onclick="chGoNeutral(&quot;' + name + '&quot;)">Go to Neutral</button>' +
       '<button class="btn btn-sm btn-red" onclick="chSetNeutral(&quot;' + name + '&quot;)" title="Save current position as neutral">Set Neutral</button>' +
       '<span style="font-size:11px;color:#6b7280;margin-left:4px;">N: <span id="chn_' + name + '">' + neutralVal + ' us</span></span>' +
@@ -1032,21 +1020,21 @@ function seqRun() {
     });
   }).catch(function() {});
 
-  /* Fetch last-known servo positions from server (survives reload) */
+  /* Fetch last-known servo positions from server, fallback to neutral */
   fetch('/api/servo_positions').then(function(r) { return r.json(); }).then(function(positions) {
     chOrder.forEach(function(name) {
       if (name === 'MACE') return;
-      var pw = positions[name] != null ? positions[name] : 1500;
+      var pw = positions[name] != null ? positions[name] : getNeutral(name);
       chActual[name] = pw;
       var slider = document.getElementById('ch_' + name);
       if (slider) slider.value = pw;
       chUpdateLabel(name, pw);
     });
   }).catch(function() {
-    /* Server unreachable — set sliders to 1500 but do NOT send PWM */
+    /* Server unreachable — default to neutral, do NOT send PWM */
     chOrder.forEach(function(name) {
       if (name === 'MACE') return;
-      chActual[name] = 1500;
+      chActual[name] = getNeutral(name);
     });
   });
 

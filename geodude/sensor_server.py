@@ -272,7 +272,7 @@ def camera():
 
 if __name__ == "__main__":
     pca_init(freq=50)
-    pca_all_off()
+    # No pca_all_off() — groundstation sends neutral positions on connect
     threading.Thread(target=sensor_loop, daemon=True).start()
     threading.Thread(target=camera_reader_thread, daemon=True).start()
     app.run(host="0.0.0.0", port=5000, threaded=True)
