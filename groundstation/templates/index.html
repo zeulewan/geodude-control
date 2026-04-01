@@ -327,6 +327,7 @@
     </div>
     <input type="range" id="servoSpeed" min="1" max="200" step="1" value="50"
            oninput="updateServoSpeedLabel(this.value); saveServoSettings()">
+    <div style="display:flex;justify-content:space-between;font-size:10px;color:#6b7280;margin-top:2px;"><span>Slow</span><span>Fast</span></div>
   </div>
   <div class="slider-group" style="margin-bottom:8px;">
     <div class="slider-label">
@@ -335,6 +336,7 @@
     </div>
     <input type="range" id="servoRampRate" min="1" max="100" step="1" value="20"
            oninput="updateServoRampLabel(this.value); saveServoSettings()">
+    <div style="display:flex;justify-content:space-between;font-size:10px;color:#6b7280;margin-top:2px;"><span>Gentle</span><span>Snappy</span></div>
   </div>
   <div class="btn-row" style="margin-bottom:8px;margin-top:0;">
     <button class="btn btn-dark" onclick="allChannelsCenter()">ALL CENTER</button>
