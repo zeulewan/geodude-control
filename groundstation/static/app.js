@@ -139,6 +139,31 @@ function updateServoRampLabel(val) {
 
 var chVelocity = {};  // current velocity per channel (us/tick, signed)
 
+/* Sync servo sliders from server (multi-client support) */
+function servoSyncPoll() {
+  fetch('/api/servo_positions').then(function(r) { return r.json(); }).then(function(positions) {
+    chOrder.forEach(function(name) {
+      if (name === 'MACE') return;
+      if (positions[name] == null) return;
+      var serverPw = positions[name];
+      var slider = document.getElementById('ch_' + name);
+      if (!slider) return;
+      // Don't override if user is actively dragging
+      if (slider.matches(':active')) return;
+      var localTarget = parseInt(slider.value);
+      var localActual = chActual[name] != null ? chActual[name] : 1500;
+      // If our local actual matches server, nothing to do
+      if (localActual === serverPw) return;
+      // If we're ramping toward a target, don't interrupt
+      if (localTarget !== localActual) return;
+      // Server has a different position than us — another client moved it
+      slider.value = serverPw;
+      chActual[name] = serverPw;
+      chUpdateLabel(name, serverPw);
+    });
+  }).catch(function() {});
+}
+
 /* Servo ramp loop: trapezoidal velocity profile
    - Accelerates at ramp rate toward max servo speed
    - Decelerates as it approaches the target
@@ -1014,6 +1039,7 @@ function seqRun() {
   setInterval(attPoll, 500);
   setInterval(sysPoll, 2000);
   setInterval(gimbalPoll, 1000);
+  setInterval(servoSyncPoll, 500);
 
   /* Immediate calls */
   sysPoll();
