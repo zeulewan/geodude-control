@@ -120,13 +120,10 @@
     <div class="card">
       <h3>MACE Status</h3>
       <div class="status-grid">
-        <div class="status-row"><span class="label">Armed</span><span class="value" id="armedStatus">NO</span></div>
-        <div class="status-row"><span class="label">Target</span><span class="value" id="targetStatus">0%</span></div>
-        <div class="status-row"><span class="label">Throttle</span><span class="value" id="throttleStatus">0%</span></div>
-        <div class="status-row"><span class="label">PWM</span><span class="value" id="pwmStatus">0 us</span></div>
-        <div class="status-row"><span class="label">Direction</span><span class="value" id="dirStatus">FWD</span></div>
+        <div class="status-row"><span class="label">Enabled</span><span class="value" id="enabledStatus">NO</span></div>
+        <div class="status-row"><span class="label">Target</span><span class="value" id="targetStatus">0.0 rad/s</span></div>
+        <div class="status-row"><span class="label">Velocity</span><span class="value" id="velocityStatus">0.0 rad/s</span></div>
         <div class="status-row"><span class="label">Wheel RPM</span><span class="value" id="maceRpm">0</span></div>
-        <div class="status-row"><span class="label">Saturated</span><span class="value" id="maceSat">NO</span></div>
       </div>
       <div id="motorError"></div>
     </div>
@@ -135,29 +132,44 @@
 
 <!-- MACE Reaction Wheel (full width) -->
 <div class="card">
-  <h3>MACE Reaction Wheel</h3>
+  <h3>MACE Reaction Wheel <span style="font-size:12px;font-weight:400;color:#6b7280;">(SimpleFOC / Pi Pico)</span></h3>
 
   <div class="slider-group">
     <div class="slider-label">
-      <span class="label">Power</span>
-      <span class="value" id="holdPowerVal">10%</span>
+      <span class="label">Target Velocity</span>
+      <span class="value" id="velSliderVal">0.0 rad/s</span>
     </div>
-    <input type="range" id="holdPower" min="10" max="100" value="10"
-           oninput="document.getElementById('holdPowerVal').textContent = this.value + '%'">
+    <input type="range" id="velSlider" min="-20" max="20" step="0.5" value="0"
+           oninput="updateVelSliderLabel(this.value)">
+    <div style="display:flex;justify-content:space-between;font-size:10px;color:#6b7280;margin-top:2px;"><span>-20 rad/s</span><span>0</span><span>+20 rad/s</span></div>
   </div>
 
   <div class="slider-group">
     <div class="slider-label">
       <span class="label">Ramp Rate</span>
-      <span class="value" id="rampVal">0.1%/s (1000.0s)</span>
+      <span class="value" id="rampVal">1.0 rad/s/s</span>
     </div>
-    <input type="range" id="rampRate" min="0.1" max="100" step="0.1" value="0.1"
+    <input type="range" id="rampRate" min="0.1" max="20" step="0.1" value="1.0"
            oninput="updateRampLabel(this.value); sendRampRate(this.value)">
   </div>
 
   <div class="throttle-bar-bg">
-    <div id="targetBar" style="width:0%"></div>
-    <div id="currentBar" style="width:0%"></div>
+    <div id="targetBar" style="width:50%;left:50%;transform-origin:left;"></div>
+    <div id="currentBar" style="width:50%;left:50%;transform-origin:left;"></div>
+  </div>
+
+  <div style="margin-bottom:8px;">
+    <div style="font-size:11px;color:#6b7280;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Quick Presets (rad/s)</div>
+    <div class="btn-row" style="margin-bottom:0;flex-wrap:wrap;">
+      <button class="btn btn-sm btn-dark" onclick="setVelocityPreset(-10)">-10</button>
+      <button class="btn btn-sm btn-dark" onclick="setVelocityPreset(-5)">-5</button>
+      <button class="btn btn-sm btn-dark" onclick="setVelocityPreset(-2)">-2</button>
+      <button class="btn btn-sm btn-dark" onclick="setVelocityPreset(-1)">-1</button>
+      <button class="btn btn-sm" onclick="setVelocityPreset(1)">+1</button>
+      <button class="btn btn-sm" onclick="setVelocityPreset(2)">+2</button>
+      <button class="btn btn-sm" onclick="setVelocityPreset(5)">+5</button>
+      <button class="btn btn-sm" onclick="setVelocityPreset(10)">+10</button>
+    </div>
   </div>
 
   <button class="btn btn-hold disabled" id="holdBtn"
@@ -167,15 +179,8 @@
   </button>
 
   <div class="btn-row">
-    <button class="btn btn-green" id="armBtn" onclick="toggleArm()">ARM</button>
-    <button class="btn btn-amber" onclick="brake()">BRAKE</button>
-    <button class="btn btn-dark" onclick="toggleReverse()">REVERSE</button>
-    <button class="btn btn-dark" onclick="startCalibrate()">CALIBRATE ESC</button>
-  </div>
-
-  <div id="calPanel" style="display:none">
-    <div id="calStep"></div>
-    <div id="calBtns" class="btn-row"></div>
+    <button class="btn btn-green" id="armBtn" onclick="toggleArm()">ENABLE</button>
+    <button class="btn btn-amber" onclick="brake()">STOP</button>
   </div>
 </div>
 

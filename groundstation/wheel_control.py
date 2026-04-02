@@ -14,12 +14,12 @@ WATCHDOG_TIMEOUT = 3  # seconds — auto-stop if no frontend heartbeat
 RAMP_HZ = 20  # ramp loop tick rate
 
 # PCA9685 channel mapping (pin - 1 = 0-indexed)
+# MACE is no longer on PCA9685 — it is driven by the Pico via SimpleFOC
 CHANNELS = {
     "B1":   15,
     "S1":   14,
     "B2":   13,
     "S2":   12,
-    "MACE": 11,
     "E1":    6,
     "E2":    4,
     "W1A":   3,
@@ -28,13 +28,14 @@ CHANNELS = {
     "W2B":   0,
 }
 
+# SimpleFOC velocity limits (rad/s)
+MAX_VELOCITY = 20.0   # max absolute velocity to send to Pico
+
 state = {
-    "armed": False,
-    "arming": False,
-    "throttle": 0.0,       # current throttle (ramped)
-    "target": 0.0,         # target throttle
-    "ramp_rate": 0.1,      # %/s — how fast throttle moves toward target
-    "reverse": False,
+    "enabled": False,      # motor enabled (SimpleFOC, no ESC arming needed)
+    "velocity": 0.0,       # current velocity (rad/s, ramped)
+    "target": 0.0,         # target velocity (rad/s)
+    "ramp_rate": 1.0,      # rad/s per second — how fast velocity ramps toward target
     "gyro": {"x": 0, "y": 0, "z": 0},
     "accel": {"x": 0, "y": 0, "z": 0},
     "encoder_angle": 0,
@@ -95,12 +96,12 @@ lock = threading.Lock()
 last_heartbeat = time.monotonic()
 
 
-def send_motor(pw):
-    """Send PWM to MACE channel via legacy /motor endpoint."""
+def send_velocity(velocity):
+    """Send velocity command (rad/s) to Pico via GEO-DUDe /simplefoc endpoint."""
     try:
         req = urllib.request.Request(
-            f"{GEODUDE_URL}/motor",
-            data=json.dumps({"pw": pw}).encode(),
+            f"{GEODUDE_URL}/simplefoc",
+            data=json.dumps({"velocity": round(float(velocity), 4)}).encode(),
             headers={"Content-Type": "application/json"},
         )
         urllib.request.urlopen(req, timeout=3)
@@ -137,61 +138,29 @@ def send_all_off():
         return False
 
 
-def throttle_to_pw(throttle, reverse):
-    """Convert throttle 0-100 and direction to PWM pulse width."""
-    t = int(round(throttle))
-    if reverse:
-        pw = 1000 - t * 10
-    else:
-        pw = 1000 + t * 10
-    return max(0, min(2000, pw))
-
-
-MAX_WHEEL_RPM = 600
-RPM_RESUME_PCT = 0.7  # resume throttle when RPM drops to 70% of max
-
 def ramp_loop():
-    """Server-side ramp: smoothly moves throttle toward target at ramp_rate %/s."""
-    last_pw = None
-    saturated = False
+    """Server-side ramp: smoothly moves velocity toward target at ramp_rate rad/s/s."""
+    last_velocity = None
     while True:
         time.sleep(1.0 / RAMP_HZ)
         with lock:
-            if not state["armed"] or state["arming"]:
-                last_pw = None
-                saturated = False
-                continue
-            rpm = state.get("rpm", 0)
-            target = state["target"]
-            current = state["throttle"]
-
-            # RPM saturation check with hysteresis
-            if rpm >= MAX_WHEEL_RPM:
-                saturated = True
-            elif saturated and rpm < MAX_WHEEL_RPM * RPM_RESUME_PCT:
-                saturated = False
-
-            if saturated:
-                # Coast until RPM drops
-                state["throttle"] = 0.0
-                pw = 1000
-            elif abs(target - current) > 0.1:
+            if not state["enabled"]:
+                velocity = 0.0
+            else:
+                target = state["target"]
+                current = state["velocity"]
                 step = state["ramp_rate"] / RAMP_HZ
                 diff = target - current
                 if abs(diff) <= step:
-                    state["throttle"] = target
+                    state["velocity"] = target
                 elif diff > 0:
-                    state["throttle"] = current + step
+                    state["velocity"] = current + step
                 else:
-                    state["throttle"] = current - step
-                pw = throttle_to_pw(state["throttle"], state["reverse"])
-            else:
-                state["throttle"] = target
-                pw = throttle_to_pw(state["throttle"], state["reverse"])
-        # Only send if pw changed (avoid flooding)
-        if pw != last_pw:
-            send_motor(pw)
-            last_pw = pw
+                    state["velocity"] = current - step
+                velocity = state["velocity"]
+        if velocity != last_velocity:
+            send_velocity(velocity)
+            last_velocity = velocity
 
 
 def watchdog_loop():
@@ -199,17 +168,15 @@ def watchdog_loop():
     while True:
         time.sleep(1)
         with lock:
-            armed = state["armed"]
-            throttle = state["throttle"]
-        if armed and throttle > 0:
+            enabled = state["enabled"]
+            velocity = state["velocity"]
+        if enabled and velocity != 0.0:
             if time.monotonic() - last_heartbeat > WATCHDOG_TIMEOUT:
                 with lock:
-                    state["throttle"] = 0.0
+                    state["velocity"] = 0.0
                     state["target"] = 0.0
-                    state["armed"] = False
-                send_motor(1000)
-                time.sleep(0.5)
-                send_motor(0)
+                    state["enabled"] = False
+                send_velocity(0.0)
 
 
 def sensor_loop():
@@ -248,62 +215,40 @@ def config():
     data = request.json
     with lock:
         if "ramp_rate" in data:
+            # ramp_rate now in rad/s per second (0.1 - 100)
             state["ramp_rate"] = max(0.1, min(100.0, float(data["ramp_rate"])))
     return jsonify({"ok": True})
 
 
 @app.route('/api/arm', methods=['POST'])
 def arm():
+    """Enable/disable the SimpleFOC motor. No ESC arming sequence needed."""
     with lock:
-        if state["arming"]:
-            return jsonify({"armed": state["armed"], "arming": True})
-        if not state["armed"]:
-            state["arming"] = True
-            threading.Thread(target=arm_async, args=(True,), daemon=True).start()
+        if not state["enabled"]:
+            state["enabled"] = True
         else:
-            state["armed"] = False
-            state["throttle"] = 0.0
+            state["enabled"] = False
+            state["velocity"] = 0.0
             state["target"] = 0.0
-            threading.Thread(target=arm_async, args=(False,), daemon=True).start()
-    return jsonify({"armed": state["armed"], "arming": state["arming"]})
+    if not state["enabled"]:
+        send_velocity(0.0)
+    return jsonify({"enabled": state["enabled"]})
 
 
-def arm_async(do_arm):
-    if do_arm:
-        send_motor(1000)
-        time.sleep(3)
-        with lock:
-            state["arming"] = False
-            state["armed"] = True
-    else:
-        send_motor(1000)
-        time.sleep(0.5)
-        send_motor(0)
-
-
-@app.route('/api/throttle', methods=['POST'])
-def throttle():
+@app.route('/api/velocity', methods=['POST'])
+def velocity():
+    """Set target velocity in rad/s. Positive = forward, negative = reverse, 0 = stop."""
     global last_heartbeat
     last_heartbeat = time.monotonic()
     data = request.json
-    t = max(0.0, min(100.0, float(data.get("target", 0))))
-    rev = data.get("reverse", False)
+    v = max(-MAX_VELOCITY, min(MAX_VELOCITY, float(data.get("target", 0))))
     with lock:
-        if state["arming"]:
-            return jsonify({"ok": False, "reason": "arming"})
-        state["target"] = t
-        state["reverse"] = rev
-        # Release = immediate idle, let wheel coast
-        if t == 0:
-            state["throttle"] = 0.0
-            send_idle = True
-        else:
-            # Jump to 10% floor so motor starts immediately
-            if state["throttle"] < 10.0:
-                state["throttle"] = 10.0
-            send_idle = False
-    if send_idle:
-        send_motor(1000)
+        if not state["enabled"]:
+            return jsonify({"ok": False, "reason": "not enabled"})
+        state["target"] = v
+        # If releasing to zero, snap velocity to 0 immediately (let ramp send it)
+        if v == 0.0:
+            state["velocity"] = 0.0
     return jsonify({"ok": True})
 
 
@@ -353,26 +298,11 @@ def all_off():
 
 @app.route('/api/brake', methods=['POST'])
 def brake():
-    """Brake: set throttle to 0 but stay armed, hold 1000us (ESC brake)."""
+    """Stop the wheel: send T0 to Pico, stay enabled."""
     with lock:
-        state["throttle"] = 0.0
+        state["velocity"] = 0.0
         state["target"] = 0.0
-    send_motor(1000)
-    return jsonify({"ok": True})
-
-
-@app.route('/api/calibrate', methods=['POST'])
-def calibrate():
-    data = request.json
-    step = data.get("step", "")
-    if step == "max":
-        send_motor(2000)
-    elif step == "min":
-        send_motor(1000)
-    elif step == "cancel":
-        send_motor(1000)
-        time.sleep(0.5)
-        send_motor(0)
+    send_velocity(0.0)
     return jsonify({"ok": True})
 
 
@@ -433,16 +363,29 @@ def camera():
         return jsonify({"error": str(e)}), 502
 
 
+@app.route('/api/simplefoc', methods=['POST'])
+def simplefoc_proxy():
+    """Proxy a raw SimpleFOC command to GEO-DUDe."""
+    data = request.json
+    try:
+        req = urllib.request.Request(
+            f"{GEODUDE_URL}/simplefoc",
+            data=json.dumps(data).encode(),
+            headers={"Content-Type": "application/json"},
+        )
+        resp = urllib.request.urlopen(req, timeout=3)
+        return jsonify(json.loads(resp.read().decode()))
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 502
+
+
 @app.route('/api/stop', methods=['POST'])
 def stop():
     with lock:
-        state["throttle"] = 0.0
+        state["velocity"] = 0.0
         state["target"] = 0.0
-        state["armed"] = False
-        state["arming"] = False
-    send_motor(1000)
-    time.sleep(0.5)
-    send_motor(0)
+        state["enabled"] = False
+    send_velocity(0.0)
     return jsonify({"ok": True})
 
 

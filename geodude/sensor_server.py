@@ -4,10 +4,48 @@ import subprocess
 import threading
 import time
 import os
+import serial
 
 app = Flask(__name__)
 bus = smbus2.SMBus(1)
 lock = threading.Lock()
+
+# --- SimpleFOC serial (Pi Pico over USB) ---
+
+PICO_PORT = "/dev/ttyACM0"
+PICO_BAUD = 115200
+pico_serial = None
+pico_lock = threading.Lock()
+
+def get_pico():
+    """Return open serial port to Pico, opening it lazily if needed."""
+    global pico_serial
+    with pico_lock:
+        if pico_serial is None or not pico_serial.is_open:
+            try:
+                pico_serial = serial.Serial(PICO_PORT, PICO_BAUD, timeout=0.5)
+            except Exception as e:
+                print("SimpleFOC serial open error: %s" % e, flush=True)
+                pico_serial = None
+        return pico_serial
+
+def simplefoc_send(cmd):
+    """Send a raw SimpleFOC Commander command (e.g. 'T5\\n'). Returns True on success."""
+    try:
+        ser = get_pico()
+        if ser is None:
+            return False, "serial not available"
+        with pico_lock:
+            ser.write((cmd.rstrip("\n") + "\n").encode())
+        print("SimpleFOC: sent %r" % cmd.strip(), flush=True)
+        return True, None
+    except Exception as e:
+        # Reset so next call retries open
+        global pico_serial
+        with pico_lock:
+            pico_serial = None
+        print("SimpleFOC serial error: %s" % e, flush=True)
+        return False, str(e)
 
 sensor_data = {"ax":0,"ay":0,"az":0,"gx":0,"gy":0,"gz":0,"angle":0,"rpm":0}
 
@@ -153,28 +191,49 @@ def system_stats():
         cpu_pct = 0
     return jsonify({"temp": round(temp, 1), "cpu": cpu_pct, "load": round(load, 2)})
 
+@app.route("/simplefoc", methods=["POST"])
+def simplefoc():
+    """Send a velocity command to the Pico (SimpleFOC Commander protocol).
+    Body: {"velocity": 5.0}  — sets target velocity in rad/s
+       or {"command": "T5"} — sends a raw commander command
+    """
+    if os.path.exists("/tmp/attitude_active"):
+        return jsonify({"ok": False, "error": "attitude controller active"}), 409
+    data = request.json
+    if "command" in data:
+        cmd = str(data["command"])
+    elif "velocity" in data:
+        v = float(data["velocity"])
+        cmd = "T%.4f" % v
+    else:
+        return jsonify({"ok": False, "error": "missing velocity or command"}), 400
+    ok, err = simplefoc_send(cmd)
+    if ok:
+        return jsonify({"ok": True, "cmd": cmd})
+    return jsonify({"ok": False, "error": err}), 502
+
 @app.route("/motor", methods=["POST"])
 def motor():
-    """Controls MACE channel. Bidirectional: 1500=stop, 1100-1900=active."""
+    """Legacy endpoint - translates ESC PWM to SimpleFOC velocity.
+    Maps 1000us (full reverse) -> -20 rad/s, 1500us (stop) -> 0, 2000us (full fwd) -> +20 rad/s.
+    Kept for backwards compatibility only; prefer /simplefoc for new code.
+    """
     if os.path.exists("/tmp/attitude_active"):
         return jsonify({"ok": False, "error": "attitude controller active"}), 409
     data = request.json
     pw = int(data.get("pw", 1500))
     pw = max(0, min(2000, pw))
-    ch = CHANNELS["MACE"]
-    if pw == 0:
-        pca_off(ch)
-        print("MOTOR: ch%d OFF" % ch, flush=True)
-    else:
-        pca_set_pulse_us(ch, pw)
-        # Read back register to verify
-        reg = LED0_ON_L + 4 * ch
-        with lock:
-            d = bus.read_i2c_block_data(PCA9685_ADDR, reg, 4)
-        off_val = d[2] | (d[3] << 8)
-        mode1 = bus.read_byte_data(PCA9685_ADDR, 0x00)
-        print("MOTOR: ch%d pw=%d counts=%d readback=%d MODE1=0x%02X" % (ch, pw, int(pw/20000.0*4096), off_val, mode1), flush=True)
-    return jsonify({"ok": True})
+    # Map PWM to velocity: 1500=0, 2000=+20, 1000=-20 rad/s
+    velocity = (pw - 1500) / 500.0 * 20.0
+    # Treat pw=0 (explicit off) and pw near 1500 as stop
+    if pw == 0 or abs(velocity) < 0.1:
+        velocity = 0.0
+    cmd = "T%.4f" % velocity
+    print("MOTOR (legacy): pw=%d -> velocity=%.4f" % (pw, velocity), flush=True)
+    ok, err = simplefoc_send(cmd)
+    if ok:
+        return jsonify({"ok": True})
+    return jsonify({"ok": False, "error": err}), 502
 
 @app.route("/pwm", methods=["POST"])
 def pwm():

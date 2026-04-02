@@ -269,15 +269,17 @@ function preventSliderJump(slider) {
   });
 })();
 
-/* ========== MACE Controls ========== */
-var isReverse = false;
+/* ========== MACE Controls (SimpleFOC velocity) ========== */
 var isHolding = false;
+
+function updateVelSliderLabel(val) {
+  val = parseFloat(val);
+  document.getElementById('velSliderVal').textContent = val.toFixed(1) + ' rad/s';
+}
 
 function updateRampLabel(val) {
   val = parseFloat(val);
-  var power = parseInt(document.getElementById('holdPower').value);
-  var t = val > 0 ? (power / val).toFixed(1) : 'inf';
-  document.getElementById('rampVal').textContent = val + '%/s (' + t + 's)';
+  document.getElementById('rampVal').textContent = val.toFixed(1) + ' rad/s/s';
 }
 
 function sendRampRate(val) {
@@ -288,16 +290,21 @@ function sendRampRate(val) {
   });
 }
 
+function setVelocityPreset(v) {
+  var slider = document.getElementById('velSlider');
+  if (slider) { slider.value = v; updateVelSliderLabel(v); }
+}
+
 function holdStart(e) {
   if (e && e.preventDefault) e.preventDefault();
   isHolding = true;
-  var power = parseInt(document.getElementById('holdPower').value);
+  var v = parseFloat(document.getElementById('velSlider').value) || 0;
   var btn = document.getElementById('holdBtn');
   btn.classList.add('active-spin');
-  fetch('/api/throttle', {
+  fetch('/api/velocity', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({target: power, reverse: isReverse})
+    body: JSON.stringify({target: v})
   });
 }
 
@@ -306,10 +313,10 @@ function holdStop() {
   isHolding = false;
   var btn = document.getElementById('holdBtn');
   btn.classList.remove('active-spin');
-  fetch('/api/throttle', {
+  fetch('/api/velocity', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({target: 0, reverse: isReverse})
+    body: JSON.stringify({target: 0})
   });
 }
 
@@ -318,7 +325,7 @@ function toggleArm() {
     method: 'POST',
     headers: {'Content-Type': 'application/json'}
   }).then(function(r) { return r.json(); }).then(function(d) {
-    updateArmUI(d.armed, d.arming);
+    updateArmUI(d.enabled);
   });
 }
 
@@ -329,78 +336,20 @@ function brake() {
   });
 }
 
-function toggleReverse() {
-  isReverse = !isReverse;
-  fetch('/api/throttle', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({target: 0, reverse: isReverse})
-  });
-}
-
-function updateArmUI(armed, arming) {
+function updateArmUI(enabled) {
   var armBtn = document.getElementById('armBtn');
   var holdBtn = document.getElementById('holdBtn');
-  if (arming) {
-    armBtn.textContent = 'ARMING...';
-    armBtn.className = 'btn btn-amber';
-    holdBtn.classList.add('disabled');
-    holdBtn.classList.remove('armed');
-  } else if (armed) {
-    armBtn.textContent = 'DISARM';
+  if (enabled) {
+    armBtn.textContent = 'DISABLE';
     armBtn.className = 'btn btn-red';
     holdBtn.classList.remove('disabled');
     holdBtn.classList.add('armed');
   } else {
-    armBtn.textContent = 'ARM';
+    armBtn.textContent = 'ENABLE';
     armBtn.className = 'btn btn-green';
     holdBtn.classList.add('disabled');
     holdBtn.classList.remove('armed');
   }
-}
-
-/* ========== Calibration ========== */
-function startCalibrate() {
-  var panel = document.getElementById('calPanel');
-  panel.style.display = 'block';
-  document.getElementById('calStep').innerHTML = '<p><strong>Step 1:</strong> Disconnect ESC power, then click SEND MAX.</p>';
-  document.getElementById('calBtns').innerHTML = '<button class="btn btn-sm" onclick="calStep2()">SEND MAX</button>' +
-    '<button class="btn btn-sm btn-dark" onclick="calCancel()">Cancel</button>';
-}
-
-function calStep2() {
-  fetch('/api/calibrate', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({step: 'max'})
-  });
-  document.getElementById('calStep').innerHTML = '<p><strong>Step 2:</strong> Connect ESC power. Wait for beeps, then click SEND MIN.</p>';
-  document.getElementById('calBtns').innerHTML = '<button class="btn btn-sm" onclick="calStep3()">SEND MIN</button>' +
-    '<button class="btn btn-sm btn-dark" onclick="calCancel()">Cancel</button>';
-}
-
-function calStep3() {
-  fetch('/api/calibrate', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({step: 'min'})
-  });
-  document.getElementById('calStep').innerHTML = '<p><strong>Step 3:</strong> Wait for confirmation beeps, then click DONE.</p>';
-  document.getElementById('calBtns').innerHTML = '<button class="btn btn-sm btn-green" onclick="calDone()">DONE</button>' +
-    '<button class="btn btn-sm btn-dark" onclick="calCancel()">Cancel</button>';
-}
-
-function calDone() {
-  document.getElementById('calPanel').style.display = 'none';
-}
-
-function calCancel() {
-  fetch('/api/calibrate', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({step: 'cancel'})
-  });
-  document.getElementById('calPanel').style.display = 'none';
 }
 
 /* ========== Polling ========== */
@@ -420,24 +369,33 @@ function poll() {
     document.getElementById('rpmText').textContent = d.rpm;
     var needleAngle = (angle % 360);
     document.getElementById('needle').style.transform = 'rotate(' + needleAngle + 'deg)';
-    /* Arm state */
-    updateArmUI(d.armed, d.arming);
+    /* Enabled state */
+    updateArmUI(d.enabled);
     /* Status */
-    document.getElementById('armedStatus').textContent = d.armed ? 'YES' : 'NO';
-    document.getElementById('armedStatus').style.color = d.armed ? '#22c55e' : '#ef4444';
-    document.getElementById('targetStatus').textContent = d.target.toFixed(1) + '%';
-    document.getElementById('throttleStatus').textContent = d.throttle.toFixed(1) + '%';
-    var pw = d.reverse ? (1000 - Math.round(d.throttle) * 10) : (1000 + Math.round(d.throttle) * 10);
-    document.getElementById('pwmStatus').textContent = pw + ' us';
-    document.getElementById('dirStatus').textContent = d.reverse ? 'REV' : 'FWD';
-    document.getElementById('dirStatus').style.color = d.reverse ? '#f59e0b' : '#22c55e';
+    var enabled = d.enabled || false;
+    document.getElementById('enabledStatus').textContent = enabled ? 'YES' : 'NO';
+    document.getElementById('enabledStatus').style.color = enabled ? '#22c55e' : '#ef4444';
+    var target = d.target != null ? d.target : 0;
+    var vel = d.velocity != null ? d.velocity : 0;
+    document.getElementById('targetStatus').textContent = target.toFixed(2) + ' rad/s';
+    document.getElementById('velocityStatus').textContent = vel.toFixed(2) + ' rad/s';
     document.getElementById('maceRpm').textContent = d.rpm;
-    var sat = d.rpm >= 600;
-    document.getElementById('maceSat').textContent = sat ? 'YES' : 'NO';
-    document.getElementById('maceSat').style.color = sat ? '#ef4444' : '#22c55e';
-    /* Throttle bars */
-    document.getElementById('targetBar').style.width = d.target + '%';
-    document.getElementById('currentBar').style.width = d.throttle + '%';
+    /* Velocity bars: center=50%, map -20..+20 rad/s to 0..100% */
+    var MAX_VEL = 20.0;
+    var targetPct = Math.abs(target) / MAX_VEL * 50;
+    var velPct = Math.abs(vel) / MAX_VEL * 50;
+    var targetBar = document.getElementById('targetBar');
+    var currentBar = document.getElementById('currentBar');
+    if (target >= 0) {
+      targetBar.style.left = '50%'; targetBar.style.width = targetPct + '%';
+    } else {
+      targetBar.style.left = (50 - targetPct) + '%'; targetBar.style.width = targetPct + '%';
+    }
+    if (vel >= 0) {
+      currentBar.style.left = '50%'; currentBar.style.width = velPct + '%';
+    } else {
+      currentBar.style.left = (50 - velPct) + '%'; currentBar.style.width = velPct + '%';
+    }
     /* Motor error */
     var errDiv = document.getElementById('motorError');
     if (d.motor_error) {
