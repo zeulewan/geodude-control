@@ -11,10 +11,9 @@ GEODUDE_URL = "http://192.168.4.166:5000"
 ATTITUDE_URL = "http://192.168.4.166:5001"
 GIMBAL_URL = "http://192.168.4.222"
 WATCHDOG_TIMEOUT = 3  # seconds — auto-stop if no frontend heartbeat
-RAMP_HZ = 20  # ramp loop tick rate
 
 # PCA9685 channel mapping (pin - 1 = 0-indexed)
-# MACE is no longer on PCA9685 — it is driven by the Pico via SimpleFOC
+# MACE reaction wheel is no longer on PCA9685 — it is driven by Pi Pico via SimpleFOC
 CHANNELS = {
     "B1":   15,
     "S1":   14,
@@ -29,18 +28,21 @@ CHANNELS = {
 }
 
 # SimpleFOC velocity limits (rad/s)
-MAX_VELOCITY = 20.0   # max absolute velocity to send to Pico
+MAX_VELOCITY = 20.0
+
+mace = {
+    "enabled": False,
+    "target": 0.0,      # target velocity rad/s
+    "velocity": 0.0,    # current velocity rad/s (reported by Pico)
+    "connected": False, # Pico USB serial connected
+    "error": None,
+}
 
 state = {
-    "enabled": False,      # motor enabled (SimpleFOC, no ESC arming needed)
-    "velocity": 0.0,       # current velocity (rad/s, ramped)
-    "target": 0.0,         # target velocity (rad/s)
-    "ramp_rate": 1.0,      # rad/s per second — how fast velocity ramps toward target
     "gyro": {"x": 0, "y": 0, "z": 0},
     "accel": {"x": 0, "y": 0, "z": 0},
     "encoder_angle": 0,
     "connected": False,
-    "motor_error": None,
     "rpm": 0,
 }
 
@@ -106,11 +108,11 @@ def send_velocity(velocity):
         )
         urllib.request.urlopen(req, timeout=3)
         with lock:
-            state["motor_error"] = None
+            mace["error"] = None
         return True
     except Exception as e:
         with lock:
-            state["motor_error"] = str(e)
+            mace["error"] = str(e)
         return False
 
 
@@ -138,44 +140,19 @@ def send_all_off():
         return False
 
 
-def ramp_loop():
-    """Server-side ramp: smoothly moves velocity toward target at ramp_rate rad/s/s."""
-    last_velocity = None
-    while True:
-        time.sleep(1.0 / RAMP_HZ)
-        with lock:
-            if not state["enabled"]:
-                velocity = 0.0
-            else:
-                target = state["target"]
-                current = state["velocity"]
-                step = state["ramp_rate"] / RAMP_HZ
-                diff = target - current
-                if abs(diff) <= step:
-                    state["velocity"] = target
-                elif diff > 0:
-                    state["velocity"] = current + step
-                else:
-                    state["velocity"] = current - step
-                velocity = state["velocity"]
-        if velocity != last_velocity:
-            send_velocity(velocity)
-            last_velocity = velocity
-
-
 def watchdog_loop():
     """Auto-stop motor if no frontend heartbeat within timeout."""
     while True:
         time.sleep(1)
         with lock:
-            enabled = state["enabled"]
-            velocity = state["velocity"]
-        if enabled and velocity != 0.0:
+            enabled = mace["enabled"]
+            target = mace["target"]
+        if enabled and target != 0.0:
             if time.monotonic() - last_heartbeat > WATCHDOG_TIMEOUT:
                 with lock:
-                    state["velocity"] = 0.0
-                    state["target"] = 0.0
-                    state["enabled"] = False
+                    mace["target"] = 0.0
+                    mace["velocity"] = 0.0
+                    mace["enabled"] = False
                 send_velocity(0.0)
 
 
@@ -193,6 +170,18 @@ def sensor_loop():
         except Exception:
             with lock:
                 state["connected"] = False
+        # Poll SimpleFOC status from GEO-DUDe (Pico connection + current target)
+        try:
+            resp = urllib.request.urlopen(f"{GEODUDE_URL}/simplefoc/status", timeout=2)
+            sfoc = json.loads(resp.read().decode())
+            with lock:
+                mace["connected"] = sfoc.get("connected", False)
+                t = sfoc.get("target")
+                if t is not None:
+                    mace["velocity"] = round(float(t), 4)
+        except Exception:
+            with lock:
+                mace["connected"] = False
         time.sleep(0.1)
 
 
@@ -210,45 +199,56 @@ def sensors():
         return jsonify(state)
 
 
-@app.route('/api/config', methods=['POST'])
-def config():
-    data = request.json
+@app.route('/api/mace/status')
+def mace_status():
+    """Return current MACE state."""
     with lock:
-        if "ramp_rate" in data:
-            # ramp_rate now in rad/s per second (0.1 - 100)
-            state["ramp_rate"] = max(0.1, min(100.0, float(data["ramp_rate"])))
-    return jsonify({"ok": True})
+        return jsonify(dict(mace))
 
 
-@app.route('/api/arm', methods=['POST'])
-def arm():
-    """Enable/disable the SimpleFOC motor. No ESC arming sequence needed."""
+@app.route('/api/mace/enable', methods=['POST'])
+def mace_enable():
+    """Enable the reaction wheel motor."""
     with lock:
-        if not state["enabled"]:
-            state["enabled"] = True
-        else:
-            state["enabled"] = False
-            state["velocity"] = 0.0
-            state["target"] = 0.0
-    if not state["enabled"]:
-        send_velocity(0.0)
-    return jsonify({"enabled": state["enabled"]})
+        mace["enabled"] = True
+        mace["error"] = None
+    return jsonify({"ok": True, "enabled": True})
 
 
-@app.route('/api/velocity', methods=['POST'])
-def velocity():
-    """Set target velocity in rad/s. Positive = forward, negative = reverse, 0 = stop."""
+@app.route('/api/mace/disable', methods=['POST'])
+def mace_disable():
+    """Disable the reaction wheel motor and stop it."""
+    with lock:
+        mace["enabled"] = False
+        mace["target"] = 0.0
+        mace["velocity"] = 0.0
+    send_velocity(0.0)
+    return jsonify({"ok": True, "enabled": False})
+
+
+@app.route('/api/mace/velocity', methods=['POST'])
+def mace_velocity():
+    """Set target velocity in rad/s. Only works if motor is enabled."""
     global last_heartbeat
     last_heartbeat = time.monotonic()
     data = request.json
     v = max(-MAX_VELOCITY, min(MAX_VELOCITY, float(data.get("target", 0))))
     with lock:
-        if not state["enabled"]:
+        if not mace["enabled"]:
             return jsonify({"ok": False, "reason": "not enabled"})
-        state["target"] = v
-        # If releasing to zero, snap velocity to 0 immediately (let ramp send it)
-        if v == 0.0:
-            state["velocity"] = 0.0
+        mace["target"] = v
+    ok = send_velocity(v)
+    return jsonify({"ok": ok})
+
+
+@app.route('/api/mace/stop', methods=['POST'])
+def mace_stop():
+    """Immediate stop: send velocity 0 and disable motor."""
+    with lock:
+        mace["target"] = 0.0
+        mace["velocity"] = 0.0
+        mace["enabled"] = False
+    send_velocity(0.0)
     return jsonify({"ok": True})
 
 
@@ -294,16 +294,6 @@ def all_off():
     """Turn all PCA9685 channels off."""
     ok = send_all_off()
     return jsonify({"ok": ok})
-
-
-@app.route('/api/brake', methods=['POST'])
-def brake():
-    """Stop the wheel: send T0 to Pico, stay enabled."""
-    with lock:
-        state["velocity"] = 0.0
-        state["target"] = 0.0
-    send_velocity(0.0)
-    return jsonify({"ok": True})
 
 
 @app.route('/api/system')
@@ -361,32 +351,6 @@ def camera():
         return app.response_class(generate(), mimetype=resp.headers.get('Content-Type', 'multipart/x-mixed-replace; boundary=frame'))
     except Exception as e:
         return jsonify({"error": str(e)}), 502
-
-
-@app.route('/api/simplefoc', methods=['POST'])
-def simplefoc_proxy():
-    """Proxy a raw SimpleFOC command to GEO-DUDe."""
-    data = request.json
-    try:
-        req = urllib.request.Request(
-            f"{GEODUDE_URL}/simplefoc",
-            data=json.dumps(data).encode(),
-            headers={"Content-Type": "application/json"},
-        )
-        resp = urllib.request.urlopen(req, timeout=3)
-        return jsonify(json.loads(resp.read().decode()))
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 502
-
-
-@app.route('/api/stop', methods=['POST'])
-def stop():
-    with lock:
-        state["velocity"] = 0.0
-        state["target"] = 0.0
-        state["enabled"] = False
-    send_velocity(0.0)
-    return jsonify({"ok": True})
 
 
 # --- Attitude controller proxy ---
@@ -617,7 +581,6 @@ def restore_positions_loop():
 
 if __name__ == '__main__':
     threading.Thread(target=sensor_loop, daemon=True).start()
-    threading.Thread(target=ramp_loop, daemon=True).start()
     threading.Thread(target=watchdog_loop, daemon=True).start()
     threading.Thread(target=positions_flush_loop, daemon=True).start()
     threading.Thread(target=restore_positions_loop, daemon=True).start()

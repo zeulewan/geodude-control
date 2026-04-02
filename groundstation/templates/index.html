@@ -121,69 +121,49 @@
       <h3>MACE Status</h3>
       <div class="status-grid">
         <div class="status-row"><span class="label">Pico USB</span><span class="value" id="picoConnected">--</span></div>
-        <div class="status-row"><span class="label">Enabled</span><span class="value" id="enabledStatus">NO</span></div>
-        <div class="status-row"><span class="label">Target</span><span class="value" id="targetStatus">0.0 rad/s</span></div>
-        <div class="status-row"><span class="label">Velocity</span><span class="value" id="velocityStatus">0.0 rad/s</span></div>
+        <div class="status-row"><span class="label">Enabled</span><span class="value" id="maceEnabled">NO</span></div>
+        <div class="status-row"><span class="label">Target</span><span class="value" id="maceTarget">0.0 rad/s</span></div>
+        <div class="status-row"><span class="label">Velocity</span><span class="value" id="maceVelocity">0.0 rad/s</span></div>
         <div class="status-row"><span class="label">Wheel RPM</span><span class="value" id="maceRpm">0</span></div>
       </div>
-      <div id="motorError"></div>
+      <div id="maceError"></div>
     </div>
   </div>
 </div>
 
 <!-- MACE Reaction Wheel (full width) -->
-<div class="card mace-card">
-  <h3>MACE Reaction Wheel <span class="mace-subtitle">(SimpleFOC / Pi Pico)</span></h3>
+<div class="card">
+  <h3>MACE Reaction Wheel</h3>
 
-  <div class="mace-sliders">
-    <div class="slider-group">
-      <div class="slider-label">
-        <span class="label">Target Velocity</span>
-        <span class="value" id="velSliderVal">0.0 rad/s</span>
-      </div>
-      <input type="range" id="velSlider" min="-20" max="20" step="0.5" value="0"
-             oninput="updateVelSliderLabel(this.value)">
-      <div class="slider-scale"><span>-20 rad/s</span><span>0</span><span>+20 rad/s</span></div>
+  <div class="slider-group">
+    <div class="slider-label">
+      <span class="label">Target Velocity</span>
+      <span class="value" id="velSliderVal">0.0 rad/s</span>
     </div>
+    <input type="range" id="velSlider" min="-20" max="20" step="0.5" value="0"
+           oninput="maceUpdateSliderLabel(this.value)">
+    <div class="slider-scale"><span>-20 rad/s</span><span>0</span><span>+20 rad/s</span></div>
+  </div>
 
-    <div class="slider-group">
-      <div class="slider-label">
-        <span class="label">Ramp Rate</span>
-        <span class="value" id="rampVal">5.0 rad/s/s</span>
-      </div>
-      <input type="range" id="rampRate" min="0.1" max="20" step="0.1" value="5.0"
-             oninput="updateRampLabel(this.value); sendRampRate(this.value)">
-      <div class="slider-scale"><span>0.1</span><span>10</span><span>20 rad/s/s</span></div>
+  <div style="margin-top:14px;">
+    <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Quick Presets (rad/s)</div>
+    <div class="btn-row">
+      <button class="btn btn-sm btn-dark" onclick="maceSetPreset(-10)">-10</button>
+      <button class="btn btn-sm btn-dark" onclick="maceSetPreset(-5)">-5</button>
+      <button class="btn btn-sm btn-dark" onclick="maceSetPreset(-2)">-2</button>
+      <button class="btn btn-sm btn-dark" onclick="maceSetPreset(-1)">-1</button>
+      <button class="btn btn-sm btn-dark" onclick="maceSetPreset(0)">0</button>
+      <button class="btn btn-sm" onclick="maceSetPreset(1)">+1</button>
+      <button class="btn btn-sm" onclick="maceSetPreset(2)">+2</button>
+      <button class="btn btn-sm" onclick="maceSetPreset(5)">+5</button>
+      <button class="btn btn-sm" onclick="maceSetPreset(10)">+10</button>
     </div>
   </div>
 
-  <div class="vel-bar-wrap">
-    <div class="vel-bar-center"></div>
-    <div id="targetBar"></div>
-    <div id="currentBar"></div>
-    <div class="vel-bar-labels">
-      <span>-20</span><span>-10</span><span>0</span><span>+10</span><span>+20</span>
-    </div>
-  </div>
-
-  <div class="mace-presets" style="margin-top:22px;">
-    <div class="mace-presets-label">Quick Presets (rad/s)</div>
-    <div class="btn-row mace-preset-btns">
-      <button class="btn btn-sm btn-dark" onclick="setVelocityPreset(-10)">-10</button>
-      <button class="btn btn-sm btn-dark" onclick="setVelocityPreset(-5)">-5</button>
-      <button class="btn btn-sm btn-dark" onclick="setVelocityPreset(-2)">-2</button>
-      <button class="btn btn-sm btn-dark" onclick="setVelocityPreset(-1)">-1</button>
-      <button class="btn btn-sm" onclick="setVelocityPreset(1)">+1</button>
-      <button class="btn btn-sm" onclick="setVelocityPreset(2)">+2</button>
-      <button class="btn btn-sm" onclick="setVelocityPreset(5)">+5</button>
-      <button class="btn btn-sm" onclick="setVelocityPreset(10)">+10</button>
-    </div>
-  </div>
-
-  <div class="btn-row mace-action-btns">
-    <button class="btn btn-green" id="armBtn" onclick="toggleArm()">ENABLE</button>
-    <button class="btn disabled" id="setVelBtn" onclick="setVelocityFromSlider()">SET VELOCITY</button>
-    <button class="btn btn-amber" onclick="brake()">STOP</button>
+  <div class="btn-row" style="margin-top:14px;">
+    <button class="btn btn-green" id="maceToggleBtn" onclick="maceToggle()">ENABLE</button>
+    <button class="btn disabled" id="maceSetVelBtn" onclick="maceSetVelocity(parseFloat(document.getElementById('velSlider').value))">SET VELOCITY</button>
+    <button class="btn btn-red" onclick="maceStop()">STOP</button>
   </div>
 </div>
 

@@ -16,10 +16,10 @@ function takeSnapshot() {
 var CHANNELS = {
   "W2B": {ch: 0, pin: 1}, "W2A": {ch: 1, pin: 2}, "W1B": {ch: 2, pin: 3},
   "W1A": {ch: 3, pin: 4}, "E2": {ch: 4, pin: 5}, "E1": {ch: 6, pin: 7},
-  "MACE": {ch: 11, pin: 12}, "S2": {ch: 12, pin: 13}, "B2": {ch: 13, pin: 14},
+  "S2": {ch: 12, pin: 13}, "B2": {ch: 13, pin: 14},
   "S1": {ch: 14, pin: 15}, "B1": {ch: 15, pin: 16}
 };
-var chOrder = ["B1","B2","S1","S2","E1","E2","W1A","W2A","W1B","W2B","MACE"];
+var chOrder = ["B1","B2","S1","S2","E1","E2","W1A","W2A","W1B","W2B"];
 var CH_RAMP_HZ = 30;
 var chActual = {};  // actual PWM value sent to hardware per channel
 
@@ -110,13 +110,12 @@ function chSetNeutral(name) {
 
 function allChannelsNeutral() {
   chOrder.forEach(function(name) {
-    if (name !== 'MACE') chGoNeutral(name);
+    chGoNeutral(name);
   });
 }
 
 function startupNeutral() {
   chOrder.forEach(function(name) {
-    if (name === 'MACE') return;
     var pw = getNeutral(name);
     chActual[name] = pw;
     chVelocity[name] = 0;
@@ -145,7 +144,6 @@ var chVelocity = {};  // current velocity per channel (us/tick, signed)
 function servoSyncPoll() {
   fetch('/api/servo_positions').then(function(r) { return r.json(); }).then(function(positions) {
     chOrder.forEach(function(name) {
-      if (name === 'MACE') return;
       if (positions[name] == null) return;
       var serverPw = positions[name];
       var slider = document.getElementById('ch_' + name);
@@ -175,7 +173,6 @@ function startServoRampLoop() {
     var maxSpeed = getServoSpeed();
     var accel = getServoRampRate();
     chOrder.forEach(function(name) {
-      if (name === 'MACE') return;
       var slider = document.getElementById('ch_' + name);
       if (!slider) return;
       var target = parseInt(slider.value);
@@ -245,7 +242,6 @@ function preventSliderJump(slider) {
   h2.textContent = 'Arm 2';
   grid.appendChild(h2);
   chOrder.forEach(function(name) {
-    if (name === 'MACE') return;
     var item = document.createElement('div');
     item.className = 'ch-item';
     var neutralVal = getNeutral(name);
@@ -269,72 +265,105 @@ function preventSliderJump(slider) {
   });
 })();
 
-/* ========== MACE Controls (SimpleFOC velocity) ========== */
+/* ========== MACE Controls (SimpleFOC / Pi Pico) ========== */
 
-function updateVelSliderLabel(val) {
+var _maceEnabled = false;
+
+function maceUpdateSliderLabel(val) {
   val = parseFloat(val);
   document.getElementById('velSliderVal').textContent = val.toFixed(1) + ' rad/s';
 }
 
-function updateRampLabel(val) {
-  val = parseFloat(val);
-  document.getElementById('rampVal').textContent = val.toFixed(1) + ' rad/s/s';
+function maceEnable() {
+  fetch('/api/mace/enable', {method: 'POST'})
+    .then(function(r) { return r.json(); })
+    .then(function(d) { _maceUpdateUI(d.enabled); });
 }
 
-function sendRampRate(val) {
-  fetch('/api/config', {
+function maceDisable() {
+  fetch('/api/mace/disable', {method: 'POST'})
+    .then(function(r) { return r.json(); })
+    .then(function(d) { _maceUpdateUI(d.enabled); });
+}
+
+function maceSetVelocity(v) {
+  v = parseFloat(v) || 0;
+  fetch('/api/mace/velocity', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ramp_rate: parseFloat(val)})
+    body: JSON.stringify({target: v})
   });
 }
 
-function setVelocityPreset(v) {
+function maceStop() {
+  fetch('/api/mace/stop', {method: 'POST'});
+}
+
+function maceSetPreset(v) {
   var slider = document.getElementById('velSlider');
-  if (slider) { slider.value = v; updateVelSliderLabel(v); }
-  sendVelocity(v);
+  if (slider) { slider.value = v; maceUpdateSliderLabel(v); }
+  maceSetVelocity(v);
 }
 
-function sendVelocity(v) {
-  fetch('/api/velocity', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({target: parseFloat(v)})
-  });
+function macePoll() {
+  fetch('/api/mace/status').then(function(r) { return r.json(); }).then(function(d) {
+    _maceEnabled = d.enabled || false;
+    _maceUpdateUI(_maceEnabled);
+    var picoEl = document.getElementById('picoConnected');
+    if (picoEl) {
+      picoEl.textContent = d.connected ? 'CONNECTED' : 'DISCONNECTED';
+      picoEl.style.color = d.connected ? '#22c55e' : '#ef4444';
+    }
+    var enEl = document.getElementById('maceEnabled');
+    if (enEl) {
+      enEl.textContent = d.enabled ? 'YES' : 'NO';
+      enEl.style.color = d.enabled ? '#22c55e' : '#ef4444';
+    }
+    var tgt = d.target != null ? d.target : 0;
+    var vel = d.velocity != null ? d.velocity : 0;
+    var tEl = document.getElementById('maceTarget');
+    if (tEl) tEl.textContent = tgt.toFixed(2) + ' rad/s';
+    var vEl = document.getElementById('maceVelocity');
+    if (vEl) vEl.textContent = vel.toFixed(2) + ' rad/s';
+    // Wheel RPM: velocity in rad/s * 60 / (2*pi) = RPM
+    var rpm = Math.round(vel * 60 / (2 * Math.PI));
+    var rpmEl = document.getElementById('maceRpm');
+    if (rpmEl) rpmEl.textContent = rpm;
+    var errEl = document.getElementById('maceError');
+    if (errEl) {
+      if (d.error) {
+        errEl.textContent = d.error;
+        errEl.style.display = 'block';
+      } else {
+        errEl.textContent = '';
+        errEl.style.display = 'none';
+      }
+    }
+  }).catch(function() {});
 }
 
-function setVelocityFromSlider() {
-  var v = parseFloat(document.getElementById('velSlider').value) || 0;
-  sendVelocity(v);
-}
-
-function toggleArm() {
-  fetch('/api/arm', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'}
-  }).then(function(r) { return r.json(); }).then(function(d) {
-    updateArmUI(d.enabled);
-  });
-}
-
-function brake() {
-  fetch('/api/brake', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'}
-  });
-}
-
-function updateArmUI(enabled) {
-  var armBtn = document.getElementById('armBtn');
-  var setBtn = document.getElementById('setVelBtn');
-  if (enabled) {
-    armBtn.textContent = 'DISABLE';
-    armBtn.className = 'btn btn-red';
-    if (setBtn) setBtn.classList.remove('disabled');
+function maceToggle() {
+  if (_maceEnabled) {
+    maceDisable();
   } else {
-    armBtn.textContent = 'ENABLE';
-    armBtn.className = 'btn btn-green';
-    if (setBtn) setBtn.classList.add('disabled');
+    maceEnable();
+  }
+}
+
+function _maceUpdateUI(enabled) {
+  _maceEnabled = enabled;
+  var btn = document.getElementById('maceToggleBtn');
+  var setBtn = document.getElementById('maceSetVelBtn');
+  if (btn) {
+    btn.textContent = enabled ? 'DISABLE' : 'ENABLE';
+    btn.className = enabled ? 'btn btn-red' : 'btn btn-green';
+  }
+  if (setBtn) {
+    if (enabled) {
+      setBtn.classList.remove('disabled');
+    } else {
+      setBtn.classList.add('disabled');
+    }
   }
 }
 
@@ -355,53 +384,8 @@ function poll() {
     document.getElementById('rpmText').textContent = d.rpm;
     var needleAngle = (angle % 360);
     document.getElementById('needle').style.transform = 'rotate(' + needleAngle + 'deg)';
-    /* Enabled state */
-    updateArmUI(d.enabled);
-    /* Status */
-    var enabled = d.enabled || false;
+    /* GEO-DUDe connection dot */
     var connected = d.connected || false;
-    document.getElementById('enabledStatus').textContent = enabled ? 'YES' : 'NO';
-    document.getElementById('enabledStatus').style.color = enabled ? '#22c55e' : '#ef4444';
-    var picoEl = document.getElementById('picoConnected');
-    if (picoEl) {
-      picoEl.textContent = connected ? 'CONNECTED' : 'DISCONNECTED';
-      picoEl.style.color = connected ? '#22c55e' : '#ef4444';
-    }
-    var target = d.target != null ? d.target : 0;
-    var vel = d.velocity != null ? d.velocity : 0;
-    document.getElementById('targetStatus').textContent = target.toFixed(2) + ' rad/s';
-    document.getElementById('velocityStatus').textContent = vel.toFixed(2) + ' rad/s';
-    document.getElementById('maceRpm').textContent = d.rpm;
-    /* Velocity bars: bidirectional, center = 50%, range -20..+20 rad/s */
-    var MAX_VEL = 20.0;
-    var targetPct = Math.min(Math.abs(target) / MAX_VEL * 50, 50);
-    var velPct = Math.min(Math.abs(vel) / MAX_VEL * 50, 50);
-    var targetBar = document.getElementById('targetBar');
-    var currentBar = document.getElementById('currentBar');
-    if (target >= 0) {
-      targetBar.style.left = '50%';
-      targetBar.style.width = targetPct + '%';
-    } else {
-      targetBar.style.left = (50 - targetPct) + '%';
-      targetBar.style.width = targetPct + '%';
-    }
-    if (vel >= 0) {
-      currentBar.style.left = '50%';
-      currentBar.style.width = velPct + '%';
-    } else {
-      currentBar.style.left = (50 - velPct) + '%';
-      currentBar.style.width = velPct + '%';
-    }
-    /* Motor error */
-    var errDiv = document.getElementById('motorError');
-    if (d.motor_error) {
-      errDiv.textContent = d.motor_error;
-      errDiv.style.display = 'block';
-    } else {
-      errDiv.textContent = '';
-      errDiv.style.display = 'none';
-    }
-    /* Connection dot */
     var dot = document.getElementById('statusDot');
     if (connected) {
       dot.className = 'status-dot ok';
@@ -949,7 +933,6 @@ function seqRun() {
   fetch('/api/servo_neutral').then(function(r) { return r.json(); }).then(function(neutrals) {
     chNeutral = neutrals;
     chOrder.forEach(function(name) {
-      if (name === 'MACE') return;
       var label = document.getElementById('chn_' + name);
       if (label) label.textContent = getNeutral(name) + ' us';
     });
@@ -958,7 +941,6 @@ function seqRun() {
   /* Fetch last-known servo positions from server, fallback to neutral */
   fetch('/api/servo_positions').then(function(r) { return r.json(); }).then(function(positions) {
     chOrder.forEach(function(name) {
-      if (name === 'MACE') return;
       var pw = positions[name] != null ? positions[name] : getNeutral(name);
       chActual[name] = pw;
       var slider = document.getElementById('ch_' + name);
@@ -968,7 +950,6 @@ function seqRun() {
   }).catch(function() {
     /* Server unreachable — default to neutral, do NOT send PWM */
     chOrder.forEach(function(name) {
-      if (name === 'MACE') return;
       chActual[name] = getNeutral(name);
     });
   });
@@ -981,12 +962,14 @@ function seqRun() {
 
   /* Start polling */
   setInterval(poll, 100);
+  setInterval(macePoll, 250);
   setInterval(attPoll, 500);
   setInterval(sysPoll, 2000);
   setInterval(gimbalPoll, 1000);
   setInterval(servoSyncPoll, 500);
 
   /* Immediate calls */
+  macePoll();
   sysPoll();
   gimbalPoll();
 })();
