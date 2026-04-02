@@ -244,31 +244,7 @@ body {
   margin-top: 8px;
 }
 
-/* Hold button */
-.btn-hold {
-  width: 100%;
-  padding: 10px;
-  font-size: 14px;
-  letter-spacing: 2px;
-  background: #1e293b;
-  color: #6b7280;
-  border: 2px solid #1e2433;
-  margin-top: 10px;
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: none;
-}
-.btn-hold.armed {
-  background: #1e3a5f;
-  color: #3b82f6;
-  border-color: #3b82f6;
-}
-.btn-hold.armed:hover { background: #1e4a7f; }
-.btn-hold.active-spin {
-  background: #3b82f6;
-  color: #fff;
-  border-color: #60a5fa;
-}
+/* (hold-button styles removed — replaced by SET VELOCITY + STOP pattern) */
 
 /* Sliders */
 input[type="range"] {
@@ -313,33 +289,94 @@ input[type="range"]::-moz-range-thumb {
   color: #e0e6f0;
 }
 
-/* Throttle bar */
-.throttle-bar-bg {
+/* MACE card layout */
+.mace-subtitle {
+  font-size: 12px;
+  font-weight: 400;
+  color: #6b7280;
+}
+.mace-sliders {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+@media (max-width: 600px) {
+  .mace-sliders { grid-template-columns: 1fr; }
+}
+.slider-scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #6b7280;
+  margin-top: 2px;
+}
+.mace-presets {
+  margin-bottom: 10px;
+}
+.mace-presets-label {
+  font-size: 11px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+.mace-preset-btns {
+  margin-top: 0;
+}
+.mace-action-btns {
+  margin-top: 4px;
+}
+
+/* Velocity bar (bidirectional, center = 0, range -20..+20) */
+.vel-bar-wrap {
+  position: relative;
   width: 100%;
-  height: 24px;
+  height: 28px;
   background: #1e293b;
   border-radius: 6px;
-  position: relative;
-  overflow: hidden;
-  margin: 12px 0;
+  overflow: visible;
+  margin: 10px 0 6px;
+}
+.vel-bar-center {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 2px;
+  height: 100%;
+  background: #374151;
+  transform: translateX(-50%);
+  border-radius: 1px;
+  z-index: 3;
 }
 #targetBar {
   position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
-  background: rgba(59, 130, 246, 0.25);
-  border-radius: 6px;
-  transition: width 0.1s;
+  top: 3px;
+  height: calc(100% - 6px);
+  background: rgba(59, 130, 246, 0.30);
+  border-radius: 3px;
+  transition: left 0.1s, width 0.1s;
+  z-index: 1;
 }
 #currentBar {
   position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
+  top: 3px;
+  height: calc(100% - 6px);
   background: #3b82f6;
-  border-radius: 6px;
-  transition: width 0.15s;
+  border-radius: 3px;
+  transition: left 0.15s, width 0.15s;
+  z-index: 2;
+}
+.vel-bar-labels {
+  position: absolute;
+  bottom: -16px;
+  left: 0;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #4b5563;
+  pointer-events: none;
 }
 
 /* Calibration panel */

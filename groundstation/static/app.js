@@ -270,7 +270,6 @@ function preventSliderJump(slider) {
 })();
 
 /* ========== MACE Controls (SimpleFOC velocity) ========== */
-var isHolding = false;
 
 function updateVelSliderLabel(val) {
   val = parseFloat(val);
@@ -293,31 +292,20 @@ function sendRampRate(val) {
 function setVelocityPreset(v) {
   var slider = document.getElementById('velSlider');
   if (slider) { slider.value = v; updateVelSliderLabel(v); }
+  sendVelocity(v);
 }
 
-function holdStart(e) {
-  if (e && e.preventDefault) e.preventDefault();
-  isHolding = true;
+function sendVelocity(v) {
+  fetch('/api/velocity', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({target: parseFloat(v)})
+  });
+}
+
+function setVelocityFromSlider() {
   var v = parseFloat(document.getElementById('velSlider').value) || 0;
-  var btn = document.getElementById('holdBtn');
-  btn.classList.add('active-spin');
-  fetch('/api/velocity', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({target: v})
-  });
-}
-
-function holdStop() {
-  if (!isHolding) return;
-  isHolding = false;
-  var btn = document.getElementById('holdBtn');
-  btn.classList.remove('active-spin');
-  fetch('/api/velocity', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({target: 0})
-  });
+  sendVelocity(v);
 }
 
 function toggleArm() {
@@ -338,17 +326,15 @@ function brake() {
 
 function updateArmUI(enabled) {
   var armBtn = document.getElementById('armBtn');
-  var holdBtn = document.getElementById('holdBtn');
+  var setBtn = document.getElementById('setVelBtn');
   if (enabled) {
     armBtn.textContent = 'DISABLE';
     armBtn.className = 'btn btn-red';
-    holdBtn.classList.remove('disabled');
-    holdBtn.classList.add('armed');
+    if (setBtn) setBtn.classList.remove('disabled');
   } else {
     armBtn.textContent = 'ENABLE';
     armBtn.className = 'btn btn-green';
-    holdBtn.classList.add('disabled');
-    holdBtn.classList.remove('armed');
+    if (setBtn) setBtn.classList.add('disabled');
   }
 }
 
@@ -373,28 +359,38 @@ function poll() {
     updateArmUI(d.enabled);
     /* Status */
     var enabled = d.enabled || false;
+    var connected = d.connected || false;
     document.getElementById('enabledStatus').textContent = enabled ? 'YES' : 'NO';
     document.getElementById('enabledStatus').style.color = enabled ? '#22c55e' : '#ef4444';
+    var picoEl = document.getElementById('picoConnected');
+    if (picoEl) {
+      picoEl.textContent = connected ? 'CONNECTED' : 'DISCONNECTED';
+      picoEl.style.color = connected ? '#22c55e' : '#ef4444';
+    }
     var target = d.target != null ? d.target : 0;
     var vel = d.velocity != null ? d.velocity : 0;
     document.getElementById('targetStatus').textContent = target.toFixed(2) + ' rad/s';
     document.getElementById('velocityStatus').textContent = vel.toFixed(2) + ' rad/s';
     document.getElementById('maceRpm').textContent = d.rpm;
-    /* Velocity bars: center=50%, map -20..+20 rad/s to 0..100% */
+    /* Velocity bars: bidirectional, center = 50%, range -20..+20 rad/s */
     var MAX_VEL = 20.0;
-    var targetPct = Math.abs(target) / MAX_VEL * 50;
-    var velPct = Math.abs(vel) / MAX_VEL * 50;
+    var targetPct = Math.min(Math.abs(target) / MAX_VEL * 50, 50);
+    var velPct = Math.min(Math.abs(vel) / MAX_VEL * 50, 50);
     var targetBar = document.getElementById('targetBar');
     var currentBar = document.getElementById('currentBar');
     if (target >= 0) {
-      targetBar.style.left = '50%'; targetBar.style.width = targetPct + '%';
+      targetBar.style.left = '50%';
+      targetBar.style.width = targetPct + '%';
     } else {
-      targetBar.style.left = (50 - targetPct) + '%'; targetBar.style.width = targetPct + '%';
+      targetBar.style.left = (50 - targetPct) + '%';
+      targetBar.style.width = targetPct + '%';
     }
     if (vel >= 0) {
-      currentBar.style.left = '50%'; currentBar.style.width = velPct + '%';
+      currentBar.style.left = '50%';
+      currentBar.style.width = velPct + '%';
     } else {
-      currentBar.style.left = (50 - velPct) + '%'; currentBar.style.width = velPct + '%';
+      currentBar.style.left = (50 - velPct) + '%';
+      currentBar.style.width = velPct + '%';
     }
     /* Motor error */
     var errDiv = document.getElementById('motorError');
@@ -407,7 +403,7 @@ function poll() {
     }
     /* Connection dot */
     var dot = document.getElementById('statusDot');
-    if (d.connected) {
+    if (connected) {
       dot.className = 'status-dot ok';
     } else {
       dot.className = 'status-dot';
