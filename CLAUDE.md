@@ -146,6 +146,25 @@ sudo cp firmware.uf2 /mnt/pico/ && sudo sync && sudo umount /mnt/pico
 
 **NEVER send motor, PWM, or actuator commands to hardware without explicit user permission.** Read-only debugging only.
 
+**NEVER copy files directly to `/opt/geodude-control/`.** Always use git merge. The deployment dir is on `main` and may have changes from other developers (mizi). Direct file copies will overwrite their work.
+
+## Deployment Rules
+
+1. **Always merge through git, never direct file copy to /opt/geodude-control/**
+2. Work in your worktree branch (e.g., `zeul-simplefoc`, `zeul-dev`)
+3. To deploy: merge your branch into `main` at `/opt/geodude-control/`
+4. Resolve conflicts properly (keep both sides where appropriate)
+5. Then restart the service: `sudo systemctl restart wheel-control`
+6. If the Pi has no internet, use git bundles to transfer branches:
+   ```bash
+   # On zmac:
+   git bundle create /tmp/branch.bundle <branch-name>
+   scp /tmp/branch.bundle zeul@192.168.50.2:/tmp/
+   # On Pi:
+   cd /opt/geodude-control && git fetch /tmp/branch.bundle <branch-name>:<branch-name>
+   git merge <branch-name>
+   ```
+
 ## Network Architecture
 
 The groundstation Pi has **no internet access**. It connects to zmac via USB Ethernet and hosts its own WiFi hotspot (`groundstation` / `Temp1234`) for the GEO-DUDe Pi and ESP32.
