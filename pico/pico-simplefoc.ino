@@ -111,8 +111,8 @@ void setup() {
   driver.voltage_limit = 12;
   driver.init();
   motor.linkDriver(&driver);
-  motor.voltage_limit = 1.5;
-  motor.velocity_limit = 20;
+  motor.voltage_limit = 2;
+  motor.velocity_limit = 300;
   motor.controller = MotionControlType::velocity;
 
   // Velocity PID
@@ -124,6 +124,7 @@ void setup() {
 
   motor.init();
   motor.initFOC();  // calibrate at startup - motor must be connected
+  motor.PID_velocity.limit = motor.voltage_limit;  // sync PID limit with voltage limit
 }
 
 void loop() {
@@ -236,7 +237,9 @@ void loop() {
     } else if (cmd.startsWith("W")) {  // D taken by disable
       motor.PID_velocity.D = cmd.substring(1).toFloat();
     } else if (cmd.startsWith("V")) {
-      motor.voltage_limit = cmd.substring(1).toFloat();
+      float v = cmd.substring(1).toFloat();
+      motor.voltage_limit = v;
+      motor.PID_velocity.limit = v;
     } else if (cmd.startsWith("L")) {
       motor.velocity_limit = cmd.substring(1).toFloat();
     } else if (cmd.startsWith("A")) {
