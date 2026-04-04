@@ -3,7 +3,7 @@
 
 BLDCMotor motor = BLDCMotor(7);
 BLDCDriver3PWM driver = BLDCDriver3PWM(10, 11, 12, 14);
-MagneticSensorI2C sensor = MagneticSensorI2C(AS5600_I2C);
+MagneticSensorAnalog sensor = MagneticSensorAnalog(26, 0, 4095);  // GP26 ADC0, 12-bit
 
 float target_velocity = 0;
 
@@ -28,18 +28,10 @@ void initI2C() {
 void readSensors() {
   if (!i2c_ok) initI2C();
 
-  // AS5600 encoder
-  Wire1.beginTransmission(0x36);
-  Wire1.write(0x0C);
-  i2c_err_enc = Wire1.endTransmission(false);
-  if (i2c_err_enc == 0) {
-    Wire1.requestFrom(0x36, 2);
-    if (Wire1.available() >= 2) {
-      int h = Wire1.read();
-      int l = Wire1.read();
-      enc_angle = ((h & 0x0F) << 8 | l) / 4096.0 * 360.0;
-    }
-  }
+  // AS5600 encoder - read from motor sensor (analog)
+  sensor.update();
+  enc_angle = sensor.getAngle() * 180.0 / PI;  // rad to deg
+  i2c_err_enc = 0;
 
   // ICM20948 accel + gyro
   Wire1.beginTransmission(0x69);
@@ -100,8 +92,9 @@ void setup() {
   }
   digitalWrite(LED_BUILTIN, HIGH);
 
-  // AS5600 encoder on I2C1
-  sensor.init(&Wire1);
+  // AS5600 encoder on analog (GP26)
+  analogReadResolution(12);
+  sensor.init();
   motor.linkSensor(&sensor);
 
   SimpleFOCDebug::enable(&Serial);
