@@ -4,10 +4,48 @@ import subprocess
 import threading
 import time
 import os
+import serial
 
 app = Flask(__name__)
 bus = smbus2.SMBus(1)
 lock = threading.Lock()
+
+# --- SimpleFOC serial (Pi Pico over USB) ---
+
+PICO_PORT = "/dev/ttyACM0"
+PICO_BAUD = 115200
+pico_serial = None
+pico_lock = threading.Lock()
+
+def get_pico():
+    """Return open serial port to Pico, opening it lazily if needed."""
+    global pico_serial
+    with pico_lock:
+        if pico_serial is None or not pico_serial.is_open:
+            try:
+                pico_serial = serial.Serial(PICO_PORT, PICO_BAUD, timeout=0.5)
+            except Exception as e:
+                print("SimpleFOC serial open error: %s" % e, flush=True)
+                pico_serial = None
+        return pico_serial
+
+def simplefoc_send(cmd):
+    """Send a raw SimpleFOC Commander command (e.g. 'T5\\n'). Returns True on success."""
+    try:
+        ser = get_pico()
+        if ser is None:
+            return False, "serial not available"
+        with pico_lock:
+            ser.write((cmd.rstrip("\n") + "\n").encode())
+        print("SimpleFOC: sent %r" % cmd.strip(), flush=True)
+        return True, None
+    except Exception as e:
+        # Reset so next call retries open
+        global pico_serial
+        with pico_lock:
+            pico_serial = None
+        print("SimpleFOC serial error: %s" % e, flush=True)
+        return False, str(e)
 
 sensor_data = {"ax":0,"ay":0,"az":0,"gx":0,"gy":0,"gz":0,"angle":0,"rpm":0}
 
@@ -19,12 +57,12 @@ PRESCALE = 0xFE
 LED0_ON_L = 0x06
 
 # Channel mapping (pin - 1 = 0-indexed)
+# MACE reaction wheel is no longer on PCA9685 — it is driven by Pi Pico via SimpleFOC
 CHANNELS = {
     "B1":   15,
     "S1":   14,
     "B2":   13,
     "S2":   12,
-    "MACE": 11,
     "E1":    6,
     "E2":    4,
     "W1A":   3,
@@ -153,28 +191,49 @@ def system_stats():
         cpu_pct = 0
     return jsonify({"temp": round(temp, 1), "cpu": cpu_pct, "load": round(load, 2)})
 
-@app.route("/motor", methods=["POST"])
-def motor():
-    """Controls MACE channel. Bidirectional: 1500=stop, 1100-1900=active."""
+@app.route("/simplefoc", methods=["POST"])
+def simplefoc():
+    """Send a velocity command to the Pico (SimpleFOC Commander protocol).
+    Body: {"velocity": 5.0}  — sets target velocity in rad/s
+       or {"command": "T5"} — sends a raw commander command
+    """
     if os.path.exists("/tmp/attitude_active"):
         return jsonify({"ok": False, "error": "attitude controller active"}), 409
     data = request.json
-    pw = int(data.get("pw", 1500))
-    pw = max(0, min(2000, pw))
-    ch = CHANNELS["MACE"]
-    if pw == 0:
-        pca_off(ch)
-        print("MOTOR: ch%d OFF" % ch, flush=True)
+    if "command" in data:
+        cmd = str(data["command"])
+    elif "velocity" in data:
+        v = float(data["velocity"])
+        cmd = "T%.4f" % v
     else:
-        pca_set_pulse_us(ch, pw)
-        # Read back register to verify
-        reg = LED0_ON_L + 4 * ch
-        with lock:
-            d = bus.read_i2c_block_data(PCA9685_ADDR, reg, 4)
-        off_val = d[2] | (d[3] << 8)
-        mode1 = bus.read_byte_data(PCA9685_ADDR, 0x00)
-        print("MOTOR: ch%d pw=%d counts=%d readback=%d MODE1=0x%02X" % (ch, pw, int(pw/20000.0*4096), off_val, mode1), flush=True)
-    return jsonify({"ok": True})
+        return jsonify({"ok": False, "error": "missing velocity or command"}), 400
+    ok, err = simplefoc_send(cmd)
+    if ok:
+        return jsonify({"ok": True, "cmd": cmd})
+    return jsonify({"ok": False, "error": err}), 502
+
+@app.route("/simplefoc/status")
+def simplefoc_status():
+    """Query current target velocity from Pico and return connection status.
+    Sends 'T\\n' (Commander read) and reads the response line.
+    """
+    ser = get_pico()
+    connected = ser is not None and ser.is_open
+    target = None
+    if connected:
+        try:
+            with pico_lock:
+                ser.write(b"T\n")
+                line = ser.readline().decode(errors="ignore").strip()
+            # SimpleFOC Commander responds with the value (e.g. "5.0000")
+            target = float(line) if line else None
+        except Exception as e:
+            global pico_serial
+            with pico_lock:
+                pico_serial = None
+            connected = False
+            print("SimpleFOC status read error: %s" % e, flush=True)
+    return jsonify({"connected": connected, "target": target})
 
 @app.route("/pwm", methods=["POST"])
 def pwm():

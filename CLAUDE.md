@@ -89,6 +89,52 @@ Pushes to GitHub happen from zmac periodically. The Pi will pull from GitHub dir
 - **AGENT_ONBOARDING.md** references file paths at repo root — needs updating to reflect `groundstation/`, `geodude/`, `gimbal/` subdirectories.
 - **Pico pin assignments — two hardware versions:** The perfboard prototype and the carrier PCB use different Pico GPIO pins for FOC signals (IN1/IN2/IN3/EN). Serial (GP0/1) and I2C (GP4/5) are the same on both. PCB version is documented in `pcb/CLAUDE.md` and `site/docs/electrical/geodude/carrier-pcb.md`. Perfboard version TBD — needs confirming from physical wiring.
 
+## MACE Reaction Wheel (SimpleFOC / Pi Pico)
+
+The reaction wheel uses a Pi Pico running SimpleFOC firmware, connected to the GEO-DUDe Pi via USB serial (`/dev/ttyACM0`, 115200 baud). This replaces the old ESC + PCA9685 PWM system.
+
+### Hardware
+- **Motor:** 2804 hollow shaft BLDC gimbal motor (7 pole pairs)
+- **Driver:** SimpleFOC Mini v1.0 (DRV8313)
+- **Encoder:** AS5600 magnetic encoder (I2C, on motor shaft)
+- **Controller:** Raspberry Pi Pico (RP2040)
+- **Connection:** Pico USB to GEO-DUDe Pi USB port
+
+### Pico GPIO (current perfboard wiring)
+- GP10 = IN1 (PWM)
+- GP11 = IN2 (PWM)
+- GP12 = IN3 (PWM)
+- GP14 = EN (enable)
+- GP4 = SDA (I2C, for AS5600 encoder)
+- GP5 = SCL (I2C, for AS5600 encoder)
+- GP6 = Bootloader entry (emergency, active low)
+
+### Firmware
+- Source: `~/tmp/pico-simplefoc/pico-simplefoc.ino` (on zmac)
+- Framework: Arduino (earlephilhower rp2040 core) + SimpleFOC library
+- Mode: Open-loop velocity (no encoder connected yet)
+- Serial protocol: SimpleFOC Commander (`T<vel>\n` = set velocity, `T\n` = read)
+- Compile: `arduino-cli compile --fqbn rp2040:rp2040:rpipico`
+
+### Flashing the Pico (no button needed)
+```bash
+# From GEO-DUDe Pi: trigger BOOTSEL via 1200 baud touch
+python3 -c "import serial; s=serial.Serial('/dev/ttyACM0',1200); s.close()"
+# Wait 3 seconds, then mount and copy UF2
+sudo mkdir -p /mnt/pico && sudo mount /dev/sda1 /mnt/pico
+sudo cp firmware.uf2 /mnt/pico/ && sudo sync && sudo umount /mnt/pico
+```
+
+### API (sensor_server.py on GEO-DUDe)
+- `POST /simplefoc` with `{"velocity": 5.0}` or `{"command": "T5"}` - sends command to Pico
+- Legacy `POST /motor` still works but translates PWM to velocity
+
+### Ground station UI
+- Velocity slider (-20 to +20 rad/s)
+- Quick preset buttons
+- Enable/disable toggle (instant, no ESC arming)
+- Ramp rate control (rad/s/s)
+
 ## Gimbal (ESP32 + TMC2209)
 
 - 4 stepper drivers: Yaw, Pitch, Roll, Belt
