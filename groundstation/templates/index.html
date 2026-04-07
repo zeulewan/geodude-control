@@ -499,6 +499,7 @@
       <div class="mission-actions mission-actions-compact mission-actions-tight">
         <button class="btn btn-dark" id="missionReadyBtn" type="button" onclick="missionToggleReady()">Ready</button>
         <button class="btn btn-dark" id="missionRunBtn" class="btn btn-green" type="button" onclick="missionRunSimulation()">Run Simulation</button>
+        <button class="btn btn-dark" type="button" onclick="missionResetSimulation()">Reset Simulation</button>
         <button class="btn btn-red mission-e-stop-btn" type="button" onclick="missionEmergencyStop()">Emergency Stop Simulation</button>
       </div>
     </div>
@@ -510,7 +511,28 @@
       </div>
     </div>
 
-    <div class="card mission-card mission-armviz-card mission-compact-card">
+    <div class="card mission-card mission-ml-camera-card mission-compact-card" id="missionMlCameraCard">
+      <h3>ML Model Feed</h3>
+      <div class="cam-wrapper mission-cam-wrapper mission-ml-wrapper">
+        <img src="/api/camera" alt="ML Model Camera Feed" crossorigin="anonymous">
+        <div class="mission-ml-overlay">
+          <div class="mission-ml-banner">
+            <span id="missionMlFeedModel">MODEL STANDBY</span>
+            <span id="missionMlFeedState">IDLE</span>
+          </div>
+          <div class="mission-ml-center-window" id="missionMlCenterWindow"></div>
+          <div class="mission-ml-bbox" id="missionMlBBox"></div>
+          <div class="mission-ml-readout">
+            <div><span>Class</span><strong id="missionMlClass">--</strong></div>
+            <div><span>Confidence</span><strong id="missionMlConfidence">--</strong></div>
+            <div><span>Center</span><strong id="missionMlCenter">--</strong></div>
+            <div><span>Size</span><strong id="missionMlSize">--</strong></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mission-card mission-armviz-card mission-compact-card" id="missionArmVizCard">
       <h3>Mission Arm View</h3>
       <div class="armviz-shell mission-armviz-shell">
         <canvas id="missionArmVizCanvas" class="armviz-canvas mission-armviz-canvas" width="720" height="320"></canvas>
@@ -520,11 +542,35 @@
     <div class="card mission-card mission-compact-card mission-stack-card">
       <h3>Autonomy Stack</h3>
       <div class="mission-list mission-list-tight">
-        <div class="mission-list-row" id="missionModelRow1"><span>Model 1</span><span id="missionModel1">UNSET</span></div>
-        <div class="mission-list-row" id="missionModelRow2"><span>Model 2</span><span id="missionModel2">UNSET</span></div>
-        <div class="mission-list-row" id="missionModelRow3"><span>Model 3</span><span id="missionModel3">UNSET</span></div>
-        <div class="mission-list-row"><span>Run Mode</span><span id="missionRunMode">OBSERVE</span></div>
-        <div class="mission-list-row"><span>Profile</span><span id="missionProfile">DOCKING</span></div>
+        <div class="mission-model-slot" id="missionModelRow1">
+          <div class="mission-list-row"><span>Model 1</span><span id="missionModel1">UNSET</span></div>
+          <div class="mission-model-upload-row">
+            <label class="mission-file-btn" for="missionModelFile1">Select Model</label>
+            <input type="file" id="missionModelFile1" accept=".pt,.onnx,.engine,.tflite,.pb,.bin" onchange="missionModelChanged(0, this)">
+            <div class="mission-file-name" id="missionModelFileName1">No model selected</div>
+          </div>
+        </div>
+        <div class="mission-model-slot" id="missionModelRow2">
+          <div class="mission-list-row"><span>Model 2</span><span id="missionModel2">UNSET</span></div>
+          <div class="mission-model-upload-row">
+            <label class="mission-file-btn" for="missionModelFile2">Select Model</label>
+            <input type="file" id="missionModelFile2" accept=".pt,.onnx,.engine,.tflite,.pb,.bin" onchange="missionModelChanged(1, this)">
+            <div class="mission-file-name" id="missionModelFileName2">No model selected</div>
+          </div>
+        </div>
+        <div class="mission-model-slot" id="missionModelRow3">
+          <div class="mission-list-row"><span>Model 3</span><span id="missionModel3">UNSET</span></div>
+          <div class="mission-model-upload-row">
+            <label class="mission-file-btn" for="missionModelFile3">Select Model</label>
+            <input type="file" id="missionModelFile3" accept=".pt,.onnx,.engine,.tflite,.pb,.bin" onchange="missionModelChanged(2, this)">
+            <div class="mission-file-name" id="missionModelFileName3">No model selected</div>
+          </div>
+        </div>
+        <div class="mission-list-row"><span>Vision State</span><span id="missionVisionState">IDLE</span></div>
+        <div class="mission-list-row"><span>Class</span><span id="missionDetectionClass">--</span></div>
+        <div class="mission-list-row"><span>Confidence</span><span id="missionDetectionConfidence">--</span></div>
+        <div class="mission-list-row"><span>BBox Center</span><span id="missionDetectionCenter">--</span></div>
+        <div class="mission-list-row"><span>BBox Size</span><span id="missionDetectionSize">--</span></div>
       </div>
       <div class="mission-note">Frontend-only summary of the staged ML and autonomy configuration for the mission workflow.</div>
     </div>
@@ -546,11 +592,10 @@
           </div>
         </div>
         <div class="mission-step" id="missionStep2" data-step-index="2">
-          <div class="mission-step-head"><span class="mission-step-index">2</span><span>All Joints Neutral Check</span></div>
+          <div class="mission-step-head"><span class="mission-step-index">2</span><span>Startup</span></div>
           <div class="mission-subflow">
             <div class="mission-subflow-title">Substeps</div>
-            <button class="mission-substep mission-action-substep" id="missionSubstep-2-sat-detect" type="button" onclick="missionCompleteSubstep(2, 'sat-detect')">Start sat detect model</button>
-            <button class="mission-substep mission-action-substep" id="missionSubstep-2-gimbal" type="button" onclick="missionCompleteSubstep(2, 'gimbal')">Start gimbal</button>
+            <button class="mission-substep mission-action-substep" id="missionSubstep-2-snoopy-detect" type="button" onclick="missionCompleteSubstep(2, 'snoopy-detect')">Start snoopy detect model</button>
             <button class="mission-substep mission-action-substep" id="missionSubstep-2-mace" type="button" onclick="missionCompleteSubstep(2, 'mace')">Start mace</button>
           </div>
         </div>
@@ -568,15 +613,14 @@
           </div>
         </div>
         <div class="mission-step" id="missionStep4" data-step-index="4">
-          <div class="mission-step-head"><span class="mission-step-index">4</span><span>All Identified Check</span></div>
+          <div class="mission-step-head"><span class="mission-step-index">4</span><span>Find Snoopy</span></div>
           <div class="mission-subflow">
             <div class="mission-subflow-title">Substeps</div>
-            <button class="mission-substep mission-action-substep" id="missionSubstep-4-client-rotation-model" type="button" onclick="missionCompleteSubstep(4, 'client-rotation-model')">Start client rotation model</button>
-            <button class="mission-substep mission-action-substep" id="missionSubstep-4-client-rotation" type="button" onclick="missionCompleteSubstep(4, 'client-rotation')">Identify client rotation</button>
-            <button class="mission-substep mission-action-substep" id="missionSubstep-4-nozzle-identify-model" type="button" onclick="missionCompleteSubstep(4, 'nozzle-identify-model')">Start nozzle identify model</button>
-            <button class="mission-substep mission-action-substep" id="missionSubstep-4-docking-point" type="button" onclick="missionCompleteSubstep(4, 'docking-point')">Identify docking point</button>
+            <button class="mission-substep mission-action-substep" id="missionSubstep-4-search-snoopy" type="button" onclick="missionCompleteSubstep(4, 'search-snoopy')">Search for snoopy</button>
+            <button class="mission-substep mission-action-substep" id="missionSubstep-4-snoopy-found" type="button" onclick="missionCompleteSubstep(4, 'snoopy-found')">Snoopy found</button>
+            <button class="mission-substep mission-action-substep" id="missionSubstep-4-snoopy-lock" type="button" onclick="missionCompleteSubstep(4, 'snoopy-lock')">Snoopy lock</button>
             <div class="mission-substep mission-checkpoint-substep" id="missionAllIdentifiedCheckpoint">
-              <div class="mission-substep-label">All identified</div>
+              <div class="mission-substep-label">Proceed</div>
               <div class="mission-checkpoint-actions">
                 <button class="btn btn-dark mission-inline-btn" type="button" onclick="missionRespondAllIdentified(true)">Yes</button>
                 <button class="btn btn-dark mission-inline-btn" type="button" onclick="missionRespondAllIdentified(false)">No</button>
@@ -585,73 +629,67 @@
           </div>
         </div>
         <div class="mission-step" id="missionStep5" data-step-index="5">
-          <div class="mission-step-head"><span class="mission-step-index">5</span><span>Approach</span></div>
+          <div class="mission-step-head"><span class="mission-step-index">5</span><span>Snoopy Rotation</span></div>
           <div class="mission-subflow">
             <div class="mission-subflow-title">Substeps</div>
-            <button class="mission-substep mission-action-substep" id="missionSubstep-5-docking-arm-position" type="button" onclick="missionCompleteSubstep(5, 'docking-arm-position')">Move docking arm into position</button>
-            <button class="mission-substep mission-action-substep" id="missionSubstep-5-aocs-arm-position" type="button" onclick="missionCompleteSubstep(5, 'aocs-arm-position')">Move AOCS arm into position</button>
-            <button class="mission-substep mission-action-substep" id="missionSubstep-5-approach-started" type="button" onclick="missionCompleteSubstep(5, 'approach-started')">Approach started</button>
-          </div>
-        </div>
-        <div class="mission-step" id="missionStep6" data-step-index="6">
-          <div class="mission-step-head"><span class="mission-step-index">6</span><span>Docking</span></div>
-          <div class="mission-subflow">
-            <div class="mission-subflow-title">Substeps</div>
-            <button class="mission-substep mission-action-substep" id="missionSubstep-6-relative-motion-stabilized" type="button" onclick="missionCompleteSubstep(6, 'relative-motion-stabilized')">Relative motion stabilized</button>
-            <button class="mission-substep mission-action-substep" id="missionSubstep-6-nozzle-position-found" type="button" onclick="missionCompleteSubstep(6, 'nozzle-position-found')">Nozzle position found</button>
-            <button class="mission-substep mission-action-substep" id="missionSubstep-6-nozzle-ik-solved" type="button" onclick="missionCompleteSubstep(6, 'nozzle-ik-solved')">Nozzle inverse kinematics solved</button>
+            <button class="mission-substep mission-action-substep" id="missionSubstep-5-rotation-finder-model" type="button" onclick="missionCompleteSubstep(5, 'rotation-finder-model')">Start rotation finder model</button>
+            <button class="mission-substep mission-action-substep" id="missionSubstep-5-rotation-found" type="button" onclick="missionCompleteSubstep(5, 'rotation-found')">Rotation found</button>
             <div class="mission-substep mission-checkpoint-substep" id="missionDockingPoseCheckpoint">
-              <div class="mission-substep-label">Docking arm pose confirmed</div>
+              <div class="mission-substep-label">Satisfied</div>
               <div class="mission-checkpoint-actions">
                 <button class="btn btn-dark mission-inline-btn" type="button" onclick="missionRespondDockingPose(true)">Yes</button>
                 <button class="btn btn-dark mission-inline-btn" type="button" onclick="missionRespondDockingPose(false)">No</button>
               </div>
             </div>
-            <button class="mission-substep mission-action-substep" id="missionSubstep-6-docked" type="button" onclick="missionCompleteSubstep(6, 'docked')">Docked</button>
           </div>
         </div>
-        <div class="mission-step" id="missionStep7" data-step-index="7">
-          <div class="mission-step-head"><span class="mission-step-index">7</span><span>Undocking</span></div>
+        <div class="mission-step" id="missionStep6" data-step-index="6">
+          <div class="mission-step-head"><span class="mission-step-index">6</span><span>MACE Capability Demo</span></div>
           <div class="mission-subflow">
             <div class="mission-subflow-title">Substeps</div>
-            <button class="mission-substep mission-action-substep" id="missionSubstep-7-client-brought-to-geo" type="button" onclick="missionCompleteSubstep(7, 'client-brought-to-geo')">Client brought to GEO</button>
             <div class="mission-substep mission-checkpoint-substep" id="missionUndockingReadyCheckpoint">
-              <div class="mission-substep-label">Ready to undock</div>
+              <div class="mission-substep-label">Start angle commands</div>
               <div class="mission-checkpoint-actions">
                 <button class="btn btn-dark mission-inline-btn" type="button" onclick="missionRespondUndockingReady(true)">Yes</button>
                 <button class="btn btn-dark mission-inline-btn" type="button" onclick="missionRespondUndockingReady(false)">No</button>
               </div>
             </div>
-            <button class="mission-substep mission-action-substep" id="missionSubstep-7-undocked" type="button" onclick="missionCompleteSubstep(7, 'undocked')">Undocked</button>
-          </div>
-        </div>
-        <div class="mission-step" id="missionStep8" data-step-index="8">
-          <div class="mission-step-head"><span class="mission-step-index">8</span><span>AOCS Module Attach</span></div>
-          <div class="mission-subflow">
-            <div class="mission-subflow-title">Substeps</div>
-            <button class="mission-substep mission-action-substep" id="missionSubstep-8-aocs-pose-ready" type="button" onclick="missionCompleteSubstep(8, 'aocs-pose-ready')">AOCS attach pose ready</button>
+            <button class="mission-substep mission-action-substep" id="missionSubstep-6-45-degree-commands" type="button" onclick="missionCompleteSubstep(6, '45-degree-commands')">45 degree commands</button>
             <div class="mission-substep mission-checkpoint-substep" id="missionAocsNominalCheckpoint">
-              <div class="mission-substep-label">Everything nominal</div>
+              <div class="mission-substep-label">Satisfied</div>
               <div class="mission-checkpoint-actions">
                 <button class="btn btn-dark mission-inline-btn" type="button" onclick="missionRespondAocsNominal(true)">Yes</button>
                 <button class="btn btn-dark mission-inline-btn" type="button" onclick="missionRespondAocsNominal(false)">No</button>
               </div>
             </div>
             <div class="mission-substep mission-checkpoint-substep" id="missionAocsSlideOutCheckpoint">
-              <div class="mission-substep-label">AOCS slide out</div>
+              <div class="mission-substep-label">Start rotation matching</div>
               <div class="mission-checkpoint-actions">
                 <button class="btn btn-dark mission-inline-btn" type="button" onclick="missionRespondAocsSlideOut(true)">Yes</button>
                 <button class="btn btn-dark mission-inline-btn" type="button" onclick="missionRespondAocsSlideOut(false)">No</button>
               </div>
             </div>
-            <button class="mission-substep mission-action-substep" id="missionSubstep-8-aocs-attach" type="button" onclick="missionCompleteSubstep(8, 'aocs-attach')">AOCS attach</button>
+            <button class="mission-substep mission-action-substep" id="missionSubstep-6-rotation-matching" type="button" onclick="missionCompleteSubstep(6, 'rotation-matching')">Rotation matching</button>
+          </div>
+        </div>
+        <div class="mission-step" id="missionStep7" data-step-index="7">
+          <div class="mission-step-head"><span class="mission-step-index">7</span><span>Satisfaction Check</span></div>
+          <div class="mission-subflow">
+            <div class="mission-subflow-title">Substeps</div>
             <div class="mission-substep mission-checkpoint-substep" id="missionAocsArmDetachCheckpoint">
-              <div class="mission-substep-label">Arm detach</div>
+              <div class="mission-substep-label">Satisfied</div>
               <div class="mission-checkpoint-actions">
                 <button class="btn btn-dark mission-inline-btn" type="button" onclick="missionRespondAocsArmDetach(true)">Yes</button>
                 <button class="btn btn-dark mission-inline-btn" type="button" onclick="missionRespondAocsArmDetach(false)">No</button>
               </div>
             </div>
+          </div>
+        </div>
+        <div class="mission-step" id="missionStep8" data-step-index="8">
+          <div class="mission-step-head"><span class="mission-step-index">8</span><span>Mission Complete</span></div>
+          <div class="mission-subflow">
+            <div class="mission-subflow-title">Substeps</div>
+            <div class="mission-substep mission-checkpoint-substep"><div class="mission-substep-label">Autonomous demonstration complete</div></div>
           </div>
         </div>
         <div class="mission-step" id="missionStep9" data-step-index="9">
@@ -663,6 +701,79 @@
         </div>
       </div>
       <div class="mission-note">This tab is the autonomous workflow shell. It is intended to compose the camera, ML staging, IK preview, and mission sequencing without interfering with manual debugging.</div>
+    </div>
+
+    <div class="card mission-card mission-mace-card">
+      <div class="mission-head mission-head-compact">
+        <div>
+          <h3>MACE Attitude Control</h3>
+          <div class="mission-subtitle">Competition-side reaction wheel priming, encoder telemetry, IMU attitude readout, and PID tuning for closed-loop rotation control.</div>
+        </div>
+      </div>
+      <div class="mission-mace-grid">
+        <div class="mission-mace-panel">
+          <div class="mission-subflow-title">Telemetry</div>
+          <div class="mission-summary-grid mission-summary-grid-compact">
+            <div class="mission-stat"><span class="label">MACE State</span><span class="value" id="missionMaceState">SAFE</span></div>
+            <div class="mission-stat"><span class="label">Wheel RPM</span><span class="value" id="missionMaceRpm">--</span></div>
+            <div class="mission-stat"><span class="label">Encoder Angle</span><span class="value" id="missionMaceEncoderAngle">--</span></div>
+            <div class="mission-stat"><span class="label">IMU Angle</span><span class="value" id="missionMaceImuAngle">--</span></div>
+            <div class="mission-stat"><span class="label">Gyro Z</span><span class="value" id="missionMaceGyroZ">--</span></div>
+            <div class="mission-stat"><span class="label">Attitude State</span><span class="value" id="missionMaceAttState">--</span></div>
+            <div class="mission-stat"><span class="label">Search Lock Error</span><span class="value" id="missionSearchLockError">--</span></div>
+            <div class="mission-stat"><span class="label">Search Command</span><span class="value" id="missionSearchLockCommand">--</span></div>
+            <div class="mission-stat"><span class="label">Rotation Estimate</span><span class="value" id="missionRotationEstimate">--</span></div>
+            <div class="mission-stat"><span class="label">Rotation Stable</span><span class="value" id="missionRotationStableWindow">3.0 s / 3.0 rpm</span></div>
+            <div class="mission-stat"><span class="label">Demo Phase</span><span class="value" id="missionDemoPhase">--</span></div>
+            <div class="mission-stat"><span class="label">Demo Angle Cmd</span><span class="value" id="missionDemoAngle">--</span></div>
+            <div class="mission-stat"><span class="label">RPM Match Target</span><span class="value" id="missionRotationMatchTarget">--</span></div>
+          </div>
+        </div>
+        <div class="mission-mace-panel">
+          <div class="mission-subflow-title">Setpoint + PID</div>
+          <div class="mission-att-row">
+            <label class="mission-inline-field">
+              <span>Search Rotational Speed</span>
+              <input type="number" id="missionSearchRotationSpeed" step="0.1" min="0" max="12" value="1.5" onchange="missionCompetitionConfigChanged()">
+            </label>
+          </div>
+          <div class="slider-group mission-slider-group">
+            <div class="slider-label"><span class="label">Center Margin</span><span class="value" id="missionSearchLockMarginVal">32 px</span></div>
+            <input type="range" id="missionSearchLockMargin" min="2" max="200" step="1" value="32" oninput="missionCompetitionConfigChanged()">
+          </div>
+          <div class="slider-group mission-slider-group">
+            <div class="slider-label"><span class="label">Centering Kp</span><span class="value" id="missionSearchLockKpVal">6.00</span></div>
+            <input type="range" id="missionSearchLockKp" min="0.1" max="25" step="0.1" value="6.0" oninput="missionCompetitionConfigChanged()">
+          </div>
+          <div class="slider-group mission-slider-group">
+            <div class="slider-label"><span class="label">Centering Max Cmd</span><span class="value" id="missionSearchLockMaxVal">2.00</span></div>
+            <input type="range" id="missionSearchLockMaxCommand" min="0.1" max="8" step="0.1" value="2.0" oninput="missionCompetitionConfigChanged()">
+          </div>
+          <div class="mission-att-row">
+            <input type="number" id="missionAttSetpointInput" placeholder="Angle" step="1" value="0">
+            <button class="btn btn-sm btn-dark" type="button" onclick="missionAttSetpoint()">Set Angle</button>
+            <button class="btn btn-sm btn-green" id="missionAttEnableBtn" type="button" onclick="missionAttToggleEnable()">Enable</button>
+            <button class="btn btn-sm btn-dark" type="button" onclick="missionAttStop()">Stop</button>
+            <button class="btn btn-sm btn-dark" type="button" onclick="missionAttZero()">Zero</button>
+          </div>
+          <div class="slider-group mission-slider-group">
+            <div class="slider-label"><span class="label">Kp</span><span class="value" id="missionAttKpVal">0</span></div>
+            <input type="range" id="missionAttKp" min="0" max="50" step="0.1" value="0" oninput="missionAttUpdateGain()">
+          </div>
+          <div class="slider-group mission-slider-group">
+            <div class="slider-label"><span class="label">Ki</span><span class="value" id="missionAttKiVal">0</span></div>
+            <input type="range" id="missionAttKi" min="0" max="10" step="0.01" value="0" oninput="missionAttUpdateGain()">
+          </div>
+          <div class="slider-group mission-slider-group">
+            <div class="slider-label"><span class="label">Kd</span><span class="value" id="missionAttKdVal">0</span></div>
+            <input type="range" id="missionAttKd" min="0" max="50" step="0.1" value="0" oninput="missionAttUpdateGain()">
+          </div>
+          <div class="slider-group mission-slider-group">
+            <div class="slider-label"><span class="label">Max Output</span><span class="value" id="missionAttMaxVal">0</span></div>
+            <input type="range" id="missionAttMaxThrottle" min="0" max="100" step="1" value="0" oninput="missionAttUpdateGain()">
+          </div>
+        </div>
+      </div>
     </div>
 
   </div>
