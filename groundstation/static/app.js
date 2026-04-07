@@ -112,8 +112,17 @@ function missionDefaultState() {
     aocsArmDetachResolved: false,
     maceState: 'SAFE',
     searchRotationSpeed: 1.5,
+    searchLockMarginPx: 32,
+    searchFrameWidthPx: 640,
+    searchFrameHeightPx: 480,
+    searchLockKp: 6.0,
+    searchLockMaxCommand: 2.0,
     searchLockError: null,
     searchLockCommand: 0.0,
+    activeVisionModel: null,
+    visionState: 'IDLE',
+    searchScanActive: false,
+    snoopyDetection: null,
     rotationEstimateRpm: null,
     rotationStableToleranceRpm: 3.0,
     rotationStableSeconds: 3.0,
@@ -140,12 +149,12 @@ var competitionInitialResetDone = false;
 
 function missionFormatDetectionPoint(point) {
   if (!point || point.x == null || point.y == null) return '--';
-  return 'x:' + point.x.toFixed(2) + ' y:' + point.y.toFixed(2);
+  return 'x:' + point.x.toFixed(1) + ' y:' + point.y.toFixed(1);
 }
 
 function missionFormatDetectionSize(size) {
   if (!size || size.w == null || size.h == null) return '--';
-  return 'w:' + size.w.toFixed(2) + ' h:' + size.h.toFixed(2);
+  return 'w:' + size.w.toFixed(1) + ' h:' + size.h.toFixed(1);
 }
 
 function missionClamp01(value) {
@@ -161,6 +170,7 @@ function missionSyncMlFeed() {
   var centerEl = document.getElementById('missionMlCenter');
   var sizeEl = document.getElementById('missionMlSize');
   var bboxEl = document.getElementById('missionMlBBox');
+  var centerWindowEl = document.getElementById('missionMlCenterWindow');
   var detection = missionFlowState.snoopyDetection || null;
   var activeModel = missionFlowState.activeVisionModel;
   var feedModelLabel = 'MODEL STANDBY';
@@ -183,8 +193,17 @@ function missionSyncMlFeed() {
   if (stateEl) stateEl.textContent = feedStateLabel;
   if (classEl) classEl.textContent = detection && detection.class_label ? detection.class_label.toUpperCase() : '--';
   if (confidenceEl) confidenceEl.textContent = detection && detection.confidence != null ? detection.confidence.toFixed(2) : '--';
-  if (centerEl) centerEl.textContent = missionFormatDetectionPoint(detection && detection.bbox_center);
-  if (sizeEl) sizeEl.textContent = missionFormatDetectionSize(detection && detection.bbox_size);
+  if (centerEl) centerEl.textContent = missionFormatDetectionPoint(detection && (detection.bbox_center_px || detection.bbox_center));
+  if (sizeEl) sizeEl.textContent = missionFormatDetectionSize(detection && (detection.bbox_size_px || detection.bbox_size));
+
+  if (centerWindowEl) {
+    var frameWidth = missionFlowState.searchFrameWidthPx || (detection && detection.frame_size_px && detection.frame_size_px.w) || 640;
+    var marginPx = missionFlowState.searchLockMarginPx || 32;
+    var widthPct = Math.max(0.5, Math.min(100, ((marginPx * 2) / frameWidth) * 100));
+    centerWindowEl.style.width = widthPct + '%';
+    centerWindowEl.style.left = ((100 - widthPct) / 2) + '%';
+    centerWindowEl.classList.toggle('active', activePageTab === 'competition' && !!activeModel);
+  }
 
   if (!bboxEl) return;
   var center = detection && detection.bbox_center;
@@ -224,6 +243,11 @@ function competitionSyncState(state) {
   missionFlowState.aocsArmDetachResolved = !!state.aocsArmDetachResolved;
   missionFlowState.maceState = state.maceState || 'SAFE';
   missionFlowState.searchRotationSpeed = state.searchRotationSpeed != null ? state.searchRotationSpeed : 1.5;
+  missionFlowState.searchLockMarginPx = state.searchLockMarginPx != null ? state.searchLockMarginPx : 32;
+  missionFlowState.searchFrameWidthPx = state.searchFrameWidthPx != null ? state.searchFrameWidthPx : 640;
+  missionFlowState.searchFrameHeightPx = state.searchFrameHeightPx != null ? state.searchFrameHeightPx : 480;
+  missionFlowState.searchLockKp = state.searchLockKp != null ? state.searchLockKp : 6.0;
+  missionFlowState.searchLockMaxCommand = state.searchLockMaxCommand != null ? state.searchLockMaxCommand : 2.0;
   missionFlowState.searchLockError = state.searchLockError != null ? state.searchLockError : null;
   missionFlowState.searchLockCommand = state.searchLockCommand != null ? state.searchLockCommand : 0.0;
   missionFlowState.rotationEstimateRpm = state.rotationEstimateRpm != null ? state.rotationEstimateRpm : null;
@@ -235,6 +259,7 @@ function competitionSyncState(state) {
   missionFlowState.rotationMatchTargetRpm = state.rotationMatchTargetRpm != null ? state.rotationMatchTargetRpm : null;
   missionFlowState.activeVisionModel = state.activeVisionModel || null;
   missionFlowState.visionState = state.visionState || 'IDLE';
+  missionFlowState.searchScanActive = !!state.searchScanActive;
   missionFlowState.snoopyDetection = state.snoopyDetection || null;
   if (state.substeps) missionFlowState.substeps = state.substeps;
 }
@@ -654,8 +679,9 @@ function missionRenderFlow() {
       var complete = !!substeps[subKey];
       var active = missionFlowState.currentStep === stepNum && !missionFlowState.halted && !complete;
       if (activePageTab === 'competition') {
+        if (stepNum === 2 && subKey === 'snoopy-detect') active = false;
         if (stepNum === 4 && missionFlowState.allIdentifiedResolved) active = false;
-        if (stepNum === 4 && (subKey === 'snoopy-found' || subKey === 'snoopy-lock')) active = false;
+        if (stepNum === 4 && (subKey === 'search-snoopy' || subKey === 'snoopy-found' || subKey === 'snoopy-lock')) active = false;
         if (stepNum === 5 && subKey === 'rotation-found') active = false;
         if (stepNum === 6 && subKey === '45-degree-commands') active = false;
         if (stepNum === 6 && subKey === 'rotation-matching') active = false;
@@ -671,7 +697,7 @@ function missionRenderFlow() {
       }
       el.classList.toggle('active', active);
       el.classList.toggle('completed', complete);
-      if (activePageTab === 'competition' && ((stepNum === 4 && (subKey === 'snoopy-found' || subKey === 'snoopy-lock')) || (stepNum === 5 && subKey === 'rotation-found') || (stepNum === 6 && (subKey === '45-degree-commands' || subKey === 'rotation-matching')))) {
+      if (activePageTab === 'competition' && ((stepNum === 2 && subKey === 'snoopy-detect') || (stepNum === 4 && (subKey === 'search-snoopy' || subKey === 'snoopy-found' || subKey === 'snoopy-lock')) || (stepNum === 5 && subKey === 'rotation-found') || (stepNum === 6 && (subKey === '45-degree-commands' || subKey === 'rotation-matching')))) {
         el.disabled = true;
       } else {
         el.disabled = !active && !complete;
@@ -893,13 +919,22 @@ function missionSyncSummary() {
   if (visionStateEl) visionStateEl.textContent = (missionFlowState.visionState || 'IDLE').toUpperCase();
   if (detClassEl) detClassEl.textContent = missionFlowState.snoopyDetection && missionFlowState.snoopyDetection.class_label ? missionFlowState.snoopyDetection.class_label.toUpperCase() : '--';
   if (detConfEl) detConfEl.textContent = missionFlowState.snoopyDetection && missionFlowState.snoopyDetection.confidence != null ? missionFlowState.snoopyDetection.confidence.toFixed(2) : '--';
-  if (detCenterEl) detCenterEl.textContent = missionFormatDetectionPoint(missionFlowState.snoopyDetection && missionFlowState.snoopyDetection.bbox_center);
-  if (detSizeEl) detSizeEl.textContent = missionFormatDetectionSize(missionFlowState.snoopyDetection && missionFlowState.snoopyDetection.bbox_size);
+  if (detCenterEl) detCenterEl.textContent = missionFormatDetectionPoint(missionFlowState.snoopyDetection && (missionFlowState.snoopyDetection.bbox_center_px || missionFlowState.snoopyDetection.bbox_center));
+  if (detSizeEl) detSizeEl.textContent = missionFormatDetectionSize(missionFlowState.snoopyDetection && (missionFlowState.snoopyDetection.bbox_size_px || missionFlowState.snoopyDetection.bbox_size));
   var maceStateEl = document.getElementById('missionMaceState');
   if (maceStateEl) maceStateEl.textContent = (missionFlowState.maceState || 'SAFE').toUpperCase();
   var searchSpeedEl = document.getElementById('missionSearchRotationSpeed');
   if (searchSpeedEl && document.activeElement !== searchSpeedEl) searchSpeedEl.value = (missionFlowState.searchRotationSpeed != null ? missionFlowState.searchRotationSpeed : 1.5);
-  missionSetTelemetryValue('missionSearchLockError', missionFlowState.searchLockError != null ? missionFlowState.searchLockError.toFixed(4) : '--');
+  var searchMarginEl = document.getElementById('missionSearchLockMargin');
+  if (searchMarginEl && document.activeElement !== searchMarginEl) searchMarginEl.value = (missionFlowState.searchLockMarginPx != null ? missionFlowState.searchLockMarginPx : 32);
+  missionSetGainLabelPair('missionSearchLockMarginVal', 'missionSearchLockMarginVal', Math.round(missionFlowState.searchLockMarginPx != null ? missionFlowState.searchLockMarginPx : 32) + ' px');
+  missionSetGainLabelPair('missionSearchLockKpVal', 'missionSearchLockKpVal', (missionFlowState.searchLockKp != null ? missionFlowState.searchLockKp : 6).toFixed(2));
+  missionSetGainLabelPair('missionSearchLockMaxVal', 'missionSearchLockMaxVal', (missionFlowState.searchLockMaxCommand != null ? missionFlowState.searchLockMaxCommand : 2).toFixed(2));
+  var searchKpEl = document.getElementById('missionSearchLockKp');
+  if (searchKpEl && document.activeElement !== searchKpEl) searchKpEl.value = (missionFlowState.searchLockKp != null ? missionFlowState.searchLockKp : 6);
+  var searchMaxEl = document.getElementById('missionSearchLockMaxCommand');
+  if (searchMaxEl && document.activeElement !== searchMaxEl) searchMaxEl.value = (missionFlowState.searchLockMaxCommand != null ? missionFlowState.searchLockMaxCommand : 2);
+  missionSetTelemetryValue('missionSearchLockError', missionFlowState.searchLockError != null ? missionFlowState.searchLockError.toFixed(1) + ' px' : '--');
   missionSetTelemetryValue('missionSearchLockCommand', missionFlowState.searchLockCommand != null ? missionFlowState.searchLockCommand.toFixed(3) + ' rad/s' : '--');
   missionSetTelemetryValue('missionRotationEstimate', missionFlowState.rotationEstimateRpm != null ? missionFlowState.rotationEstimateRpm.toFixed(2) + ' rpm' : '--');
   missionSetTelemetryValue('missionRotationStableWindow', missionFlowState.rotationStableSeconds.toFixed(1) + ' s / ' + missionFlowState.rotationStableToleranceRpm.toFixed(1) + ' rpm');
@@ -913,8 +948,14 @@ function missionSyncSummary() {
 function missionCompetitionConfigChanged() {
   if (activePageTab !== 'competition') return;
   var searchSpeedEl = document.getElementById('missionSearchRotationSpeed');
+  var searchMarginEl = document.getElementById('missionSearchLockMargin');
+  var searchKpEl = document.getElementById('missionSearchLockKp');
+  var searchMaxEl = document.getElementById('missionSearchLockMaxCommand');
   competitionPost('/api/competition/config', {
-    searchRotationSpeed: searchSpeedEl ? parseFloat(searchSpeedEl.value || '1.5') : 1.5
+    searchRotationSpeed: searchSpeedEl ? parseFloat(searchSpeedEl.value || '1.5') : 1.5,
+    searchLockMarginPx: searchMarginEl ? parseFloat(searchMarginEl.value || '32') : 32,
+    searchLockKp: searchKpEl ? parseFloat(searchKpEl.value || '6.0') : 6.0,
+    searchLockMaxCommand: searchMaxEl ? parseFloat(searchMaxEl.value || '2.0') : 2.0
   });
 }
 
@@ -1172,8 +1213,23 @@ var visionState = {
   models: ['', '', ''],
   status: 'STANDBY',
   profile: 'Docking',
-  mode: 'Observe'
+  mode: 'Observe',
+  backendAvailable: false,
+  backendReason: '',
+  uploadedSlots: {}
 };
+
+function syncVisionBackendState(vision) {
+  if (!vision) return;
+  visionState.backendAvailable = !!vision.available;
+  visionState.backendReason = vision.reason || '';
+  [1,2,3].forEach(function(slot) {
+    var info = vision.slots && vision.slots[String(slot)];
+    if (!info) return;
+    visionState.uploadedSlots[slot - 1] = info;
+    if (info.filename) visionState.models[slot - 1] = info.filename;
+  });
+}
 
 function updateVisionUI() {
   var statusEl = document.getElementById('visionModelStatus');
@@ -1204,8 +1260,10 @@ function updateVisionUI() {
   if (noteEl) {
     if (!hasFile) {
       noteEl.textContent = 'Frontend placeholder only. Choose up to three model files to stage the UI for future autonomous vision tools.';
+    } else if (!visionState.backendAvailable) {
+      noteEl.textContent = 'Models uploaded, but backend inference runtime is unavailable: ' + (visionState.backendReason || 'missing detector runtime');
     } else if (visionState.status === 'LOADED') {
-      noteEl.textContent = 'Models selected in the GUI only: ' + loadedModels.join(', ') + '. No backend inference path is connected yet.';
+      noteEl.textContent = 'Models uploaded to the local mizi-dev backend: ' + loadedModels.join(', ') + '. Active competition steps can now use backend inference on this machine.';
     } else if (visionState.status === 'PREVIEW') {
       noteEl.textContent = 'Preview staged for ' + visionState.profile + ' in ' + visionState.mode + ' mode with ' + loadedModels.length + ' selected model(s). Camera integration is still backend-pending.';
     } else if (visionState.status === 'STAGED') {
@@ -1220,9 +1278,33 @@ function updateVisionUI() {
 function visionModelChanged(index, input) {
   var file = input && input.files && input.files[0] ? input.files[0] : null;
   visionState.models[index] = file ? file.name : '';
-  visionState.status = visionState.models.some(function(name) { return !!name; }) ? 'LOADED' : 'STANDBY';
+  if (!file) {
+    visionState.status = visionState.models.some(function(name) { return !!name; }) ? 'LOADED' : 'STANDBY';
+    updateVisionUI();
+    missionSyncSummary();
+    return;
+  }
+
+  var form = new FormData();
+  form.append('slot', String(index + 1));
+  form.append('model', file);
+  visionState.status = 'LOADED';
   updateVisionUI();
   missionSyncSummary();
+  fetch('/api/vision/upload', {
+    method: 'POST',
+    body: form
+  }).then(function(r) { return r.json(); }).then(function(resp) {
+    syncVisionBackendState(resp && resp.vision);
+    visionState.status = 'LOADED';
+    updateVisionUI();
+    missionSyncSummary();
+  }).catch(function() {
+    visionState.backendAvailable = false;
+    visionState.backendReason = 'upload failed';
+    updateVisionUI();
+    missionSyncSummary();
+  });
 }
 
 function visionProfileChanged(value) {
@@ -1263,11 +1345,17 @@ function visionReset() {
   visionState.status = 'STANDBY';
   visionState.profile = 'Docking';
   visionState.mode = 'Observe';
+  visionState.uploadedSlots = {};
   [1, 2, 3].forEach(function(slot) {
     var input = document.getElementById('visionModelFile' + slot);
     if (input) input.value = '';
     var missionInput = document.getElementById('missionModelFile' + slot);
     if (missionInput) missionInput.value = '';
+    fetch('/api/vision/clear', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({slot: slot})
+    }).catch(function() {});
   });
   var profile = document.getElementById('visionProfileSelect');
   if (profile) profile.value = 'Docking';
@@ -1275,6 +1363,15 @@ function visionReset() {
   if (mode) mode.value = 'Observe';
   updateVisionUI();
   missionSyncSummary();
+}
+
+function visionFetchStatus() {
+  fetch('/api/vision/status').then(function(r) { return r.json(); }).then(function(vision) {
+    syncVisionBackendState(vision);
+    visionState.status = visionState.models.some(function(name) { return !!name; }) ? 'LOADED' : 'STANDBY';
+    updateVisionUI();
+    missionSyncSummary();
+  }).catch(function() {});
 }
 
 var armVizGeometryDefaults = {
@@ -3049,6 +3146,7 @@ function seqRun() {
   controllerPoll();
   ikRefreshStatus();
   updateIkOptimizerLabel(getIkOptimizerBias());
+  visionFetchStatus();
   updateVisionUI();
   missionSyncSummary();
   showPageTab('manual');

@@ -4,13 +4,32 @@ import time
 import json
 import os
 import urllib.request
+import urllib.parse
+import shutil
+import importlib.util
+from io import BytesIO
 
 app = Flask(__name__)
 
-GEODUDE_URL = "http://192.168.4.166:5000"
-ATTITUDE_URL = "http://192.168.4.166:5001"
-GIMBAL_URL = "http://192.168.4.222"
+GEODUDE_URL = os.environ.get("GEODUDE_URL", "http://192.168.4.166:5000")
+ATTITUDE_URL = os.environ.get("ATTITUDE_URL", "http://192.168.4.166:5001")
+GIMBAL_URL = os.environ.get("GIMBAL_URL", "http://192.168.4.222")
+UPSTREAM_GROUNDSTATION_URL = os.environ.get("UPSTREAM_GROUNDSTATION_URL", "").rstrip("/")
 WATCHDOG_TIMEOUT = 3  # seconds — auto-stop if no frontend heartbeat
+MODELS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploaded_models")
+os.makedirs(MODELS_DIR, exist_ok=True)
+
+try:
+    import numpy as np
+except Exception:
+    np = None
+
+try:
+    from PIL import Image
+except Exception:
+    Image = None
+
+YOLO = None
 
 # PCA9685 channel mapping (pin - 1 = 0-indexed)
 # MACE reaction wheel is no longer on PCA9685 — it is driven by Pi Pico via SimpleFOC
@@ -44,6 +63,28 @@ state = {
     "encoder_angle": 0,
     "connected": False,
     "rpm": 0,
+}
+
+camera_frame_state = {
+    "jpeg": None,
+    "updated_at": 0.0,
+    "width": None,
+    "height": None,
+    "error": None,
+}
+
+vision_runtime = {
+    "available": importlib.util.find_spec("ultralytics") is not None and np is not None and Image is not None,
+    "reason": None if (importlib.util.find_spec("ultralytics") is not None and np is not None and Image is not None) else "Missing local ML runtime packages (ultralytics, numpy, pillow).",
+    "slots": {
+        1: {"filename": None, "path": None, "uploaded_at": None, "loaded": False, "error": None},
+        2: {"filename": None, "path": None, "uploaded_at": None, "loaded": False, "error": None},
+        3: {"filename": None, "path": None, "uploaded_at": None, "loaded": False, "error": None},
+    },
+    "models": {},
+    "inference_enabled": True,
+    "last_inference_at": None,
+    "last_error": None,
 }
 
 # Server-side servo position tracking — persisted to disk, survives reboots
@@ -111,6 +152,228 @@ COMPETITION_STEP_NAMES = {
 }
 
 
+def _proxy_json_get(url, timeout=3):
+    resp = urllib.request.urlopen(url, timeout=timeout)
+    return json.loads(resp.read().decode()), getattr(resp, "status", 200)
+
+
+def _proxy_json_post(url, data=None, timeout=3):
+    body = json.dumps(data or {}).encode()
+    req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
+    resp = urllib.request.urlopen(req, timeout=timeout)
+    return json.loads(resp.read().decode()), getattr(resp, "status", 200)
+
+
+def _camera_stream_url():
+    if UPSTREAM_GROUNDSTATION_URL:
+        return f"{UPSTREAM_GROUNDSTATION_URL}/api/camera"
+    return f"{GEODUDE_URL}/camera"
+
+
+def _safe_filename(name):
+    keep = "._-"
+    cleaned = "".join(ch if ch.isalnum() or ch in keep else "_" for ch in (name or "model.pt"))
+    return cleaned or "model.pt"
+
+
+def _vision_slot_snapshot(slot):
+    info = vision_runtime["slots"][slot]
+    return {
+        "slot": slot,
+        "filename": info["filename"],
+        "uploaded_at": info["uploaded_at"],
+        "loaded": info["loaded"],
+        "error": info["error"],
+    }
+
+
+def _vision_snapshot():
+    return {
+        "available": vision_runtime["available"],
+        "reason": vision_runtime["reason"],
+        "inference_enabled": vision_runtime["inference_enabled"],
+        "last_inference_at": vision_runtime["last_inference_at"],
+        "last_error": vision_runtime["last_error"],
+        "slots": {str(slot): _vision_slot_snapshot(slot) for slot in vision_runtime["slots"]},
+    }
+
+
+def vision_init_from_disk():
+    for slot in vision_runtime["slots"]:
+        slot_dir = os.path.join(MODELS_DIR, f"slot_{slot}")
+        if not os.path.isdir(slot_dir):
+            continue
+        files = [name for name in os.listdir(slot_dir) if name.lower().endswith(".pt")]
+        if not files:
+            continue
+        files.sort()
+        filename = files[-1]
+        info = vision_runtime["slots"][slot]
+        info["filename"] = filename
+        info["path"] = os.path.join(slot_dir, filename)
+        info["uploaded_at"] = int(os.path.getmtime(info["path"]))
+        info["loaded"] = False
+        info["error"] = None
+        _vision_load_model(slot)
+
+
+def _vision_load_model(slot):
+    global YOLO
+    info = vision_runtime["slots"][slot]
+    vision_runtime["models"].pop(slot, None)
+    info["loaded"] = False
+    if not info["path"]:
+        info["error"] = None
+        return False
+    if not vision_runtime["available"]:
+        info["error"] = vision_runtime["reason"]
+        return False
+    try:
+        if YOLO is None:
+            from ultralytics import YOLO as _YOLO
+            YOLO = _YOLO
+        model = YOLO(info["path"])
+        vision_runtime["models"][slot] = model
+        info["loaded"] = True
+        info["error"] = None
+        vision_runtime["last_error"] = None
+        return True
+    except Exception as e:
+        info["loaded"] = False
+        info["error"] = str(e)
+        vision_runtime["last_error"] = str(e)
+        return False
+
+
+def _vision_select_best_detection(result, target_label=None):
+    boxes = getattr(result, "boxes", None)
+    names = getattr(result, "names", {}) or {}
+    if boxes is None or len(boxes) == 0:
+        return None
+
+    best = None
+    best_conf = -1.0
+    for idx in range(len(boxes)):
+        conf = float(boxes.conf[idx].item()) if getattr(boxes, "conf", None) is not None else 0.0
+        cls_idx = int(boxes.cls[idx].item()) if getattr(boxes, "cls", None) is not None else -1
+        label = str(names.get(cls_idx, cls_idx)).lower()
+        if target_label and label != target_label:
+            continue
+        xyxy = boxes.xyxy[idx].tolist()
+        if conf > best_conf:
+            best_conf = conf
+            best = {"label": label, "conf": conf, "xyxy": xyxy}
+
+    if best is None and target_label:
+        return _vision_select_best_detection(result, None)
+    return best
+
+
+def _decode_jpeg_to_array(jpeg_bytes):
+    if not jpeg_bytes or Image is None or np is None:
+        return None, None, None
+    img = Image.open(BytesIO(jpeg_bytes)).convert("RGB")
+    width, height = img.size
+    return np.array(img), width, height
+
+
+def _capture_camera_frames_loop():
+    while True:
+        try:
+            resp = urllib.request.urlopen(_camera_stream_url(), timeout=10)
+            buf = b""
+            while True:
+                chunk = resp.read(4096)
+                if not chunk:
+                    break
+                buf += chunk
+                start = buf.find(b"\xff\xd8")
+                end = buf.find(b"\xff\xd9")
+                if start != -1 and end != -1 and end > start:
+                    jpeg = buf[start:end + 2]
+                    buf = buf[end + 2:]
+                    width = None
+                    height = None
+                    if Image is not None:
+                        try:
+                            with Image.open(BytesIO(jpeg)) as img:
+                                width, height = img.size
+                        except Exception:
+                            pass
+                    with lock:
+                        camera_frame_state["jpeg"] = jpeg
+                        camera_frame_state["updated_at"] = time.monotonic()
+                        camera_frame_state["width"] = width
+                        camera_frame_state["height"] = height
+                        camera_frame_state["error"] = None
+        except Exception as e:
+            with lock:
+                camera_frame_state["error"] = str(e)
+            time.sleep(1.0)
+
+
+def _competition_handle_model_detection(slot, frame, width, height):
+    model = vision_runtime["models"].get(slot)
+    if model is None:
+        return
+    try:
+        results = model(frame, verbose=False)
+    except Exception as e:
+        vision_runtime["last_error"] = str(e)
+        vision_runtime["slots"][slot]["error"] = str(e)
+        return
+
+    vision_runtime["last_inference_at"] = time.time()
+    if not results:
+        return
+
+    result = results[0]
+    if slot == 1:
+        det = _vision_select_best_detection(result, "snoopy")
+        if det is None:
+            return
+        x1, y1, x2, y2 = det["xyxy"]
+        payload = {
+            "class_label": det["label"],
+            "confidence": det["conf"],
+            "bbox_center": {"x": (x1 + x2) / 2.0, "y": (y1 + y2) / 2.0},
+            "bbox_size": {"w": max(0.0, x2 - x1), "h": max(0.0, y2 - y1)},
+            "frame_width_px": width,
+            "frame_height_px": height,
+        }
+        with lock:
+            if competition_state["running"] and not competition_state["halted"]:
+                _competition_apply_detection(payload)
+    elif slot == 2:
+        det = _vision_select_best_detection(result)
+        if det is None:
+            return
+        with lock:
+            if competition_state["running"] and not competition_state["halted"]:
+                _competition_apply_rotation_estimate({"rpm": float(det["conf"]) * 100.0})
+
+
+def _vision_inference_loop():
+    while True:
+        time.sleep(0.15)
+        if not vision_runtime["inference_enabled"] or not vision_runtime["available"]:
+            continue
+        with lock:
+            active_slot = competition_state["activeVisionModel"] if competition_state["running"] and not competition_state["halted"] else None
+            jpeg = camera_frame_state["jpeg"]
+        if active_slot not in (1, 2):
+            continue
+        if not vision_runtime["slots"][active_slot]["path"]:
+            continue
+        if active_slot not in vision_runtime["models"]:
+            _vision_load_model(active_slot)
+            continue
+        frame, width, height = _decode_jpeg_to_array(jpeg)
+        if frame is None:
+            continue
+        _competition_handle_model_detection(active_slot, frame, width, height)
+
+
 def competition_default_state():
     return {
         "mode": "competition",
@@ -130,6 +393,9 @@ def competition_default_state():
         "aocsArmDetachResolved": False,
         "maceState": "SAFE",
         "searchRotationSpeed": 1.5,
+        "searchLockMarginPx": 32.0,
+        "searchFrameWidthPx": 640.0,
+        "searchFrameHeightPx": 480.0,
         "searchLockDeadband": 0.05,
         "searchLockKp": 6.0,
         "searchLockMaxCommand": 2.0,
@@ -138,7 +404,6 @@ def competition_default_state():
         "searchAngleDeadbandDeg": 1.0,
         "searchAngleKp": 0.06,
         "searchAngleMaxCommand": 2.0,
-        "model1InputSearchRpm": None,
         "model1AngleSetpointDeg": None,
         "rotationEstimateRpm": None,
         "rotationStableToleranceRpm": 3.0,
@@ -151,11 +416,15 @@ def competition_default_state():
         "rotationMatchTargetRpm": None,
         "activeVisionModel": None,
         "visionState": "IDLE",
+        "searchScanActive": False,
         "snoopyDetection": {
             "active": False,
             "found": False,
             "bbox_center": {"x": None, "y": None},
             "bbox_size": {"w": None, "h": None},
+            "bbox_center_px": {"x": None, "y": None},
+            "bbox_size_px": {"w": None, "h": None},
+            "frame_size_px": {"w": None, "h": None},
             "confidence": None,
             "class_label": None,
         },
@@ -258,6 +527,9 @@ def _competition_snapshot():
         "aocsArmDetachResolved": competition_state["aocsArmDetachResolved"],
         "maceState": competition_state["maceState"],
         "searchRotationSpeed": competition_state["searchRotationSpeed"],
+        "searchLockMarginPx": competition_state["searchLockMarginPx"],
+        "searchFrameWidthPx": competition_state["searchFrameWidthPx"],
+        "searchFrameHeightPx": competition_state["searchFrameHeightPx"],
         "searchLockDeadband": competition_state["searchLockDeadband"],
         "searchLockKp": competition_state["searchLockKp"],
         "searchLockMaxCommand": competition_state["searchLockMaxCommand"],
@@ -266,7 +538,6 @@ def _competition_snapshot():
         "searchAngleDeadbandDeg": competition_state["searchAngleDeadbandDeg"],
         "searchAngleKp": competition_state["searchAngleKp"],
         "searchAngleMaxCommand": competition_state["searchAngleMaxCommand"],
-        "model1InputSearchRpm": competition_state["model1InputSearchRpm"],
         "model1AngleSetpointDeg": competition_state["model1AngleSetpointDeg"],
         "rotationEstimateRpm": competition_state["rotationEstimateRpm"],
         "rotationStableToleranceRpm": competition_state["rotationStableToleranceRpm"],
@@ -277,6 +548,7 @@ def _competition_snapshot():
         "rotationMatchTargetRpm": competition_state["rotationMatchTargetRpm"],
         "activeVisionModel": competition_state["activeVisionModel"],
         "visionState": competition_state["visionState"],
+        "searchScanActive": competition_state["searchScanActive"],
         "snoopyDetection": json.loads(json.dumps(competition_state["snoopyDetection"])),
         "substeps": json.loads(json.dumps(competition_state["substeps"])),
         "activeCheckpoint": _competition_active_checkpoint(),
@@ -288,17 +560,13 @@ def _competition_snapshot():
 
 
 def _competition_fail(reason):
-    mace["target"] = 0.0
-    mace["velocity"] = 0.0
-    mace["enabled"] = False
-    send_velocity(0.0)
+    _competition_safe_stop_mace()
     competition_state["halted"] = True
     competition_state["armed"] = False
     competition_state["running"] = False
     competition_state["maceState"] = "SAFE"
     competition_state["searchLockError"] = None
     competition_state["searchLockCommand"] = 0.0
-    competition_state["model1InputSearchRpm"] = None
     competition_state["model1AngleSetpointDeg"] = None
     competition_state["rotationEstimateRpm"] = None
     competition_state["rotationStableSince"] = None
@@ -307,12 +575,20 @@ def _competition_fail(reason):
     competition_state["demoCommandAngle"] = None
     competition_state["rotationMatchActive"] = False
     competition_state["rotationMatchTargetRpm"] = None
+    competition_state["searchScanActive"] = False
     competition_state["last_event"] = "halted"
     competition_state["last_error"] = reason
 
 
 def _competition_allow_actions():
     return competition_state["armed"] and competition_state["running"] and not competition_state["halted"]
+
+
+def _competition_safe_stop_mace():
+    mace["target"] = 0.0
+    mace["velocity"] = 0.0
+    mace["enabled"] = False
+    send_velocity(0.0)
 
 
 def _competition_apply_mace_velocity(target_velocity):
@@ -329,6 +605,12 @@ def _competition_reset_detection_tracking():
         "found": False,
         "bbox_center": {"x": None, "y": None},
         "bbox_size": {"w": None, "h": None},
+        "bbox_center_px": {"x": None, "y": None},
+        "bbox_size_px": {"w": None, "h": None},
+        "frame_size_px": {
+            "w": float(competition_state["searchFrameWidthPx"]),
+            "h": float(competition_state["searchFrameHeightPx"]),
+        },
         "confidence": None,
         "class_label": "snoopy",
     }
@@ -363,6 +645,7 @@ def _competition_stop_rotation_match():
     competition_state["rotationMatchTargetRpm"] = None
     competition_state["maceState"] = "COMPLETE"
     competition_state["visionState"] = "RPM_MATCHED"
+    _competition_safe_stop_mace()
 
 
 def _competition_tick():
@@ -460,17 +743,54 @@ def _competition_apply_detection(payload):
     if size.get("w") is None or size.get("h") is None:
         return False, "missing bbox size"
 
-    bbox_center = {"x": float(center["x"]), "y": float(center["y"])}
-    bbox_size = {"w": float(size["w"]), "h": float(size["h"])}
-    angle_setpoint_deg = payload.get("angle_setpoint_deg")
-    if angle_setpoint_deg is None:
-        angle_setpoint_deg = payload.get("target_angle_deg")
-    angle_setpoint_deg = float(angle_setpoint_deg) if angle_setpoint_deg is not None else None
+    frame_width_px = float(
+        payload.get("frame_width_px")
+        or payload.get("image_width_px")
+        or competition_state["searchFrameWidthPx"]
+    )
+    frame_height_px = float(
+        payload.get("frame_height_px")
+        or payload.get("image_height_px")
+        or competition_state["searchFrameHeightPx"]
+    )
+    raw_center_x = float(center["x"])
+    raw_center_y = float(center["y"])
+    raw_size_w = float(size["w"])
+    raw_size_h = float(size["h"])
+
+    if raw_center_x > 1.0 or raw_center_y > 1.0:
+        bbox_center_px = {"x": raw_center_x, "y": raw_center_y}
+        bbox_center = {
+            "x": raw_center_x / frame_width_px if frame_width_px else 0.0,
+            "y": raw_center_y / frame_height_px if frame_height_px else 0.0,
+        }
+    else:
+        bbox_center = {"x": raw_center_x, "y": raw_center_y}
+        bbox_center_px = {
+            "x": raw_center_x * frame_width_px,
+            "y": raw_center_y * frame_height_px,
+        }
+
+    if raw_size_w > 1.0 or raw_size_h > 1.0:
+        bbox_size_px = {"w": raw_size_w, "h": raw_size_h}
+        bbox_size = {
+            "w": raw_size_w / frame_width_px if frame_width_px else 0.0,
+            "h": raw_size_h / frame_height_px if frame_height_px else 0.0,
+        }
+    else:
+        bbox_size = {"w": raw_size_w, "h": raw_size_h}
+        bbox_size_px = {
+            "w": raw_size_w * frame_width_px,
+            "h": raw_size_h * frame_height_px,
+        }
     competition_state["snoopyDetection"] = {
         "active": True,
         "found": True,
         "bbox_center": bbox_center,
         "bbox_size": bbox_size,
+        "bbox_center_px": bbox_center_px,
+        "bbox_size_px": bbox_size_px,
+        "frame_size_px": {"w": frame_width_px, "h": frame_height_px},
         "confidence": float(confidence),
         "class_label": "snoopy",
     }
@@ -481,43 +801,26 @@ def _competition_apply_detection(payload):
         competition_state["maceState"] = "CENTERING"
         _competition_apply_mace_velocity(0.0)
 
-    if angle_setpoint_deg is not None:
-        competition_state["model1AngleSetpointDeg"] = round(angle_setpoint_deg, 3)
-        angle_error_deg = float(angle_setpoint_deg)
-        competition_state["searchLockError"] = round(angle_error_deg, 4)
-        deadband_deg = float(competition_state["searchAngleDeadbandDeg"])
-        if abs(angle_error_deg) <= deadband_deg:
-            competition_state["substeps"]["4"]["snoopy-lock"] = True
-            competition_state["visionState"] = "LOCKED"
-            competition_state["maceState"] = "LOCKED"
-            competition_state["searchLockCommand"] = 0.0
-            _competition_apply_mace_velocity(0.0)
-        else:
-            kp = float(competition_state["searchAngleKp"])
-            max_cmd = float(competition_state["searchAngleMaxCommand"])
-            correction = max(-max_cmd, min(max_cmd, -kp * angle_error_deg))
-            competition_state["searchLockCommand"] = round(correction, 4)
-            competition_state["visionState"] = "CENTERING"
-            competition_state["maceState"] = "CENTERING"
-            _competition_apply_mace_velocity(correction)
+    center_error_px = bbox_center_px["x"] - (frame_width_px / 2.0)
+    competition_state["searchLockError"] = round(center_error_px, 2)
+    competition_state["model1AngleSetpointDeg"] = None
+    deadband_px = float(competition_state["searchLockMarginPx"])
+    if abs(center_error_px) <= deadband_px:
+        competition_state["substeps"]["4"]["snoopy-lock"] = True
+        competition_state["visionState"] = "LOCKED"
+        competition_state["maceState"] = "LOCKED"
+        competition_state["searchLockCommand"] = 0.0
+        competition_state["searchScanActive"] = False
+        _competition_apply_mace_velocity(0.0)
     else:
-        x_error = bbox_center["x"] - 0.5
-        competition_state["searchLockError"] = round(x_error, 4)
-        deadband = float(competition_state["searchLockDeadband"])
-        if abs(x_error) <= deadband:
-            competition_state["substeps"]["4"]["snoopy-lock"] = True
-            competition_state["visionState"] = "LOCKED"
-            competition_state["maceState"] = "LOCKED"
-            competition_state["searchLockCommand"] = 0.0
-            _competition_apply_mace_velocity(0.0)
-        else:
-            kp = float(competition_state["searchLockKp"])
-            max_cmd = float(competition_state["searchLockMaxCommand"])
-            correction = max(-max_cmd, min(max_cmd, -kp * x_error))
-            competition_state["searchLockCommand"] = round(correction, 4)
-            competition_state["visionState"] = "CENTERING"
-            competition_state["maceState"] = "CENTERING"
-            _competition_apply_mace_velocity(correction)
+        kp = float(competition_state["searchLockKp"])
+        max_cmd = float(competition_state["searchLockMaxCommand"])
+        correction = max(-max_cmd, min(max_cmd, -kp * (center_error_px / max(frame_width_px, 1.0))))
+        competition_state["searchLockCommand"] = round(correction, 4)
+        competition_state["visionState"] = "CENTERING"
+        competition_state["maceState"] = "CENTERING"
+        competition_state["searchScanActive"] = False
+        _competition_apply_mace_velocity(correction)
 
     competition_state["last_event"] = "detection:snoopy"
     competition_state["last_error"] = None
@@ -545,16 +848,19 @@ def _competition_complete_substep(step, substep):
     competition_state["substeps"][step][substep] = True
     if step == "2" and substep == "mace":
         mace["enabled"] = True
-        mace["target"] = 0.0
-        mace["velocity"] = 0.0
+        mace["target"] = float(competition_state["searchRotationSpeed"])
+        mace["velocity"] = float(competition_state["searchRotationSpeed"])
         mace["error"] = None
-        send_velocity(0.0)
-        competition_state["maceState"] = "PRIMED"
+        competition_state["maceState"] = "SCANNING"
+        competition_state["visionState"] = "SEARCHING"
+        competition_state["searchScanActive"] = True
+        competition_state["activeVisionModel"] = 1
+        send_velocity(float(competition_state["searchRotationSpeed"]))
     elif step == "4" and substep == "search-snoopy":
         competition_state["activeVisionModel"] = 1
         competition_state["visionState"] = "SEARCHING"
         competition_state["maceState"] = "SEARCHING"
-        competition_state["model1InputSearchRpm"] = round(float(competition_state["searchRotationSpeed"]), 3)
+        competition_state["searchScanActive"] = True
         _competition_reset_detection_tracking()
         _competition_apply_mace_velocity(competition_state["searchRotationSpeed"])
     elif step == "5" and substep == "rotation-finder-model":
@@ -580,13 +886,20 @@ def _competition_respond(checkpoint, approved):
         return True, None
     if checkpoint == "nominal-environment":
         competition_state["nominalCheckResolved"] = True
-        # Step 2 begins by starting the first model automatically.
+        # Step 2 begins by starting the first model. Model 1 consumes camera frames.
         competition_state["substeps"]["2"]["snoopy-detect"] = True
         competition_state["activeVisionModel"] = 1
-        competition_state["visionState"] = "SEARCHING"
+        competition_state["visionState"] = "MODEL_READY"
         _competition_reset_detection_tracking()
     elif checkpoint == "everything-nominal":
         competition_state["everythingNominalResolved"] = True
+        competition_state["substeps"]["4"]["search-snoopy"] = True
+        competition_state["activeVisionModel"] = 1
+        competition_state["visionState"] = "SEARCHING"
+        competition_state["maceState"] = "SEARCHING"
+        competition_state["searchScanActive"] = True
+        if competition_state["substeps"]["2"]["mace"]:
+            _competition_apply_mace_velocity(competition_state["searchRotationSpeed"])
     elif checkpoint == "proceed":
         competition_state["allIdentifiedResolved"] = True
     elif checkpoint == "rotation-satisfied":
@@ -611,10 +924,7 @@ def _competition_respond(checkpoint, approved):
 
 
 def _competition_reset():
-    mace["target"] = 0.0
-    mace["velocity"] = 0.0
-    mace["enabled"] = False
-    send_velocity(0.0)
+    _competition_safe_stop_mace()
     competition_state.clear()
     competition_state.update(competition_default_state())
 
@@ -622,6 +932,11 @@ def _competition_reset():
 def send_velocity(velocity):
     """Send velocity command (rad/s) to Pico via GEO-DUDe /simplefoc endpoint."""
     try:
+        if UPSTREAM_GROUNDSTATION_URL:
+            _proxy_json_post(f"{UPSTREAM_GROUNDSTATION_URL}/api/mace/enable", {})
+            _proxy_json_post(f"{UPSTREAM_GROUNDSTATION_URL}/api/mace/velocity", {"target": round(float(velocity), 4)})
+            mace["error"] = None
+            return True
         req = urllib.request.Request(
             f"{GEODUDE_URL}/simplefoc",
             data=json.dumps({"velocity": round(float(velocity), 4)}).encode(),
@@ -638,6 +953,9 @@ def send_velocity(velocity):
 def send_pwm(channel, pw):
     """Send PWM pulse width to a named PCA9685 channel."""
     try:
+        if UPSTREAM_GROUNDSTATION_URL:
+            _proxy_json_post(f"{UPSTREAM_GROUNDSTATION_URL}/api/pwm", {"channel": channel, "pw": pw})
+            return True
         req = urllib.request.Request(
             f"{GEODUDE_URL}/pwm",
             data=json.dumps({"channel": channel, "pw": pw}).encode(),
@@ -652,6 +970,9 @@ def send_pwm(channel, pw):
 def send_all_off():
     """Turn all PCA9685 channels off."""
     try:
+        if UPSTREAM_GROUNDSTATION_URL:
+            _proxy_json_post(f"{UPSTREAM_GROUNDSTATION_URL}/api/all_off", {})
+            return True
         req = urllib.request.Request(f"{GEODUDE_URL}/pwm/off", method="POST")
         urllib.request.urlopen(req, timeout=3)
         return True
@@ -678,24 +999,36 @@ def watchdog_loop():
 def sensor_loop():
     while True:
         try:
-            resp = urllib.request.urlopen(f"{GEODUDE_URL}/sensors", timeout=2)
-            data = json.loads(resp.read().decode())
-            with lock:
-                state["gyro"] = {"x": data["gx"], "y": data["gy"], "z": data["gz"]}
-                state["accel"] = {"x": data["ax"], "y": data["ay"], "z": data["az"]}
-                state["encoder_angle"] = data["angle"]
-                state["rpm"] = data.get("rpm", 0)
-                state["connected"] = True
+            if UPSTREAM_GROUNDSTATION_URL:
+                data, _ = _proxy_json_get(f"{UPSTREAM_GROUNDSTATION_URL}/api/sensors", timeout=2)
+                with lock:
+                    state["gyro"] = data.get("gyro", {"x": 0, "y": 0, "z": 0})
+                    state["accel"] = data.get("accel", {"x": 0, "y": 0, "z": 0})
+                    state["encoder_angle"] = data.get("encoder_angle", 0)
+                    state["rpm"] = data.get("rpm", 0)
+                    state["connected"] = bool(data.get("connected", False))
+            else:
+                resp = urllib.request.urlopen(f"{GEODUDE_URL}/sensors", timeout=2)
+                data = json.loads(resp.read().decode())
+                with lock:
+                    state["gyro"] = {"x": data["gx"], "y": data["gy"], "z": data["gz"]}
+                    state["accel"] = {"x": data["ax"], "y": data["ay"], "z": data["az"]}
+                    state["encoder_angle"] = data["angle"]
+                    state["rpm"] = data.get("rpm", 0)
+                    state["connected"] = True
         except Exception:
             with lock:
                 state["connected"] = False
         # Poll SimpleFOC status from GEO-DUDe (Pico connection + current target)
         try:
-            resp = urllib.request.urlopen(f"{GEODUDE_URL}/simplefoc/status", timeout=2)
-            sfoc = json.loads(resp.read().decode())
+            if UPSTREAM_GROUNDSTATION_URL:
+                sfoc, _ = _proxy_json_get(f"{UPSTREAM_GROUNDSTATION_URL}/api/mace/status", timeout=2)
+            else:
+                resp = urllib.request.urlopen(f"{GEODUDE_URL}/simplefoc/status", timeout=2)
+                sfoc = json.loads(resp.read().decode())
             with lock:
                 mace["connected"] = sfoc.get("connected", False)
-                t = sfoc.get("target")
+                t = sfoc.get("target", sfoc.get("velocity"))
                 if t is not None:
                     mace["velocity"] = round(float(t), 4)
         except Exception:
@@ -848,8 +1181,12 @@ def system_stats():
     # GEO-DUDe stats
     gd = {}
     try:
-        resp = urllib.request.urlopen(f"{GEODUDE_URL}/system", timeout=2)
-        gd = json.loads(resp.read().decode())
+        if UPSTREAM_GROUNDSTATION_URL:
+            upstream, _ = _proxy_json_get(f"{UPSTREAM_GROUNDSTATION_URL}/api/system", timeout=2)
+            gd = upstream.get("geodude", upstream)
+        else:
+            resp = urllib.request.urlopen(f"{GEODUDE_URL}/system", timeout=2)
+            gd = json.loads(resp.read().decode())
     except Exception:
         gd = {"temp": 0, "cpu": 0, "load": 0}
     return jsonify({"groundstation": gs, "geodude": gd})
@@ -860,7 +1197,7 @@ def camera():
     """Proxy MJPEG stream from GEO-DUDe."""
     import urllib.request as ur
     try:
-        resp = ur.urlopen(f"{GEODUDE_URL}/camera", timeout=5)
+        resp = ur.urlopen(_camera_stream_url(), timeout=5)
         def generate():
             while True:
                 chunk = resp.read(4096)
@@ -870,6 +1207,72 @@ def camera():
         return app.response_class(generate(), mimetype=resp.headers.get('Content-Type', 'multipart/x-mixed-replace; boundary=frame'))
     except Exception as e:
         return jsonify({"error": str(e)}), 502
+
+
+@app.route('/api/vision/status')
+def vision_status():
+    with lock:
+        return jsonify(_vision_snapshot())
+
+
+@app.route('/api/vision/upload', methods=['POST'])
+def vision_upload():
+    try:
+        slot = int(request.form.get("slot", "0"))
+    except Exception:
+        slot = 0
+    if slot not in vision_runtime["slots"]:
+        return jsonify({"ok": False, "reason": "invalid slot", "vision": _vision_snapshot()}), 400
+    if "model" not in request.files:
+        return jsonify({"ok": False, "reason": "missing model file", "vision": _vision_snapshot()}), 400
+
+    file = request.files["model"]
+    filename = _safe_filename(file.filename or f"model_{slot}.pt")
+    if not filename.lower().endswith(".pt"):
+        return jsonify({"ok": False, "reason": "only .pt models are supported for backend inference", "vision": _vision_snapshot()}), 400
+
+    slot_dir = os.path.join(MODELS_DIR, f"slot_{slot}")
+    os.makedirs(slot_dir, exist_ok=True)
+    for name in os.listdir(slot_dir):
+        try:
+            os.unlink(os.path.join(slot_dir, name))
+        except Exception:
+            pass
+    target = os.path.join(slot_dir, filename)
+    file.save(target)
+
+    with lock:
+        info = vision_runtime["slots"][slot]
+        info["filename"] = filename
+        info["path"] = target
+        info["uploaded_at"] = int(time.time())
+        info["error"] = None
+        info["loaded"] = False
+        loaded = _vision_load_model(slot)
+        return jsonify({
+            "ok": True,
+            "slot": slot,
+            "loaded": loaded,
+            "vision": _vision_snapshot(),
+        })
+
+
+@app.route('/api/vision/clear', methods=['POST'])
+def vision_clear():
+    data = request.json or {}
+    try:
+        slot = int(data.get("slot", 0))
+    except Exception:
+        slot = 0
+    if slot not in vision_runtime["slots"]:
+        return jsonify({"ok": False, "reason": "invalid slot", "vision": _vision_snapshot()}), 400
+    slot_dir = os.path.join(MODELS_DIR, f"slot_{slot}")
+    if os.path.isdir(slot_dir):
+        shutil.rmtree(slot_dir, ignore_errors=True)
+    with lock:
+        vision_runtime["models"].pop(slot, None)
+        vision_runtime["slots"][slot] = {"filename": None, "path": None, "uploaded_at": None, "loaded": False, "error": None}
+        return jsonify({"ok": True, "vision": _vision_snapshot()})
 
 
 @app.route('/api/competition/status')
@@ -884,6 +1287,14 @@ def competition_config():
     with lock:
         if "searchRotationSpeed" in data:
             competition_state["searchRotationSpeed"] = max(0.0, min(12.0, float(data.get("searchRotationSpeed", 0.0))))
+            if competition_state["searchScanActive"] and competition_state["currentStep"] in (2, 3, 4):
+                _competition_apply_mace_velocity(competition_state["searchRotationSpeed"])
+        if "searchLockMarginPx" in data:
+            competition_state["searchLockMarginPx"] = max(2.0, min(200.0, float(data.get("searchLockMarginPx", 32.0))))
+        if "searchFrameWidthPx" in data:
+            competition_state["searchFrameWidthPx"] = max(64.0, min(4096.0, float(data.get("searchFrameWidthPx", 640.0))))
+        if "searchFrameHeightPx" in data:
+            competition_state["searchFrameHeightPx"] = max(64.0, min(4096.0, float(data.get("searchFrameHeightPx", 480.0))))
         if "searchLockDeadband" in data:
             competition_state["searchLockDeadband"] = max(0.005, min(0.25, float(data.get("searchLockDeadband", 0.05))))
         if "searchLockKp" in data:
@@ -916,6 +1327,8 @@ def competition_arm():
         competition_state["armed"] = armed
         if not armed:
             competition_state["running"] = False
+            competition_state["searchScanActive"] = False
+            _competition_safe_stop_mace()
         competition_state["last_event"] = "armed" if armed else "disarmed"
         competition_state["last_error"] = None
         return jsonify({"ok": True, "state": _competition_snapshot()})
@@ -990,6 +1403,11 @@ def competition_rotation_estimate():
 def attitude_proxy(path, method="GET", data=None):
     """Proxy requests to the attitude controller on GEO-DUDe:5001."""
     try:
+        if UPSTREAM_GROUNDSTATION_URL:
+            url = f"{UPSTREAM_GROUNDSTATION_URL}/api/attitude/{path}"
+            if method == "POST":
+                return _proxy_json_post(url, data, timeout=3)
+            return _proxy_json_get(url, timeout=3)
         if method == "POST":
             body = json.dumps(data).encode() if data else b""
             req = urllib.request.Request(
@@ -1064,6 +1482,8 @@ def attitude_stop():
 def gimbal_get(path):
     """GET request to gimbal ESP32."""
     try:
+        if UPSTREAM_GROUNDSTATION_URL:
+            return _proxy_json_get(f"{UPSTREAM_GROUNDSTATION_URL}/api/gimbal/{path}", timeout=3)
         resp = urllib.request.urlopen(f"{GIMBAL_URL}/{path}", timeout=3)
         return json.loads(resp.read().decode()), resp.status
     except Exception as e:
