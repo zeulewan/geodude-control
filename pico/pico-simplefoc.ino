@@ -3,9 +3,11 @@
 
 BLDCMotor motor = BLDCMotor(7);
 BLDCDriver3PWM driver = BLDCDriver3PWM(10, 11, 12, 14);
-MagneticSensorAnalog sensor = MagneticSensorAnalog(26, 0, 4095);  // GP26 ADC0, 12-bit
+MagneticSensorI2C sensor = MagneticSensorI2C(AS5600_I2C);  // 0x36 on Wire1 (GP2/GP3)
 
 float target_velocity = 0;
+float target_voltage = 0;
+int control_mode = 0;  // 0=velocity (MACE manual), 1=torque (attitude control)
 
 // DRV8313 control pins
 #define PIN_NRT 19  // nRESET (active low, output)
@@ -28,24 +30,25 @@ void initI2C() {
 void readSensors() {
   if (!i2c_ok) initI2C();
 
-  // AS5600 encoder - read from motor sensor (analog)
+  // AS5600 encoder - read from motor sensor (I2C)
   sensor.update();
-  enc_angle = sensor.getAngle() * 180.0 / PI;  // rad to deg
+  enc_angle = fmod(sensor.getAngle() * 180.0 / PI, 360.0);
+  if (enc_angle < 0) enc_angle += 360.0;
   i2c_err_enc = 0;
 
-  // ICM20948 accel + gyro
-  Wire1.beginTransmission(0x69);
-  Wire1.write(0x2D);
-  i2c_err_imu = Wire1.endTransmission(false);
+  // ICM20948 accel + gyro on Wire/I2C0 (GP4/GP5)
+  Wire.beginTransmission(0x69);
+  Wire.write(0x2D);
+  i2c_err_imu = Wire.endTransmission(false);
   if (i2c_err_imu == 0) {
-    Wire1.requestFrom(0x69, 12);
-    if (Wire1.available() >= 12) {
-      int16_t ax = (Wire1.read() << 8) | Wire1.read();
-      int16_t ay = (Wire1.read() << 8) | Wire1.read();
-      int16_t az = (Wire1.read() << 8) | Wire1.read();
-      int16_t gx = (Wire1.read() << 8) | Wire1.read();
-      int16_t gy = (Wire1.read() << 8) | Wire1.read();
-      int16_t gz = (Wire1.read() << 8) | Wire1.read();
+    Wire.requestFrom(0x69, 12);
+    if (Wire.available() >= 12) {
+      int16_t ax = (Wire.read() << 8) | Wire.read();
+      int16_t ay = (Wire.read() << 8) | Wire.read();
+      int16_t az = (Wire.read() << 8) | Wire.read();
+      int16_t gx = (Wire.read() << 8) | Wire.read();
+      int16_t gy = (Wire.read() << 8) | Wire.read();
+      int16_t gz = (Wire.read() << 8) | Wire.read();
       imu_ax = ax / 16384.0;
       imu_ay = ay / 16384.0;
       imu_az = az / 16384.0;
@@ -61,14 +64,21 @@ void setup() {
   Wire1.setSDA(2);
   Wire1.setSCL(3);
   Wire1.begin();
-  Wire1.setClock(100000);
+  Wire1.setClock(400000);  // 400kHz - testing higher speed for RPM cap
 
-  // Wake ICM20948
-  Wire1.beginTransmission(0x69);
-  Wire1.write(0x06);
-  Wire1.write(0x01);
-  Wire1.endTransmission();
-  delay(50);
+  // IMU on Wire/I2C0 (GP4/GP5)
+  Wire.setSDA(4);
+  Wire.setSCL(5);
+  Wire.begin();
+  Wire.setClock(200000);
+
+  // Wake ICM20948 (if connected)
+  Wire.beginTransmission(0x69);
+  Wire.write(0x06);
+  Wire.write(0x01);
+  if (Wire.endTransmission() == 0) {
+    delay(50);
+  }
   i2c_ok = true;
 
   // DRV8313 control pins
@@ -92,12 +102,27 @@ void setup() {
   }
   digitalWrite(LED_BUILTIN, HIGH);
 
-  // AS5600 encoder on analog (GP26)
-  analogReadResolution(12);
-  sensor.init();
-  motor.linkSensor(&sensor);
-
   SimpleFOCDebug::enable(&Serial);
+  Serial.println("BOOT: waiting for AS5600...");
+
+  // Wait for AS5600 to be ready on I2C1 before init
+  analogReadResolution(12);  // for VSYS ADC
+  for (int attempt = 0; attempt < 20; attempt++) {
+    Wire1.beginTransmission(0x36);
+    int err = Wire1.endTransmission();
+    if (err == 0) {
+      Serial.print("BOOT: AS5600 found after ");
+      Serial.print(attempt);
+      Serial.println(" attempts");
+      break;
+    }
+    delay(100);
+  }
+
+  // AS5600 encoder on I2C1 (GP2/GP3)
+  sensor.init(&Wire1);
+  Serial.println("BOOT: sensor init done");
+  motor.linkSensor(&sensor);
 
   // Motor driver
   driver.voltage_power_supply = 12;
@@ -108,22 +133,31 @@ void setup() {
   motor.velocity_limit = 300;
   motor.controller = MotionControlType::velocity;
 
-  // Velocity PID
+  // Velocity PID (tuned for I2C encoder - clean signal)
   motor.PID_velocity.P = 0.2;
-  motor.PID_velocity.I = 10;
+  motor.PID_velocity.I = 2;
   motor.PID_velocity.D = 0;
   motor.PID_velocity.output_ramp = 1000;
-  motor.LPF_velocity.Tf = 0.01;
+  motor.LPF_velocity.Tf = 0.05;  // heavier filtering for analog encoder noise
 
+  Serial.println("BOOT: motor.init()...");
   motor.init();
+  Serial.println("BOOT: motor.initFOC()...");
   motor.initFOC();  // calibrate at startup - motor must be connected
+  Serial.println("BOOT: initFOC done");
   motor.PID_velocity.limit = motor.voltage_limit;  // sync PID limit with voltage limit
+  motor.disable();  // start disabled - user must explicitly enable
+  Serial.println("BOOT: motor disabled (waiting for enable command)");
 }
 
 void loop() {
   // Motor control
   motor.loopFOC();
-  motor.move(target_velocity);
+  if (control_mode == 1) {
+    motor.move(target_voltage);   // torque mode: voltage applied directly via FOC
+  } else {
+    motor.move(target_velocity);  // velocity mode: SimpleFOC PID controls
+  }
 
   // Read sensors at 50Hz
   unsigned long now = millis();
@@ -132,13 +166,19 @@ void loop() {
     readSensors();
 
     // Read VSYS voltage (ADC3/GPIO29, 200K/100K divider = /3)
-    analogReadResolution(12);
     int raw = analogRead(A3);
     float vsys = raw * 3.0 * 3.3 / 4095.0;
 
     // Stream JSON status line
+    float shaft_vel = motor.shaft_velocity;  // rad/s (filtered by SimpleFOC)
+    float shaft_rpm = shaft_vel * 60.0 / (2.0 * PI);
+
     Serial.print("{\"t\":");
     Serial.print(target_velocity, 2);
+    Serial.print(",\"vel\":");
+    Serial.print(shaft_vel, 2);
+    Serial.print(",\"rpm\":");
+    Serial.print(shaft_rpm, 1);
     Serial.print(",\"vsys\":");
     Serial.print(vsys, 2);
     Serial.print(",\"enc\":");
@@ -195,6 +235,10 @@ void loop() {
     Serial.print(motor.PID_velocity.output_ramp, 0);
     Serial.print(",\"lpf\":");
     Serial.print(motor.LPF_velocity.Tf, 3);
+    Serial.print(",\"cm\":");
+    Serial.print(control_mode);
+    Serial.print(",\"tv\":");
+    Serial.print(target_voltage, 3);
     Serial.println("}");
   }
 
@@ -216,9 +260,24 @@ void loop() {
       // Calibrate: run initFOC and enable motor
       motor.initFOC();
       motor.enable();
+    } else if (cmd == "M0") {
+      // Switch to velocity mode (MACE manual)
+      control_mode = 0;
+      target_voltage = 0;
+      motor.controller = MotionControlType::velocity;
+    } else if (cmd == "M1") {
+      // Switch to torque mode (attitude control)
+      control_mode = 1;
+      target_velocity = 0;
+      motor.controller = MotionControlType::torque;
+    } else if (cmd.startsWith("U")) {
+      // Direct voltage command (torque mode)
+      float v = cmd.substring(1).toFloat();
+      target_voltage = constrain(v, -12.0, 12.0);
     } else if (cmd == "D") {
       // Disable motor
       target_velocity = 0;
+      target_voltage = 0;
       motor.disable();
     } else if (cmd == "E") {
       // Enable motor (only after calibration)

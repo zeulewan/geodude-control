@@ -92,15 +92,22 @@ Pushes to GitHub happen from zmac periodically. The Pi will pull from GitHub dir
 
 ## MACE Reaction Wheel (SimpleFOC / Pi Pico)
 
-The reaction wheel uses a Pi Pico running SimpleFOC firmware, connected to the GEO-DUDe Pi via USB serial (`/dev/pico`, 115200 baud). Replaces the old ESC + PCA9685 PWM system.
+The reaction wheel uses an STM32 Nucleo F446RE with SimpleFOC Shield V2.0.4 hat, connected to the GEO-DUDe Pi via USB serial (`/dev/ttyACM0`, 115200 baud).
 
-### Hardware
-- **Motor:** 2804 hollow shaft BLDC gimbal outrunner (7 pole pairs, 220 KV, 2.3 ohm phase resistance, 0.03 Nm torque)
-- **Driver:** SimpleFOC Mini v1.0 (DRV8313, 2.5A continuous, 3.5A OCP)
-- **Encoder:** AS5600 magnetic encoder (analog output to GP26 for FOC, I2C on GP2/GP3 for IMU)
-- **IMU:** ICM20948 9DoF (I2C1 on GP2/GP3, address 0x69)
-- **Controller:** Raspberry Pi Pico (RP2040)
-- **Connection:** Pico USB to GEO-DUDe Pi USB port (data), Pico VSYS powered from 5V buck (not USB power)
+### Hardware (Current - Nucleo + SimpleFOC Shield)
+- **Controller:** STM32 Nucleo F446RE (ARM Cortex-M4, 180MHz, 512KB flash, 128KB SRAM)
+- **Driver:** SimpleFOC Shield V2.0.4 (clone, GODIYMODULES) - 3x IR2104 half-bridge, 2x INA240 current sensors (phase A/B), 12-35V input
+- **Motor:** TBD (new motor, replacing 2804 gimbal)
+- **Encoder:** AS5600 magnetic encoder (I2C, address 0x36)
+- **IMU:** ICM20948 9DoF (I2C, address 0x69)
+- **Connection:** Nucleo USB (ST-LINK virtual COM) to GEO-DUDe Pi
+- **Flashing:** st-flash via ST-LINK/V2.1 onboard programmer
+- **Power:** Nucleo powered from Pi USB (5V), Shield powered from external PSU (12-35V)
+
+### Hardware (Previous - Pi Pico + DRV8313)
+See `site/docs/electrical/geodude/mace-development-log.md` for full history of the Pico-based system.
+- Pi Pico (RP2040) + SimpleFOC Mini (DRV8313) + 2804 BLDC gimbal motor
+- Retired due to: RP2040 ADC noise, limited current capability, no current sensing
 
 ### Pico GPIO (current perfboard wiring)
 - GP10 = IN1 (PWM phase A)
@@ -110,17 +117,20 @@ The reaction wheel uses a Pi Pico running SimpleFOC firmware, connected to the G
 - GP19 = nRT (DRV8313 reset, active low)
 - GP20 = nSP (DRV8313 sleep, active low)
 - GP21 = nFT (DRV8313 fault output, active low = fault)
-- GP26 = AS5600 analog output (ADC0, for FOC encoder)
-- GP2 = SDA (I2C1, for IMU)
-- GP3 = SCL (I2C1, for IMU)
+- GP2 = SDA (I2C1/Wire1, AS5600 encoder, 400kHz)
+- GP3 = SCL (I2C1/Wire1, AS5600 encoder, 400kHz)
+- GP4 = SDA (I2C0/Wire, ICM20948 IMU, 200kHz)
+- GP5 = SCL (I2C0/Wire, ICM20948 IMU, 200kHz)
 - GP6 = Bootloader entry (emergency, active low)
 - GP27 (Pi side) = Pico RUN pin (hard reset from Pi)
 
 ### Important hardware notes
 - **Pico must be powered via VSYS (pin 39) from 5V buck**, not USB. USB is data only. The Pi's USB polyfuse drops voltage too much.
 - **Sensors must be powered from Pico 3.3V (pin 36)**, not Pi 3.3V. Avoids I2C timing race at boot.
-- **I2C1 (Wire1)** for GP2/GP3. Wire (I2C0) doesn't work on those pins.
-- **AS5600 analog output** used for FOC (fast reads). I2C was too slow, limited motor to ~800 RPM.
+- **Encoder on I2C1 (Wire1)** GP2/GP3 at 400kHz. Was analog on GP26 previously but RP2040 ADC too noisy.
+- **IMU on I2C0 (Wire)** GP4/GP5 at 200kHz. Separate bus from encoder, no contention.
+- **Firmware retries AS5600 init** up to 20 times at boot to handle sensor power-on delay.
+- **Motor starts disabled** on boot. Must be explicitly enabled via E command or GUI.
 - **udev rule** on GEO-DUDe Pi creates `/dev/pico` symlink (persistent across reconnects):
   `SUBSYSTEM=="tty", ATTRS{idVendor}=="2e8a", ATTRS{idProduct}=="000a", SYMLINK+="pico"`
 - **1000uF cap** on Pi 5V rail to prevent undervoltage on current spikes.
@@ -129,11 +139,12 @@ The reaction wheel uses a Pi Pico running SimpleFOC firmware, connected to the G
 ### Firmware
 - Source: `pico/pico-simplefoc.ino` (in repo), compiled on zmac
 - Framework: Arduino (earlephilhower rp2040 core) + SimpleFOC library
-- Mode: Closed-loop velocity with analog encoder
+- Two modes: **velocity** (M0, MACE manual control) and **torque** (M1, attitude control direct voltage)
 - Streams JSON telemetry at 50Hz over USB serial (sensors, motor state, tuning params)
-- Serial commands: T (velocity), V (voltage limit), P/I/W (PID), L (velocity limit), A (output ramp), F (LPF), C (calibrate), D (disable), E (enable), R (reset fault)
-- `initFOC()` runs at boot (motor must be connected and free to move)
+- Serial commands: T (velocity), U (voltage), V (voltage limit), P/I/W (PID), L (velocity limit), A (output ramp), F (LPF), M0/M1 (mode switch), C (calibrate), D (disable), E (enable), R (reset fault)
+- `initFOC()` runs at boot (motor must be connected and free to move), motor disabled after init
 - `driver.voltage_limit = 12` (hardware cap), `motor.voltage_limit = 2` (startup default, adjustable via GUI)
+- Full development history: `site/docs/electrical/geodude/mace-development-log.md`
 
 ### Flashing the Pico
 ```bash
@@ -147,7 +158,7 @@ Hard reset via RUN pin: Pi GPIO 27 low for 200ms then high.
 
 ### Telemetry stream format (JSON, 50Hz)
 ```json
-{"t":0.0,"vsys":5.17,"enc":131.7,"ax":0.0,"ay":0.06,"az":1.0,"gx":-0.1,"gy":0.4,"gz":-0.4,"ft":1,"sp":1,"rt":1,"ie":0,"ii":0,"en":1,"me":1,"va":3.0,"vb":8.2,"vc":-2.2,"da":0.25,"db":0.5,"dc":0.0,"vl":2.0,"sl":300.0,"kp":0.2,"ki":10.0,"kd":0.0,"rmp":1000,"lpf":0.01}
+{"t":0.0,"vel":0.0,"rpm":0.0,"vsys":5.17,"enc":131.7,"ax":0.0,"ay":0.06,"az":1.0,"gx":-0.1,"gy":0.4,"gz":-0.4,"ft":1,"sp":1,"rt":1,"ie":0,"ii":0,"en":1,"me":1,"va":3.0,"vb":8.2,"vc":-2.2,"da":0.25,"db":0.5,"dc":0.0,"vl":2.0,"sl":300.0,"kp":0.2,"ki":2.0,"kd":0.0,"rmp":1000,"lpf":0.02,"cm":0,"tv":0.0}
 ```
 
 ### API (sensor_server.py on GEO-DUDe)
@@ -156,17 +167,24 @@ Hard reset via RUN pin: Pi GPIO 27 low for 200ms then high.
 - `GET /sensors` - sensor data (accel, gyro, encoder, rpm)
 
 ### Ground station UI
-- RPM slider (-2500 to +2500 RPM), converts to rad/s for Pico
-- Quick preset buttons (RPM)
-- Enable/disable/calibrate/reset fault/stop buttons
-- Motor tuning sliders: voltage limit, velocity limit, Kp, Ki, Kd, output ramp, LPF
-- Live telemetry: fault/sleep/reset status, phase voltages, duty cycles, encoder, RPM
+- **Attitude Control** (above MACE): enable/disable/stop, setpoint nudge buttons, PID gains (Kp/Ki/Kd), attitude plot (commanded vs body angle), wheel speed plot
+- **MACE Reaction Wheel** (disableable section): RPM slider (-450 to +450), motor tuning inputs, speed plot. Auto-disabled when attitude control is active.
+- MACE and attitude control are mutually exclusive. Attitude has higher authority.
 
-### Performance (measured)
-- Max speed with I2C encoder: ~800 RPM (I2C read bottleneck)
-- Max speed with analog encoder: ~1200+ RPM (and increasing)
-- Reaction torque: 5 deg/s body rate during full reversal (+800 to -800 RPM)
-- PID needs retuning for analog encoder (faster sensor = lower gains needed)
+### Attitude Controller (`geodude/attitude_controller.py`)
+- Runs on GEO-DUDe Pi, port 5001
+- Single PID: angle error (deg) -> voltage command (1.5V-12V)
+- D term uses gyro rate (derivative on measurement, not error)
+- Auto-calibrates gyro bias on enable (2s stationary)
+- Switches Pico to torque mode (M1) on enable, back to velocity (M0) + disable (D) on disable
+- Watchdog: auto-disables after 5s without GUI heartbeat
+
+### Performance (measured, 2804 motor)
+- Max speed with I2C encoder @ 100kHz: ~800 RPM
+- Max speed with I2C encoder @ 400kHz: 1000+ RPM
+- Max speed with analog encoder: 1200+ RPM (unusable due to RP2040 ADC noise)
+- Body rate during full reversal: ~5 deg/s
+- Gyro bias (ICM20948): ~1.5 deg/s typical
 
 ## Gimbal (ESP32 + TMC2209)
 
@@ -240,6 +258,7 @@ Groundstation Pi — 192.168.50.2 (USB Ethernet from zmac)
 |---------|--------|------|-----------|
 | Web UI | Groundstation Pi | `wheel-control.service` | `/opt/geodude-control/groundstation/wheel_control.py` |
 | Sensor/Motor API | GEO-DUDe Pi | `sensor-server.service` | `/home/zeul/sensor_server.py` |
+| Attitude Controller | GEO-DUDe Pi | `attitude-controller.service` | `/home/zeul/attitude_controller.py` |
 | SimpleFOC (Pico) | GEO-DUDe Pi USB | firmware in flash | boots automatically, streams to sensor-server |
 | Gimbal | ESP32 | firmware in flash | boots automatically on power |
 
