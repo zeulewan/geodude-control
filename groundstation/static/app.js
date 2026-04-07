@@ -77,8 +77,8 @@ var chNeutral = {};
 var controllerStatus = {enabled: false};
 var activePageTab = 'manual';
 var missionPanelModes = {
-  mission: {title: 'Mission Simulation', subtitle: 'Dev-only autonomous workflow sandbox.', badge: 'mizi-dev only'},
-  competition: {title: 'MACE Competition', subtitle: 'Competition-mode autonomous workflow sandbox.', badge: 'mizi-dev only'}
+  mission: {title: 'Mission Simulation', subtitle: 'Autonomous workflow sandbox.', badge: 'main'},
+  competition: {title: 'MACE Competition', subtitle: 'Competition-mode autonomous workflow sandbox.', badge: 'main'}
 };
 
 function missionFlowSequence() {
@@ -1127,7 +1127,7 @@ function ikUpdateResult(result) {
     if (!result) {
       noteEl.textContent = 'Solver uses the measured arm lengths in this branch. On the dev page, MOVE SOLVED POSE reuses the dashed solution and stays dry-run only until you explicitly choose otherwise.';
     } else if (!result.ok) {
-      noteEl.textContent = 'Target is outside the current approximate IK workspace or joint limits. Adjust the target or tune the calibration constants in mizi-dev.';
+      noteEl.textContent = 'Target is outside the current approximate IK workspace or joint limits. Adjust the target or tune the calibration constants.';
     } else if (result.applied) {
       noteEl.textContent = result.reused_last_solution ? 'Dry-run solved pose move completed. The dashed pose was reused without re-solving, and this isolated instance is still not sending live actuator commands.' : 'Dry-run move completed on the dev page. The solver returned PWM targets, but this isolated instance is not sending live actuator commands.';
     } else if (armVizState.mode === 'test') {
@@ -1263,7 +1263,7 @@ function updateVisionUI() {
     } else if (!visionState.backendAvailable) {
       noteEl.textContent = 'Models uploaded, but backend inference runtime is unavailable: ' + (visionState.backendReason || 'missing detector runtime');
     } else if (visionState.status === 'LOADED') {
-      noteEl.textContent = 'Models uploaded to the local mizi-dev backend: ' + loadedModels.join(', ') + '. Active competition steps can now use backend inference on this machine.';
+      noteEl.textContent = 'Models uploaded to the local backend: ' + loadedModels.join(', ') + '. Active competition steps can now use backend inference on this machine.';
     } else if (visionState.status === 'PREVIEW') {
       noteEl.textContent = 'Preview staged for ' + visionState.profile + ' in ' + visionState.mode + ' mode with ' + loadedModels.length + ' selected model(s). Camera integration is still backend-pending.';
     } else if (visionState.status === 'STAGED') {
