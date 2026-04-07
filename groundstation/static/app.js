@@ -1,6 +1,136 @@
+/* ========== Speed Chart ========== */
+var _speedChartTarget = [];
+var _speedChartActual = [];
+var _speedChartMax = 200;  // rolling window (200 samples at 250ms = 50s)
+
+function speedChartPush(targetRpm, actualRpm) {
+  _speedChartTarget.push(targetRpm);
+  _speedChartActual.push(actualRpm);
+  if (_speedChartTarget.length > _speedChartMax) {
+    _speedChartTarget.shift();
+    _speedChartActual.shift();
+  }
+  speedChartDraw();
+}
+
+function speedChartDraw() {
+  var canvas = document.getElementById('speedChart');
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  var n = _speedChartTarget.length;
+  if (n < 2) return;
+
+  // Find y range from both arrays
+  var all = _speedChartTarget.concat(_speedChartActual);
+  var yMin = Math.min.apply(null, all);
+  var yMax = Math.max.apply(null, all);
+  // Add padding
+  var yPad = Math.max(Math.abs(yMax - yMin) * 0.1, 50);
+  yMin -= yPad;
+  yMax += yPad;
+  if (yMin === yMax) { yMin -= 100; yMax += 100; }
+
+  var xStep = w / (_speedChartMax - 1);
+
+  // Zero line
+  var zeroY = h - ((0 - yMin) / (yMax - yMin)) * h;
+  ctx.strokeStyle = '#374151';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(0, zeroY);
+  ctx.lineTo(w, zeroY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Y-axis labels
+  ctx.fillStyle = '#6b7280';
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(Math.round(yMax) + ' RPM', 4, 14);
+  ctx.fillText(Math.round(yMin) + ' RPM', 4, h - 4);
+  if (zeroY > 20 && zeroY < h - 20) {
+    ctx.fillText('0', 4, zeroY - 4);
+  }
+
+  // Draw target line (blue)
+  var offset = _speedChartMax - n;
+  ctx.strokeStyle = '#3b82f6';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (var i = 0; i < n; i++) {
+    var x = (offset + i) * xStep;
+    var y = h - ((_speedChartTarget[i] - yMin) / (yMax - yMin)) * h;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Draw actual line (green)
+  ctx.strokeStyle = '#10b981';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (var i = 0; i < n; i++) {
+    var x = (offset + i) * xStep;
+    var y = h - ((_speedChartActual[i] - yMin) / (yMax - yMin)) * h;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+}
+
 /* ========== Snapshot ========== */
-function takeSnapshot() {
+var cameraStreamEnabled = true;
+var CAMERA_STREAM_STORAGE_KEY = 'cameraStreamEnabled';
+
+function applyCameraStreamState() {
   var img = document.getElementById('camFeed');
+  var wrapper = document.getElementById('camWrapper');
+  var toggleBtn = document.getElementById('cameraToggleBtn');
+  var statusLabel = document.getElementById('cameraStatusLabel');
+  var snapshotBtn = document.getElementById('snapshotBtn');
+  if (!img || !wrapper) return;
+  if (cameraStreamEnabled) {
+    if (img.dataset.streamSrc) {
+      img.src = img.dataset.streamSrc;
+    } else {
+      img.src = '/api/camera';
+      img.dataset.streamSrc = '/api/camera';
+    }
+  } else {
+    if (!img.dataset.streamSrc) img.dataset.streamSrc = img.src || '/api/camera';
+    img.removeAttribute('src');
+  }
+  wrapper.classList.toggle('stream-off', !cameraStreamEnabled);
+  if (toggleBtn) toggleBtn.textContent = cameraStreamEnabled ? 'TURN OFF' : 'TURN ON';
+  if (statusLabel) {
+    statusLabel.textContent = cameraStreamEnabled ? 'STREAM ON' : 'STREAM OFF';
+    statusLabel.style.color = cameraStreamEnabled ? '#22c55e' : '#94a3b8';
+  }
+  if (snapshotBtn) snapshotBtn.disabled = !cameraStreamEnabled;
+}
+
+function loadCameraStreamState() {
+  try {
+    var saved = localStorage.getItem(CAMERA_STREAM_STORAGE_KEY);
+    if (saved != null) cameraStreamEnabled = saved !== '0';
+  } catch (e) {}
+  applyCameraStreamState();
+}
+
+function toggleCameraStream() {
+  cameraStreamEnabled = !cameraStreamEnabled;
+  try {
+    localStorage.setItem(CAMERA_STREAM_STORAGE_KEY, cameraStreamEnabled ? '1' : '0');
+  } catch (e) {}
+  applyCameraStreamState();
+}
+
+function takeSnapshot() {
+  if (!cameraStreamEnabled) return;
+  var img = document.getElementById('camFeed');
+  if (!img || !img.src) return;
   var canvas = document.createElement('canvas');
   canvas.width = img.naturalWidth || img.width;
   canvas.height = img.naturalHeight || img.height;
@@ -25,6 +155,485 @@ var chActual = {};  // actual PWM value sent to hardware per channel
 
 /* Per-channel neutral positions (server-side, persisted to disk) */
 var chNeutral = {};
+
+var controllerStatus = {enabled: false};
+
+var visionState = {
+  models: ['', '', ''],
+  status: 'STANDBY',
+  profile: 'Docking',
+  mode: 'Observe'
+};
+
+function updateVisionUI() {
+  var statusEl = document.getElementById('visionModelStatus');
+  var countEl = document.getElementById('visionModelCount');
+  var profileEl = document.getElementById('visionProfileStatus');
+  var pipelineEl = document.getElementById('visionPipelineStatus');
+  var noteEl = document.getElementById('visionNote');
+  var loadBtn = document.getElementById('visionLoadBtn');
+  var previewBtn = document.getElementById('visionPreviewBtn');
+  var armBtn = document.getElementById('visionArmBtn');
+  var loadedModels = visionState.models.filter(function(name) { return !!name; });
+  var hasFile = loadedModels.length > 0;
+  visionState.models.forEach(function(name, index) {
+    var nameEl = document.getElementById('visionModelName' + (index + 1));
+    if (nameEl) nameEl.textContent = name || 'No model selected';
+  });
+  if (statusEl) {
+    statusEl.textContent = visionState.status;
+    statusEl.style.color = visionState.status === 'STAGED' ? '#22c55e' : (visionState.status === 'PREVIEW' ? '#3b82f6' : (visionState.status === 'LOADED' ? '#f59e0b' : '#9ca3af'));
+  }
+  if (countEl) countEl.textContent = loadedModels.length + ' / 3';
+  if (profileEl) profileEl.textContent = visionState.profile;
+  if (pipelineEl) {
+    pipelineEl.textContent = loadedModels.length ? loadedModels.join(' + ') : 'UNASSIGNED';
+  }
+  if (noteEl) {
+    if (!hasFile) {
+      noteEl.textContent = 'Frontend placeholder only. Choose up to three model files to stage the UI for future autonomous vision tools.';
+    } else if (visionState.status === 'LOADED') {
+      noteEl.textContent = 'Models selected in the GUI only: ' + loadedModels.join(', ') + '. No backend inference path is connected yet.';
+    } else if (visionState.status === 'PREVIEW') {
+      noteEl.textContent = 'Preview staged for ' + visionState.profile + ' in ' + visionState.mode + ' mode with ' + loadedModels.length + ' selected model(s). Camera integration is still backend-pending.';
+    } else if (visionState.status === 'STAGED') {
+      noteEl.textContent = 'Autonomy UI staged for ' + visionState.profile + ' with ' + loadedModels.join(', ') + '. This does not command hardware or start inference yet.';
+    }
+  }
+  if (loadBtn) loadBtn.className = hasFile ? 'btn' : 'btn btn-dark';
+  if (previewBtn) previewBtn.className = hasFile ? 'btn btn-dark' : 'btn btn-dark disabled';
+  if (armBtn) armBtn.className = hasFile ? 'btn btn-amber' : 'btn btn-dark disabled';
+}
+
+function visionModelChanged(index, input) {
+  var file = input && input.files && input.files[0] ? input.files[0] : null;
+  visionState.models[index] = file ? file.name : '';
+  visionState.status = visionState.models.some(function(name) { return !!name; }) ? 'LOADED' : 'STANDBY';
+  updateVisionUI();
+}
+
+function visionProfileChanged(value) {
+  visionState.profile = value || 'Docking';
+  updateVisionUI();
+}
+
+function visionModeChanged(value) {
+  visionState.mode = value || 'Observe';
+  updateVisionUI();
+}
+
+function visionLoadModel() {
+  if (!visionState.models.some(function(name) { return !!name; })) return;
+  visionState.status = 'LOADED';
+  updateVisionUI();
+}
+
+function visionPreviewPipeline() {
+  if (!visionState.models.some(function(name) { return !!name; })) return;
+  visionState.status = 'PREVIEW';
+  updateVisionUI();
+}
+
+function visionStageAutonomy() {
+  if (!visionState.models.some(function(name) { return !!name; })) return;
+  visionState.status = 'STAGED';
+  updateVisionUI();
+}
+
+function visionReset() {
+  visionState.models = ['', '', ''];
+  visionState.status = 'STANDBY';
+  visionState.profile = 'Docking';
+  visionState.mode = 'Observe';
+  [1, 2, 3].forEach(function(slot) {
+    var input = document.getElementById('visionModelFile' + slot);
+    if (input) input.value = '';
+  });
+  var profile = document.getElementById('visionProfileSelect');
+  if (profile) profile.value = 'Docking';
+  var mode = document.getElementById('visionRunMode');
+  if (mode) mode.value = 'Observe';
+  updateVisionUI();
+}
+
+var armVizState = {
+  azimuth: 28,
+  elevation: 18,
+  autoOrbit: false,
+  orbitTick: 0,
+  rafId: null,
+  dragging: false,
+  dragStartX: 0,
+  dragStartY: 0,
+  startAzimuth: 28,
+  startElevation: 18,
+  zoom: 1,
+  startZoom: 1,
+  mode: 'live'
+};
+
+function armVizChannelValue(name) {
+  var slider = document.getElementById('ch_' + name);
+  var sliderValue = slider ? parseInt(slider.value, 10) : null;
+  var actualValue = (typeof chActual[name] === 'number' && !isNaN(chActual[name])) ? chActual[name] : null;
+  if (armVizState.mode === 'test') {
+    if (sliderValue != null && !isNaN(sliderValue)) return sliderValue;
+    if (actualValue != null) return actualValue;
+    return getNeutral(name);
+  }
+  if (actualValue != null) return actualValue;
+  return getNeutral(name);
+}
+
+function armVizNormalize(name, scale) {
+  return ((armVizChannelValue(name) - getNeutral(name)) / 400) * scale;
+}
+
+function armVizBuildArm(side) {
+  var isLeft = side === 'left';
+  var suffix = isLeft ? '1' : '2';
+  var sideBias = isLeft ? -1 : 1;
+  var anchor = {x: isLeft ? -120 : 120, y: 50, z: -5};
+  var baseRoll = armVizNormalize('B' + suffix, 1.05) + (isLeft ? -0.08 : 0.08);
+  var shoulderPitch = armVizNormalize('S' + suffix, 1.05) - 0.12;
+  var elbowPitch = armVizNormalize('E' + suffix, 1.0) + 0.72;
+  var wristRoll = armVizNormalize('W' + suffix + 'A', 0.8);
+  var wristPitch = armVizNormalize('W' + suffix + 'B', 0.75) - 0.25;
+  var baseLink = 103;
+  var upper = 310;
+  var fore = 230;
+  var wrist = 55;
+  var tool = 75;
+
+  function rotateBaseAxis(vec, roll) {
+    return {
+      x: vec.x,
+      y: vec.y * Math.cos(roll) - vec.z * Math.sin(roll),
+      z: vec.y * Math.sin(roll) + vec.z * Math.cos(roll)
+    };
+  }
+
+  function addPoint(a, b) {
+    return {x: a.x + b.x, y: a.y + b.y, z: a.z + b.z};
+  }
+
+  function scaleVec(vec, scale) {
+    return {x: vec.x * scale, y: vec.y * scale, z: vec.z * scale};
+  }
+
+  function normalizeVec(vec) {
+    var mag = Math.sqrt(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z) || 1;
+    return {x: vec.x / mag, y: vec.y / mag, z: vec.z / mag};
+  }
+
+  function crossVec(a, b) {
+    return {
+      x: a.y * b.z - a.z * b.y,
+      y: a.z * b.x - a.x * b.z,
+      z: a.x * b.y - a.y * b.x
+    };
+  }
+
+  function rotateAroundAxis(vec, axis, angle) {
+    var unit = normalizeVec(axis);
+    var cosA = Math.cos(angle);
+    var sinA = Math.sin(angle);
+    var dot = vec.x * unit.x + vec.y * unit.y + vec.z * unit.z;
+    var cross = crossVec(unit, vec);
+    return {
+      x: vec.x * cosA + cross.x * sinA + unit.x * dot * (1 - cosA),
+      y: vec.y * cosA + cross.y * sinA + unit.y * dot * (1 - cosA),
+      z: vec.z * cosA + cross.z * sinA + unit.z * dot * (1 - cosA)
+    };
+  }
+
+  function pitchDirection(pitch, roll) {
+    return rotateBaseAxis({
+      x: Math.cos(pitch) * sideBias,
+      y: Math.sin(pitch),
+      z: 0
+    }, roll);
+  }
+
+  var base = anchor;
+  var shoulderMount = addPoint(anchor, rotateBaseAxis({x: baseLink * sideBias, y: 0, z: 0}, baseRoll));
+  var upperDir = pitchDirection(shoulderPitch, baseRoll);
+  var elbowPoint = addPoint(shoulderMount, scaleVec(upperDir, upper));
+  var foreDir = pitchDirection(shoulderPitch + elbowPitch, baseRoll);
+  var wristAPoint = addPoint(elbowPoint, scaleVec(foreDir, fore));
+  var wristBPoint = addPoint(wristAPoint, scaleVec(foreDir, wrist));
+
+  var basePitchDir = pitchDirection(shoulderPitch + elbowPitch + wristPitch, baseRoll);
+  var toolDir = rotateAroundAxis(basePitchDir, foreDir, wristRoll);
+  var tipPoint = addPoint(wristBPoint, scaleVec(normalizeVec(toolDir), tool));
+
+  return {
+    color: isLeft ? '#38bdf8' : '#f59e0b',
+    joints: [base, shoulderMount, elbowPoint, wristAPoint, wristBPoint, tipPoint],
+    tip: tipPoint
+  };
+}
+
+function armVizProject(point, width, height, azimuth, elevation, zoom) {
+  var az = azimuth * Math.PI / 180;
+  var el = elevation * Math.PI / 180;
+  var x1 = point.x * Math.cos(az) - point.z * Math.sin(az);
+  var z1 = point.x * Math.sin(az) + point.z * Math.cos(az);
+  var y2 = point.y * Math.cos(el) - z1 * Math.sin(el);
+  var z2 = point.y * Math.sin(el) + z1 * Math.cos(el);
+  var perspective = 1 + (z2 / 650);
+  return {
+    x: width / 2 + x1 * perspective * zoom,
+    y: height / 2 - y2 * perspective * zoom,
+    depth: z2
+  };
+}
+
+function armVizDrawBox(ctx, width, height, center, size, azimuth, elevation, stroke, fill) {
+  var sx = size.x / 2;
+  var sy = size.y / 2;
+  var sz = size.z / 2;
+  var corners = [
+    {x: center.x - sx, y: center.y - sy, z: center.z - sz},
+    {x: center.x + sx, y: center.y - sy, z: center.z - sz},
+    {x: center.x + sx, y: center.y + sy, z: center.z - sz},
+    {x: center.x - sx, y: center.y + sy, z: center.z - sz},
+    {x: center.x - sx, y: center.y - sy, z: center.z + sz},
+    {x: center.x + sx, y: center.y - sy, z: center.z + sz},
+    {x: center.x + sx, y: center.y + sy, z: center.z + sz},
+    {x: center.x - sx, y: center.y + sy, z: center.z + sz}
+  ].map(function(point) {
+    return armVizProject(point, width, height, azimuth, elevation, armVizState.zoom);
+  });
+  var edges = [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+  ctx.save();
+  if (fill) {
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    [0,1,2,3].forEach(function(index, i) {
+      var p = corners[index];
+      if (!i) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+    });
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.strokeStyle = stroke;
+  ctx.lineWidth = 1.25;
+  edges.forEach(function(edge) {
+    var a = corners[edge[0]];
+    var b = corners[edge[1]];
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+  });
+  ctx.restore();
+}
+
+function armVizDrawScene() {
+  var canvas = document.getElementById('armVizCanvas');
+  if (!canvas) return;
+  var rect = canvas.getBoundingClientRect();
+  var width = Math.max(320, Math.round(rect.width || 960));
+  var height = Math.max(260, Math.round(rect.height || 360));
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+  }
+  if (armVizState.autoOrbit) {
+    armVizState.orbitTick += 0.35;
+    armVizState.azimuth = 28 + Math.sin(armVizState.orbitTick * Math.PI / 180) * 32;
+    var azEl = document.getElementById('armVizAzimuth');
+    if (azEl) azEl.value = Math.round(armVizState.azimuth);
+  }
+  var ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, width, height);
+
+  var gradient = ctx.createLinearGradient(0, 0, 0, height);
+  gradient.addColorStop(0, 'rgba(15, 23, 42, 0.18)');
+  gradient.addColorStop(1, 'rgba(15, 23, 42, 0.72)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.strokeStyle = 'rgba(148, 163, 184, 0.18)';
+  ctx.lineWidth = 1;
+  for (var gx = 0; gx < 9; gx++) {
+    var x = (gx / 8) * width;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, height);
+    ctx.stroke();
+  }
+  for (var gy = 0; gy < 7; gy++) {
+    var y = (gy / 6) * height;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(width, y);
+    ctx.stroke();
+  }
+
+  armVizDrawBox(ctx, width, height, {x: 0, y: 0, z: 0}, {x: 240, y: 300, z: 240}, armVizState.azimuth, armVizState.elevation, 'rgba(148, 163, 184, 0.9)', 'rgba(148, 163, 184, 0.08)');
+  armVizDrawBox(ctx, width, height, {x: 0, y: -159, z: 0}, {x: 360, y: 18, z: 300}, armVizState.azimuth, armVizState.elevation, 'rgba(239, 68, 68, 0.95)', 'rgba(239, 68, 68, 0.08)');
+
+  var arms = [armVizBuildArm('left'), armVizBuildArm('right')];
+  arms.forEach(function(arm) {
+    var pts = arm.joints.map(function(point) {
+      return armVizProject(point, width, height, armVizState.azimuth, armVizState.elevation, armVizState.zoom);
+    });
+    ctx.strokeStyle = arm.color;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    pts.forEach(function(point, index) {
+      if (!index) ctx.moveTo(point.x, point.y); else ctx.lineTo(point.x, point.y);
+    });
+    ctx.stroke();
+
+    pts.forEach(function(point, index) {
+      ctx.beginPath();
+      ctx.fillStyle = index === pts.length - 1 ? '#e2e8f0' : arm.color;
+      ctx.arc(point.x, point.y, index === pts.length - 1 ? 5.5 : 4.25, 0, Math.PI * 2);
+      ctx.fill();
+      if (index === pts.length - 1) {
+        ctx.strokeStyle = arm.color;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+    });
+  });
+
+  ctx.fillStyle = '#cbd5e1';
+  ctx.font = '12px "SF Mono", "Fira Code", monospace';
+  ctx.fillText('SAT KEEP-OUT', 18, 24);
+  ctx.fillStyle = 'rgba(239, 68, 68, 0.95)';
+  ctx.fillText('FLOOR KEEP-OUT', 18, 42);
+
+  var leftTip = document.getElementById('armVizLeftTip');
+  var rightTip = document.getElementById('armVizRightTip');
+  if (leftTip) leftTip.textContent = ['x','y','z'].map(function(axis) { return axis + ':' + Math.round(arms[0].tip[axis]); }).join(' ');
+  if (rightTip) rightTip.textContent = ['x','y','z'].map(function(axis) { return axis + ':' + Math.round(arms[1].tip[axis]); }).join(' ');
+}
+
+function armVizLoop() {
+  armVizDrawScene();
+  armVizState.rafId = window.requestAnimationFrame(armVizLoop);
+}
+
+function armVizSetView() {
+  var az = document.getElementById('armVizAzimuth');
+  var el = document.getElementById('armVizElevation');
+  var zoom = document.getElementById('armVizZoom');
+  if (az) armVizState.azimuth = parseInt(az.value, 10);
+  if (el) armVizState.elevation = parseInt(el.value, 10);
+  if (zoom) armVizState.zoom = parseInt(zoom.value, 10) / 100;
+  armVizSyncControls();
+  armVizDrawScene();
+}
+
+function armVizSyncControls() {
+  var az = document.getElementById('armVizAzimuth');
+  var el = document.getElementById('armVizElevation');
+  var zoom = document.getElementById('armVizZoom');
+  if (az) az.value = Math.round(armVizState.azimuth);
+  if (el) el.value = Math.round(armVizState.elevation);
+  if (zoom) zoom.value = Math.round(armVizState.zoom * 100);
+}
+
+function armVizUpdateModeUI() {
+  var modeEl = document.getElementById('armVizModeStatus');
+  var liveBtn = document.getElementById('armVizLiveBtn');
+  var testBtn = document.getElementById('armVizTestBtn');
+  if (modeEl) modeEl.textContent = armVizState.mode === 'live' ? 'LIVE' : 'TEST';
+  if (liveBtn) liveBtn.className = armVizState.mode === 'live' ? 'btn btn-sm btn-green' : 'btn btn-sm btn-dark';
+  if (testBtn) testBtn.className = armVizState.mode === 'test' ? 'btn btn-sm btn-amber' : 'btn btn-sm btn-dark';
+}
+
+function armVizSetMode(mode) {
+  armVizState.mode = mode === 'test' ? 'test' : 'live';
+  armVizUpdateModeUI();
+  armVizDrawScene();
+}
+
+function armVizPointerDown(event) {
+  var canvas = document.getElementById('armVizCanvas');
+  if (!canvas) return;
+  armVizState.dragging = true;
+  armVizState.autoOrbit = false;
+  armVizState.dragStartX = event.clientX;
+  armVizState.dragStartY = event.clientY;
+  armVizState.startAzimuth = armVizState.azimuth;
+  armVizState.startElevation = armVizState.elevation;
+  armVizState.startZoom = armVizState.zoom;
+  canvas.classList.add('dragging');
+  var btn = document.getElementById('armVizOrbitBtn');
+  if (btn) btn.textContent = 'AUTO ORBIT';
+}
+
+function armVizPointerMove(event) {
+  if (!armVizState.dragging) return;
+  var dx = event.clientX - armVizState.dragStartX;
+  var dy = event.clientY - armVizState.dragStartY;
+  armVizState.azimuth = Math.max(-180, Math.min(180, armVizState.startAzimuth - dx * 0.45));
+  armVizState.elevation = Math.max(-10, Math.min(70, armVizState.startElevation + dy * 0.22));
+  armVizSyncControls();
+  armVizDrawScene();
+}
+
+function armVizWheel(event) {
+  event.preventDefault();
+  var delta = event.deltaY > 0 ? -0.08 : 0.08;
+  armVizState.zoom = Math.max(0.6, Math.min(1.8, armVizState.zoom + delta));
+  armVizSyncControls();
+  armVizDrawScene();
+}
+
+function armVizPointerUp() {
+  if (!armVizState.dragging) return;
+  armVizState.dragging = false;
+  var canvas = document.getElementById('armVizCanvas');
+  if (canvas) canvas.classList.remove('dragging');
+}
+
+function armVizBindPointer() {
+  var canvas = document.getElementById('armVizCanvas');
+  if (!canvas || canvas.dataset.bound === '1') return;
+  canvas.dataset.bound = '1';
+  canvas.addEventListener('pointerdown', armVizPointerDown);
+  canvas.addEventListener('wheel', armVizWheel, {passive: false});
+  window.addEventListener('pointermove', armVizPointerMove);
+  window.addEventListener('pointerup', armVizPointerUp);
+  window.addEventListener('pointercancel', armVizPointerUp);
+}
+
+function armVizToggleOrbit() {
+  armVizState.autoOrbit = !armVizState.autoOrbit;
+  var btn = document.getElementById('armVizOrbitBtn');
+  if (btn) btn.textContent = armVizState.autoOrbit ? 'STOP ORBIT' : 'AUTO ORBIT';
+  armVizDrawScene();
+}
+
+function armVizResetView() {
+  armVizState.azimuth = 28;
+  armVizState.elevation = 18;
+  armVizState.zoom = 1;
+  armVizState.autoOrbit = false;
+  var az = document.getElementById('armVizAzimuth');
+  var el = document.getElementById('armVizElevation');
+  var zoom = document.getElementById('armVizZoom');
+  var btn = document.getElementById('armVizOrbitBtn');
+  if (az) az.value = 28;
+  if (el) el.value = 18;
+  if (zoom) zoom.value = 100;
+  if (btn) btn.textContent = 'AUTO ORBIT';
+  armVizDrawScene();
+}
+
+function armVizStart() {
+  armVizBindPointer();
+  armVizUpdateModeUI();
+  if (armVizState.rafId != null) return;
+  armVizResetView();
+  armVizState.rafId = window.requestAnimationFrame(armVizLoop);
+}
 
 function getNeutral(name) {
   return chNeutral[name] != null ? chNeutral[name] : 1500;
@@ -64,6 +673,14 @@ function saveServoSettings() {
       ramp: getServoRampRate()
     }));
   } catch(e) {}
+}
+
+function sendServoSettings() {
+  fetch('/api/servo_settings', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({speed: getServoSpeed(), ramp: getServoRampRate()})
+  }).catch(function() {});
 }
 
 function usToDuty(us) {
@@ -271,6 +888,10 @@ var _maceEnabled = false;
 
 function maceUpdateSliderLabel(val) {
   val = parseFloat(val);
+  document.getElementById("velSliderVal").textContent = Math.round(val) + " RPM";
+  return;
+// old code below
+  val = parseFloat(val);
   document.getElementById('velSliderVal').textContent = val.toFixed(1) + ' rad/s';
 }
 
@@ -287,6 +908,8 @@ function maceDisable() {
 }
 
 function maceSetVelocity(v) {
+  // Convert RPM to rad/s for Pico
+  v = parseFloat(v) * 2 * Math.PI / 60;
   v = parseFloat(v) || 0;
   fetch('/api/mace/velocity', {
     method: 'POST',
@@ -300,6 +923,7 @@ function maceStop() {
 }
 
 function maceSetPreset(v) {
+  // v is in RPM
   var slider = document.getElementById('velSlider');
   if (slider) { slider.value = v; maceUpdateSliderLabel(v); }
   maceSetVelocity(v);
@@ -319,16 +943,82 @@ function macePoll() {
       enEl.textContent = d.enabled ? 'YES' : 'NO';
       enEl.style.color = d.enabled ? '#22c55e' : '#ef4444';
     }
+    // Motor enabled (me flag from Pico)
+    var meEl = document.getElementById('maceMotorEnabled');
+    if (meEl) {
+      var me = d.me != null ? d.me : 0;
+      meEl.textContent = me ? 'YES' : 'NO';
+      meEl.style.color = me ? '#22c55e' : '#ef4444';
+    }
+    // EN pin state
+    var spEl = document.getElementById("maceSleep");
+    if (spEl) { spEl.textContent = (d.sp != null ? d.sp : 0) ? "AWAKE" : "SLEEP"; spEl.style.color = (d.sp != null ? d.sp : 0) ? "#22c55e" : "#ef4444"; }
+    var rtEl = document.getElementById("maceReset");
+    if (rtEl) { rtEl.textContent = (d.rt != null ? d.rt : 0) ? "OK" : "IN RESET"; rtEl.style.color = (d.rt != null ? d.rt : 0) ? "#22c55e" : "#ef4444"; }
+    // Sync tuning inputs with Pico values (skip if focused or recently changed)
+    var fields = {tuneVlVal:'vl',tuneSlVal:'sl',tuneKpVal:'kp',tuneKiVal:'ki',tuneKdVal:'kd',tuneRmpVal:'rmp',tuneLpfVal:'lpf'};
+    for (var id in fields) {
+      var el = document.getElementById(id);
+      var val = d[fields[id]];
+      if (el && val != null && document.activeElement !== el && !(_tuneLockout[id] && Date.now() < _tuneLockout[id])) {
+        el.value = val;
+      }
+    }
+    var ftEl = document.getElementById("maceFault");
+    if (ftEl) {
+      var ft = d.ft != null ? d.ft : 0;
+      ftEl.textContent = ft ? "OK" : "FAULT";
+      ftEl.style.color = ft ? "#22c55e" : "#ef4444";
+    }
+    var enPinEl = document.getElementById('maceEnPin');
+    if (enPinEl) {
+      var en = d.en != null ? d.en : 0;
+      enPinEl.textContent = en ? 'HIGH' : 'LOW';
+      enPinEl.style.color = en ? '#22c55e' : '#94a3b8';
+    }
     var tgt = d.target != null ? d.target : 0;
     var vel = d.velocity != null ? d.velocity : 0;
     var tEl = document.getElementById('maceTarget');
-    if (tEl) tEl.textContent = tgt.toFixed(2) + ' rad/s';
+    if (tEl) tEl.textContent = tgt.toFixed(1) + ' rad/s';
     var vEl = document.getElementById('maceVelocity');
     if (vEl) vEl.textContent = vel.toFixed(2) + ' rad/s';
-    // Wheel RPM: velocity in rad/s * 60 / (2*pi) = RPM
-    var rpm = Math.round(vel * 60 / (2 * Math.PI));
+    // Encoder angle
+    var angEl = document.getElementById('maceEncoderAngle');
+    if (angEl) {
+      var ang = d.encoder_angle != null ? d.encoder_angle : 0;
+      angEl.textContent = ang.toFixed(1) + ' deg';
+    }
+    // Wheel RPM
+    var rpm = d.rpm != null ? d.rpm : Math.round(vel * 60 / (2 * Math.PI));
     var rpmEl = document.getElementById('maceRpm');
-    if (rpmEl) rpmEl.textContent = rpm;
+    if (rpmEl) rpmEl.textContent = Math.round(rpm) + " / " + (rpm * 2 * Math.PI / 60).toFixed(1);
+    // Push to speed chart
+    var targetRpm = tgt * 60 / (2 * Math.PI);
+    speedChartPush(targetRpm, rpm);
+    // Phase values (p1, p2, p3)
+    var phaseEl = document.getElementById('macePhase');
+    if (phaseEl) {
+      var p1 = d.p1 != null ? d.p1 : 0;
+      var p2 = d.p2 != null ? d.p2 : 0;
+      var p3 = d.p3 != null ? d.p3 : 0;
+      phaseEl.textContent = 'P1=' + p1.toFixed(2) + ' P2=' + p2.toFixed(2) + ' P3=' + p3.toFixed(2);
+    }
+    // Accelerometer
+    var accelEl = document.getElementById('maceAccel');
+    if (accelEl) {
+      var ax = d.ax != null ? d.ax : 0;
+      var ay = d.ay != null ? d.ay : 0;
+      var az = d.az != null ? d.az : 0;
+      accelEl.textContent = ax.toFixed(2) + ' ' + ay.toFixed(2) + ' ' + az.toFixed(2) + ' g';
+    }
+    // Gyroscope
+    var gyroEl = document.getElementById('maceGyro');
+    if (gyroEl) {
+      var gx = d.gx != null ? d.gx : 0;
+      var gy = d.gy != null ? d.gy : 0;
+      var gz = d.gz != null ? d.gz : 0;
+      gyroEl.textContent = gx.toFixed(1) + ' ' + gy.toFixed(1) + ' ' + gz.toFixed(1) + ' deg/s';
+    }
     var errEl = document.getElementById('maceError');
     if (errEl) {
       if (d.error) {
@@ -368,6 +1058,76 @@ function _maceUpdateUI(enabled) {
 }
 
 /* ========== Polling ========== */
+function updateControllerUI(status) {
+  controllerStatus = status || {enabled: false};
+  var modeEl = document.getElementById('controllerMode');
+  var linkEl = document.getElementById('controllerLink');
+  var armEl = document.getElementById('controllerArm');
+  var deadmanEl = document.getElementById('controllerDeadman');
+  var activeEl = document.getElementById('controllerActivity');
+  var errorEl = document.getElementById('controllerError');
+  var btn = document.getElementById('controllerToggleBtn');
+  var leftBtn = document.getElementById('controllerArmLeftBtn');
+  var rightBtn = document.getElementById('controllerArmRightBtn');
+  if (modeEl) {
+    modeEl.textContent = controllerStatus.enabled ? 'ON' : 'OFF';
+    modeEl.style.color = controllerStatus.enabled ? '#22c55e' : '#9ca3af';
+  }
+  if (linkEl) {
+    linkEl.textContent = controllerStatus.connected ? 'CONNECTED' : 'DISCONNECTED';
+    linkEl.style.color = controllerStatus.connected ? '#22c55e' : '#ef4444';
+  }
+  if (armEl) {
+    armEl.textContent = (controllerStatus.selected_arm || "left").toUpperCase();
+    armEl.style.color = "#f59e0b";
+  }
+  if (leftBtn) leftBtn.className = controllerStatus.selected_arm === "left" ? "btn btn-amber" : "btn btn-dark";
+  if (rightBtn) rightBtn.className = controllerStatus.selected_arm === "right" ? "btn btn-amber" : "btn btn-dark";
+  if (deadmanEl) {
+    deadmanEl.textContent = controllerStatus.deadman ? 'HELD' : 'RELEASED';
+    deadmanEl.style.color = controllerStatus.deadman ? '#22c55e' : '#9ca3af';
+  }
+  if (activeEl) {
+    activeEl.textContent = controllerStatus.active ? 'MOVING' : 'IDLE';
+    activeEl.style.color = controllerStatus.active ? '#3b82f6' : '#9ca3af';
+  }
+  if (errorEl) {
+    errorEl.textContent = controllerStatus.last_error || '';
+    errorEl.style.display = controllerStatus.last_error ? 'block' : 'none';
+  }
+  if (btn) {
+    btn.textContent = controllerStatus.enabled ? 'DISABLE CONTROLLER' : 'ENABLE CONTROLLER';
+    btn.className = controllerStatus.enabled ? 'btn btn-red' : 'btn btn-dark';
+  }
+}
+
+function controllerPoll() {
+  fetch('/api/controller/status').then(function(r) { return r.json(); }).then(function(d) {
+    updateControllerUI(d);
+  }).catch(function() {});
+}
+
+function setControllerArm(selectedArm) {
+  fetch('/api/controller/arm', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({selected_arm: selectedArm})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    updateControllerUI(d);
+  });
+}
+
+function toggleControllerMode() {
+  var enable = !controllerStatus.enabled;
+  fetch('/api/controller/enable', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({enabled: enable})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    updateControllerUI(d);
+  });
+}
+
 function poll() {
   fetch('/api/sensors').then(function(r) { return r.json(); }).then(function(d) {
     /* Gyro */
@@ -381,7 +1141,7 @@ function poll() {
     /* Encoder */
     var angle = d.encoder_angle;
     document.getElementById('angleText').innerHTML = angle.toFixed(1) + '&deg;';
-    document.getElementById('rpmText').textContent = d.rpm;
+    document.getElementById('rpmText').textContent = d.rpm; var radsEl = document.getElementById('radsText'); if (radsEl) radsEl.textContent = (d.rpm * 2 * Math.PI / 60).toFixed(1);
     var needleAngle = (angle % 360);
     document.getElementById('needle').style.transform = 'rotate(' + needleAngle + 'deg)';
     /* GEO-DUDe connection dot */
@@ -407,137 +1167,17 @@ function sysPoll() {
     document.getElementById('gdCpu').textContent = (gd.cpu || 0) + '%';
     document.getElementById('gdTemp').textContent = (gd.temp || 0) + ' C';
     document.getElementById('gdLoad').textContent = (gd.load || 0);
+    // Uptime
+    function fmtUptime(s) {
+      if (!s) return '--';
+      var h = Math.floor(s/3600); var m = Math.floor((s%3600)/60);
+      return h > 0 ? h+'h '+m+'m' : m+'m';
+    }
+    var gsUp = document.getElementById('gsUptime');
+    if (gsUp) gsUp.textContent = fmtUptime(gs.uptime);
+    var gdUp = document.getElementById('gdUptime');
+    if (gdUp) gdUp.textContent = fmtUptime(gd.uptime);
   }).catch(function() {});
-}
-
-/* ========== Attitude Control ========== */
-var attEnabled = false;
-var attGainTimer = null;
-var attGainsSynced = false;
-
-function attToggleEnable() {
-  var url = attEnabled ? '/api/attitude/disable' : '/api/attitude/enable';
-  fetch(url, {method: 'POST'}).then(function(r) { return r.json(); }).then(function(d) {
-    if (!d.error) attEnabled = !attEnabled;
-  });
-}
-
-function attStop() {
-  fetch('/api/attitude/stop', {method: 'POST'});
-}
-
-function attZero() {
-  fetch('/api/attitude/zero', {method: 'POST'});
-}
-
-function attRecalibrate() {
-  fetch('/api/attitude/calibrate', {method: 'POST'});
-}
-
-function attSetpoint() {
-  var val = parseFloat(document.getElementById('attSetpointInput').value) || 0;
-  fetch('/api/attitude/setpoint', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({angle: val})
-  });
-}
-
-function attNudge(delta) {
-  fetch('/api/attitude/nudge', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({delta: delta})
-  });
-}
-
-function attUpdateGain() {
-  document.getElementById('attKpVal').textContent = document.getElementById('attKp').value;
-  document.getElementById('attKiVal').textContent = document.getElementById('attKi').value;
-  document.getElementById('attKdVal').textContent = document.getElementById('attKd').value;
-  document.getElementById('attMaxVal').textContent = document.getElementById('attMaxThrottle').value;
-  if (attGainTimer) clearTimeout(attGainTimer);
-  attGainTimer = setTimeout(function() {
-    fetch('/api/attitude/gains', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        kp: parseFloat(document.getElementById('attKp').value),
-        ki: parseFloat(document.getElementById('attKi').value),
-        kd: parseFloat(document.getElementById('attKd').value),
-        max_throttle: parseFloat(document.getElementById('attMaxThrottle').value)
-      })
-    });
-  }, 200);
-}
-
-var attLastPoll = 0;
-function attPoll() {
-  fetch('/api/attitude/status').then(function(r) { return r.json(); }).then(function(d) {
-    if (d.error) {
-      document.getElementById('attitudeBanner').style.display = 'block';
-      document.getElementById('attitudeBanner').textContent = 'Attitude controller not reachable';
-      return;
-    }
-    attLastPoll = Date.now();
-    /* Update enabled state */
-    attEnabled = d.enabled || false;
-    var eb = document.getElementById('attEnableBtn');
-    if (attEnabled) {
-      eb.textContent = 'DISABLE';
-      eb.className = 'btn btn-red';
-    } else {
-      eb.textContent = 'ENABLE';
-      eb.className = 'btn btn-green';
-    }
-    /* Stats */
-    document.getElementById('attError').textContent = (d.error_deg != null ? d.error_deg.toFixed(1) + ' deg' : '--');
-    document.getElementById('attOutput').textContent = (d.output != null ? d.output.toFixed(1) + '%' : '--');
-    document.getElementById('attMotor').textContent = (d.motor_throttle != null ? d.motor_throttle.toFixed(1) + '%' : '--');
-    document.getElementById('attPwm').textContent = (d.motor_pw != null ? d.motor_pw + ' us' : '--');
-    document.getElementById('attRpm').textContent = (d.rpm != null ? d.rpm : '--');
-    document.getElementById('attGz').textContent = (d.gz != null ? d.gz.toFixed(2) + ' deg/s' : '--');
-    document.getElementById('attBias').textContent = (d.gyro_bias != null ? d.gyro_bias.toFixed(4) : '--');
-    document.getElementById('attSat').textContent = (d.saturated ? 'YES' : 'NO');
-    document.getElementById('attSat').style.color = d.saturated ? '#ef4444' : '#22c55e';
-    /* Angle + setpoint */
-    var angle = d.angle || 0;
-    var setpoint = d.setpoint || 0;
-    document.getElementById('attAngleText').innerHTML = angle.toFixed(1) + '&deg;';
-    document.getElementById('attSetpointText').innerHTML = setpoint.toFixed(1) + '&deg;';
-    /* Dial needles */
-    var aNorm = angle % 360;
-    var sNorm = setpoint % 360;
-    document.getElementById('attAngleNeedle').setAttribute('transform', 'rotate(' + aNorm + ' 80 80)');
-    document.getElementById('attSetpointNeedle').setAttribute('transform', 'rotate(' + sNorm + ' 80 80)');
-    /* Revs */
-    var revs = Math.floor(angle / 360);
-    document.getElementById('attRevs').textContent = revs + ' rev';
-    /* Sync gains once */
-    if (!attGainsSynced && d.gains) {
-      attGainsSynced = true;
-      if (d.gains.kp != null) { document.getElementById('attKp').value = d.gains.kp; document.getElementById('attKpVal').textContent = d.gains.kp; }
-      if (d.gains.ki != null) { document.getElementById('attKi').value = d.gains.ki; document.getElementById('attKiVal').textContent = d.gains.ki; }
-      if (d.gains.kd != null) { document.getElementById('attKd').value = d.gains.kd; document.getElementById('attKdVal').textContent = d.gains.kd; }
-      if (d.gains.max_throttle != null) { document.getElementById('attMaxThrottle').value = d.gains.max_throttle; document.getElementById('attMaxVal').textContent = d.gains.max_throttle; }
-    }
-    /* Banner: watchdog */
-    var banner = document.getElementById('attitudeBanner');
-    if (d.watchdog_triggered) {
-      banner.style.display = 'block';
-      banner.textContent = 'WATCHDOG TRIGGERED - Motor stopped';
-      banner.style.background = '#ef4444';
-      banner.style.color = '#fff';
-    } else {
-      banner.style.display = 'none';
-    }
-  }).catch(function() {
-    /* Check stale */
-    if (attLastPoll > 0 && Date.now() - attLastPoll > 5000) {
-      document.getElementById('attitudeBanner').style.display = 'block';
-      document.getElementById('attitudeBanner').textContent = 'Attitude controller connection lost';
-    }
-  });
 }
 
 /* ========== Gimbal ========== */
@@ -956,6 +1596,7 @@ function seqRun() {
 
   /* Restore speed settings from localStorage */
   loadServoSettings();
+  sendServoSettings();
 
   /* Start servo ramp loop (rate-limits all servo movements) */
   startServoRampLoop();
@@ -967,9 +1608,195 @@ function seqRun() {
   setInterval(sysPoll, 2000);
   setInterval(gimbalPoll, 1000);
   setInterval(servoSyncPoll, 500);
+  setInterval(controllerPoll, 250);
 
   /* Immediate calls */
   macePoll();
   sysPoll();
   gimbalPoll();
+  controllerPoll();
+  updateVisionUI();
+  loadCameraStreamState();
+  armVizStart();
 })();
+
+function maceResetFault() {
+  fetch('/api/mace/reset_fault', {method: 'POST'});
+}
+
+function maceCalibrate() {
+  fetch('/api/mace/calibrate', {method: 'POST'});
+}
+
+var _tuneLockout = {};
+function maceTuneFromInput(param, sliderId, value) {
+  var v = parseFloat(value);
+  if (isNaN(v)) return;
+  var slider = document.getElementById(sliderId);
+  if (slider) slider.value = v;
+  maceTune(param, v);
+}
+function maceTune(param, value) {
+  // Map param letter to slider ID to lock out sync
+  var paramMap = {V:'tuneVlVal',L:'tuneSlVal',P:'tuneKpVal',I:'tuneKiVal',W:'tuneKdVal',A:'tuneRmpVal',F:'tuneLpfVal'};
+  var id = paramMap[param];
+  if (id) _tuneLockout[id] = Date.now() + 2000;  // lock sync for 2s
+  fetch('/api/mace/tune', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({param: param, value: parseFloat(value)})
+  });
+}
+
+/* ========== MACE Section Toggle ========== */
+var _maceSectionDisabled = false;
+function maceSectionToggle() {
+  _maceSectionDisabled = !_maceSectionDisabled;
+  fetch('/api/mace/section_disable', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({disabled: _maceSectionDisabled})
+  });
+  var content = document.getElementById('maceSectionContent');
+  var btn = document.getElementById('maceSectionToggle');
+  if (_maceSectionDisabled) {
+    if (content) { content.style.opacity = '0.3'; content.style.pointerEvents = 'none'; }
+    if (btn) { btn.textContent = 'ENABLE SECTION'; btn.className = 'btn btn-sm btn-green'; }
+  } else {
+    if (content) { content.style.opacity = '1'; content.style.pointerEvents = 'auto'; }
+    if (btn) { btn.textContent = 'DISABLE SECTION'; btn.className = 'btn btn-sm btn-dark'; }
+  }
+}
+
+/* ========== Attitude Charts ========== */
+var _attChartCmd = [], _attChartBody = [], _attChartErr = [];
+var _rateChartRef = [], _rateChartBody = [], _rateChartVolt = [];
+var _attChartMax = 200;
+
+function attChartPush(cmd, body, err) {
+  _attChartCmd.push(cmd); _attChartBody.push(body); _attChartErr.push(err);
+  if (_attChartCmd.length > _attChartMax) { _attChartCmd.shift(); _attChartBody.shift(); _attChartErr.shift(); }
+  drawChart('attitudeChart', [
+    {data: _attChartCmd, color: '#3b82f6'},
+    {data: _attChartBody, color: '#10b981'},
+    {data: _attChartErr, color: '#f59e0b'}
+  ], _attChartMax);
+}
+
+function rateChartPush(volt, rpm, unused) {
+  _rateChartRef.push(volt); _rateChartBody.push(rpm);
+  if (_rateChartRef.length > _attChartMax) { _rateChartRef.shift(); _rateChartBody.shift(); }
+  drawChart('rateChart', [
+    {data: _rateChartRef, color: '#3b82f6'},
+    {data: _rateChartBody, color: '#10b981'}
+  ], _attChartMax);
+}
+
+function drawChart(canvasId, traces, maxLen) {
+  var canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+  var n = traces[0].data.length;
+  if (n < 2) return;
+  var all = [];
+  for (var t = 0; t < traces.length; t++) all = all.concat(traces[t].data);
+  var yMin = Math.min.apply(null, all), yMax = Math.max.apply(null, all);
+  var yPad = Math.max(Math.abs(yMax - yMin) * 0.1, 1);
+  yMin -= yPad; yMax += yPad;
+  if (yMin === yMax) { yMin -= 5; yMax += 5; }
+  var xStep = w / (maxLen - 1);
+  var offset = maxLen - n;
+  // Zero line
+  var zeroY = h - ((0 - yMin) / (yMax - yMin)) * h;
+  ctx.strokeStyle = '#374151'; ctx.lineWidth = 1; ctx.setLineDash([4,4]);
+  ctx.beginPath(); ctx.moveTo(0, zeroY); ctx.lineTo(w, zeroY); ctx.stroke();
+  ctx.setLineDash([]);
+  // Y labels
+  ctx.fillStyle = '#6b7280'; ctx.font = '11px monospace'; ctx.textAlign = 'left';
+  ctx.fillText(yMax.toFixed(1), 4, 14);
+  ctx.fillText(yMin.toFixed(1), 4, h - 4);
+  // Traces
+  for (var t = 0; t < traces.length; t++) {
+    ctx.strokeStyle = traces[t].color; ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (var i = 0; i < n; i++) {
+      var x = (offset + i) * xStep;
+      var y = h - ((traces[t].data[i] - yMin) / (yMax - yMin)) * h;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+}
+
+/* ========== Attitude Control ========== */
+function attPoll() {
+  fetch('/api/attitude/status').then(function(r) { return r.json(); }).then(function(d) {
+    var s = document.getElementById('attStatus');
+    if (s) {
+      if (d.calibrating) { s.textContent = 'CALIBRATING'; s.style.color = '#f59e0b'; }
+      else if (d.enabled) { s.textContent = 'ACTIVE'; s.style.color = '#22c55e'; }
+      else { s.textContent = 'DISABLED'; s.style.color = '#94a3b8'; }
+    }
+    var el;
+    el = document.getElementById('attAngle'); if (el) el.textContent = (d.body_angle||0).toFixed(1) + ' deg';
+    el = document.getElementById('attSetpoint'); if (el) el.textContent = (d.setpoint||0).toFixed(1) + ' deg';
+    el = document.getElementById('attError'); if (el) el.textContent = (d.error||0).toFixed(1) + ' deg';
+    el = document.getElementById('attOutput'); if (el) el.textContent = (d.voltage_cmd||0).toFixed(2) + ' V';
+    el = document.getElementById('attGz'); if (el) el.textContent = (d.gz||0).toFixed(1) + ' deg/s';
+    el = document.getElementById('attWheelRpm'); if (el) el.textContent = Math.round(d.wheel_rpm||0);
+    // Sync gains
+    var fields = {attKp:'Kp', attKi:'Ki', attKd:'Kd'};
+    for (var id in fields) {
+      var inp = document.getElementById(id);
+      if (inp && document.activeElement !== inp && d[fields[id]] != null) inp.value = d[fields[id]];
+    }
+    var spInp = document.getElementById('attSetpointInput');
+    if (spInp && document.activeElement !== spInp) spInp.value = d.setpoint || 0;
+    // Push to charts
+    attChartPush(d.setpoint||0, d.body_angle||0, d.error||0);
+    rateChartPush(d.voltage_cmd||0, d.wheel_rpm||0, 0);
+  }).catch(function(){});
+}
+
+function attEnable() {
+  fetch('/api/attitude/enable', {method:'POST'}).then(function() {
+    // Backend auto-locks MACE section
+    if (!_maceSectionDisabled) maceSectionToggle();
+  });
+}
+function attDisable() {
+  fetch('/api/attitude/disable', {method:'POST'}).then(function() {
+    // Backend auto-unlocks MACE section
+    if (_maceSectionDisabled) maceSectionToggle();
+  });
+}
+function attStop() { fetch('/api/attitude/stop', {method:'POST'}); }
+function attZero() { fetch('/api/attitude/zero', {method:'POST'}); }
+
+function attSetSetpoint(val) {
+  fetch('/api/attitude/setpoint', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({angle: parseFloat(val)})
+  });
+}
+
+function attNudge(delta) {
+  fetch('/api/attitude/nudge', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({delta: delta})
+  });
+}
+
+function attSetGains() {
+  var data = {};
+  var fields = {attKp:'Kp', attKi:'Ki', attKd:'Kd'};
+  for (var id in fields) {
+    var el = document.getElementById(id);
+    if (el) data[fields[id]] = parseFloat(el.value);
+  }
+  fetch('/api/attitude/gains', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(data)
+  });
+}
