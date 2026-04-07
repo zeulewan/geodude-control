@@ -1,29 +1,29 @@
+#include <SimpleFOC.h>
 #include <Wire.h>
 
+// SimpleFOC Shield V2 pins for UNO layout
+BLDCMotor motor = BLDCMotor(7);  // pole pairs TBD
+BLDCDriver3PWM driver = BLDCDriver3PWM(9, 5, 6, 8);
+bool mtr_ready = false;
+
 // MT6701 encoder (ABZ mode) on Shield encoder header
-// SimpleFOC Shield V2 routes A->D2, B->D3
 #define ENC_A 2
 #define ENC_B 3
-#define ENC_PPR 1024
+#define ENC_PPR 400
 volatile long enc_count = 0;
+Encoder foc_encoder = Encoder(ENC_A, ENC_B, ENC_PPR);
 
-void encA() {
-  if (digitalRead(ENC_B)) enc_count--; else enc_count++;
-}
-void encB() {
-  if (digitalRead(ENC_A)) enc_count++; else enc_count--;
-}
+void encA() { foc_encoder.handleA(); }
+void encB() { foc_encoder.handleB(); }
 
 void setup() {
   Serial.begin(115200);
   delay(2000);
   Serial.println("HELLO FROM NUCLEO");
 
-  // Encoder pins
-  pinMode(ENC_A, INPUT_PULLUP);
-  pinMode(ENC_B, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(ENC_A), encA, RISING);
-  attachInterrupt(digitalPinToInterrupt(ENC_B), encB, RISING);
+  // Encoder
+  foc_encoder.init();
+  foc_encoder.enableInterrupts(encA, encB);
   Serial.println("ENCODER INIT DONE (D2/D3 ABZ)");
 
   Wire.begin();
@@ -42,6 +42,34 @@ void setup() {
   delay(10);
 
   Serial.println("IMU INIT DONE");
+
+  // Motor init - each step with debug
+  Serial.println("MOTOR: driver.voltage_power_supply...");
+  Serial.flush();
+  driver.voltage_power_supply = 24;
+  driver.voltage_limit = 24;
+  Serial.println("MOTOR: driver.init()...");
+  Serial.flush();
+  driver.init();
+  Serial.println("MOTOR: driver.init() DONE");
+  Serial.flush();
+
+  Serial.println("MOTOR: linking sensor and driver...");
+  Serial.flush();
+  motor.linkSensor(&foc_encoder);
+  motor.linkDriver(&driver);
+  motor.voltage_limit = 2;
+  motor.velocity_limit = 100;
+  motor.controller = MotionControlType::torque;
+  Serial.println("MOTOR: motor.init()...");
+  Serial.flush();
+  motor.init();
+  Serial.println("MOTOR: motor.init() DONE");
+  Serial.flush();
+
+  motor.disable();
+  mtr_ready = true;
+  Serial.println("MOTOR: ready (disabled). Send E to enable, G for initFOC.");
 }
 
 void loop() {
@@ -65,19 +93,10 @@ void loop() {
     }
   }
 
-  // Encoder angle and velocity
-  static long prev_count = 0;
-  static unsigned long prev_time = 0;
-  unsigned long now = millis();
-  long cnt = enc_count;
-  float enc_angle = (cnt % (4L * ENC_PPR)) * 360.0 / (4.0 * ENC_PPR);
-  float enc_vel = 0;
-  if (prev_time > 0 && now > prev_time) {
-    float dt = (now - prev_time) / 1000.0;
-    enc_vel = (cnt - prev_count) * 60.0 / (4.0 * ENC_PPR * dt);  // RPM
-  }
-  prev_count = cnt;
-  prev_time = now;
+  // Encoder angle and velocity via SimpleFOC
+  foc_encoder.update();
+  float enc_angle = foc_encoder.getAngle() * 180.0 / PI;
+  float enc_vel = foc_encoder.getVelocity() * 60.0 / (2.0 * PI);  // RPM
 
   // Full JSON telemetry
   Serial.print("{\"t\":0,\"vel\":0,\"rpm\":");
@@ -98,10 +117,46 @@ void loop() {
   Serial.print(gz, 1);
   Serial.print(",\"ii\":");
   Serial.print(err);
-  Serial.print(",\"me\":0,\"en\":0,\"ft\":0,\"sp\":0,\"rt\":0");
-  Serial.print(",\"vl\":0,\"sl\":0,\"kp\":0,\"ki\":0,\"kd\":0,\"rmp\":0,\"lpf\":0");
+  Serial.print(",\"me\":");
+  Serial.print(mtr_ready ? motor.enabled : 0);
+  Serial.print(",\"en\":0,\"ft\":0,\"sp\":0,\"rt\":0");
+  Serial.print(",\"vl\":");
+  Serial.print(mtr_ready ? motor.voltage_limit : 0, 1);
+  Serial.print(",\"sl\":0,\"kp\":0,\"ki\":0,\"kd\":0,\"rmp\":0,\"lpf\":0");
   Serial.print(",\"cm\":0,\"tv\":0");
   Serial.println("}");
+
+  // Serial commands
+  if (Serial.available()) {
+    String cmd = Serial.readStringUntil('\n');
+    cmd.trim();
+    if (cmd == "E" && mtr_ready) {
+      motor.enable();
+      Serial.println("Motor enabled");
+    } else if (cmd == "D" && mtr_ready) {
+      motor.disable();
+      Serial.println("Motor disabled");
+    } else if (cmd == "G" && mtr_ready) {
+      // initFOC needs encoder linked
+      Serial.println("Running initFOC...");
+      motor.initFOC();
+      motor.disable();
+      Serial.println("initFOC done. Motor disabled.");
+    } else if (cmd.startsWith("U") && mtr_ready) {
+      float v = cmd.substring(1).toFloat();
+      v = constrain(v, -24.0, 24.0);
+      motor.move(v);
+      Serial.print("Voltage: "); Serial.println(v);
+    } else if (cmd.startsWith("V") && mtr_ready) {
+      motor.voltage_limit = cmd.substring(1).toFloat();
+      Serial.print("VL: "); Serial.println(motor.voltage_limit);
+    }
+  }
+
+  // Run FOC if motor enabled
+  if (mtr_ready && motor.enabled) {
+    motor.loopFOC();
+  }
 
   delay(20);  // 50Hz
 }
