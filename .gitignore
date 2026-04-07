@@ -6,3 +6,4 @@ __pycache__/
 site/_build/
 groundstation/servo_neutral.json
 groundstation/servo_positions.json
+.claude/
