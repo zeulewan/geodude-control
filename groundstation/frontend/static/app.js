@@ -2476,18 +2476,31 @@ function poll() {
     var target = Number(d.target || 0);
     var throttle = Number(d.throttle || 0);
     var reverse = !!d.reverse;
-    document.getElementById('armedStatus').textContent = armed ? 'YES' : 'NO';
-    document.getElementById('armedStatus').style.color = armed ? '#22c55e' : '#ef4444';
-    document.getElementById('targetStatus').textContent = target.toFixed(1) + '%';
-    document.getElementById('throttleStatus').textContent = throttle.toFixed(1) + '%';
+    var armedStatus = document.getElementById('armedStatus');
+    if (armedStatus) {
+      armedStatus.textContent = armed ? 'YES' : 'NO';
+      armedStatus.style.color = armed ? '#22c55e' : '#ef4444';
+    }
+    var targetStatus = document.getElementById('targetStatus');
+    if (targetStatus) targetStatus.textContent = target.toFixed(1) + '%';
+    var throttleStatus = document.getElementById('throttleStatus');
+    if (throttleStatus) throttleStatus.textContent = throttle.toFixed(1) + '%';
     var pw = reverse ? (1000 - Math.round(throttle) * 10) : (1000 + Math.round(throttle) * 10);
-    document.getElementById('pwmStatus').textContent = pw + ' us';
-    document.getElementById('dirStatus').textContent = reverse ? 'REV' : 'FWD';
-    document.getElementById('dirStatus').style.color = reverse ? '#f59e0b' : '#22c55e';
-    document.getElementById('maceRpm').textContent = d.rpm;
+    var pwmStatus = document.getElementById('pwmStatus');
+    if (pwmStatus) pwmStatus.textContent = pw + ' us';
+    var dirStatus = document.getElementById('dirStatus');
+    if (dirStatus) {
+      dirStatus.textContent = reverse ? 'REV' : 'FWD';
+      dirStatus.style.color = reverse ? '#f59e0b' : '#22c55e';
+    }
+    var maceRpm = document.getElementById('maceRpm');
+    if (maceRpm) maceRpm.textContent = d.rpm;
     var sat = d.rpm >= 600;
-    document.getElementById('maceSat').textContent = sat ? 'YES' : 'NO';
-    document.getElementById('maceSat').style.color = sat ? '#ef4444' : '#22c55e';
+    var maceSat = document.getElementById('maceSat');
+    if (maceSat) {
+      maceSat.textContent = sat ? 'YES' : 'NO';
+      maceSat.style.color = sat ? '#ef4444' : '#22c55e';
+    }
     /* Throttle bars */
     var targetBar = document.getElementById('targetBar');
     var currentBar = document.getElementById('currentBar');
