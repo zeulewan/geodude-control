@@ -3155,3 +3155,186 @@ function maceDisable() { fetch('/api/mace/disable', {method:'POST'}); }
 function maceStop() { fetch('/api/mace/stop', {method:'POST'}); }
 function maceCalibrate() { fetch('/api/mace/calibrate', {method:'POST'}); }
 function maceTuneVal(param, value) { fetch('/api/mace/tune', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({param:param, value:parseFloat(value)})}); }
+
+/* === MACE run-log tester === */
+var maceTestLog = [];
+
+function maceRpmToRad(rpm) {
+  return Number(rpm || 0) * 2 * Math.PI / 60;
+}
+
+function maceTestField(id, fallback) {
+  var el = document.getElementById(id);
+  if (!el) return fallback;
+  var value = parseFloat(el.value);
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function maceTestSetStatus(text) {
+  var el = document.getElementById('maceTestStatus');
+  if (el) el.textContent = text || '';
+}
+
+function maceTestPost(url, body) {
+  return fetch(url, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body || {})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d && d.error) maceTestSetStatus('Error: ' + d.error);
+    setTimeout(maceTestRefresh, 250);
+    return d;
+  }).catch(function(err) {
+    maceTestSetStatus('Error: ' + err);
+  });
+}
+
+function maceTestRun() {
+  return maceTestPost('/api/mace/test/run', {
+    p: maceTestField('maceTestP', 0.2),
+    i: maceTestField('maceTestI', 1.0),
+    l: maceTestField('maceTestLpf', 0.05),
+    v: maceTestField('maceTestVoltage', 4),
+    target: maceRpmToRad(maceTestField('maceTestRpm', 100)),
+    r: maceTestField('maceTestRamp', 2.0),
+    h: maceTestField('maceTestHold', 5)
+  });
+}
+
+function maceTestCalibrate() { return maceTestPost('/api/mace/test/calibrate'); }
+function maceTestStop() { return maceTestPost('/api/mace/test/stop'); }
+function maceTestDump() { return maceTestPost('/api/mace/test/dump'); }
+
+function maceTestRenderSummary(log) {
+  var el = document.getElementById('maceTestSummary');
+  if (!el) return;
+  if (!log || !log.length) {
+    el.innerHTML = '';
+    return;
+  }
+  var maxTarget = Math.max.apply(null, log.map(function(p) { return Number(p.target_rpm || 0); }));
+  var maxRpm = Math.max.apply(null, log.map(function(p) { return Number(p.enc_rpm_abs || 0); }));
+  var maxUq = Math.max.apply(null, log.map(function(p) { return Math.abs(Number(p.uq || 0)); }));
+  var maxIdc = Math.max.apply(null, log.map(function(p) { return Math.abs(Number(p.idc || 0)); }));
+  var hold = log.filter(function(p) { return Number(p.target_rpm || 0) > maxTarget * 0.95; });
+  var avgErr = hold.length ? hold.reduce(function(a, p) { return a + Number(p.rpm_error_abs || 0); }, 0) / hold.length : 0;
+  var items = {
+    samples: log.length,
+    max_target_rpm: maxTarget,
+    max_rpm: maxRpm,
+    max_uq: maxUq,
+    max_idc: maxIdc,
+    hold_err: avgErr
+  };
+  el.innerHTML = Object.entries(items).map(function(entry) {
+    var value = Number(entry[1] || 0);
+    return '<div class="stat"><div class="label">' + entry[0] + '</div><div class="value">' + value.toFixed(entry[0] === 'samples' ? 0 : 2) + '</div></div>';
+  }).join('');
+}
+
+function maceTestDrawChart(canvasId, log, series, emptyText) {
+  var c = document.getElementById(canvasId);
+  if (!c) return;
+  var rect = c.getBoundingClientRect();
+  var dpr = window.devicePixelRatio || 1;
+  c.width = Math.max(1, Math.floor(rect.width * dpr));
+  c.height = Math.max(1, Math.floor(rect.height * dpr));
+  var ctx = c.getContext('2d');
+  ctx.scale(dpr, dpr);
+  var w = rect.width;
+  var h = rect.height;
+  ctx.clearRect(0, 0, w, h);
+  ctx.strokeStyle = '#1f2937';
+  ctx.lineWidth = 1;
+  for (var grid = 0; grid < 4; grid++) {
+    var gy = 12 + grid * (h - 28) / 3;
+    ctx.beginPath();
+    ctx.moveTo(42, gy);
+    ctx.lineTo(w - 8, gy);
+    ctx.stroke();
+  }
+  if (!log || !log.length) {
+    ctx.fillStyle = '#64748b';
+    ctx.font = '11px system-ui';
+    ctx.fillText(emptyText || 'No log yet.', 10, 20);
+    return;
+  }
+  var vals = [];
+  log.forEach(function(p) {
+    series.forEach(function(s) {
+      var v = Number(p[s.key]);
+      if (Number.isFinite(v)) vals.push(v);
+    });
+  });
+  if (!vals.length) return;
+  var min = Math.min.apply(null, vals);
+  var max = Math.max.apply(null, vals);
+  if (Math.abs(max - min) < 0.001) {
+    min -= 1;
+    max += 1;
+  }
+  var pad = (max - min) * 0.08;
+  min -= pad;
+  max += pad;
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '10px system-ui';
+  ctx.fillText(max.toFixed(1), 4, 11);
+  ctx.fillText(min.toFixed(1), 4, h - 4);
+  var x0 = 42;
+  var x1 = w - 8;
+  var y0 = h - 16;
+  var y1 = 8;
+  series.forEach(function(s) {
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    var started = false;
+    log.forEach(function(p, idx) {
+      var v = Number(p[s.key]);
+      if (!Number.isFinite(v)) return;
+      var x = x0 + (log.length <= 1 ? 0 : idx * (x1 - x0) / (log.length - 1));
+      var y = y0 - ((v - min) / (max - min)) * (y0 - y1);
+      if (!started) {
+        ctx.moveTo(x, y);
+        started = true;
+      } else {
+        ctx.lineTo(x, y);
+      }
+    });
+    ctx.stroke();
+  });
+}
+
+function maceTestRender(state) {
+  state = state || {};
+  maceTestLog = state.last_log || [];
+  var st = state.last_status || {};
+  var status = state.status || 'idle';
+  if (state.busy) status += '...';
+  if (state.error) status += ' / ' + state.error;
+  if (st.event) status += ' / ' + st.event;
+  if (st.foc_ready !== undefined) status += ' / foc=' + st.foc_ready;
+  if (st.uq !== undefined) status += ' / Uq=' + Number(st.uq).toFixed(3);
+  maceTestSetStatus(status);
+  maceTestRenderSummary(maceTestLog);
+  maceTestDrawChart('maceTestRpmPlot', maceTestLog, [
+    {key: 'target_rpm', color: '#38bdf8'},
+    {key: 'enc_rpm_abs', color: '#a78bfa'}
+  ], 'No run log yet.');
+  maceTestDrawChart('maceTestUqPlot', maceTestLog, [
+    {key: 'uq', color: '#f472b6'},
+    {key: 'idc_abs', color: '#38bdf8'},
+    {key: 'rpm_error_abs', color: '#f59e0b'}
+  ], 'No Uq/current/error log yet.');
+}
+
+function maceTestRefresh() {
+  var panel = document.getElementById('maceTestStatus');
+  if (!panel) return;
+  fetch('/api/mace/test/state').then(function(r) { return r.json(); }).then(maceTestRender).catch(function(err) {
+    maceTestSetStatus('MACE test API unavailable: ' + err);
+  });
+}
+
+setInterval(maceTestRefresh, 1000);
+maceTestRefresh();

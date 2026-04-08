@@ -6,6 +6,7 @@ import time
 import os
 import serial
 import math
+import json
 
 app = Flask(__name__)
 bus = smbus2.SMBus(1)
@@ -338,6 +339,290 @@ def simplefoc_status():
             connected = False
             print("SimpleFOC status read error: %s" % e, flush=True)
     return jsonify({"connected": connected, "target": target})
+
+
+# --- SimpleFOC autonomous profile tuning/logging ---
+
+simplefoc_profile_lock = threading.Lock()
+simplefoc_profile_stop_requested = False
+simplefoc_profile_state = {
+    "status": "idle",
+    "busy": False,
+    "last_status": None,
+    "last_log": [],
+    "raw": [],
+    "error": None,
+}
+
+
+def _profile_add_raw(line):
+    with simplefoc_profile_lock:
+        simplefoc_profile_state["raw"].append(str(line))
+        simplefoc_profile_state["raw"] = simplefoc_profile_state["raw"][-500:]
+
+
+def _profile_set(**kwargs):
+    with simplefoc_profile_lock:
+        simplefoc_profile_state.update(kwargs)
+
+
+def _profile_parse_status(line):
+    if not line.startswith("{"):
+        return None
+    try:
+        obj = json.loads(line)
+    except Exception:
+        return None
+    _profile_set(last_status=obj)
+    return obj
+
+
+def _profile_send_locked(ser, cmd, read_for=0.3):
+    cmd = str(cmd).strip()
+    if not cmd:
+        return []
+    _profile_add_raw("TX " + cmd)
+    ser.write((cmd + "\n").encode())
+    ser.flush()
+    lines = []
+    end = time.time() + read_for
+    while time.time() < end:
+        line = ser.readline().decode(errors="ignore").strip()
+        if not line:
+            continue
+        _profile_add_raw(line)
+        _profile_parse_status(line)
+        lines.append(line)
+        if line.startswith("ERR"):
+            break
+    return lines
+
+
+def _profile_read_until_locked(ser, deadline, stop_pred=None):
+    lines = []
+    while time.time() < deadline:
+        with simplefoc_profile_lock:
+            stop_requested = simplefoc_profile_stop_requested
+        if stop_requested:
+            _profile_send_locked(ser, "D", 0.2)
+            _profile_add_raw("STOP_REQUESTED")
+            break
+        line = ser.readline().decode(errors="ignore").strip()
+        if not line:
+            continue
+        _profile_add_raw(line)
+        _profile_parse_status(line)
+        lines.append(line)
+        if line.startswith("ERR"):
+            break
+        if stop_pred and stop_pred(line):
+            break
+    return lines
+
+
+def _profile_parse_log(lines):
+    out = []
+    in_log = False
+    for line in lines:
+        if line.startswith("LOG_BEGIN"):
+            in_log = True
+            continue
+        if line.startswith("LOG_END"):
+            break
+        if not in_log or not line[:1].isdigit():
+            continue
+        parts = line.split(",")
+        if len(parts) not in (4, 8):
+            continue
+        try:
+            t_ms = float(parts[0])
+            target = float(parts[1])
+            enc_rpm = float(parts[2])
+            uq = float(parts[3])
+            ia = float(parts[4]) if len(parts) >= 8 else 0.0
+            ib = float(parts[5]) if len(parts) >= 8 else 0.0
+            ic_est = float(parts[6]) if len(parts) >= 8 else 0.0
+            idc = float(parts[7]) if len(parts) >= 8 else 0.0
+        except ValueError:
+            continue
+        target_rpm = target * 60.0 / (2.0 * math.pi)
+        out.append({
+            "t_ms": t_ms,
+            "target": target,
+            "target_rpm": target_rpm,
+            "enc_rpm": enc_rpm,
+            "enc_rpm_abs": abs(enc_rpm),
+            "uq": uq,
+            "ia": ia,
+            "ib": ib,
+            "ic_est": ic_est,
+            "idc": idc,
+            "ia_abs": abs(ia),
+            "ib_abs": abs(ib),
+            "ic_est_abs": abs(ic_est),
+            "idc_abs": abs(idc),
+            "rpm_error": abs(enc_rpm) - target_rpm,
+            "rpm_error_abs": abs(abs(enc_rpm) - target_rpm),
+        })
+    return out
+
+
+def _profile_begin(status):
+    global simplefoc_profile_stop_requested
+    with simplefoc_profile_lock:
+        if simplefoc_profile_state["busy"]:
+            return False
+        simplefoc_profile_stop_requested = False
+        simplefoc_profile_state.update({
+            "busy": True,
+            "status": status,
+            "error": None,
+            "raw": [],
+        })
+    return True
+
+
+def _profile_finish(status=None, error=None):
+    with simplefoc_profile_lock:
+        if status is not None:
+            simplefoc_profile_state["status"] = status
+        simplefoc_profile_state["error"] = error
+        simplefoc_profile_state["busy"] = False
+
+
+def _profile_run_worker(params):
+    if not _profile_begin("running"):
+        return
+    try:
+        p = float(params.get("p", 0.2))
+        i = float(params.get("i", 1.0))
+        lpf = float(params.get("l", 0.05))
+        voltage = float(params.get("v", 4.0))
+        target = float(params.get("target", 10.472))
+        ramp = float(params.get("r", 2.0))
+        hold = float(params.get("h", 5.0))
+        ser = get_pico()
+        if ser is None:
+            raise RuntimeError("serial not available")
+        with pico_lock:
+            for cmd, delay in [
+                ("D", 0.3),
+                (f"P{p}", 0.2),
+                (f"I{i}", 0.2),
+                (f"L{lpf}", 0.2),
+                (f"V{voltage}", 0.2),
+                (f"R{ramp}", 0.2),
+                (f"T{target}", 0.2),
+                (f"H{hold}", 0.2),
+            ]:
+                lines = _profile_send_locked(ser, cmd, delay)
+                if any(line.startswith("ERR") for line in lines):
+                    _profile_send_locked(ser, "D", 0.2)
+                    _profile_finish(lines[-1] if lines else "setup rejected")
+                    return
+            lines = _profile_send_locked(ser, "RUN", 0.2)
+            if any(line.startswith("ERR") for line in lines):
+                _profile_send_locked(ser, "D", 0.2)
+                _profile_finish(lines[-1] if lines else "run rejected")
+                return
+            _profile_set(status="motion running, serial quiet")
+            max_time = abs(target / max(ramp, 0.01)) + hold + abs(target / max(ramp, 0.01)) + 4
+            lines = _profile_read_until_locked(
+                ser,
+                time.time() + max_time,
+                lambda line: "RUN_DONE" in line or '"event":"done"' in line,
+            )
+            if any(line.startswith("ERR") for line in lines):
+                _profile_send_locked(ser, "D", 0.2)
+                _profile_finish(lines[-1])
+                return
+            _profile_set(status="dumping log")
+            lines = _profile_send_locked(ser, "DUMP", 0.05)
+            lines += _profile_read_until_locked(ser, time.time() + 8, lambda line: line.startswith("LOG_END"))
+            with simplefoc_profile_lock:
+                simplefoc_profile_state["last_log"] = _profile_parse_log(lines)
+                count = len(simplefoc_profile_state["last_log"])
+            _profile_send_locked(ser, "D", 0.3)
+            _profile_finish(f"done, {count} log samples")
+    except Exception as exc:
+        _profile_finish("error", repr(exc))
+
+
+def _profile_cmd_worker(cmds):
+    if not _profile_begin("sending command"):
+        return
+    try:
+        ser = get_pico()
+        if ser is None:
+            raise RuntimeError("serial not available")
+        with pico_lock:
+            for cmd, delay in cmds:
+                _profile_send_locked(ser, cmd, delay)
+        _profile_finish("idle")
+    except Exception as exc:
+        _profile_finish("error", repr(exc))
+
+
+def _profile_dump_worker():
+    if not _profile_begin("dumping"):
+        return
+    try:
+        ser = get_pico()
+        if ser is None:
+            raise RuntimeError("serial not available")
+        with pico_lock:
+            lines = _profile_send_locked(ser, "DUMP", 0.05)
+            lines += _profile_read_until_locked(ser, time.time() + 8, lambda line: line.startswith("LOG_END"))
+        with simplefoc_profile_lock:
+            simplefoc_profile_state["last_log"] = _profile_parse_log(lines)
+            count = len(simplefoc_profile_state["last_log"])
+        _profile_finish(f"done, {count} log samples")
+    except Exception as exc:
+        _profile_finish("error", repr(exc))
+
+
+@app.route("/simplefoc/profile/state")
+def simplefoc_profile_state_route():
+    with simplefoc_profile_lock:
+        return jsonify(dict(simplefoc_profile_state))
+
+
+@app.route("/simplefoc/profile/run", methods=["POST"])
+def simplefoc_profile_run_route():
+    with simplefoc_profile_lock:
+        if simplefoc_profile_state["busy"]:
+            return jsonify({"ok": False, "error": "busy"}), 409
+    threading.Thread(target=_profile_run_worker, args=(request.json or {},), daemon=True).start()
+    return jsonify({"ok": True})
+
+
+@app.route("/simplefoc/profile/calibrate", methods=["POST"])
+def simplefoc_profile_calibrate_route():
+    with simplefoc_profile_lock:
+        if simplefoc_profile_state["busy"]:
+            return jsonify({"ok": False, "error": "busy"}), 409
+    threading.Thread(target=_profile_cmd_worker, args=([("D", 0.3), ("G", 8.0), ("S", 0.3)],), daemon=True).start()
+    return jsonify({"ok": True})
+
+
+@app.route("/simplefoc/profile/stop", methods=["POST"])
+def simplefoc_profile_stop_route():
+    global simplefoc_profile_stop_requested
+    with simplefoc_profile_lock:
+        busy = simplefoc_profile_state["busy"]
+        simplefoc_profile_stop_requested = True
+    if not busy:
+        threading.Thread(target=_profile_cmd_worker, args=([("D", 0.3)],), daemon=True).start()
+    return jsonify({"ok": True})
+
+
+@app.route("/simplefoc/profile/dump", methods=["POST"])
+def simplefoc_profile_dump_route():
+    with simplefoc_profile_lock:
+        if simplefoc_profile_state["busy"]:
+            return jsonify({"ok": False, "error": "busy"}), 409
+    threading.Thread(target=_profile_dump_worker, daemon=True).start()
+    return jsonify({"ok": True})
 
 @app.route("/pwm", methods=["POST"])
 def pwm():

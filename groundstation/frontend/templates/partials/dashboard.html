@@ -71,6 +71,32 @@
     </div>
   </div>
 
+  <!-- MACE Testing -->
+  <div class="card dashboard-card dashboard-mace-tuner">
+    <h3>MACE Testing</h3>
+    <div class="mace-test-note">Closed-loop SimpleFOC profile runner. It stays serial-quiet during motion, then dumps the STM32 RAM log after the run.</div>
+    <div class="mace-test-controls">
+      <label>P <input id="maceTestP" type="number" step="0.01" value="0.2"></label>
+      <label>I <input id="maceTestI" type="number" step="0.05" value="1.0"></label>
+      <label>LPF <input id="maceTestLpf" type="number" step="0.005" value="0.05"></label>
+      <label>Voltage <input id="maceTestVoltage" type="number" step="0.5" value="4"></label>
+      <label>RPM <input id="maceTestRpm" type="number" step="25" value="100"></label>
+      <label>Ramp <input id="maceTestRamp" type="number" step="0.5" value="2.0"></label>
+      <label>Hold <input id="maceTestHold" type="number" step="1" value="5"></label>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-sm btn-red" onclick="maceTestStop()">STOP</button>
+      <button class="btn btn-sm btn-dark" onclick="maceTestCalibrate()">CALIBRATE G</button>
+      <button class="btn btn-sm" onclick="maceTestRun()">RUN + DUMP</button>
+      <button class="btn btn-sm btn-dark" onclick="maceTestDump()">DUMP</button>
+    </div>
+    <div class="mace-test-status" id="maceTestStatus">Idle</div>
+    <div class="mace-test-summary" id="maceTestSummary"></div>
+    <div class="mace-plot-title">RPM Tracking</div>
+    <canvas class="mace-test-plot" id="maceTestRpmPlot"></canvas>
+    <div class="mace-plot-title">Uq / Current / Error</div>
+    <canvas class="mace-test-plot" id="maceTestUqPlot"></canvas>
+  </div>
 
   </div>
 

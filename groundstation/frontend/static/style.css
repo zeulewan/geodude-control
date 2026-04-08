@@ -76,11 +76,82 @@ body {
 .dashboard-camera { grid-area: camera; }
 .dashboard-ml { grid-area: ml; }
 .dashboard-sensors { grid-area: sensors; }
+.dashboard-mace-tuner { grid-area: mace; }
 #attitudeCard.dashboard-card { grid-area: attitude; }
 .dashboard-grid > .compact-wide-card { grid-column: auto; }
 .dashboard-grid > .dashboard-card:nth-of-type(4) { grid-area: system; }
 .dashboard-grid > .dashboard-card:nth-of-type(5) { grid-area: mace; }
 .dashboard-grid > .dashboard-card:nth-of-type(6) { grid-area: reaction; }
+.mace-test-note {
+  color: #9ca3af;
+  font-size: 12px;
+  line-height: 1.35;
+  margin-bottom: 8px;
+}
+.mace-test-controls {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+.mace-test-controls label {
+  color: #9ca3af;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.mace-test-controls input {
+  width: 100%;
+  margin-top: 3px;
+  background: #0f141f;
+  border: 1px solid #2a3447;
+  color: #e5e7eb;
+  border-radius: 6px;
+  padding: 6px;
+}
+.mace-test-status {
+  margin-top: 8px;
+  color: #cbd5e1;
+  font-size: 12px;
+  min-height: 16px;
+}
+.mace-test-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin: 8px 0;
+}
+.mace-test-summary .stat {
+  background: #0f141f;
+  border: 1px solid #243045;
+  border-radius: 6px;
+  padding: 6px;
+}
+.mace-test-summary .label {
+  color: #6b7280;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.mace-test-summary .value {
+  color: #f9fafb;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.mace-plot-title {
+  color: #9ca3af;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 8px 0 4px;
+}
+.mace-test-plot {
+  width: 100%;
+  height: 140px;
+  display: block;
+  background: #070a0f;
+  border: 1px solid #1f2937;
+  border-radius: 6px;
+}
 .sensor-mini-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
