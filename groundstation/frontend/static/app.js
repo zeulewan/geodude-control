@@ -62,12 +62,12 @@ function takeSnapshot() {
 
 /* ========== Channel controls ========== */
 var CHANNELS = {
-  "W2B": {ch: 0, pin: 1}, "W2A": {ch: 1, pin: 2}, "W1B": {ch: 2, pin: 3},
-  "W1A": {ch: 3, pin: 4}, "E2": {ch: 4, pin: 5}, "E1": {ch: 6, pin: 7},
-  "MACE": {ch: 11, pin: 12}, "S2": {ch: 12, pin: 13}, "B2": {ch: 13, pin: 14},
-  "S1": {ch: 14, pin: 15}, "B1": {ch: 15, pin: 16}
+  "B1": {ch: 0, pin: 1}, "S1": {ch: 1, pin: 2}, "E1": {ch: 2, pin: 3},
+  "W1A": {ch: 3, pin: 4}, "W1B": {ch: 4, pin: 5}, "B2": {ch: 5, pin: 6},
+  "S2": {ch: 6, pin: 7}, "E2": {ch: 7, pin: 8}, "W2A": {ch: 8, pin: 9},
+  "W2B": {ch: 9, pin: 10}
 };
-var chOrder = ["B1","B2","S1","S2","E1","E2","W1A","W2A","W1B","W2B","MACE"];
+var chOrder = ["B1","S1","E1","W1A","W1B","B2","S2","E2","W2A","W2B"];
 var CH_RAMP_HZ = 30;
 var chActual = {};  // actual PWM value sent to hardware per channel
 
@@ -3181,6 +3181,7 @@ function maceTuneVal(param, value) { fetch('/api/mace/tune', {method:'POST', hea
 
 /* === MACE run-log tester === */
 var maceTestLog = [];
+var maceMode = 'angle';
 
 function maceRpmToRad(rpm) {
   return Number(rpm || 0) * 2 * Math.PI / 60;
@@ -3193,8 +3194,31 @@ function maceTestField(id, fallback) {
   return Number.isFinite(value) ? value : fallback;
 }
 
+function maceSetMode(mode) {
+  maceMode = mode === 'rate' ? 'rate' : 'angle';
+  var angleBtn = document.getElementById('maceAngleModeBtn');
+  var rateBtn = document.getElementById('maceRateModeBtn');
+  var angleControls = document.getElementById('maceAngleControls');
+  var angleButtons = document.getElementById('maceAngleButtons');
+  var testControls = document.querySelector('.dashboard-mace-tuner .mace-test-controls');
+  var testButtons = document.getElementById('maceRateButtons');
+  var plots = document.querySelectorAll('.dashboard-mace-tuner .mace-plot-title, .dashboard-mace-tuner .mace-test-plot, .dashboard-mace-tuner .mace-test-summary');
+  if (angleBtn) angleBtn.className = maceMode === 'angle' ? 'btn btn-sm' : 'btn btn-sm btn-dark';
+  if (rateBtn) rateBtn.className = maceMode === 'rate' ? 'btn btn-sm' : 'btn btn-sm btn-dark';
+  if (angleControls) angleControls.style.display = maceMode === 'angle' ? 'grid' : 'none';
+  if (angleButtons) angleButtons.style.display = maceMode === 'angle' ? 'flex' : 'none';
+  if (testControls) testControls.style.display = maceMode === 'rate' ? 'grid' : 'none';
+  if (testButtons) testButtons.style.display = maceMode === 'rate' ? 'flex' : 'none';
+  plots.forEach(function(el) { el.style.display = maceMode === 'rate' ? '' : 'none'; });
+}
+
 function maceTestSetStatus(text) {
   var el = document.getElementById('maceTestStatus');
+  if (el) el.textContent = text || '';
+}
+
+function maceControlSetStatus(text) {
+  var el = document.getElementById('maceControlStatus');
   if (el) el.textContent = text || '';
 }
 
@@ -3213,12 +3237,13 @@ function maceTestPost(url, body) {
 }
 
 function maceTestRun() {
+  var rpm = Math.max(-1000, Math.min(maceTestField('maceTestRpm', 100), 1000));
   return maceTestPost('/api/mace/test/run', {
     p: maceTestField('maceTestP', 0.2),
     i: maceTestField('maceTestI', 1.0),
     l: maceTestField('maceTestLpf', 0.05),
     v: maceTestField('maceTestVoltage', 4),
-    target: maceRpmToRad(maceTestField('maceTestRpm', 100)),
+    target: maceRpmToRad(rpm),
     r: maceTestField('maceTestRamp', 2.0),
     h: maceTestField('maceTestHold', 5)
   });
@@ -3227,6 +3252,97 @@ function maceTestRun() {
 function maceTestCalibrate() { return maceTestPost('/api/mace/test/calibrate'); }
 function maceTestStop() { return maceTestPost('/api/mace/test/stop'); }
 function maceTestDump() { return maceTestPost('/api/mace/test/dump'); }
+
+function maceControlPayload() {
+  return {
+    mode: 'angle',
+    angle_target: maceTestField('maceAngleTarget', 0),
+    kp: maceTestField('maceAngleKp', 3),
+    ki: maceTestField('maceAngleKi', 0),
+    kd: maceTestField('maceAngleKd', 0.8),
+    min_uq: maceTestField('maceAngleMinUq', 1.5),
+    max_uq: maceTestField('maceAngleMaxUq', 5),
+    voltage: maceTestField('maceAngleVoltage', 12)
+  };
+}
+
+function maceControlPost(url, body) {
+  return fetch(url, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body || {})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d && d.error) maceControlSetStatus('Error: ' + d.error);
+    setTimeout(maceControlRefresh, 250);
+    return d;
+  }).catch(function(err) {
+    maceControlSetStatus('Error: ' + err);
+  });
+}
+
+function maceControlStartAngle() { return maceControlPost('/api/mace/control/start', maceControlPayload()); }
+function maceControlApplyAngle() { return maceControlPost('/api/mace/control/config', maceControlPayload()); }
+function maceControlStop() { return maceControlPost('/api/mace/control/stop'); }
+function maceControlZero() { return maceControlPost('/api/mace/control/zero'); }
+function maceBreakawaySweep() {
+  return maceControlPost('/api/mace/control/breakaway', {
+    start: 0.1,
+    stop: maceTestField('maceAngleMaxUq', 3),
+    step: 0.05,
+    pulse_s: 0.5,
+    rest_s: 0.5,
+    voltage: maceTestField('maceAngleVoltage', 4),
+    wheel_rpm_threshold: 2.0,
+    body_delta_threshold: 0.15,
+    body_rate_threshold: 1.0,
+    direction: 1
+  });
+}
+
+function maceTorqueRun() {
+  return maceControlPost('/api/mace/torque/run', {
+    u: maceTestField('maceTorqueUq', 2),
+    v: maceTestField('maceTorqueVoltage', 12),
+    h: maceTestField('maceTorqueHold', 2),
+    zero_body: true,
+    zero_gyro: true
+  }).then(function() {
+    setTimeout(maceTorqueRefresh, 500);
+  });
+}
+
+function maceTorqueRender(state) {
+  var el = document.getElementById('maceTorqueSummary');
+  if (!el) return;
+  state = state || {};
+  var summary = state.summary || {};
+  var items = {
+    status: state.status || 'idle',
+    uq: Number(summary.uq || 0),
+    wheel_alpha_rpm_s: Number(summary.max_wheel_alpha_rpm_s || 0),
+    max_wheel_rpm: Number(summary.max_wheel_rpm || 0),
+    body_delta_deg: Number(summary.body_delta_deg || 0),
+    body_rate_dps: Number(summary.max_body_rate_dps || 0),
+    gyro_z_dps: Number(summary.max_gyro_z_dps || 0),
+    gyro_zero_z: Number(summary.gyro_zero_z || 0)
+  };
+  el.innerHTML = Object.entries(items).map(function(entry) {
+    var label = entry[0];
+    var value = entry[1];
+    if (label === 'status') {
+      return '<div class="stat"><div class="label">status</div><div class="value">' + String(value) + '</div></div>';
+    }
+    return '<div class="stat"><div class="label">' + label + '</div><div class="value">' + Number(value || 0).toFixed(3) + '</div></div>';
+  }).join('');
+}
+
+function maceTorqueRefresh() {
+  var el = document.getElementById('maceTorqueSummary');
+  if (!el) return;
+  fetch('/api/mace/torque/state').then(function(r) { return r.json(); }).then(maceTorqueRender).catch(function(err) {
+    el.textContent = 'Torque diagnostic unavailable: ' + err;
+  });
+}
 
 function maceTestRenderSummary(log) {
   var el = document.getElementById('maceTestSummary');
@@ -3351,6 +3467,42 @@ function maceTestRender(state) {
   ], 'No Uq/current/error log yet.');
 }
 
+function maceControlRender(state) {
+  state = state || {};
+  var text = (state.mode || 'angle') + ' / ' + (state.status || 'idle');
+  if (state.enabled) text += ' / enabled';
+  if (state.error) text += ' / ' + state.error;
+  text += ' / angle=' + Number(state.body_angle || 0).toFixed(2) + ' deg';
+  text += ' / rate=' + Number(state.body_rate || 0).toFixed(2) + ' deg/s';
+  if (state.gyro_rate_z !== undefined) text += ' / gyroZ=' + Number(state.gyro_rate_z || 0).toFixed(2) + ' deg/s';
+  text += ' / Uq=' + Number(state.uq || 0).toFixed(3);
+  maceControlSetStatus(text);
+  maceBreakawayRender(state);
+  maceTorqueRefresh();
+}
+
+function maceBreakawayRender(state) {
+  var el = document.getElementById('maceBreakawaySummary');
+  if (!el) return;
+  var log = state.sweep_log || [];
+  var minWheel = state.min_wheel_uq;
+  var minBody = state.min_body_uq;
+  var last = log.length ? log[log.length - 1] : null;
+  var items = {
+    min_wheel_uq: minWheel == null ? 0 : Number(minWheel),
+    min_body_uq: minBody == null ? 0 : Number(minBody),
+    sweep_steps: log.length,
+    last_uq: last ? Number(last.uq || 0) : 0,
+    last_body_delta: last ? Number(last.body_delta_deg || 0) : 0,
+    last_wheel_rpm_delta: last ? Number(last.max_wheel_rpm_delta || 0) : 0
+  };
+  el.innerHTML = Object.entries(items).map(function(entry) {
+    var label = entry[0];
+    var value = Number(entry[1] || 0);
+    return '<div class="stat"><div class="label">' + label + '</div><div class="value">' + value.toFixed(label === 'sweep_steps' ? 0 : 3) + '</div></div>';
+  }).join('');
+}
+
 function maceTestRefresh() {
   var panel = document.getElementById('maceTestStatus');
   if (!panel) return;
@@ -3361,3 +3513,15 @@ function maceTestRefresh() {
 
 setInterval(maceTestRefresh, 1000);
 maceTestRefresh();
+
+function maceControlRefresh() {
+  var panel = document.getElementById('maceControlStatus');
+  if (!panel) return;
+  fetch('/api/mace/control/state').then(function(r) { return r.json(); }).then(maceControlRender).catch(function(err) {
+    maceControlSetStatus('MACE control API unavailable: ' + err);
+  });
+}
+
+setInterval(maceControlRefresh, 1000);
+maceControlRefresh();
+setTimeout(function() { maceSetMode('angle'); }, 0);

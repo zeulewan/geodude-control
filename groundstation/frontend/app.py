@@ -17,16 +17,16 @@ WATCHDOG_TIMEOUT = 3  # seconds — auto-stop if no frontend heartbeat
 # PCA9685 channel mapping (pin - 1 = 0-indexed)
 # MACE reaction wheel is no longer on PCA9685 — it is driven by Pi Pico via SimpleFOC
 CHANNELS = {
-    "B1":   15,
-    "S1":   14,
-    "B2":   13,
-    "S2":   12,
-    "E1":    6,
-    "E2":    4,
-    "W1A":   3,
-    "W1B":   2,
-    "W2A":   1,
-    "W2B":   0,
+    "B1":   0,
+    "S1":   1,
+    "E1":   2,
+    "W1A":  3,
+    "W1B":  4,
+    "B2":   5,
+    "S2":   6,
+    "E2":   7,
+    "W2A":  8,
+    "W2B":  9,
 }
 
 # SimpleFOC velocity limits (rad/s)
@@ -757,6 +757,38 @@ def proxy_simplefoc_profile(path, payload=None, method="GET"):
         return {"ok": False, "error": str(exc)}, 502
 
 
+def proxy_simplefoc_control(path, payload=None, method="GET"):
+    """Proxy live MACE angle/rate control requests to GEO-DUDe."""
+    try:
+        url = f"{GEODUDE_URL}/simplefoc/control/{path.lstrip('/')}"
+        data = None
+        headers = {}
+        if payload is not None:
+            data = json.dumps(payload).encode()
+            headers["Content-Type"] = "application/json"
+        req = urllib.request.Request(url, data=data, headers=headers, method=method)
+        resp = urllib.request.urlopen(req, timeout=10)
+        return json.loads(resp.read().decode()), resp.status
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}, 502
+
+
+def proxy_simplefoc_torque(path, payload=None, method="GET"):
+    """Proxy direct torque-pulse diagnostics to GEO-DUDe."""
+    try:
+        url = f"{GEODUDE_URL}/simplefoc/torque/{path.lstrip('/')}"
+        data = None
+        headers = {}
+        if payload is not None:
+            data = json.dumps(payload).encode()
+            headers["Content-Type"] = "application/json"
+        req = urllib.request.Request(url, data=data, headers=headers, method=method)
+        resp = urllib.request.urlopen(req, timeout=30)
+        return json.loads(resp.read().decode()), resp.status
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}, 502
+
+
 def send_pwm(channel, pw):
     """Send PWM pulse width to a named PCA9685 channel."""
     try:
@@ -950,6 +982,54 @@ def mace_test_stop():
 @app.route('/api/mace/test/dump', methods=['POST'])
 def mace_test_dump():
     data, status = proxy_simplefoc_profile("dump", {}, method="POST")
+    return jsonify(data), status
+
+
+@app.route('/api/mace/control/state')
+def mace_control_state():
+    data, status = proxy_simplefoc_control("state")
+    return jsonify(data), status
+
+
+@app.route('/api/mace/control/start', methods=['POST'])
+def mace_control_start():
+    data, status = proxy_simplefoc_control("start", request.json or {}, method="POST")
+    return jsonify(data), status
+
+
+@app.route('/api/mace/control/config', methods=['POST'])
+def mace_control_config():
+    data, status = proxy_simplefoc_control("config", request.json or {}, method="POST")
+    return jsonify(data), status
+
+
+@app.route('/api/mace/control/zero', methods=['POST'])
+def mace_control_zero():
+    data, status = proxy_simplefoc_control("zero", {}, method="POST")
+    return jsonify(data), status
+
+
+@app.route('/api/mace/control/stop', methods=['POST'])
+def mace_control_stop():
+    data, status = proxy_simplefoc_control("stop", {}, method="POST")
+    return jsonify(data), status
+
+
+@app.route('/api/mace/control/breakaway', methods=['POST'])
+def mace_control_breakaway():
+    data, status = proxy_simplefoc_control("breakaway", request.json or {}, method="POST")
+    return jsonify(data), status
+
+
+@app.route('/api/mace/torque/state')
+def mace_torque_state():
+    data, status = proxy_simplefoc_torque("state")
+    return jsonify(data), status
+
+
+@app.route('/api/mace/torque/run', methods=['POST'])
+def mace_torque_run():
+    data, status = proxy_simplefoc_torque("run", request.json or {}, method="POST")
     return jsonify(data), status
 
 

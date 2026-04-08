@@ -16,17 +16,16 @@ LED0_ON_L = 0x06  # each channel is 4 registers: ON_L, ON_H, OFF_L, OFF_H
 
 # Channel mapping (pin - 1 = 0-indexed channel)
 CHANNELS = {
-    "B1":   15,  # pin 16
-    "S1":   14,  # pin 15
-    "B2":   13,  # pin 14
-    "S2":   12,  # pin 13
-    "MACE": 11,  # pin 12
-    "E1":    6,  # pin 7
-    "E2":    4,  # pin 5
-    "W1A":   3,  # pin 4
-    "W1B":   2,  # pin 3
-    "W2A":   1,  # pin 2
-    "W2B":   0,  # pin 1
+    "B1":   0,   # carrier PCB SV1
+    "S1":   1,   # carrier PCB SV2
+    "E1":   2,   # carrier PCB SV3
+    "W1A":  3,   # carrier PCB SV4
+    "W1B":  4,   # carrier PCB SV5
+    "B2":   5,   # carrier PCB SV6
+    "S2":   6,   # carrier PCB SV7
+    "E2":   7,   # carrier PCB SV8
+    "W2A":  8,   # carrier PCB SV9
+    "W2B":  9,   # carrier PCB SV10
 }
 
 
