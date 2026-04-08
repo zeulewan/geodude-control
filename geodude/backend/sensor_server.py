@@ -719,7 +719,10 @@ def camera():
                     mimetype="multipart/x-mixed-replace; boundary=frame")
 
 if __name__ == "__main__":
-    pca_init(freq=50)
+    try:
+        pca_init(freq=50)
+    except Exception as e:
+        print("PCA9685 init failed; continuing without PCA init: %s" % e, flush=True)
     # No pca_all_off() — groundstation sends neutral positions on connect
     threading.Thread(target=sensor_loop, daemon=True).start()
     threading.Thread(target=camera_reader_thread, daemon=True).start()
