@@ -191,6 +191,50 @@ Groundstation Pi — 192.168.50.2 (USB Ethernet from zmac)
 | Attitude Controller | GEO-DUDe Pi | `attitude-controller.service` | `/home/zeul/attitude_controller.py` |
 | Gimbal | ESP32 | firmware in flash | boots automatically on power |
 
+## Repo Layout Plan
+
+One repo owns all software and firmware, split first by the machine it runs on:
+
+```text
+groundstation/
+  backend/     # future shared hub service on groundstation, port 8070, main only
+  frontend/    # browser UI on groundstation, prod 8080 and dev worktree ports
+
+geodude/
+  backend/     # GEO-DUDe Pi hardware API, port 5000
+
+firmware/
+  nucleo/      # STM32 Nucleo / SimpleFOC firmware
+  esp32/       # ESP32 gimbal firmware
+```
+
+Compatibility wrappers remain at the old service paths during the refactor:
+
+```text
+groundstation/wheel_control.py
+groundstation/run_local_dev.py
+geodude/sensor_server.py
+geodude/attitude_controller.py
+geodude/pca9685_test.py
+```
+
+The groundstation hub will eventually be the only process polling GEO-DUDe. Prod and dev frontends should all read from that hub so multiple tabs/computers/worktrees share one telemetry pipeline and one control lock.
+
+## Frontend Split
+
+The groundstation UI source is split under `groundstation/frontend/templates`:
+
+```text
+index.html                    # shell/header/tabs/includes
+partials/dashboard.html       # Dashboard tab
+partials/mission.html         # Mission Simulation panel
+partials/competition.html     # stub for future standalone Competition panel
+```
+
+Important: the old MACE Competition tab reused the Mission panel DOM and JS mode instead of having a separate page. `competition.html` is intentionally a stub for now so we do not duplicate mission element IDs and break Mizi's mission UI. Do an ID-safe split later if the Competition page needs its own independent DOM.
+
+Dashboard replaces the old "Manual Testing" label. The Dashboard no longer includes the old ML Vision, Attitude Control, or MACE Reaction Wheel cards. Mizi's mission, competition workflow, arm workspace, gimbal, servo, and controller visuals should be preserved.
+
 ## Git Workflow
 
 Two developers: **zeul** (uses zmac) and **mizi** (uses his own Mac). Both SSH into the groundstation Pi to develop.
@@ -220,6 +264,19 @@ cd /opt/geodude-control
 git merge zeul-dev   # or mizi-dev
 sudo systemctl restart wheel-control.service
 ```
+
+### Main Protection Rule
+
+Do not commit directly on `main`. Work on a branch/worktree, then merge into main with an explicit merge commit:
+
+```bash
+git switch -c zeul/some-change
+git add -A && git commit -m "Do the thing"
+git switch main
+git merge --no-ff zeul/some-change
+```
+
+The repo has a local pre-commit hook at `scripts/git-hooks/pre-commit` that blocks normal direct commits on `main` while allowing merge commits. Install it into `.git/hooks/pre-commit` in any checkout used for deployment.
 
 ### Syncing with zmac / GitHub (Pi has no internet)
 ```bash

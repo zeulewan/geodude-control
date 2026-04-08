@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOOS-1 Control | mizi-dev</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <h1>SOOS-1 Control | mizi-dev</h1>
+  <div class="header-status">
+    <div class="status-indicator">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">GEO-DUDe</span>
+    </div>
+    <div class="status-indicator">
+      <div class="status-dot" id="gimbalDot"></div>
+      <span id="gimbalDotText">Gimbal</span>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+<div class="page-tabs">
+  <button class="page-tab active" id="pageTabManual" onclick="showPageTab('manual')">Dashboard</button>
+  <button class="page-tab" id="pageTabMission" onclick="showPageTab('mission')">Mission Simulation</button>
+  <button class="page-tab" id="pageTabCompetition" onclick="showPageTab('competition')">MACE Competition</button>
+</div>
+
+{% include "partials/dashboard.html" %}
+{% include "partials/mission.html" %}
+{% include "partials/competition.html" %}
+</div><!-- end container -->
+
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
