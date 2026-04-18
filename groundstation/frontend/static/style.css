@@ -88,6 +88,32 @@ body {
   line-height: 1.35;
   margin-bottom: 8px;
 }
+.mace-mode-toggle {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.mace-live-controls {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.mace-live-controls label {
+  color: #9ca3af;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.mace-live-controls input {
+  width: 100%;
+  margin-top: 3px;
+  background: #0f141f;
+  border: 1px solid #2a3447;
+  color: #e5e7eb;
+  border-radius: 6px;
+  padding: 6px;
+}
 .mace-test-controls {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

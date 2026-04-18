@@ -74,17 +74,49 @@
   <!-- MACE Testing -->
   <div class="card dashboard-card dashboard-mace-tuner">
     <h3>MACE Testing</h3>
-    <div class="mace-test-note">Closed-loop SimpleFOC profile runner. It stays serial-quiet during motion, then dumps the STM32 RAM log after the run.</div>
+    <div class="mace-test-note">Two modes: angle hold commands body angle with torque-voltage setpoints; wheel RPM runs the serial-quiet STM32 profile and dumps the RAM log after.</div>
+    <div class="mace-mode-toggle">
+      <button class="btn btn-sm" id="maceAngleModeBtn" onclick="maceSetMode('angle')">Angle Mode</button>
+      <button class="btn btn-sm btn-dark" id="maceRateModeBtn" onclick="maceSetMode('rate')">Wheel RPM Mode</button>
+    </div>
+    <div class="mace-live-controls" id="maceAngleControls">
+      <label>Angle Target (deg) <input id="maceAngleTarget" type="number" step="1" value="0"></label>
+      <label>Kp <input id="maceAngleKp" type="number" step="0.1" value="3"></label>
+      <label>Ki <input id="maceAngleKi" type="number" step="0.001" value="0"></label>
+      <label>Kd <input id="maceAngleKd" type="number" step="0.1" value="0.8"></label>
+      <label>Min Uq <input id="maceAngleMinUq" type="number" step="0.05" value="2"></label>
+      <label>Max Uq <input id="maceAngleMaxUq" type="number" step="0.5" value="5"></label>
+      <label>Voltage Limit <input id="maceAngleVoltage" type="number" step="0.5" value="12"></label>
+    </div>
+    <div class="btn-row" id="maceAngleButtons">
+      <button class="btn btn-sm btn-red" onclick="maceControlStop()">STOP</button>
+      <button class="btn btn-sm btn-dark" onclick="maceTestCalibrate()">CALIBRATE G</button>
+      <button class="btn btn-sm btn-dark" onclick="maceControlZero()">ZERO BODY</button>
+      <button class="btn btn-sm" onclick="maceControlStartAngle()">START ANGLE</button>
+      <button class="btn btn-sm btn-dark" onclick="maceControlApplyAngle()">APPLY</button>
+      <button class="btn btn-sm btn-dark" onclick="maceBreakawaySweep()">BREAKAWAY SWEEP</button>
+    </div>
+    <div class="mace-test-status" id="maceControlStatus">Angle control idle</div>
+    <div class="mace-test-summary" id="maceBreakawaySummary"></div>
+    <div class="mace-test-controls" id="maceTorqueControls">
+      <label>Pulse Uq <input id="maceTorqueUq" type="number" step="0.25" value="2"></label>
+      <label>Pulse Voltage <input id="maceTorqueVoltage" type="number" step="0.5" value="12"></label>
+      <label>Pulse Hold <input id="maceTorqueHold" type="number" step="0.25" value="2"></label>
+    </div>
+    <div class="btn-row" id="maceTorqueButtons">
+      <button class="btn btn-sm btn-dark" onclick="maceTorqueRun()">TORQUE PULSE + LOG</button>
+    </div>
+    <div class="mace-test-summary" id="maceTorqueSummary"></div>
     <div class="mace-test-controls">
       <label>P <input id="maceTestP" type="number" step="0.01" value="0.2"></label>
       <label>I <input id="maceTestI" type="number" step="0.05" value="1.0"></label>
       <label>LPF <input id="maceTestLpf" type="number" step="0.005" value="0.05"></label>
       <label>Voltage <input id="maceTestVoltage" type="number" step="0.5" value="4"></label>
-      <label>RPM <input id="maceTestRpm" type="number" step="25" value="100"></label>
+      <label>RPM <input id="maceTestRpm" type="number" step="25" min="-1000" max="1000" value="100"></label>
       <label>Ramp <input id="maceTestRamp" type="number" step="0.5" value="2.0"></label>
       <label>Hold <input id="maceTestHold" type="number" step="1" value="5"></label>
     </div>
-    <div class="btn-row">
+    <div class="btn-row" id="maceRateButtons">
       <button class="btn btn-sm btn-red" onclick="maceTestStop()">STOP</button>
       <button class="btn btn-sm btn-dark" onclick="maceTestCalibrate()">CALIBRATE G</button>
       <button class="btn btn-sm" onclick="maceTestRun()">RUN + DUMP</button>
