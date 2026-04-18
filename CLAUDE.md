@@ -3,10 +3,14 @@
 ## Repo Structure
 
 ```
-groundstation/    — Flask web UI (runs on groundstation Pi, port 8080)
-geodude/          — sensor_server.py (runs on GEO-DUDe Pi)
-pico/             — pico-simplefoc.ino (compiled on zmac, flashed to Pico)
-gimbal/           — gimbal_controller.ino (runs on ESP32)
+groundstation/
+  frontend/       — Flask browser UI (prod 8080, dev worktree ports 8081/8082)
+  backend/        — future shared groundstation hub placeholder (not running yet)
+geodude/
+  backend/        — GEO-DUDe Pi hardware API/service code
+firmware/
+  nucleo/         — STM32 Nucleo / SimpleFOC firmware
+  esp32/          — ESP32 gimbal firmware
 pcb/              — KiCad carrier PCB design
 site/             — Documentation site (Zensical/MkDocs)
   ├── docs/       — Markdown source
@@ -21,6 +25,18 @@ The repo is cloned on the groundstation Pi at `/opt/geodude-control/`. The `main
 ExecStart=/usr/bin/python3 /opt/geodude-control/groundstation/wheel_control.py
 WorkingDirectory=/opt/geodude-control/groundstation
 ```
+
+`groundstation/wheel_control.py` is a compatibility wrapper. The actual UI app now lives at `groundstation/frontend/app.py`.
+
+Dev frontends are served from worktrees, not from `/opt`:
+
+| URL | Checkout | Branch | Purpose |
+|-----|----------|--------|---------|
+| `http://192.168.50.2:8080` | `/opt/geodude-control` | `main` | prod/main UI |
+| `http://192.168.50.2:8081` | `/home/zeul/geodude-dev` | `zeul-dev` | zeul frontend dev |
+| `http://192.168.50.2:8082` | `/home/mizi/geodude-dev` | `mizi-dev` | mizi frontend dev |
+
+Dev worktrees should run **frontend only** via `groundstation/run_local_dev.py` / `groundstation/frontend/run_local_dev.py`. They should not run their own hardware-owning backend services.
 
 Persistent data files (not in git, created at runtime):
 - `groundstation/servo_neutral.json` — saved neutral positions
@@ -47,22 +63,27 @@ scp /tmp/geodude.bundle zeul@192.168.50.2:/tmp/
 ssh zeul@192.168.50.2 'cd /opt/geodude-control && git pull /tmp/geodude.bundle main && sudo systemctl restart wheel-control.service'
 ```
 
-### Groundstation (editing directly on Pi)
+### Groundstation Dev Frontends
 ```bash
-# Edit files in /opt/geodude-control/, then:
-sudo systemctl restart wheel-control.service
+# zeul-dev
+cd /home/zeul/geodude-dev/groundstation
+WHEEL_CONTROL_PORT=8081 python3 run_local_dev.py
+
+# mizi-dev
+cd /home/mizi/geodude-dev/groundstation
+WHEEL_CONTROL_PORT=8082 python3 run_local_dev.py
 ```
 
 ### GEO-DUDe Pi (from groundstation)
 ```bash
-scp /opt/geodude-control/geodude/sensor_server.py zeul@192.168.4.166:/home/zeul/sensor_server.py
+scp /opt/geodude-control/geodude/backend/sensor_server.py zeul@192.168.4.166:/home/zeul/sensor_server.py
 ssh zeul@192.168.4.166 'sudo systemctl restart sensor-server.service'
 ```
 
 ### ESP32 Gimbal (compile on zmac, flash via groundstation)
 ```bash
 # On zmac:
-cp gimbal/gimbal_controller.ino ~/tmp/tmc2209_read/tmc2209_read.ino
+cp firmware/esp32/gimbal_controller.ino ~/tmp/tmc2209_read/tmc2209_read.ino
 arduino-cli compile --fqbn esp32:esp32:esp32doit-devkit-v1 --output-dir ~/tmp/tmc2209_read/build ~/tmp/tmc2209_read/
 scp ~/tmp/tmc2209_read/build/tmc2209_read.ino.bin zeul@192.168.50.2:/tmp/
 ssh zeul@192.168.50.2 'python3 /tmp/espota.py -i 192.168.4.222 -p 3232 -f /tmp/tmc2209_read.ino.bin'
@@ -71,7 +92,7 @@ ssh zeul@192.168.50.2 'python3 /tmp/espota.py -i 192.168.4.222 -p 3232 -f /tmp/t
 Note: zmac needs `arduino-cli` (homebrew) with esp32 board package and TMCStepper library. `espota.py` is at `/Users/zeul/Library/Arduino15/packages/esp32/hardware/esp32/3.3.7/tools/espota.py` (copy to groundstation `/tmp/` if missing).
 
 ### GitHub
-Pushes to GitHub happen from zmac periodically. The Pi will pull from GitHub directly once it gets internet access.
+Pushes to GitHub happen from zmac periodically. Keep it simple for now: bundle/scp between the groundstation and zmac, then push to GitHub from zmac. The Pi network currently has no internet.
 
 ## Servo Startup & Safety
 
@@ -87,104 +108,66 @@ Pushes to GitHub happen from zmac periodically. The Pi will pull from GitHub dir
 
 - **ESP32 OTA filename:** The Mac compile path still uses `tmc2209_read/` as the sketch folder name. The ESP32 doesn't care, but the Mac-side paths in the deploy script reference this old name.
 - **Docs site CI:** The GitHub Actions workflow (`.github/workflows/docs.yml`) needs updating — it was written for the old standalone repo structure. The docs source is now at `site/docs/` and config at `site/zensical.toml`.
-- **AGENT_ONBOARDING.md** references file paths at repo root — needs updating to reflect `groundstation/`, `geodude/`, `gimbal/` subdirectories.
+- **AGENT_ONBOARDING.md** references file paths at repo root — needs updating to reflect `groundstation/`, `geodude/`, and `firmware/` subdirectories.
 - **Pico pin assignments — two hardware versions:** The perfboard prototype and the carrier PCB use different Pico GPIO pins for FOC signals (IN1/IN2/IN3/EN). Serial (GP0/1) and I2C (GP4/5) are the same on both. PCB version is documented in `pcb/CLAUDE.md` and `site/docs/electrical/geodude/carrier-pcb.md`. Perfboard version TBD — needs confirming from physical wiring.
 
-## MACE Reaction Wheel (SimpleFOC / Pi Pico)
+## MACE Reaction Wheel (SimpleFOC / STM32 Nucleo)
 
-The reaction wheel uses an STM32 Nucleo F446RE with SimpleFOC Shield V2.0.4 hat, connected to the GEO-DUDe Pi via USB serial (`/dev/ttyACM0`, 115200 baud).
+The reaction wheel uses an STM32 Nucleo F446RE with SimpleFOC Shield V2.0.4, connected to the GEO-DUDe Pi via USB serial (`/dev/ttyACM0`, 115200 baud).
 
 ### Hardware (Current - Nucleo + SimpleFOC Shield)
 - **Controller:** STM32 Nucleo F446RE (ARM Cortex-M4, 180MHz, 512KB flash, 128KB SRAM)
-- **Driver:** SimpleFOC Shield V2.0.4 (clone, GODIYMODULES) - 3x IR2104 half-bridge, 2x INA240 current sensors (phase A/B), 12-35V input
-- **Motor:** TBD (new motor, replacing 2804 gimbal)
-- **Encoder:** AS5600 magnetic encoder (I2C, address 0x36)
+- **Driver:** SimpleFOC Shield V2.0.4 (clone) - 3x IR2104 half-bridge, 2x INA240 current sensors, 12-35V input
+- **Motor:** 4015 BLDC with MT6701 encoder (hollow shaft, robot joint motor)
+- **Encoder:** MT6701 magnetic encoder (ABZ mode, 1024 PPR, on motor shaft)
 - **IMU:** ICM20948 9DoF (I2C, address 0x69)
 - **Connection:** Nucleo USB (ST-LINK virtual COM) to GEO-DUDe Pi
-- **Flashing:** st-flash via ST-LINK/V2.1 onboard programmer
+- **Flashing:** `st-flash write firmware.bin 0x08000000` via ST-LINK/V2.1 onboard
 - **Power:** Nucleo powered from Pi USB (5V), Shield powered from external PSU (12-35V)
 
-### Hardware (Previous - Pi Pico + DRV8313)
-See `site/docs/electrical/geodude/mace-development-log.md` for full history of the Pico-based system.
-- Pi Pico (RP2040) + SimpleFOC Mini (DRV8313) + 2804 BLDC gimbal motor
-- Retired due to: RP2040 ADC noise, limited current capability, no current sensing
-
-### Pico GPIO (current perfboard wiring)
-- GP10 = IN1 (PWM phase A)
-- GP11 = IN2 (PWM phase B)
-- GP12 = IN3 (PWM phase C)
-- GP14 = EN (driver enable)
-- GP19 = nRT (DRV8313 reset, active low)
-- GP20 = nSP (DRV8313 sleep, active low)
-- GP21 = nFT (DRV8313 fault output, active low = fault)
-- GP2 = SDA (I2C1/Wire1, AS5600 encoder, 400kHz)
-- GP3 = SCL (I2C1/Wire1, AS5600 encoder, 400kHz)
-- GP4 = SDA (I2C0/Wire, ICM20948 IMU, 200kHz)
-- GP5 = SCL (I2C0/Wire, ICM20948 IMU, 200kHz)
-- GP6 = Bootloader entry (emergency, active low)
-- GP27 (Pi side) = Pico RUN pin (hard reset from Pi)
-
-### Important hardware notes
-- **Pico must be powered via VSYS (pin 39) from 5V buck**, not USB. USB is data only. The Pi's USB polyfuse drops voltage too much.
-- **Sensors must be powered from Pico 3.3V (pin 36)**, not Pi 3.3V. Avoids I2C timing race at boot.
-- **Encoder on I2C1 (Wire1)** GP2/GP3 at 400kHz. Was analog on GP26 previously but RP2040 ADC too noisy.
-- **IMU on I2C0 (Wire)** GP4/GP5 at 200kHz. Separate bus from encoder, no contention.
-- **Firmware retries AS5600 init** up to 20 times at boot to handle sensor power-on delay.
-- **Motor starts disabled** on boot. Must be explicitly enabled via E command or GUI.
-- **udev rule** on GEO-DUDe Pi creates `/dev/pico` symlink (persistent across reconnects):
-  `SUBSYSTEM=="tty", ATTRS{idVendor}=="2e8a", ATTRS{idProduct}=="000a", SYMLINK+="pico"`
-- **1000uF cap** on Pi 5V rail to prevent undervoltage on current spikes.
-- **Never disconnect motor while 12V is on** - voltage spike destroys driver.
+### Previous Hardware (Pi Pico + DRV8313) - Retired
+See `site/docs/electrical/geodude/mace-development-log.md` for full Pico development history.
 
 ### Firmware
-- Source: `pico/pico-simplefoc.ino` (in repo), compiled on zmac
-- Framework: Arduino (earlephilhower rp2040 core) + SimpleFOC library
-- Two modes: **velocity** (M0, MACE manual control) and **torque** (M1, attitude control direct voltage)
-- Streams JSON telemetry at 50Hz over USB serial (sensors, motor state, tuning params)
-- Serial commands: T (velocity), U (voltage), V (voltage limit), P/I/W (PID), L (velocity limit), A (output ramp), F (LPF), M0/M1 (mode switch), C (calibrate), D (disable), E (enable), R (reset fault)
-- `initFOC()` runs at boot (motor must be connected and free to move), motor disabled after init
-- `driver.voltage_limit = 12` (hardware cap), `motor.voltage_limit = 2` (startup default, adjustable via GUI)
-- Full development history: `site/docs/electrical/geodude/mace-development-log.md`
+- Source: `firmware/nucleo/nucleo-simplefoc.ino` (in repo), compiled on zmac
+- Framework: Arduino (STM32duino core) + SimpleFOC library
+- Compile: `arduino-cli compile --fqbn "STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F446RE,upload_method=swdMethod"`
+- Two modes: velocity (M0, MACE manual) and torque (M1, attitude control)
+- Motor disabled on boot, initFOC skippable (send G to run when motor connected)
+- 50Hz JSON telemetry stream over ST-LINK virtual COM
+- Serial commands: T (velocity), U (voltage), V (voltage limit), P/I/W (PID), L (velocity limit), A (output ramp), F (LPF), M0/M1 (mode), G (initFOC), C (calibrate+enable), D (disable), E (enable)
 
-### Flashing the Pico
+Important bring-up notes from the March 2026 STM32/shield session:
+- Board is silkscreened "FOC Arduino v1.1" but behaves like a SimpleFOC Shield V2.0.4-compatible clone: IR2104 gate drivers, 6 NMOS, 2x INA240 current sensors, 12-35V bus.
+- IR2104 jumper must be on the `VCC > 20V` / regulated 16V side for 24V bus power.
+- Working shield control pins: `BLDCDriver3PWM(9, 5, 6, 8)` = PWM A/B/C plus enable.
+- Motor listing says 22 poles = 11 pole pairs; use `BLDCMotor(11)`. Do not use 14 or 22 pole pairs.
+- Phase-to-phase motor resistance measured about 5 ohms for all three pairs, and pairwise phase tests were balanced after shortening motor phase leads.
+- Current sense is two-shunt A/B only. Use A/B readings and infer C as `-(A+B)`; do not treat missing direct phase-C current as a dead winding.
+- Open-loop was smooth only when firmware loop was minimal. Heavy JSON/debug/current-sense/web serial work in the fast loop caused obvious knocking/jitter.
+- Correct fast-loop pattern is `motor.loopFOC(); motor.move(target);` with no blocking serial prints during motion. For tuning, log to RAM during runs and dump after `RUN_DONE`.
+- Velocity closed-loop began working after runtime PID tuning (`P≈0.2`, `I≈1.0`, `LPF≈0.05`) and later higher authority tests. Treat these as starting points, not final flight tuning.
+- Encoder is ABI on D2/D3. Verify encoder PPR by hand-rotating one mechanical revolution before final closed-loop firmware; old sketches/configs disagree (`800` vs `1024`).
+
+### Flashing the Nucleo
 ```bash
-# DTR reboot to BOOTSEL (from GEO-DUDe Pi):
-python3 -c "import serial; s=serial.Serial('/dev/pico',1200); s.dtr=True; import time; time.sleep(0.3); s.dtr=False; s.close()"
-# Wait for RP2 Boot in lsusb, then:
-sudo mkdir -p /mnt/pico && sudo mount /dev/sda1 /mnt/pico
-sudo cp simplefoc.uf2 /mnt/pico/ && sudo sync && sudo umount /mnt/pico
+# From GEO-DUDe Pi:
+st-flash write /tmp/nucleo.bin 0x08000000
+st-flash reset
 ```
-Hard reset via RUN pin: Pi GPIO 27 low for 200ms then high.
-
-### Telemetry stream format (JSON, 50Hz)
-```json
-{"t":0.0,"vel":0.0,"rpm":0.0,"vsys":5.17,"enc":131.7,"ax":0.0,"ay":0.06,"az":1.0,"gx":-0.1,"gy":0.4,"gz":-0.4,"ft":1,"sp":1,"rt":1,"ie":0,"ii":0,"en":1,"me":1,"va":3.0,"vb":8.2,"vc":-2.2,"da":0.25,"db":0.5,"dc":0.0,"vl":2.0,"sl":300.0,"kp":0.2,"ki":2.0,"kd":0.0,"rmp":1000,"lpf":0.02,"cm":0,"tv":0.0}
-```
-
-### API (sensor_server.py on GEO-DUDe)
-- `GET /simplefoc/status` - cached telemetry (no serial query)
-- `POST /simplefoc` with `{"velocity": 5.0}` or `{"command": "T5"}` - sends command to Pico
-- `GET /sensors` - sensor data (accel, gyro, encoder, rpm)
-
-### Ground station UI
-- **Attitude Control** (above MACE): enable/disable/stop, setpoint nudge buttons, PID gains (Kp/Ki/Kd), attitude plot (commanded vs body angle), wheel speed plot
-- **MACE Reaction Wheel** (disableable section): RPM slider (-450 to +450), motor tuning inputs, speed plot. Auto-disabled when attitude control is active.
-- MACE and attitude control are mutually exclusive. Attitude has higher authority.
 
 ### Attitude Controller (`geodude/attitude_controller.py`)
 - Runs on GEO-DUDe Pi, port 5001
 - Single PID: angle error (deg) -> voltage command (1.5V-12V)
 - D term uses gyro rate (derivative on measurement, not error)
 - Auto-calibrates gyro bias on enable (2s stationary)
-- Switches Pico to torque mode (M1) on enable, back to velocity (M0) + disable (D) on disable
-- Watchdog: auto-disables after 5s without GUI heartbeat
+- Switches Nucleo to torque mode (M1) on enable, disables motor (D) on disable
+- Mutual exclusion with MACE manual controls
 
-### Performance (measured, 2804 motor)
-- Max speed with I2C encoder @ 100kHz: ~800 RPM
-- Max speed with I2C encoder @ 400kHz: 1000+ RPM
-- Max speed with analog encoder: 1200+ RPM (unusable due to RP2040 ADC noise)
-- Body rate during full reversal: ~5 deg/s
-- Gyro bias (ICM20948): ~1.5 deg/s typical
+### API (sensor_server.py on GEO-DUDe)
+- `GET /simplefoc/status` - cached telemetry from Nucleo serial stream
+- `POST /simplefoc` with `{"command": "T5"}` or `{"velocity": 5.0}` - sends command
+- `GET /sensors` - sensor data (accel, gyro, encoder, rpm)
 
 ## Gimbal (ESP32 + TMC2209)
 
@@ -196,25 +179,6 @@ Hard reset via RUN pin: Pi GPIO 27 low for 200ms then high.
 ## Safety
 
 **NEVER send motor, PWM, or actuator commands to hardware without explicit user permission.** Read-only debugging only.
-
-**NEVER copy files directly to `/opt/geodude-control/`.** Always use git merge. The deployment dir is on `main` and may have changes from other developers (mizi). Direct file copies will overwrite their work.
-
-## Deployment Rules
-
-1. **Always merge through git, never direct file copy to /opt/geodude-control/**
-2. Work in your worktree branch (e.g., `zeul-simplefoc`, `zeul-dev`)
-3. To deploy: merge your branch into `main` at `/opt/geodude-control/`
-4. Resolve conflicts properly (keep both sides where appropriate)
-5. Then restart the service: `sudo systemctl restart wheel-control`
-6. If the Pi has no internet, use git bundles to transfer branches:
-   ```bash
-   # On zmac:
-   git bundle create /tmp/branch.bundle <branch-name>
-   scp /tmp/branch.bundle zeul@192.168.50.2:/tmp/
-   # On Pi:
-   cd /opt/geodude-control && git fetch /tmp/branch.bundle <branch-name>:<branch-name>
-   git merge <branch-name>
-   ```
 
 ## Network Architecture
 
@@ -259,8 +223,51 @@ Groundstation Pi — 192.168.50.2 (USB Ethernet from zmac)
 | Web UI | Groundstation Pi | `wheel-control.service` | `/opt/geodude-control/groundstation/wheel_control.py` |
 | Sensor/Motor API | GEO-DUDe Pi | `sensor-server.service` | `/home/zeul/sensor_server.py` |
 | Attitude Controller | GEO-DUDe Pi | `attitude-controller.service` | `/home/zeul/attitude_controller.py` |
-| SimpleFOC (Pico) | GEO-DUDe Pi USB | firmware in flash | boots automatically, streams to sensor-server |
 | Gimbal | ESP32 | firmware in flash | boots automatically on power |
+
+## Repo Layout Plan
+
+One repo owns all software and firmware, split first by the machine it runs on:
+
+```text
+groundstation/
+  backend/     # future shared hub service on groundstation; not running yet
+  frontend/    # browser UI on groundstation, prod 8080 and dev worktree ports
+
+geodude/
+  backend/     # GEO-DUDe Pi hardware API, port 5000
+
+firmware/
+  nucleo/      # STM32 Nucleo / SimpleFOC firmware
+  esp32/       # ESP32 gimbal firmware
+```
+
+Compatibility wrappers remain at the old service paths during the refactor:
+
+```text
+groundstation/wheel_control.py
+groundstation/run_local_dev.py
+geodude/sensor_server.py
+geodude/attitude_controller.py
+geodude/pca9685_test.py
+```
+
+The groundstation hub is a future step, not needed/running right now. When built, it should be the only process polling GEO-DUDe so prod/dev frontends share one telemetry pipeline and one control lock.
+
+## Frontend Split
+
+The groundstation UI source is split under `groundstation/frontend/templates`:
+
+```text
+index.html                    # shell/header/tabs/includes
+partials/dashboard.html       # Dashboard tab
+partials/mission.html         # Mission Simulation panel
+partials/competition.html     # stub for future standalone Competition panel
+```
+
+Important: the old MACE Competition tab reused the Mission panel DOM and JS mode instead of having a separate page. `competition.html` is intentionally a stub for now so we do not duplicate mission element IDs and break Mizi's mission UI. Do an ID-safe split later if the Competition page needs its own independent DOM.
+
+Dashboard replaces the old "Manual Testing" label. The Dashboard no longer includes the old ML Vision, Attitude Control, or MACE Reaction Wheel cards. Mizi's mission, competition workflow, arm workspace, gimbal, servo, and controller visuals should be preserved.
 
 ## Git Workflow
 
@@ -288,9 +295,40 @@ git add -A && git commit -m "description of change"
 
 # When ready to deploy: merge to main
 cd /opt/geodude-control
-git merge zeul-dev   # or mizi-dev
+git merge --no-ff zeul-dev   # or mizi-dev
 sudo systemctl restart wheel-control.service
 ```
+
+### Main Protection Rule
+
+Do not commit directly on `main`. Work on a branch/worktree, then merge into main with an explicit merge commit:
+
+```bash
+git switch -c zeul/some-change
+git add -A && git commit -m "Do the thing"
+git switch main
+git merge --no-ff zeul/some-change
+```
+
+The repo has a local pre-commit hook at `scripts/git-hooks/pre-commit` that blocks normal direct commits on `main` while allowing merge commits. Install it into `.git/hooks/pre-commit` in any checkout used for deployment.
+
+### Dev Frontend Serving
+
+The dev branch ports are reserved by convention. They are not systemd services yet; start them manually from each worktree when needed:
+
+```bash
+# zeul-dev frontend
+cd /home/zeul/geodude-dev/groundstation
+WHEEL_CONTROL_PORT=8081 python3 run_local_dev.py
+
+# mizi-dev frontend
+cd /home/mizi/geodude-dev/groundstation
+WHEEL_CONTROL_PORT=8082 python3 run_local_dev.py
+```
+
+These dev servers should serve frontend work only. Do not start duplicate hardware backends from dev worktrees; keep `sensor-server.service`, `attitude-controller.service`, and the live hardware-owning services under main/live control.
+
+Mizi's pre-refactor uncommitted frontend work was reconciled into main and then his `mizi-dev` worktree was fast-forwarded to `cc9a7ee4`. His old local edits were preserved as a stash named `mizi-pre-main-sync-20260326-110335` in `/home/mizi/geodude-dev`.
 
 ### Syncing with zmac / GitHub (Pi has no internet)
 ```bash

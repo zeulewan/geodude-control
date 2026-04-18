@@ -3,6 +3,7 @@ __pycache__/
 .env
 .venv/
 *.log
+.claude/
 site/_build/
 groundstation/servo_neutral.json
 groundstation/servo_positions.json

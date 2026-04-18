@@ -62,17 +62,17 @@ function takeSnapshot() {
 
 /* ========== Channel controls ========== */
 var CHANNELS = {
-  "W2B": {ch: 0, pin: 1}, "W2A": {ch: 1, pin: 2}, "W1B": {ch: 2, pin: 3},
-  "W1A": {ch: 3, pin: 4}, "E2": {ch: 4, pin: 5}, "E1": {ch: 6, pin: 7},
-  "MACE": {ch: 11, pin: 12}, "S2": {ch: 12, pin: 13}, "B2": {ch: 13, pin: 14},
-  "S1": {ch: 14, pin: 15}, "B1": {ch: 15, pin: 16}
+  "B1": {ch: 0, pin: 1}, "S1": {ch: 1, pin: 2}, "B2": {ch: 2, pin: 3},
+  "S2": {ch: 3, pin: 4}, "E1": {ch: 4, pin: 5}, "E2": {ch: 5, pin: 6},
+  "W1A": {ch: 6, pin: 7}, "W1B": {ch: 7, pin: 8}, "W2A": {ch: 8, pin: 9},
+  "W2B": {ch: 9, pin: 10}, "MACE": {ch: 11, pin: 12}
 };
 var chOrder = ["B1","B2","S1","S2","E1","E2","W1A","W2A","W1B","W2B","MACE"];
 var CH_RAMP_HZ = 30;
 var chActual = {};  // actual PWM value sent to hardware per channel
 
 /* Per-channel neutral positions (server-side, persisted to disk) */
-var chNeutral = {};
+var chNeutral = {"B1":1160,"S1":970,"E1":2350,"W1A":1500,"W1B":1500,"B2":890,"S2":810,"E2":2190,"W2A":1500,"W2B":1500};
 
 var controllerStatus = {enabled: false};
 var activePageTab = 'manual';
@@ -82,7 +82,7 @@ var missionPanelModes = {
 };
 
 function missionFlowSequence() {
-  return activePageTab === 'competition' ? [1,2,3,4,10] : [1,2,3,4,5,6,7,8,9,10];
+  return activePageTab === 'competition' ? [1,2,3,4,5,6,7,8] : [1,2,3,4,5,6,7,8,9,10];
 }
 
 function missionNextStep(step) {
@@ -96,7 +96,229 @@ function missionStepVisible(step) {
   return missionFlowSequence().indexOf(step) !== -1;
 }
 
-var missionFlowState = { currentStep: 1, started: false, halted: false, armed: false, nominalCheckResolved: false, everythingNominalResolved: false, allIdentifiedResolved: false, dockingPoseResolved: false, undockingReadyResolved: false, aocsNominalResolved: false, aocsSlideOutResolved: false, aocsArmDetachResolved: false, substeps: { 2: { 'sat-detect': false, 'gimbal': false, 'mace': false }, 4: { 'client-rotation-model': false, 'client-rotation': false, 'docking-point': false, 'nozzle-identify-model': false }, 5: { 'docking-arm-position': false, 'aocs-arm-position': false, 'approach-started': false }, 6: { 'relative-motion-stabilized': false, 'nozzle-position-found': false, 'nozzle-ik-solved': false, 'docked': false }, 7: { 'client-brought-to-geo': false, 'undocked': false }, 8: { 'aocs-pose-ready': false, 'aocs-attach': false }, 9: { 'backed-away': false }, 10: { } } };
+function missionDefaultState() {
+  return {
+    currentStep: 1,
+    started: false,
+    halted: false,
+    armed: false,
+    nominalCheckResolved: false,
+    everythingNominalResolved: false,
+    allIdentifiedResolved: false,
+    dockingPoseResolved: false,
+    undockingReadyResolved: false,
+    aocsNominalResolved: false,
+    aocsSlideOutResolved: false,
+    aocsArmDetachResolved: false,
+    maceState: 'SAFE',
+    searchRotationSpeed: 1.5,
+    searchScanDirection: 1,
+    searchMinConfidence: 0.5,
+    readiness: { maceReady: false, imuHealthy: false, encoderHealthy: false, modelReady: false, activeRequiredModel: '1', modelSlots: {'1': false, '2': false, '3': false} },
+    searchClassWhitelist: ['snoopy'],
+    searchLockFramesRequired: 5,
+    searchLockCenteredFrames: 0,
+    searchLockMarginPx: 32,
+    searchFrameWidthPx: 640,
+    searchFrameHeightPx: 480,
+    searchLockKp: 6.0,
+    searchLockMaxCommand: 2.0,
+    searchLockError: null,
+    searchLockCommand: 0.0,
+    activeVisionModel: null,
+    visionState: 'IDLE',
+    searchScanActive: false,
+    snoopyDetection: null,
+    rotationEstimateRpm: null,
+    rotationStableToleranceRpm: 3.0,
+    rotationStableSeconds: 3.0,
+    demoSequenceState: 'IDLE',
+    demoCommandAngle: null,
+    rotationMatchActive: false,
+    rotationMatchTargetRpm: null,
+    substeps: {
+      2: { 'snoopy-detect': false, 'mace': false },
+      4: { 'search-snoopy': false, 'snoopy-found': false, 'snoopy-lock': false },
+      5: { 'rotation-finder-model': false, 'rotation-found': false },
+      6: { '45-degree-commands': false, 'rotation-matching': false },
+      7: {},
+      8: {},
+      9: { 'backed-away': false },
+      10: {}
+    }
+  };
+}
+
+var missionFlowState = missionDefaultState();
+var competitionSyncBusy = false;
+var competitionInitialResetDone = false;
+
+function missionFormatDetectionPoint(point) {
+  if (!point || point.x == null || point.y == null) return '--';
+  return 'x:' + point.x.toFixed(1) + ' y:' + point.y.toFixed(1);
+}
+
+function missionFormatDetectionSize(size) {
+  if (!size || size.w == null || size.h == null) return '--';
+  return 'w:' + size.w.toFixed(1) + ' h:' + size.h.toFixed(1);
+}
+
+function missionClamp01(value) {
+  if (typeof value !== 'number' || !isFinite(value)) return 0;
+  return Math.max(0, Math.min(1, value));
+}
+
+function missionSyncMlFeed() {
+  var modelEl = document.getElementById('missionMlFeedModel');
+  var stateEl = document.getElementById('missionMlFeedState');
+  var classEl = document.getElementById('missionMlClass');
+  var confidenceEl = document.getElementById('missionMlConfidence');
+  var centerEl = document.getElementById('missionMlCenter');
+  var sizeEl = document.getElementById('missionMlSize');
+  var bboxEl = document.getElementById('missionMlBBox');
+  var centerWindowEl = document.getElementById('missionMlCenterWindow');
+  var detection = missionFlowState.snoopyDetection || null;
+  var activeModel = missionFlowState.activeVisionModel;
+  var feedModelLabel = 'MODEL STANDBY';
+  var feedStateLabel = 'IDLE';
+
+  if (activePageTab === 'competition') {
+    if (activeModel) {
+      var activeModelName = visionState.models[activeModel - 1] || ('Model ' + activeModel);
+      feedModelLabel = ('MODEL ' + activeModel + ' | ' + activeModelName).toUpperCase();
+      feedStateLabel = (missionFlowState.visionState || 'IDLE').toUpperCase();
+    }
+  } else {
+    if (visionState.status !== 'STANDBY') {
+      feedModelLabel = missionCurrentModelLabel();
+      feedStateLabel = visionState.status.toUpperCase();
+    }
+  }
+
+  if (modelEl) modelEl.textContent = feedModelLabel;
+  if (stateEl) stateEl.textContent = feedStateLabel;
+  if (classEl) classEl.textContent = detection && detection.class_label ? detection.class_label.toUpperCase() : '--';
+  if (confidenceEl) confidenceEl.textContent = detection && detection.confidence != null ? detection.confidence.toFixed(2) : '--';
+  if (centerEl) centerEl.textContent = missionFormatDetectionPoint(detection && (detection.bbox_center_px || detection.bbox_center));
+  if (sizeEl) sizeEl.textContent = missionFormatDetectionSize(detection && (detection.bbox_size_px || detection.bbox_size));
+
+  if (centerWindowEl) {
+    var frameWidth = missionFlowState.searchFrameWidthPx || (detection && detection.frame_size_px && detection.frame_size_px.w) || 640;
+    var marginPx = missionFlowState.searchLockMarginPx || 32;
+    var widthPct = Math.max(0.5, Math.min(100, ((marginPx * 2) / frameWidth) * 100));
+    centerWindowEl.style.width = widthPct + '%';
+    centerWindowEl.style.left = ((100 - widthPct) / 2) + '%';
+    centerWindowEl.classList.toggle('active', activePageTab === 'competition' && !!activeModel);
+  }
+
+  if (!bboxEl) return;
+  var center = detection && detection.bbox_center;
+  var size = detection && detection.bbox_size;
+  if (center && size && center.x != null && center.y != null && size.w != null && size.h != null) {
+    var left = missionClamp01(center.x - (size.w / 2));
+    var top = missionClamp01(center.y - (size.h / 2));
+    var width = missionClamp01(size.w);
+    var height = missionClamp01(size.h);
+    bboxEl.style.left = (left * 100) + '%';
+    bboxEl.style.top = (top * 100) + '%';
+    bboxEl.style.width = (width * 100) + '%';
+    bboxEl.style.height = (height * 100) + '%';
+    bboxEl.classList.add('active');
+  } else {
+    bboxEl.classList.remove('active');
+    bboxEl.style.left = '';
+    bboxEl.style.top = '';
+    bboxEl.style.width = '';
+    bboxEl.style.height = '';
+  }
+}
+
+function competitionSyncState(state) {
+  if (!state) return;
+  missionFlowState.currentStep = state.currentStep || 1;
+  missionFlowState.started = !!state.started;
+  missionFlowState.halted = !!state.halted;
+  missionFlowState.armed = !!state.armed;
+  missionFlowState.nominalCheckResolved = !!state.nominalCheckResolved;
+  missionFlowState.everythingNominalResolved = !!state.everythingNominalResolved;
+  missionFlowState.allIdentifiedResolved = !!state.allIdentifiedResolved;
+  missionFlowState.dockingPoseResolved = !!state.dockingPoseResolved;
+  missionFlowState.undockingReadyResolved = !!state.undockingReadyResolved;
+  missionFlowState.aocsNominalResolved = !!state.aocsNominalResolved;
+  missionFlowState.aocsSlideOutResolved = !!state.aocsSlideOutResolved;
+  missionFlowState.aocsArmDetachResolved = !!state.aocsArmDetachResolved;
+  missionFlowState.maceState = state.maceState || 'SAFE';
+  missionFlowState.searchRotationSpeed = state.searchRotationSpeed != null ? state.searchRotationSpeed : 1.5;
+  missionFlowState.searchScanDirection = state.searchScanDirection != null ? state.searchScanDirection : 1;
+  missionFlowState.searchMinConfidence = state.searchMinConfidence != null ? state.searchMinConfidence : 0.5;
+  missionFlowState.readiness = state.readiness || { maceReady: false, imuHealthy: false, encoderHealthy: false, modelReady: false, activeRequiredModel: '1', modelSlots: {'1': false, '2': false, '3': false} };
+  missionFlowState.searchClassWhitelist = Array.isArray(state.searchClassWhitelist) ? state.searchClassWhitelist : ['snoopy'];
+  missionFlowState.searchLockFramesRequired = state.searchLockFramesRequired != null ? state.searchLockFramesRequired : 5;
+  missionFlowState.searchLockCenteredFrames = state.searchLockCenteredFrames != null ? state.searchLockCenteredFrames : 0;
+  missionFlowState.searchLockMarginPx = state.searchLockMarginPx != null ? state.searchLockMarginPx : 32;
+  missionFlowState.searchFrameWidthPx = state.searchFrameWidthPx != null ? state.searchFrameWidthPx : 640;
+  missionFlowState.searchFrameHeightPx = state.searchFrameHeightPx != null ? state.searchFrameHeightPx : 480;
+  missionFlowState.searchLockKp = state.searchLockKp != null ? state.searchLockKp : 6.0;
+  missionFlowState.searchLockMaxCommand = state.searchLockMaxCommand != null ? state.searchLockMaxCommand : 2.0;
+  missionFlowState.searchLockError = state.searchLockError != null ? state.searchLockError : null;
+  missionFlowState.searchLockCommand = state.searchLockCommand != null ? state.searchLockCommand : 0.0;
+  missionFlowState.rotationEstimateRpm = state.rotationEstimateRpm != null ? state.rotationEstimateRpm : null;
+  missionFlowState.rotationStableToleranceRpm = state.rotationStableToleranceRpm != null ? state.rotationStableToleranceRpm : 3.0;
+  missionFlowState.rotationStableSeconds = state.rotationStableSeconds != null ? state.rotationStableSeconds : 3.0;
+  missionFlowState.demoSequenceState = state.demoSequenceState || 'IDLE';
+  missionFlowState.demoCommandAngle = state.demoCommandAngle != null ? state.demoCommandAngle : null;
+  missionFlowState.rotationMatchActive = !!state.rotationMatchActive;
+  missionFlowState.rotationMatchTargetRpm = state.rotationMatchTargetRpm != null ? state.rotationMatchTargetRpm : null;
+  missionFlowState.activeVisionModel = state.activeVisionModel || null;
+  missionFlowState.visionState = state.visionState || 'IDLE';
+  missionFlowState.searchScanActive = !!state.searchScanActive;
+  missionFlowState.snoopyDetection = state.snoopyDetection || null;
+  if (state.substeps) missionFlowState.substeps = state.substeps;
+}
+
+function competitionFetchStatus() {
+  if (competitionSyncBusy) return;
+  competitionSyncBusy = true;
+  fetch('/api/competition/status').then(function(r) { return r.json(); }).then(function(state) {
+    if (!competitionInitialResetDone &&
+        state &&
+        !state.armed &&
+        !state.running &&
+        (state.currentStep !== 1 ||
+         state.started ||
+         state.halted ||
+         state.nominalCheckResolved ||
+         state.everythingNominalResolved ||
+         state.allIdentifiedResolved ||
+         state.dockingPoseResolved ||
+         state.undockingReadyResolved ||
+         state.aocsNominalResolved ||
+         state.aocsSlideOutResolved ||
+         state.aocsArmDetachResolved)) {
+      competitionInitialResetDone = true;
+      return competitionPost('/api/competition/reset', {});
+    }
+    competitionSyncState(state);
+    missionSyncSummary();
+  }).catch(function() {
+  }).finally(function() {
+    competitionSyncBusy = false;
+  });
+}
+
+function competitionPost(path, body) {
+  return fetch(path, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body || {})
+  }).then(function(r) { return r.json(); }).then(function(resp) {
+    if (resp && resp.state) {
+      competitionSyncState(resp.state);
+      missionSyncSummary();
+    }
+    return resp;
+  });
+}
 
 function showPageTab(tab) {
   activePageTab = (tab === 'mission' || tab === 'competition') ? tab : 'manual';
@@ -112,7 +334,11 @@ function showPageTab(tab) {
   if (missionPanel) missionPanel.classList.toggle('active', activePageTab === 'mission' || activePageTab === 'competition');
   var mode = missionPanelModes[activePageTab] || missionPanelModes.mission;
   var modelRow3 = document.getElementById('missionModelRow3');
+  var missionArmCard = document.getElementById('missionArmVizCard');
+  var missionStackCard = document.querySelector('.mission-stack-card');
   if (modelRow3) modelRow3.style.display = activePageTab === 'competition' ? 'none' : '';
+  if (missionArmCard) missionArmCard.style.display = activePageTab === 'competition' ? 'none' : '';
+  if (missionStackCard) missionStackCard.style.gridColumn = activePageTab === 'competition' ? '4 / span 2' : '5';
   if (activePageTab === 'competition' && missionFlowSequence().indexOf(missionFlowState.currentStep) === -1) missionFlowState.currentStep = 1;
   var title = document.getElementById('missionPanelTitle');
   var subtitle = document.getElementById('missionPanelSubtitle');
@@ -121,9 +347,23 @@ function showPageTab(tab) {
   if (subtitle) subtitle.textContent = mode.subtitle;
   if (badge) badge.textContent = mode.badge;
   missionSyncSummary();
+  if (activePageTab === 'competition') competitionFetchStatus();
 }
 
 function missionStepName(step) {
+  if (activePageTab === 'competition') {
+    var competitionNames = {
+      1: 'MISSION START',
+      2: 'STARTUP',
+      3: 'EVERYTHING NOMINAL CHECK',
+      4: 'FIND SNOOPY',
+      5: 'SNOOPY ROTATION',
+      6: 'MACE CAPABILITY DEMO',
+      7: 'SATISFACTION CHECK',
+      8: 'MISSION COMPLETE'
+    };
+    return competitionNames[step] || 'MISSION START';
+  }
   var names = {
     1: 'MISSION START',
     2: 'ALL JOINTS NEUTRAL CHECK',
@@ -143,7 +383,7 @@ function missionCurrentModelLabel() {
   var modelEls = [1,2,3].map(function(i) { return document.getElementById('missionModel' + i); });
   var models = modelEls.map(function(el) { return el ? el.textContent : 'UNSET'; });
   if (activePageTab === 'competition') {
-    if (missionFlowState.currentStep <= 3) return models[0] && models[0] !== 'UNSET' ? models[0] : 'MODEL 1 STANDBY';
+    if (missionFlowState.currentStep <= 4) return models[0] && models[0] !== 'UNSET' ? models[0] : 'MODEL 1 STANDBY';
     return models[1] && models[1] !== 'UNSET' ? models[1] : 'MODEL 2 UNSET';
   }
   if (missionFlowState.currentStep <= 3) return models[0] && models[0] !== 'UNSET' ? models[0] : 'MODEL 1 STANDBY';
@@ -156,6 +396,16 @@ function missionArmStatusText(side) {
   if (missionFlowState.halted) return 'STOPPED';
   if (!missionFlowState.armed) return 'STANDBY';
   var step = missionFlowState.currentStep;
+  if (activePageTab === 'competition') {
+    if (step === 2) return 'NEUTRAL CHECK';
+    if (step === 3) return 'NOMINAL CHECK';
+    if (step === 4) return 'SNOOPY SEARCH';
+    if (step === 5) return 'ROTATION ANALYSIS';
+    if (step === 6) return side === 'left' ? 'ANGLE COMMANDS' : 'ROTATION MATCHING';
+    if (step === 7) return 'SATISFACTION CHECK';
+    if (step === 8) return 'COMPLETE';
+    return 'STANDBY';
+  }
   if (step === 2) return 'NEUTRAL CHECK';
   if (step === 3) return 'NOMINAL CHECK';
   if (step === 4) return 'TARGET VERIFY';
@@ -169,6 +419,10 @@ function missionArmStatusText(side) {
 }
 
 function missionToggleReady() {
+  if (activePageTab === 'competition') {
+    competitionPost('/api/competition/arm', {armed: !missionFlowState.armed});
+    return;
+  }
   missionFlowState.armed = !missionFlowState.armed;
   if (!missionFlowState.armed && !missionFlowState.halted) missionFlowState.currentStep = Math.max(1, missionFlowState.currentStep);
   missionSetState(missionFlowState.armed ? 'ARMED' : 'SAFE');
@@ -176,25 +430,56 @@ function missionToggleReady() {
 }
 
 function missionRunSimulation() {
+  if (activePageTab === 'competition') {
+    competitionPost('/api/competition/run', {});
+    return;
+  }
   if (!missionFlowState.armed || missionFlowState.halted) return;
   missionSetState('RUNNING');
 }
 
 function missionEmergencyStop() {
+  if (activePageTab === 'competition') {
+    competitionPost('/api/competition/estop', {});
+    return;
+  }
   missionFlowState.halted = true;
   missionFlowState.armed = false;
   missionSetState('STOPPED');
   missionRenderFlow();
 }
 
+function missionResetSimulation() {
+  if (activePageTab === 'competition') {
+    competitionPost('/api/competition/estop', {}).then(function() {
+      return competitionPost('/api/competition/reset', {});
+    });
+    return;
+  }
+  missionEmergencyStop();
+  missionFlowState = missionDefaultState();
+  missionSetState('MISSION START');
+  missionRenderFlow();
+}
+
 function missionIsStepComplete(step) {
+  if (activePageTab === 'competition') {
+    if (step === 1) return !!missionFlowState.nominalCheckResolved;
+    if (step === 2) return missionFlowState.substeps[2]['snoopy-detect'] && missionFlowState.substeps[2]['mace'];
+    if (step === 3) return !!missionFlowState.everythingNominalResolved;
+    if (step === 4) return !!missionFlowState.allIdentifiedResolved && missionFlowState.substeps[4]['search-snoopy'] && missionFlowState.substeps[4]['snoopy-found'] && missionFlowState.substeps[4]['snoopy-lock'];
+    if (step === 5) return !!missionFlowState.dockingPoseResolved && missionFlowState.substeps[5]['rotation-finder-model'] && missionFlowState.substeps[5]['rotation-found'];
+    if (step === 6) return !!missionFlowState.undockingReadyResolved && !!missionFlowState.aocsNominalResolved && !!missionFlowState.aocsSlideOutResolved && missionFlowState.substeps[6]['45-degree-commands'] && missionFlowState.substeps[6]['rotation-matching'];
+    if (step === 7) return !!missionFlowState.aocsArmDetachResolved;
+    if (step === 8) return missionIsStepComplete(7);
+  }
   if (step === 1) return !!missionFlowState.nominalCheckResolved;
   if (step === 3) return !!missionFlowState.everythingNominalResolved;
   if (step === 4) return !!missionFlowState.allIdentifiedResolved && missionFlowState.substeps[4]['client-rotation-model'] && missionFlowState.substeps[4]['client-rotation'] && missionFlowState.substeps[4]['docking-point'] && missionFlowState.substeps[4]['nozzle-identify-model'];
   if (step === 6) return !!missionFlowState.dockingPoseResolved && missionFlowState.substeps[6]['relative-motion-stabilized'] && missionFlowState.substeps[6]['nozzle-position-found'] && missionFlowState.substeps[6]['nozzle-ik-solved'] && missionFlowState.substeps[6]['docked'];
   if (step === 7) return !!missionFlowState.undockingReadyResolved && missionFlowState.substeps[7]['client-brought-to-geo'] && missionFlowState.substeps[7]['undocked'];
   if (step === 8) return !!missionFlowState.aocsNominalResolved && !!missionFlowState.aocsSlideOutResolved && !!missionFlowState.aocsArmDetachResolved && missionFlowState.substeps[8]['aocs-pose-ready'] && missionFlowState.substeps[8]['aocs-attach'];
-  if (step === 10) return activePageTab === 'competition' ? missionIsStepComplete(4) : missionIsStepComplete(9);
+  if (step === 10) return activePageTab === 'competition' ? missionIsStepComplete(8) : missionIsStepComplete(9);
   var substeps = missionFlowState.substeps[step] || {};
   var keys = Object.keys(substeps);
   return keys.length > 0 && keys.every(function(key) { return !!substeps[key]; });
@@ -265,7 +550,9 @@ function missionRenderFlow() {
     checkpoint.classList.toggle('completed', !!missionFlowState.nominalCheckResolved);
     checkpoint.classList.toggle('blocked', missionFlowState.halted && missionFlowState.currentStep === 1);
   }
-  missionSetCheckpointActions(actions, missionFlowState.currentStep === 1 && !missionFlowState.nominalCheckResolved && !missionFlowState.halted);
+  missionSetCheckpointActions(actions, activePageTab === 'competition'
+    ? missionFlowState.currentStep === 1 && missionFlowState.armed && missionFlowState.started && !missionFlowState.nominalCheckResolved && !missionFlowState.halted
+    : missionFlowState.currentStep === 1 && !missionFlowState.nominalCheckResolved && !missionFlowState.halted);
   if (labelTwo) {
     if (missionFlowState.halted && missionFlowState.currentStep === 3) labelTwo.textContent = 'Everything nominal check failed';
     else if (missionFlowState.everythingNominalResolved) labelTwo.textContent = 'Everything nominal check cleared';
@@ -278,68 +565,123 @@ function missionRenderFlow() {
   }
   missionSetCheckpointActions(actionsTwo, missionFlowState.currentStep === 3 && !missionFlowState.everythingNominalResolved && !missionFlowState.halted);
   if (labelIdent) {
-    if (missionFlowState.halted && missionFlowState.currentStep === 4) labelIdent.textContent = 'All identified check failed';
-    else if (missionFlowState.allIdentifiedResolved) labelIdent.textContent = 'All identified';
-    else labelIdent.textContent = 'All identified';
+    if (activePageTab === 'competition') {
+      if (missionFlowState.halted && missionFlowState.currentStep === 4) labelIdent.textContent = 'Proceed denied';
+      else if (missionFlowState.allIdentifiedResolved) labelIdent.textContent = 'Proceed';
+      else labelIdent.textContent = 'Proceed';
+    } else {
+      if (missionFlowState.halted && missionFlowState.currentStep === 4) labelIdent.textContent = 'All identified check failed';
+      else if (missionFlowState.allIdentifiedResolved) labelIdent.textContent = 'All identified';
+      else labelIdent.textContent = 'All identified';
+    }
   }
   if (checkpointIdent) {
-    checkpointIdent.classList.toggle('active', missionFlowState.currentStep === 4 && missionFlowState.substeps[4]['client-rotation-model'] && missionFlowState.substeps[4]['client-rotation'] && missionFlowState.substeps[4]['docking-point'] && missionFlowState.substeps[4]['nozzle-identify-model'] && !missionFlowState.allIdentifiedResolved && !missionFlowState.halted);
+    checkpointIdent.classList.toggle('active', activePageTab === 'competition'
+      ? missionFlowState.currentStep === 4 && missionFlowState.substeps[4]['search-snoopy'] && missionFlowState.substeps[4]['snoopy-found'] && missionFlowState.substeps[4]['snoopy-lock'] && !missionFlowState.allIdentifiedResolved && !missionFlowState.halted
+      : missionFlowState.currentStep === 4 && missionFlowState.substeps[4]['client-rotation-model'] && missionFlowState.substeps[4]['client-rotation'] && missionFlowState.substeps[4]['docking-point'] && missionFlowState.substeps[4]['nozzle-identify-model'] && !missionFlowState.allIdentifiedResolved && !missionFlowState.halted);
     checkpointIdent.classList.toggle('completed', !!missionFlowState.allIdentifiedResolved);
     checkpointIdent.classList.toggle('blocked', missionFlowState.halted && missionFlowState.currentStep === 4);
   }
-  missionSetCheckpointActions(actionsIdent, missionFlowState.currentStep === 4 && missionFlowState.substeps[4]['client-rotation-model'] && missionFlowState.substeps[4]['client-rotation'] && missionFlowState.substeps[4]['docking-point'] && missionFlowState.substeps[4]['nozzle-identify-model'] && !missionFlowState.allIdentifiedResolved && !missionFlowState.halted);
+  missionSetCheckpointActions(actionsIdent, activePageTab === 'competition'
+    ? missionFlowState.currentStep === 4 && missionFlowState.substeps[4]['search-snoopy'] && missionFlowState.substeps[4]['snoopy-found'] && missionFlowState.substeps[4]['snoopy-lock'] && !missionFlowState.allIdentifiedResolved && !missionFlowState.halted
+    : missionFlowState.currentStep === 4 && missionFlowState.substeps[4]['client-rotation-model'] && missionFlowState.substeps[4]['client-rotation'] && missionFlowState.substeps[4]['docking-point'] && missionFlowState.substeps[4]['nozzle-identify-model'] && !missionFlowState.allIdentifiedResolved && !missionFlowState.halted);
   if (labelThree) {
-    if (missionFlowState.halted && missionFlowState.currentStep === 6) labelThree.textContent = 'Docking arm pose confirmation failed';
-    else if (missionFlowState.dockingPoseResolved) labelThree.textContent = 'Docking arm pose confirmed';
-    else labelThree.textContent = 'Docking arm pose confirmed';
+    if (activePageTab === 'competition') {
+      if (missionFlowState.halted && missionFlowState.currentStep === 5) labelThree.textContent = 'Satisfaction check failed';
+      else labelThree.textContent = 'Satisfied';
+    } else {
+      if (missionFlowState.halted && missionFlowState.currentStep === 6) labelThree.textContent = 'Docking arm pose confirmation failed';
+      else if (missionFlowState.dockingPoseResolved) labelThree.textContent = 'Docking arm pose confirmed';
+      else labelThree.textContent = 'Docking arm pose confirmed';
+    }
   }
   if (checkpointThree) {
-    checkpointThree.classList.toggle('active', missionFlowState.currentStep === 6 && missionFlowState.substeps[6]['relative-motion-stabilized'] && missionFlowState.substeps[6]['nozzle-position-found'] && missionFlowState.substeps[6]['nozzle-ik-solved'] && !missionFlowState.dockingPoseResolved && !missionFlowState.halted);
+    checkpointThree.classList.toggle('active', activePageTab === 'competition'
+      ? missionFlowState.currentStep === 5 && missionFlowState.substeps[5]['rotation-finder-model'] && missionFlowState.substeps[5]['rotation-found'] && !missionFlowState.dockingPoseResolved && !missionFlowState.halted
+      : missionFlowState.currentStep === 6 && missionFlowState.substeps[6]['relative-motion-stabilized'] && missionFlowState.substeps[6]['nozzle-position-found'] && missionFlowState.substeps[6]['nozzle-ik-solved'] && !missionFlowState.dockingPoseResolved && !missionFlowState.halted);
     checkpointThree.classList.toggle('completed', !!missionFlowState.dockingPoseResolved);
-    checkpointThree.classList.toggle('blocked', missionFlowState.halted && missionFlowState.currentStep === 6);
+    checkpointThree.classList.toggle('blocked', missionFlowState.halted && (missionFlowState.currentStep === 5 || missionFlowState.currentStep === 6));
   }
-  missionSetCheckpointActions(actionsThree, missionFlowState.currentStep === 6 && missionFlowState.substeps[6]['relative-motion-stabilized'] && missionFlowState.substeps[6]['nozzle-position-found'] && missionFlowState.substeps[6]['nozzle-ik-solved'] && !missionFlowState.dockingPoseResolved && !missionFlowState.halted);
+  missionSetCheckpointActions(actionsThree, activePageTab === 'competition'
+    ? missionFlowState.currentStep === 5 && missionFlowState.substeps[5]['rotation-finder-model'] && missionFlowState.substeps[5]['rotation-found'] && !missionFlowState.dockingPoseResolved && !missionFlowState.halted
+    : missionFlowState.currentStep === 6 && missionFlowState.substeps[6]['relative-motion-stabilized'] && missionFlowState.substeps[6]['nozzle-position-found'] && missionFlowState.substeps[6]['nozzle-ik-solved'] && !missionFlowState.dockingPoseResolved && !missionFlowState.halted);
   if (labelFour) {
-    if (missionFlowState.halted && missionFlowState.currentStep === 7) labelFour.textContent = 'Undocking readiness failed';
-    else if (missionFlowState.undockingReadyResolved) labelFour.textContent = 'Ready to undock';
-    else labelFour.textContent = 'Ready to undock';
+    if (activePageTab === 'competition') {
+      if (missionFlowState.halted && missionFlowState.currentStep === 6) labelFour.textContent = 'Start angle commands failed';
+      else labelFour.textContent = 'Start angle commands';
+    } else {
+      if (missionFlowState.halted && missionFlowState.currentStep === 7) labelFour.textContent = 'Undocking readiness failed';
+      else if (missionFlowState.undockingReadyResolved) labelFour.textContent = 'Ready to undock';
+      else labelFour.textContent = 'Ready to undock';
+    }
   }
   if (checkpointFour) {
-    checkpointFour.classList.toggle('active', missionFlowState.currentStep === 7 && missionFlowState.substeps[7]['client-brought-to-geo'] && !missionFlowState.undockingReadyResolved && !missionFlowState.halted);
+    checkpointFour.classList.toggle('active', activePageTab === 'competition'
+      ? missionFlowState.currentStep === 6 && !missionFlowState.undockingReadyResolved && !missionFlowState.halted
+      : missionFlowState.currentStep === 7 && missionFlowState.substeps[7]['client-brought-to-geo'] && !missionFlowState.undockingReadyResolved && !missionFlowState.halted);
     checkpointFour.classList.toggle('completed', !!missionFlowState.undockingReadyResolved);
-    checkpointFour.classList.toggle('blocked', missionFlowState.halted && missionFlowState.currentStep === 7);
+    checkpointFour.classList.toggle('blocked', missionFlowState.halted && (missionFlowState.currentStep === 6 || missionFlowState.currentStep === 7));
   }
-  missionSetCheckpointActions(actionsFour, missionFlowState.currentStep === 7 && missionFlowState.substeps[7]['client-brought-to-geo'] && !missionFlowState.undockingReadyResolved && !missionFlowState.halted);
+  missionSetCheckpointActions(actionsFour, activePageTab === 'competition'
+    ? missionFlowState.currentStep === 6 && !missionFlowState.undockingReadyResolved && !missionFlowState.halted
+    : missionFlowState.currentStep === 7 && missionFlowState.substeps[7]['client-brought-to-geo'] && !missionFlowState.undockingReadyResolved && !missionFlowState.halted);
   if (labelFive) {
-    if (missionFlowState.halted && missionFlowState.currentStep === 8) labelFive.textContent = 'AOCS nominal check failed';
-    else labelFive.textContent = 'Everything nominal';
+    if (activePageTab === 'competition') {
+      if (missionFlowState.halted && missionFlowState.currentStep === 6) labelFive.textContent = 'Satisfaction check failed';
+      else labelFive.textContent = 'Satisfied';
+    } else {
+      if (missionFlowState.halted && missionFlowState.currentStep === 8) labelFive.textContent = 'AOCS nominal check failed';
+      else labelFive.textContent = 'Everything nominal';
+    }
   }
   if (checkpointFive) {
-    checkpointFive.classList.toggle('active', missionFlowState.currentStep === 8 && missionFlowState.substeps[8]['aocs-pose-ready'] && !missionFlowState.aocsNominalResolved && !missionFlowState.halted);
+    checkpointFive.classList.toggle('active', activePageTab === 'competition'
+      ? missionFlowState.currentStep === 6 && missionFlowState.undockingReadyResolved && missionFlowState.substeps[6]['45-degree-commands'] && !missionFlowState.aocsNominalResolved && !missionFlowState.halted
+      : missionFlowState.currentStep === 8 && missionFlowState.substeps[8]['aocs-pose-ready'] && !missionFlowState.aocsNominalResolved && !missionFlowState.halted);
     checkpointFive.classList.toggle('completed', !!missionFlowState.aocsNominalResolved);
-    checkpointFive.classList.toggle('blocked', missionFlowState.halted && missionFlowState.currentStep === 8);
+    checkpointFive.classList.toggle('blocked', missionFlowState.halted && (missionFlowState.currentStep === 6 || missionFlowState.currentStep === 8));
   }
-  missionSetCheckpointActions(actionsFive, missionFlowState.currentStep === 8 && missionFlowState.substeps[8]['aocs-pose-ready'] && !missionFlowState.aocsNominalResolved && !missionFlowState.halted);
+  missionSetCheckpointActions(actionsFive, activePageTab === 'competition'
+    ? missionFlowState.currentStep === 6 && missionFlowState.undockingReadyResolved && missionFlowState.substeps[6]['45-degree-commands'] && !missionFlowState.aocsNominalResolved && !missionFlowState.halted
+    : missionFlowState.currentStep === 8 && missionFlowState.substeps[8]['aocs-pose-ready'] && !missionFlowState.aocsNominalResolved && !missionFlowState.halted);
   if (labelSix) {
-    if (missionFlowState.halted && missionFlowState.currentStep === 8) labelSix.textContent = 'AOCS slide out failed';
-    else labelSix.textContent = 'AOCS slide out';
+    if (activePageTab === 'competition') {
+      if (missionFlowState.halted && missionFlowState.currentStep === 6) labelSix.textContent = 'Start rotation matching failed';
+      else labelSix.textContent = 'Start rotation matching';
+    } else {
+      if (missionFlowState.halted && missionFlowState.currentStep === 8) labelSix.textContent = 'AOCS slide out failed';
+      else labelSix.textContent = 'AOCS slide out';
+    }
   }
   if (checkpointSix) {
-    checkpointSix.classList.toggle('active', missionFlowState.currentStep === 8 && missionFlowState.aocsNominalResolved && !missionFlowState.aocsSlideOutResolved && !missionFlowState.halted);
+    checkpointSix.classList.toggle('active', activePageTab === 'competition'
+      ? missionFlowState.currentStep === 6 && missionFlowState.aocsNominalResolved && !missionFlowState.aocsSlideOutResolved && !missionFlowState.halted
+      : missionFlowState.currentStep === 8 && missionFlowState.aocsNominalResolved && !missionFlowState.aocsSlideOutResolved && !missionFlowState.halted);
     checkpointSix.classList.toggle('completed', !!missionFlowState.aocsSlideOutResolved);
-    checkpointSix.classList.toggle('blocked', missionFlowState.halted && missionFlowState.currentStep === 8);
+    checkpointSix.classList.toggle('blocked', missionFlowState.halted && (missionFlowState.currentStep === 6 || missionFlowState.currentStep === 8));
   }
-  missionSetCheckpointActions(actionsSix, missionFlowState.currentStep === 8 && missionFlowState.aocsNominalResolved && !missionFlowState.aocsSlideOutResolved && !missionFlowState.halted);
+  missionSetCheckpointActions(actionsSix, activePageTab === 'competition'
+    ? missionFlowState.currentStep === 6 && missionFlowState.aocsNominalResolved && !missionFlowState.aocsSlideOutResolved && !missionFlowState.halted
+    : missionFlowState.currentStep === 8 && missionFlowState.aocsNominalResolved && !missionFlowState.aocsSlideOutResolved && !missionFlowState.halted);
   if (labelSeven) {
-    if (missionFlowState.halted && missionFlowState.currentStep === 8) labelSeven.textContent = 'Arm detach failed';
-    else labelSeven.textContent = 'Arm detach';
+    if (activePageTab === 'competition') {
+      if (missionFlowState.halted && missionFlowState.currentStep === 7) labelSeven.textContent = 'Satisfaction check failed';
+      else labelSeven.textContent = 'Satisfied';
+    } else {
+      if (missionFlowState.halted && missionFlowState.currentStep === 8) labelSeven.textContent = 'Arm detach failed';
+      else labelSeven.textContent = 'Arm detach';
+    }
   }
   if (checkpointSeven) {
-    checkpointSeven.classList.toggle('active', missionFlowState.currentStep === 8 && missionFlowState.substeps[8]['aocs-attach'] && !missionFlowState.aocsArmDetachResolved && !missionFlowState.halted);
+    checkpointSeven.classList.toggle('active', activePageTab === 'competition'
+      ? missionFlowState.currentStep === 7 && !missionFlowState.aocsArmDetachResolved && !missionFlowState.halted
+      : missionFlowState.currentStep === 8 && missionFlowState.substeps[8]['aocs-attach'] && !missionFlowState.aocsArmDetachResolved && !missionFlowState.halted);
     checkpointSeven.classList.toggle('completed', !!missionFlowState.aocsArmDetachResolved);
-    checkpointSeven.classList.toggle('blocked', missionFlowState.halted && missionFlowState.currentStep === 8);
+    checkpointSeven.classList.toggle('blocked', missionFlowState.halted && (missionFlowState.currentStep === 7 || missionFlowState.currentStep === 8));
   }
-  missionSetCheckpointActions(actionsSeven, missionFlowState.currentStep === 8 && missionFlowState.substeps[8]['aocs-attach'] && !missionFlowState.aocsArmDetachResolved && !missionFlowState.halted);
+  missionSetCheckpointActions(actionsSeven, activePageTab === 'competition'
+    ? missionFlowState.currentStep === 7 && !missionFlowState.aocsArmDetachResolved && !missionFlowState.halted
+    : missionFlowState.currentStep === 8 && missionFlowState.substeps[8]['aocs-attach'] && !missionFlowState.aocsArmDetachResolved && !missionFlowState.halted);
   Object.keys(missionFlowState.substeps).forEach(function(stepKey) {
     var stepNum = parseInt(stepKey, 10);
     var substeps = missionFlowState.substeps[stepNum];
@@ -348,23 +690,39 @@ function missionRenderFlow() {
       if (!el) return;
       var complete = !!substeps[subKey];
       var active = missionFlowState.currentStep === stepNum && !missionFlowState.halted && !complete;
-      if (stepNum === 4 && (subKey === 'client-rotation' || subKey === 'docking-point') && missionFlowState.allIdentifiedResolved) active = false;
-      if (stepNum === 6 && subKey === 'docked' && !missionFlowState.dockingPoseResolved) active = false;
-      if (stepNum === 7 && subKey === 'client-brought-to-geo' && missionFlowState.undockingReadyResolved) active = false;
-      if (stepNum === 7 && subKey === 'undocked' && !missionFlowState.undockingReadyResolved) active = false;
-      if (stepNum === 8 && subKey === 'aocs-pose-ready' && missionFlowState.aocsNominalResolved) active = false;
-      if (stepNum === 8 && subKey === 'aocs-attach' && (!missionFlowState.aocsSlideOutResolved || missionFlowState.aocsArmDetachResolved)) active = false;
+      if (activePageTab === 'competition') {
+        if (stepNum === 2 && subKey === 'snoopy-detect') active = false;
+        if (stepNum === 4 && missionFlowState.allIdentifiedResolved) active = false;
+        if (stepNum === 4 && (subKey === 'search-snoopy' || subKey === 'snoopy-found' || subKey === 'snoopy-lock')) active = false;
+        if (stepNum === 5 && subKey === 'rotation-found') active = false;
+        if (stepNum === 6 && subKey === '45-degree-commands') active = false;
+        if (stepNum === 6 && subKey === 'rotation-matching') active = false;
+        if (stepNum === 6 && subKey === '45-degree-commands' && !missionFlowState.undockingReadyResolved) active = false;
+        if (stepNum === 6 && subKey === 'rotation-matching' && !missionFlowState.aocsSlideOutResolved) active = false;
+      } else {
+        if (stepNum === 4 && (subKey === 'client-rotation' || subKey === 'docking-point') && missionFlowState.allIdentifiedResolved) active = false;
+        if (stepNum === 6 && subKey === 'docked' && !missionFlowState.dockingPoseResolved) active = false;
+        if (stepNum === 7 && subKey === 'client-brought-to-geo' && missionFlowState.undockingReadyResolved) active = false;
+        if (stepNum === 7 && subKey === 'undocked' && !missionFlowState.undockingReadyResolved) active = false;
+        if (stepNum === 8 && subKey === 'aocs-pose-ready' && missionFlowState.aocsNominalResolved) active = false;
+        if (stepNum === 8 && subKey === 'aocs-attach' && (!missionFlowState.aocsSlideOutResolved || missionFlowState.aocsArmDetachResolved)) active = false;
+      }
       el.classList.toggle('active', active);
       el.classList.toggle('completed', complete);
-      el.disabled = !active && !complete;
+      if (activePageTab === 'competition' && ((stepNum === 2 && subKey === 'snoopy-detect') || (stepNum === 4 && (subKey === 'search-snoopy' || subKey === 'snoopy-found' || subKey === 'snoopy-lock')) || (stepNum === 5 && subKey === 'rotation-found') || (stepNum === 6 && (subKey === '45-degree-commands' || subKey === 'rotation-matching')))) {
+        el.disabled = true;
+      } else {
+        el.disabled = !active && !complete;
+      }
     });
   });
 }
 
 function missionAdvanceFrom(step) {
   var next = missionNextStep(step);
+  var finalStep = missionFlowSequence()[missionFlowSequence().length - 1];
   missionFlowState.currentStep = next;
-  if (next === 10 && missionIsStepComplete(10)) {
+  if (next === finalStep && missionIsStepComplete(finalStep)) {
     missionSetState('MISSION COMPLETE');
     missionRenderFlow();
     return;
@@ -378,6 +736,10 @@ function missionGoToStep(step) {
 }
 
 function missionCompleteSubstep(step, substep) {
+  if (activePageTab === 'competition') {
+    competitionPost('/api/competition/substep', {step: step, substep: substep});
+    return;
+  }
   if (missionFlowState.halted || missionFlowState.currentStep !== step) return;
   if (!missionFlowState.substeps[step] || !(substep in missionFlowState.substeps[step])) return;
   missionFlowState.substeps[step][substep] = true;
@@ -390,6 +752,10 @@ function missionCompleteSubstep(step, substep) {
 }
 
 function missionRespondNominalCheck(approved) {
+  if (activePageTab === 'competition') {
+    competitionPost('/api/competition/checkpoint', {checkpoint: 'nominal-environment', approved: approved});
+    return;
+  }
   missionFlowState.started = true;
   if (approved) {
     missionFlowState.nominalCheckResolved = true;
@@ -404,6 +770,10 @@ function missionRespondNominalCheck(approved) {
 }
 
 function missionRespondEverythingNominal(approved) {
+  if (activePageTab === 'competition') {
+    competitionPost('/api/competition/checkpoint', {checkpoint: 'everything-nominal', approved: approved});
+    return;
+  }
   missionFlowState.started = true;
   if (approved) {
     missionFlowState.everythingNominalResolved = true;
@@ -418,11 +788,15 @@ function missionRespondEverythingNominal(approved) {
 }
 
 function missionRespondAllIdentified(approved) {
+  if (activePageTab === 'competition') {
+    competitionPost('/api/competition/checkpoint', {checkpoint: 'proceed', approved: approved});
+    return;
+  }
   missionFlowState.started = true;
   if (approved) {
     missionFlowState.allIdentifiedResolved = true;
     missionFlowState.halted = false;
-    missionSetState('STEP 5 READY');
+    missionSetState(activePageTab === 'competition' ? 'STEP 5 READY' : 'STEP 5 READY');
     missionGoToStep(5);
   } else {
     missionFlowState.halted = true;
@@ -432,11 +806,16 @@ function missionRespondAllIdentified(approved) {
 }
 
 function missionRespondDockingPose(approved) {
+  if (activePageTab === 'competition') {
+    competitionPost('/api/competition/checkpoint', {checkpoint: 'rotation-satisfied', approved: approved});
+    return;
+  }
   missionFlowState.started = true;
   if (approved) {
     missionFlowState.dockingPoseResolved = true;
     missionFlowState.halted = false;
-    missionRenderFlow();
+    if (missionIsStepComplete(5)) missionAdvanceFrom(5);
+    else missionRenderFlow();
   } else {
     missionFlowState.halted = true;
     missionSetState('STOPPED');
@@ -445,6 +824,10 @@ function missionRespondDockingPose(approved) {
 }
 
 function missionRespondUndockingReady(approved) {
+  if (activePageTab === 'competition') {
+    competitionPost('/api/competition/checkpoint', {checkpoint: 'start-angle-commands', approved: approved});
+    return;
+  }
   missionFlowState.started = true;
   if (approved) {
     missionFlowState.undockingReadyResolved = true;
@@ -458,6 +841,10 @@ function missionRespondUndockingReady(approved) {
 }
 
 function missionRespondAocsNominal(approved) {
+  if (activePageTab === 'competition') {
+    competitionPost('/api/competition/checkpoint', {checkpoint: 'demo-satisfied', approved: approved});
+    return;
+  }
   missionFlowState.started = true;
   if (approved) {
     missionFlowState.aocsNominalResolved = true;
@@ -471,6 +858,10 @@ function missionRespondAocsNominal(approved) {
 }
 
 function missionRespondAocsSlideOut(approved) {
+  if (activePageTab === 'competition') {
+    competitionPost('/api/competition/checkpoint', {checkpoint: 'start-rotation-matching', approved: approved});
+    return;
+  }
   missionFlowState.started = true;
   if (approved) {
     missionFlowState.aocsSlideOutResolved = true;
@@ -484,12 +875,21 @@ function missionRespondAocsSlideOut(approved) {
 }
 
 function missionRespondAocsArmDetach(approved) {
+  if (activePageTab === 'competition') {
+    competitionPost('/api/competition/checkpoint', {checkpoint: 'final-satisfied', approved: approved});
+    return;
+  }
   missionFlowState.started = true;
   if (approved) {
     missionFlowState.aocsArmDetachResolved = true;
     missionFlowState.halted = false;
-    if (missionIsStepComplete(8)) missionAdvanceFrom(8);
-    else missionRenderFlow();
+    if (activePageTab === 'competition') {
+      if (missionIsStepComplete(7)) missionAdvanceFrom(7);
+      else missionRenderFlow();
+    } else {
+      if (missionIsStepComplete(8)) missionAdvanceFrom(8);
+      else missionRenderFlow();
+    }
   } else {
     missionFlowState.halted = true;
     missionSetState('STOPPED');
@@ -514,22 +914,137 @@ function missionSetState(state) {
 }
 
 function missionSyncSummary() {
-  var names = [1,2,3].map(function(i) {
-    var el = document.getElementById('visionModelName' + i);
-    return el ? el.textContent : 'UNSET';
-  });
+  var names = visionState.models.map(function(name) { return name || 'UNSET'; });
   ['missionModel1','missionModel2','missionModel3'].forEach(function(id, index) {
     var el = document.getElementById(id);
     if (el) el.textContent = (names[index] || 'UNSET').toUpperCase();
   });
-  var runMode = document.getElementById('visionRunMode');
-  var profile = document.getElementById('visionProfileSelect');
-  var selectedArm = document.getElementById('controllerArm');
-  var solvedTip = document.getElementById('ikSolvedTip');
-  var targetX = document.getElementById('ikTargetX');
-  var targetY = document.getElementById('ikTargetY');
-  var targetZ = document.getElementById('ikTargetZ');
-  missionRenderFlow();
+  ['missionModelFileName1','missionModelFileName2','missionModelFileName3'].forEach(function(id, index) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = names[index] || 'No model selected';
+  });
+  var visionStateEl = document.getElementById('missionVisionState');
+  var detClassEl = document.getElementById('missionDetectionClass');
+  var detConfEl = document.getElementById('missionDetectionConfidence');
+  var detCenterEl = document.getElementById('missionDetectionCenter');
+  var detSizeEl = document.getElementById('missionDetectionSize');
+  if (visionStateEl) visionStateEl.textContent = (missionFlowState.visionState || 'IDLE').toUpperCase();
+  if (detClassEl) detClassEl.textContent = missionFlowState.snoopyDetection && missionFlowState.snoopyDetection.class_label ? missionFlowState.snoopyDetection.class_label.toUpperCase() : '--';
+  if (detConfEl) detConfEl.textContent = missionFlowState.snoopyDetection && missionFlowState.snoopyDetection.confidence != null ? missionFlowState.snoopyDetection.confidence.toFixed(2) : '--';
+  if (detCenterEl) detCenterEl.textContent = missionFormatDetectionPoint(missionFlowState.snoopyDetection && (missionFlowState.snoopyDetection.bbox_center_px || missionFlowState.snoopyDetection.bbox_center));
+  if (detSizeEl) detSizeEl.textContent = missionFormatDetectionSize(missionFlowState.snoopyDetection && (missionFlowState.snoopyDetection.bbox_size_px || missionFlowState.snoopyDetection.bbox_size));
+  var maceStateEl = document.getElementById('missionMaceState');
+  if (maceStateEl) maceStateEl.textContent = (missionFlowState.maceState || 'SAFE').toUpperCase();
+  var readiness = missionFlowState.readiness || {};
+  missionSetTelemetryValue('missionReadinessMace', readiness.maceReady ? 'YES' : 'NO');
+  missionSetTelemetryValue('missionReadinessImu', readiness.imuHealthy ? 'YES' : 'NO');
+  missionSetTelemetryValue('missionReadinessEncoder', readiness.encoderHealthy ? 'YES' : 'NO');
+  missionSetTelemetryValue('missionReadinessModel', readiness.modelReady ? 'YES' : 'NO');
+  var searchSpeedEl = document.getElementById('missionSearchRotationSpeed');
+  if (searchSpeedEl && document.activeElement !== searchSpeedEl) searchSpeedEl.value = (missionFlowState.searchRotationSpeed != null ? missionFlowState.searchRotationSpeed : 1.5);
+  var searchDirEl = document.getElementById('missionSearchScanDirection');
+  var searchMinConfEl = document.getElementById('missionSearchMinConfidence');
+  var searchWhitelistEl = document.getElementById('missionSearchClassWhitelist');
+  var searchFramesEl = document.getElementById('missionSearchLockFramesRequired');
+  var searchMarginEl = document.getElementById('missionSearchLockMargin');
+  var searchKpEl = document.getElementById('missionSearchLockKp');
+  var searchMaxEl = document.getElementById('missionSearchLockMaxCommand');
+  competitionPost('/api/competition/config', {
+    model1Loaded: !!visionState.models[0],
+    model2Loaded: !!visionState.models[1],
+    model3Loaded: !!visionState.models[2],
+    searchRotationSpeed: searchSpeedEl ? parseFloat(searchSpeedEl.value || '1.5') : 1.5,
+    searchScanDirection: searchDirEl ? parseInt(searchDirEl.value || '1', 10) : 1,
+    searchMinConfidence: searchMinConfEl ? parseFloat(searchMinConfEl.value || '0.5') : 0.5,
+    searchClassWhitelist: searchWhitelistEl ? searchWhitelistEl.value.split(',').map(function(label) { return label.trim().toLowerCase(); }).filter(function(label) { return !!label; }) : ['snoopy'],
+    searchLockFramesRequired: searchFramesEl ? parseInt(searchFramesEl.value || '5', 10) : 5,
+    searchLockMarginPx: searchMarginEl ? parseFloat(searchMarginEl.value || '32') : 32,
+    searchLockKp: searchKpEl ? parseFloat(searchKpEl.value || '6.0') : 6.0,
+    searchLockMaxCommand: searchMaxEl ? parseFloat(searchMaxEl.value || '2.0') : 2.0
+  });
+}
+
+function missionSetTelemetryValue(id, text) {
+  var el = document.getElementById(id);
+  if (el) el.textContent = text;
+}
+
+function missionSyncSensorTelemetry(d) {
+  if (!d) return;
+  missionSetTelemetryValue('missionMaceRpm', d.rpm != null ? String(d.rpm) : '--');
+  missionSetTelemetryValue('missionMaceEncoderAngle', d.encoder_angle != null ? d.encoder_angle.toFixed(1) + ' deg' : '--');
+  missionSetTelemetryValue('missionMaceGyroZ', d.gyro && d.gyro.z != null ? d.gyro.z.toFixed(2) + ' deg/s' : '--');
+  if (activePageTab !== 'competition') {
+    missionSetTelemetryValue('missionMaceState', d.armed ? 'ARMED' : 'SAFE');
+  }
+}
+
+function missionAttToggleEnable() {
+  attToggleEnable();
+}
+
+function missionAttStop() {
+  attStop();
+}
+
+function missionAttZero() {
+  attZero();
+}
+
+function missionAttSetpoint() {
+  var input = document.getElementById('missionAttSetpointInput');
+  var val = input ? parseFloat(input.value) || 0 : 0;
+  fetch('/api/attitude/setpoint', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({angle: val})
+  });
+}
+
+function missionSetGainPair(manualId, missionId, value) {
+  var manual = document.getElementById(manualId);
+  var mission = document.getElementById(missionId);
+  if (manual) manual.value = value;
+  if (mission) mission.value = value;
+}
+
+function missionSetGainLabelPair(manualId, missionId, value) {
+  var manual = document.getElementById(manualId);
+  var mission = document.getElementById(missionId);
+  if (manual) manual.textContent = value;
+  if (mission) mission.textContent = value;
+}
+
+function missionAttUpdateGain() {
+  var kp = document.getElementById('missionAttKp').value;
+  var ki = document.getElementById('missionAttKi').value;
+  var kd = document.getElementById('missionAttKd').value;
+  var max = document.getElementById('missionAttMaxThrottle').value;
+  missionSetGainPair('attKp', 'missionAttKp', kp);
+  missionSetGainPair('attKi', 'missionAttKi', ki);
+  missionSetGainPair('attKd', 'missionAttKd', kd);
+  missionSetGainPair('attMaxThrottle', 'missionAttMaxThrottle', max);
+  missionSetGainLabelPair('attKpVal', 'missionAttKpVal', kp);
+  missionSetGainLabelPair('attKiVal', 'missionAttKiVal', ki);
+  missionSetGainLabelPair('attKdVal', 'missionAttKdVal', kd);
+  missionSetGainLabelPair('attMaxVal', 'missionAttMaxVal', max);
+  if (attGainTimer) clearTimeout(attGainTimer);
+  attGainTimer = setTimeout(function() {
+    fetch('/api/attitude/gains', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        kp: parseFloat(kp),
+        ki: parseFloat(ki),
+        kd: parseFloat(kd),
+        max_throttle: parseFloat(max)
+      })
+    });
+  }, 200);
+}
+
+function missionModelChanged(index, input) {
+  visionModelChanged(index, input);
 }
 
 var ikStatus = null;
@@ -720,6 +1235,8 @@ function updateVisionUI() {
   visionState.models.forEach(function(name, index) {
     var nameEl = document.getElementById('visionModelName' + (index + 1));
     if (nameEl) nameEl.textContent = name || 'No model selected';
+    var missionNameEl = document.getElementById('missionModelFileName' + (index + 1));
+    if (missionNameEl) missionNameEl.textContent = name || 'No model selected';
   });
   if (statusEl) {
     statusEl.textContent = visionState.status;
@@ -792,9 +1309,12 @@ function visionReset() {
   visionState.status = 'STANDBY';
   visionState.profile = 'Docking';
   visionState.mode = 'Observe';
+  if (activePageTab === 'competition') missionCompetitionConfigChanged();
   [1, 2, 3].forEach(function(slot) {
     var input = document.getElementById('visionModelFile' + slot);
     if (input) input.value = '';
+    var missionInput = document.getElementById('missionModelFile' + slot);
+    if (missionInput) missionInput.value = '';
   });
   var profile = document.getElementById('visionProfileSelect');
   if (profile) profile.value = 'Docking';
@@ -1715,9 +2235,12 @@ var isHolding = false;
 
 function updateRampLabel(val) {
   val = parseFloat(val);
-  var power = parseInt(document.getElementById('holdPower').value);
+  var holdPower = document.getElementById('holdPower');
+  var rampVal = document.getElementById('rampVal');
+  if (!holdPower || !rampVal) return;
+  var power = parseInt(holdPower.value);
   var t = val > 0 ? (power / val).toFixed(1) : 'inf';
-  document.getElementById('rampVal').textContent = val + '%/s (' + t + 's)';
+  rampVal.textContent = val + '%/s (' + t + 's)';
 }
 
 function sendRampRate(val) {
@@ -1731,8 +2254,10 @@ function sendRampRate(val) {
 function holdStart(e) {
   if (e && e.preventDefault) e.preventDefault();
   isHolding = true;
-  var power = parseInt(document.getElementById('holdPower').value);
+  var holdPower = document.getElementById('holdPower');
   var btn = document.getElementById('holdBtn');
+  if (!holdPower || !btn) return;
+  var power = parseInt(holdPower.value);
   btn.classList.add('active-spin');
   fetch('/api/throttle', {
     method: 'POST',
@@ -1745,6 +2270,7 @@ function holdStop() {
   if (!isHolding) return;
   isHolding = false;
   var btn = document.getElementById('holdBtn');
+  if (!btn) return;
   btn.classList.remove('active-spin');
   fetch('/api/throttle', {
     method: 'POST',
@@ -1781,6 +2307,7 @@ function toggleReverse() {
 function updateArmUI(armed, arming) {
   var armBtn = document.getElementById('armBtn');
   var holdBtn = document.getElementById('holdBtn');
+  if (!armBtn || !holdBtn) return;
   if (arming) {
     armBtn.textContent = 'ARMING...';
     armBtn.className = 'btn btn-amber';
@@ -1802,9 +2329,12 @@ function updateArmUI(armed, arming) {
 /* ========== Calibration ========== */
 function startCalibrate() {
   var panel = document.getElementById('calPanel');
+  var calStep = document.getElementById('calStep');
+  var calBtns = document.getElementById('calBtns');
+  if (!panel || !calStep || !calBtns) return;
   panel.style.display = 'block';
-  document.getElementById('calStep').innerHTML = '<p><strong>Step 1:</strong> Disconnect ESC power, then click SEND MAX.</p>';
-  document.getElementById('calBtns').innerHTML = '<button class="btn btn-sm" onclick="calStep2()">SEND MAX</button>' +
+  calStep.innerHTML = '<p><strong>Step 1:</strong> Disconnect ESC power, then click SEND MAX.</p>';
+  calBtns.innerHTML = '<button class="btn btn-sm" onclick="calStep2()">SEND MAX</button>' +
     '<button class="btn btn-sm btn-dark" onclick="calCancel()">Cancel</button>';
 }
 
@@ -1814,8 +2344,11 @@ function calStep2() {
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({step: 'max'})
   });
-  document.getElementById('calStep').innerHTML = '<p><strong>Step 2:</strong> Connect ESC power. Wait for beeps, then click SEND MIN.</p>';
-  document.getElementById('calBtns').innerHTML = '<button class="btn btn-sm" onclick="calStep3()">SEND MIN</button>' +
+  var calStep = document.getElementById('calStep');
+  var calBtns = document.getElementById('calBtns');
+  if (!calStep || !calBtns) return;
+  calStep.innerHTML = '<p><strong>Step 2:</strong> Connect ESC power. Wait for beeps, then click SEND MIN.</p>';
+  calBtns.innerHTML = '<button class="btn btn-sm" onclick="calStep3()">SEND MIN</button>' +
     '<button class="btn btn-sm btn-dark" onclick="calCancel()">Cancel</button>';
 }
 
@@ -1825,13 +2358,17 @@ function calStep3() {
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({step: 'min'})
   });
-  document.getElementById('calStep').innerHTML = '<p><strong>Step 3:</strong> Wait for confirmation beeps, then click DONE.</p>';
-  document.getElementById('calBtns').innerHTML = '<button class="btn btn-sm btn-green" onclick="calDone()">DONE</button>' +
+  var calStep = document.getElementById('calStep');
+  var calBtns = document.getElementById('calBtns');
+  if (!calStep || !calBtns) return;
+  calStep.innerHTML = '<p><strong>Step 3:</strong> Wait for confirmation beeps, then click DONE.</p>';
+  calBtns.innerHTML = '<button class="btn btn-sm btn-green" onclick="calDone()">DONE</button>' +
     '<button class="btn btn-sm btn-dark" onclick="calCancel()">Cancel</button>';
 }
 
 function calDone() {
-  document.getElementById('calPanel').style.display = 'none';
+  var panel = document.getElementById('calPanel');
+  if (panel) panel.style.display = 'none';
 }
 
 function calCancel() {
@@ -1840,7 +2377,8 @@ function calCancel() {
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({step: 'cancel'})
   });
-  document.getElementById('calPanel').style.display = 'none';
+  var panel = document.getElementById('calPanel');
+  if (panel) panel.style.display = 'none';
 }
 
 /* ========== Polling ========== */
@@ -1922,50 +2460,70 @@ function poll() {
     document.getElementById('gx').textContent = d.gyro.x.toFixed(1);
     document.getElementById('gy').textContent = d.gyro.y.toFixed(1);
     document.getElementById('gz').textContent = d.gyro.z.toFixed(1);
-    /* Accel */
-    document.getElementById('ax').textContent = d.accel.x.toFixed(2);
-    document.getElementById('ay').textContent = d.accel.y.toFixed(2);
-    document.getElementById('az').textContent = d.accel.z.toFixed(2);
+    /* Accel (removed from UI) */
     /* Encoder */
     var angle = d.encoder_angle;
     document.getElementById('angleText').innerHTML = angle.toFixed(1) + '&deg;';
     document.getElementById('rpmText').textContent = d.rpm;
     var needleAngle = (angle % 360);
     document.getElementById('needle').style.transform = 'rotate(' + needleAngle + 'deg)';
+    var analog = d.analog_encoder || {};
+    var analogVa = document.getElementById('analogVaText');
+    var analogVb = document.getElementById('analogVbText');
+    if (analogVa) analogVa.textContent = Number(analog.va || 0).toFixed(3);
+    if (analogVb) analogVb.textContent = Number(analog.vb || 0).toFixed(3);
     /* Arm state */
     updateArmUI(d.armed, d.arming);
     /* Status */
-    document.getElementById('armedStatus').textContent = d.armed ? 'YES' : 'NO';
-    document.getElementById('armedStatus').style.color = d.armed ? '#22c55e' : '#ef4444';
-    document.getElementById('targetStatus').textContent = d.target.toFixed(1) + '%';
-    document.getElementById('throttleStatus').textContent = d.throttle.toFixed(1) + '%';
-    var pw = d.reverse ? (1000 - Math.round(d.throttle) * 10) : (1000 + Math.round(d.throttle) * 10);
-    document.getElementById('pwmStatus').textContent = pw + ' us';
-    document.getElementById('dirStatus').textContent = d.reverse ? 'REV' : 'FWD';
-    document.getElementById('dirStatus').style.color = d.reverse ? '#f59e0b' : '#22c55e';
-    document.getElementById('maceRpm').textContent = d.rpm;
+    var armed = !!d.armed;
+    var target = Number(d.target || 0);
+    var throttle = Number(d.throttle || 0);
+    var reverse = !!d.reverse;
+    var armedStatus = document.getElementById('armedStatus');
+    if (armedStatus) {
+      armedStatus.textContent = armed ? 'YES' : 'NO';
+      armedStatus.style.color = armed ? '#22c55e' : '#ef4444';
+    }
+    var targetStatus = document.getElementById('targetStatus');
+    if (targetStatus) targetStatus.textContent = target.toFixed(1) + '%';
+    var throttleStatus = document.getElementById('throttleStatus');
+    if (throttleStatus) throttleStatus.textContent = throttle.toFixed(1) + '%';
+    var pw = reverse ? (1000 - Math.round(throttle) * 10) : (1000 + Math.round(throttle) * 10);
+    var pwmStatus = document.getElementById('pwmStatus');
+    if (pwmStatus) pwmStatus.textContent = pw + ' us';
+    var dirStatus = document.getElementById('dirStatus');
+    if (dirStatus) {
+      dirStatus.textContent = reverse ? 'REV' : 'FWD';
+      dirStatus.style.color = reverse ? '#f59e0b' : '#22c55e';
+    }
+    var maceRpm = document.getElementById('maceRpm');
+    if (maceRpm) maceRpm.textContent = d.rpm;
     var sat = d.rpm >= 600;
-    document.getElementById('maceSat').textContent = sat ? 'YES' : 'NO';
-    document.getElementById('maceSat').style.color = sat ? '#ef4444' : '#22c55e';
+    var maceSat = document.getElementById('maceSat');
+    if (maceSat) {
+      maceSat.textContent = sat ? 'YES' : 'NO';
+      maceSat.style.color = sat ? '#ef4444' : '#22c55e';
+    }
     /* Throttle bars */
-    document.getElementById('targetBar').style.width = d.target + '%';
-    document.getElementById('currentBar').style.width = d.throttle + '%';
+    var targetBar = document.getElementById('targetBar');
+    var currentBar = document.getElementById('currentBar');
+    if (targetBar) targetBar.style.width = target + '%';
+    if (currentBar) currentBar.style.width = throttle + '%';
     /* Motor error */
     var errDiv = document.getElementById('motorError');
-    if (d.motor_error) {
-      errDiv.textContent = d.motor_error;
-      errDiv.style.display = 'block';
-    } else {
-      errDiv.textContent = '';
-      errDiv.style.display = 'none';
+    if (errDiv) {
+      if (d.motor_error) {
+        errDiv.textContent = d.motor_error;
+        errDiv.style.display = 'block';
+      } else {
+        errDiv.textContent = '';
+        errDiv.style.display = 'none';
+      }
     }
-    /* Connection dot */
+    /* Connection dot - green if we got a response */
     var dot = document.getElementById('statusDot');
-    if (d.connected) {
-      dot.className = 'status-dot ok';
-    } else {
-      dot.className = 'status-dot';
-    }
+    if (dot) dot.className = 'status-dot ok';
+    missionSyncSensorTelemetry(d);
   }).catch(function() {
     document.getElementById('statusDot').className = 'status-dot';
   });
@@ -2030,6 +2588,14 @@ function attUpdateGain() {
   document.getElementById('attKiVal').textContent = document.getElementById('attKi').value;
   document.getElementById('attKdVal').textContent = document.getElementById('attKd').value;
   document.getElementById('attMaxVal').textContent = document.getElementById('attMaxThrottle').value;
+  missionSetGainPair('attKp', 'missionAttKp', document.getElementById('attKp').value);
+  missionSetGainPair('attKi', 'missionAttKi', document.getElementById('attKi').value);
+  missionSetGainPair('attKd', 'missionAttKd', document.getElementById('attKd').value);
+  missionSetGainPair('attMaxThrottle', 'missionAttMaxThrottle', document.getElementById('attMaxThrottle').value);
+  missionSetGainLabelPair('attKpVal', 'missionAttKpVal', document.getElementById('attKp').value);
+  missionSetGainLabelPair('attKiVal', 'missionAttKiVal', document.getElementById('attKi').value);
+  missionSetGainLabelPair('attKdVal', 'missionAttKdVal', document.getElementById('attKd').value);
+  missionSetGainLabelPair('attMaxVal', 'missionAttMaxVal', document.getElementById('attMaxThrottle').value);
   if (attGainTimer) clearTimeout(attGainTimer);
   attGainTimer = setTimeout(function() {
     fetch('/api/attitude/gains', {
@@ -2047,10 +2613,13 @@ function attUpdateGain() {
 
 var attLastPoll = 0;
 function attPoll() {
+  if (!document.getElementById('attitudeCard')) return;
   fetch('/api/attitude/status').then(function(r) { return r.json(); }).then(function(d) {
     if (d.error) {
       document.getElementById('attitudeBanner').style.display = 'block';
       document.getElementById('attitudeBanner').textContent = 'Attitude controller not reachable';
+      missionSetTelemetryValue('missionMaceAttState', 'UNREACHABLE');
+      missionSetTelemetryValue('missionMaceImuAngle', '--');
       return;
     }
     attLastPoll = Date.now();
@@ -2064,6 +2633,11 @@ function attPoll() {
       eb.textContent = 'ENABLE';
       eb.className = 'btn btn-green';
     }
+    var missionEnableBtn = document.getElementById('missionAttEnableBtn');
+    if (missionEnableBtn) {
+      missionEnableBtn.textContent = attEnabled ? 'Disable' : 'Enable';
+      missionEnableBtn.className = attEnabled ? 'btn btn-sm btn-red' : 'btn btn-sm btn-green';
+    }
     /* Stats */
     document.getElementById('attError').textContent = (d.error_deg != null ? d.error_deg.toFixed(1) + ' deg' : '--');
     document.getElementById('attOutput').textContent = (d.output != null ? d.output.toFixed(1) + '%' : '--');
@@ -2074,6 +2648,9 @@ function attPoll() {
     document.getElementById('attBias').textContent = (d.gyro_bias != null ? d.gyro_bias.toFixed(4) : '--');
     document.getElementById('attSat').textContent = (d.saturated ? 'YES' : 'NO');
     document.getElementById('attSat').style.color = d.saturated ? '#ef4444' : '#22c55e';
+    missionSetTelemetryValue('missionMaceImuAngle', d.angle != null ? d.angle.toFixed(1) + ' deg' : '--');
+    missionSetTelemetryValue('missionMaceGyroZ', d.gz != null ? d.gz.toFixed(2) + ' deg/s' : '--');
+    missionSetTelemetryValue('missionMaceAttState', d.enabled ? 'ENABLED' : 'DISABLED');
     /* Angle + setpoint */
     var angle = d.angle || 0;
     var setpoint = d.setpoint || 0;
@@ -2090,10 +2667,10 @@ function attPoll() {
     /* Sync gains once */
     if (!attGainsSynced && d.gains) {
       attGainsSynced = true;
-      if (d.gains.kp != null) { document.getElementById('attKp').value = d.gains.kp; document.getElementById('attKpVal').textContent = d.gains.kp; }
-      if (d.gains.ki != null) { document.getElementById('attKi').value = d.gains.ki; document.getElementById('attKiVal').textContent = d.gains.ki; }
-      if (d.gains.kd != null) { document.getElementById('attKd').value = d.gains.kd; document.getElementById('attKdVal').textContent = d.gains.kd; }
-      if (d.gains.max_throttle != null) { document.getElementById('attMaxThrottle').value = d.gains.max_throttle; document.getElementById('attMaxVal').textContent = d.gains.max_throttle; }
+      if (d.gains.kp != null) { missionSetGainPair('attKp', 'missionAttKp', d.gains.kp); missionSetGainLabelPair('attKpVal', 'missionAttKpVal', d.gains.kp); }
+      if (d.gains.ki != null) { missionSetGainPair('attKi', 'missionAttKi', d.gains.ki); missionSetGainLabelPair('attKiVal', 'missionAttKiVal', d.gains.ki); }
+      if (d.gains.kd != null) { missionSetGainPair('attKd', 'missionAttKd', d.gains.kd); missionSetGainLabelPair('attKdVal', 'missionAttKdVal', d.gains.kd); }
+      if (d.gains.max_throttle != null) { missionSetGainPair('attMaxThrottle', 'missionAttMaxThrottle', d.gains.max_throttle); missionSetGainLabelPair('attMaxVal', 'missionAttMaxVal', d.gains.max_throttle); }
     }
     /* Banner: watchdog */
     var banner = document.getElementById('attitudeBanner');
@@ -2111,6 +2688,7 @@ function attPoll() {
       document.getElementById('attitudeBanner').style.display = 'block';
       document.getElementById('attitudeBanner').textContent = 'Attitude controller connection lost';
     }
+    missionSetTelemetryValue('missionMaceAttState', 'OFFLINE');
   });
 }
 
@@ -2503,15 +3081,12 @@ function seqRun() {
 
 /* ========== Init ========== */
 (function() {
-  /* Fetch neutral positions from server */
-  fetch('/api/servo_neutral').then(function(r) { return r.json(); }).then(function(neutrals) {
-    chNeutral = neutrals;
-    chOrder.forEach(function(name) {
-      if (name === 'MACE') return;
-      var label = document.getElementById('chn_' + name);
-      if (label) label.textContent = getNeutral(name) + ' us';
-    });
-  }).catch(function() {});
+  /* Neutral positions are hardcoded in chNeutral */
+  chOrder.forEach(function(name) {
+    if (name === 'MACE') return;
+    var label = document.getElementById('chn_' + name);
+    if (label) label.textContent = getNeutral(name) + ' us';
+  });
 
   /* Fetch last-known servo positions from server, fallback to neutral */
   fetch('/api/servo_positions').then(function(r) { return r.json(); }).then(function(positions) {
@@ -2546,6 +3121,9 @@ function seqRun() {
   setInterval(servoSyncPoll, 500);
   setInterval(controllerPoll, 250);
   setInterval(ikRefreshStatus, 1000);
+  setInterval(function() {
+    if (activePageTab === 'competition') competitionFetchStatus();
+  }, 1000);
 
   /* Immediate calls */
   sysPoll();
@@ -2559,3 +3137,676 @@ function seqRun() {
   loadCameraStreamState();
   armVizStart();
 })();
+
+/* === MACE SimpleFOC Controls === */
+function maceSetRpm() {
+  var rpm = parseFloat(document.getElementById('maceRpmInput').value) || 0;
+  var rads = rpm * 2 * Math.PI / 60;
+  fetch('/api/mace/velocity', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({target:rads})});
+}
+function maceSetRpmVal(rpm) {
+  document.getElementById('maceRpmInput').value = rpm;
+  maceSetRpm();
+}
+function maceEnable() { fetch('/api/mace/enable', {method:'POST'}); }
+function maceDisable() { fetch('/api/mace/disable', {method:'POST'}); }
+function maceStop() { fetch('/api/mace/stop', {method:'POST'}); }
+function maceCalibrate() { fetch('/api/mace/calibrate', {method:'POST'}); }
+function maceTuneVal(param, value) { fetch('/api/mace/tune', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({param:param, value:parseFloat(value)})}); }
+
+/* === MACE run-log tester === */
+var maceTestLog = [];
+var maceMode = 'angle';
+
+function maceRpmToRad(rpm) {
+  return Number(rpm || 0) * 2 * Math.PI / 60;
+}
+
+function maceTestField(id, fallback) {
+  var el = document.getElementById(id);
+  if (!el) return fallback;
+  var value = parseFloat(el.value);
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function maceSetMode(mode) {
+  maceMode = mode === 'rate' ? 'rate' : mode === 'body_rate' ? 'body_rate' : 'angle';
+  var angleBtn = document.getElementById('maceAngleModeBtn');
+  var rateBtn = document.getElementById('maceRateModeBtn');
+  var bodyRateBtn = document.getElementById('maceBodyRateModeBtn');
+  var angleControls = document.getElementById('maceAngleControls');
+  var angleButtons = document.getElementById('maceAngleButtons');
+  var testControls = document.querySelector('.dashboard-mace-tuner .mace-test-controls');
+  var testButtons = document.getElementById('maceRateButtons');
+  var plots = document.querySelectorAll('#maceTestRpmPlot, #maceTestUqPlot');
+  var plotTitles = document.querySelectorAll('.dashboard-mace-tuner .mace-test-summary');
+  var rpmPlotTitles = document.querySelectorAll('.dashboard-mace-tuner > .mace-plot-title');
+  var bodyRateControls = document.getElementById('maceBodyRateControls');
+  var bodyRateButtons = document.getElementById('maceBodyRateButtons');
+  var bodyRateStatus = document.getElementById('maceBodyRateStatus');
+  var bodyRatePlots = document.getElementById('maceBodyRatePlots');
+  var controlStatus = document.getElementById('maceControlStatus');
+  var torqueControls = document.getElementById('maceTorqueControls');
+  var torqueButtons = document.getElementById('maceTorqueButtons');
+  if (angleBtn) angleBtn.className = maceMode === 'angle' ? 'btn btn-sm' : 'btn btn-sm btn-dark';
+  if (rateBtn) rateBtn.className = maceMode === 'rate' ? 'btn btn-sm' : 'btn btn-sm btn-dark';
+  if (bodyRateBtn) bodyRateBtn.className = maceMode === 'body_rate' ? 'btn btn-sm' : 'btn btn-sm btn-dark';
+  if (angleControls) angleControls.style.display = maceMode === 'angle' ? 'grid' : 'none';
+  if (angleButtons) angleButtons.style.display = maceMode === 'angle' ? 'flex' : 'none';
+  if (controlStatus) controlStatus.style.display = maceMode === 'angle' ? '' : 'none';
+  if (torqueControls) torqueControls.style.display = maceMode === 'angle' ? '' : 'none';
+  if (torqueButtons) torqueButtons.style.display = maceMode === 'angle' ? 'flex' : 'none';
+  if (testControls) testControls.style.display = maceMode === 'rate' ? 'grid' : 'none';
+  if (testButtons) testButtons.style.display = maceMode === 'rate' ? 'flex' : 'none';
+  plots.forEach(function(el) { el.style.display = maceMode === 'rate' ? '' : 'none'; });
+  plotTitles.forEach(function(el) { el.style.display = maceMode === 'rate' ? '' : 'none'; });
+  rpmPlotTitles.forEach(function(el) { el.style.display = maceMode === 'rate' ? '' : 'none'; });
+  if (bodyRateControls) bodyRateControls.style.display = maceMode === 'body_rate' ? 'grid' : 'none';
+  if (bodyRateButtons) bodyRateButtons.style.display = maceMode === 'body_rate' ? 'flex' : 'none';
+  if (bodyRateStatus) bodyRateStatus.style.display = maceMode === 'body_rate' ? '' : 'none';
+  if (bodyRatePlots) bodyRatePlots.style.display = maceMode === 'body_rate' ? '' : 'none';
+}
+
+function maceTestSetStatus(text) {
+  var el = document.getElementById('maceTestStatus');
+  if (el) el.textContent = text || '';
+}
+
+function maceControlSetStatus(text) {
+  var el = document.getElementById('maceControlStatus');
+  if (el) el.textContent = text || '';
+}
+
+function maceTestPost(url, body) {
+  return fetch(url, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body || {})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d && d.error) maceTestSetStatus('Error: ' + d.error);
+    setTimeout(maceTestRefresh, 250);
+    return d;
+  }).catch(function(err) {
+    maceTestSetStatus('Error: ' + err);
+  });
+}
+
+function maceTestRun() {
+  var rpm = Math.max(-1000, Math.min(maceTestField('maceTestRpm', 100), 1000));
+  return maceTestPost('/api/mace/test/run', {
+    p: maceTestField('maceTestP', 0.2),
+    i: maceTestField('maceTestI', 1.0),
+    l: maceTestField('maceTestLpf', 0.05),
+    v: maceTestField('maceTestVoltage', 4),
+    target: maceRpmToRad(rpm),
+    r: maceTestField('maceTestRamp', 2.0),
+    h: maceTestField('maceTestHold', 5)
+  });
+}
+
+function maceTestCalibrate() { return maceTestPost('/api/mace/test/calibrate'); }
+function maceTestStop() { return maceTestPost('/api/mace/test/stop'); }
+function maceTestDump() { return maceTestPost('/api/mace/test/dump'); }
+
+function maceControlPayload() {
+  return {
+    mode: 'angle',
+    angle_target: maceTestField('maceAngleTarget', 0),
+    kp: maceTestField('maceAngleKp', 3),
+    ki: maceTestField('maceAngleKi', 0),
+    kd: maceTestField('maceAngleKd', 0.8),
+    min_uq: maceTestField('maceAngleMinUq', 1.5),
+    max_uq: maceTestField('maceAngleMaxUq', 5),
+    voltage: maceTestField('maceAngleVoltage', 12)
+  };
+}
+
+function maceControlPost(url, body) {
+  return fetch(url, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body || {})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d && d.error) maceControlSetStatus('Error: ' + d.error);
+    setTimeout(maceControlRefresh, 250);
+    return d;
+  }).catch(function(err) {
+    maceControlSetStatus('Error: ' + err);
+  });
+}
+
+function maceControlStartAngle() { return maceControlPost('/api/mace/control/start', maceControlPayload()); }
+function maceControlApplyAngle() { return maceControlPost('/api/mace/control/config', maceControlPayload()); }
+function maceControlStop() { return maceControlPost('/api/mace/control/stop'); }
+function maceControlZero() { return maceControlPost('/api/mace/control/zero'); }
+function maceBreakawaySweep() {
+  return maceControlPost('/api/mace/control/breakaway', {
+    start: 0.1,
+    stop: maceTestField('maceAngleMaxUq', 3),
+    step: 0.05,
+    pulse_s: 0.5,
+    rest_s: 0.5,
+    voltage: maceTestField('maceAngleVoltage', 4),
+    wheel_rpm_threshold: 2.0,
+    body_delta_threshold: 0.15,
+    body_rate_threshold: 1.0,
+    direction: 1
+  });
+}
+
+function maceTorqueRun() {
+  return maceControlPost('/api/mace/torque/run', {
+    u: maceTestField('maceTorqueUq', 2),
+    v: maceTestField('maceTorqueVoltage', 12),
+    h: maceTestField('maceTorqueHold', 2),
+    zero_body: true,
+    zero_gyro: true
+  }).then(function() {
+    setTimeout(maceTorqueRefresh, 500);
+  });
+}
+
+function maceTorqueRender(state) {
+  var el = document.getElementById('maceTorqueSummary');
+  if (!el) return;
+  state = state || {};
+  var summary = state.summary || {};
+  var items = {
+    status: state.status || 'idle',
+    uq: Number(summary.uq || 0),
+    wheel_alpha_rpm_s: Number(summary.max_wheel_alpha_rpm_s || 0),
+    max_wheel_rpm: Number(summary.max_wheel_rpm || 0),
+    body_delta_deg: Number(summary.body_delta_deg || 0),
+    body_rate_dps: Number(summary.max_body_rate_dps || 0),
+    gyro_z_dps: Number(summary.max_gyro_z_dps || 0),
+    gyro_zero_z: Number(summary.gyro_zero_z || 0)
+  };
+  el.innerHTML = Object.entries(items).map(function(entry) {
+    var label = entry[0];
+    var value = entry[1];
+    if (label === 'status') {
+      return '<div class="stat"><div class="label">status</div><div class="value">' + String(value) + '</div></div>';
+    }
+    return '<div class="stat"><div class="label">' + label + '</div><div class="value">' + Number(value || 0).toFixed(3) + '</div></div>';
+  }).join('');
+}
+
+function maceTorqueRefresh() {
+  var el = document.getElementById('maceTorqueSummary');
+  if (!el) return;
+  fetch('/api/mace/torque/state').then(function(r) { return r.json(); }).then(maceTorqueRender).catch(function(err) {
+    el.textContent = 'Torque diagnostic unavailable: ' + err;
+  });
+}
+
+function maceTestRenderSummary(log) {
+  var el = document.getElementById('maceTestSummary');
+  if (!el) return;
+  if (!log || !log.length) {
+    el.innerHTML = '';
+    return;
+  }
+  var maxTarget = Math.max.apply(null, log.map(function(p) { return Number(p.target_rpm || 0); }));
+  var maxRpm = Math.max.apply(null, log.map(function(p) { return Number(p.enc_rpm_abs || 0); }));
+  var maxUq = Math.max.apply(null, log.map(function(p) { return Math.abs(Number(p.uq || 0)); }));
+  var maxIdc = Math.max.apply(null, log.map(function(p) { return Math.abs(Number(p.idc || 0)); }));
+  var hold = log.filter(function(p) { return Number(p.target_rpm || 0) > maxTarget * 0.95; });
+  var avgErr = hold.length ? hold.reduce(function(a, p) { return a + Number(p.rpm_error_abs || 0); }, 0) / hold.length : 0;
+  var items = {
+    samples: log.length,
+    max_target_rpm: maxTarget,
+    max_rpm: maxRpm,
+    max_uq: maxUq,
+    max_idc: maxIdc,
+    hold_err: avgErr
+  };
+  el.innerHTML = Object.entries(items).map(function(entry) {
+    var value = Number(entry[1] || 0);
+    return '<div class="stat"><div class="label">' + entry[0] + '</div><div class="value">' + value.toFixed(entry[0] === 'samples' ? 0 : 2) + '</div></div>';
+  }).join('');
+}
+
+function maceTestDrawChart(canvasId, log, series, emptyText) {
+  var c = document.getElementById(canvasId);
+  if (!c) return;
+  var rect = c.getBoundingClientRect();
+  var dpr = window.devicePixelRatio || 1;
+  c.width = Math.max(1, Math.floor(rect.width * dpr));
+  c.height = Math.max(1, Math.floor(rect.height * dpr));
+  var ctx = c.getContext('2d');
+  ctx.scale(dpr, dpr);
+  var w = rect.width;
+  var h = rect.height;
+  ctx.clearRect(0, 0, w, h);
+  ctx.strokeStyle = '#1f2937';
+  ctx.lineWidth = 1;
+  for (var grid = 0; grid < 4; grid++) {
+    var gy = 12 + grid * (h - 28) / 3;
+    ctx.beginPath();
+    ctx.moveTo(42, gy);
+    ctx.lineTo(w - 8, gy);
+    ctx.stroke();
+  }
+  if (!log || !log.length) {
+    ctx.fillStyle = '#64748b';
+    ctx.font = '11px system-ui';
+    ctx.fillText(emptyText || 'No log yet.', 10, 20);
+    return;
+  }
+  var vals = [];
+  log.forEach(function(p) {
+    series.forEach(function(s) {
+      var v = Number(p[s.key]);
+      if (Number.isFinite(v)) vals.push(v);
+    });
+  });
+  if (!vals.length) return;
+  var min = Math.min.apply(null, vals);
+  var max = Math.max.apply(null, vals);
+  if (Math.abs(max - min) < 0.001) {
+    min -= 1;
+    max += 1;
+  }
+  var pad = (max - min) * 0.08;
+  min -= pad;
+  max += pad;
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '10px system-ui';
+  ctx.fillText(max.toFixed(1), 4, 11);
+  ctx.fillText(min.toFixed(1), 4, h - 4);
+  var x0 = 42;
+  var x1 = w - 8;
+  var y0 = h - 16;
+  var y1 = 8;
+  series.forEach(function(s) {
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    var started = false;
+    log.forEach(function(p, idx) {
+      var v = Number(p[s.key]);
+      if (!Number.isFinite(v)) return;
+      var x = x0 + (log.length <= 1 ? 0 : idx * (x1 - x0) / (log.length - 1));
+      var y = y0 - ((v - min) / (max - min)) * (y0 - y1);
+      if (!started) {
+        ctx.moveTo(x, y);
+        started = true;
+      } else {
+        ctx.lineTo(x, y);
+      }
+    });
+    ctx.stroke();
+  });
+}
+
+function maceTestRender(state) {
+  state = state || {};
+  maceTestLog = state.last_log || [];
+  var st = state.last_status || {};
+  var status = state.status || 'idle';
+  if (state.busy) status += '...';
+  if (state.error) status += ' / ' + state.error;
+  if (st.event) status += ' / ' + st.event;
+  if (st.foc_ready !== undefined) status += ' / foc=' + st.foc_ready;
+  if (st.uq !== undefined) status += ' / Uq=' + Number(st.uq).toFixed(3);
+  maceTestSetStatus(status);
+  maceTestRenderSummary(maceTestLog);
+  maceTestDrawChart('maceTestRpmPlot', maceTestLog, [
+    {key: 'target_rpm', color: '#38bdf8'},
+    {key: 'enc_rpm_abs', color: '#a78bfa'}
+  ], 'No run log yet.');
+  maceTestDrawChart('maceTestUqPlot', maceTestLog, [
+    {key: 'uq', color: '#f472b6'},
+    {key: 'idc_abs', color: '#38bdf8'},
+    {key: 'rpm_error_abs', color: '#f59e0b'}
+  ], 'No Uq/current/error log yet.');
+}
+
+/* ---- Angle Control ---- */
+var maceAngleRunning = false;
+var maceAnglePollTimer = null;
+
+function maceAngleSetStatus(text) {
+  var el = document.getElementById('maceAngleStatus');
+  if (el) el.textContent = text || '';
+}
+
+function maceAngleStop() {
+  maceAngleRunning = false;
+  if (maceAnglePollTimer) { clearInterval(maceAnglePollTimer); maceAnglePollTimer = null; }
+  fetch('/api/mace/control/stop', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'})
+    .then(function() { maceAngleSetStatus('Stopped'); });
+}
+
+function maceAngleZero() {
+  fetch('/api/mace/control/zero', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'})
+    .then(function() { maceAngleSetStatus('Zeroed'); });
+}
+
+function maceAngleStart() {
+  var target = maceTestField('maceAngleTarget', 0);
+  maceAngleRunning = true;
+  maceAngleSetStatus('Starting angle control...');
+
+  // Prespin to get wheel moving
+  fetch('/api/mace/control/stop', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'})
+  .then(function() { return new Promise(function(r) { setTimeout(r, 300); }); })
+  .then(function() {
+    return fetch('/api/mace/control/start', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({mode:'rate', rate_target_rpm:15, voltage:24, rate_ramp:2.5,
+        kp:0.3, ki:0.8, kd:0, min_uq:3.0, max_uq:18, angle_target:0, body_rate_target_dps:0})});
+  })
+  .then(function() { return new Promise(function(r) { setTimeout(r, 2000); }); })
+  .then(function() {
+    return fetch('/api/mace/control/stop', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'});
+  })
+  .then(function() { return new Promise(function(r) { setTimeout(r, 200); }); })
+  .then(function() {
+    return fetch('/api/mace/control/zero', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'});
+  })
+  .then(function() { return new Promise(function(r) { setTimeout(r, 100); }); })
+  .then(function() {
+    return fetch('/api/mace/control/start', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({mode:'angle', angle_target:target,
+        kp:maceTestField('maceAngleKp', 0.8), ki:maceTestField('maceAngleKi', 0.2),
+        kd:maceTestField('maceAngleKd', 0.10),
+        min_uq:maceTestField('maceAngleMinUq', 3.0), max_uq:maceTestField('maceAngleMaxUq', 8.0),
+        angle_deadband:maceTestField('maceAngleTolerance', 5),
+        voltage:24, rate_target_rpm:0, rate_ramp:5.0, body_rate_target_dps:0})});
+  })
+  .then(function() {
+    maceAngleSetStatus('Running - target: ' + target + ' deg');
+    maceAngleStartPoll();
+  });
+}
+
+function maceAngleGo() {
+  var target = maceTestField('maceAngleTarget', 0);
+  fetch('/api/mace/control/config', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({angle_target: target,
+      kp:maceTestField('maceAngleKp', 0.8), ki:maceTestField('maceAngleKi', 0.2),
+      kd:maceTestField('maceAngleKd', 0.10),
+      min_uq:maceTestField('maceAngleMinUq', 3.0), max_uq:maceTestField('maceAngleMaxUq', 8.0),
+      angle_deadband:maceTestField('maceAngleTolerance', 5)})})
+  .then(function() { maceAngleSetStatus('Target: ' + target + ' deg'); });
+}
+
+function maceAngleStartPoll() {
+  if (maceAnglePollTimer) clearInterval(maceAnglePollTimer);
+  maceAnglePollTimer = setInterval(function() {
+    fetch('/api/mace/control/state').then(function(r){return r.json();}).then(function(st) {
+      var ba = Number(st.body_angle || 0);
+      var br = Number(st.body_rate || 0);
+      var wr = Number(st.wheel_rpm || 0);
+      var tgt = Number(st.angle_target || 0);
+      var achieved = Math.abs(ba - tgt) < maceTestField('maceAngleTolerance', 5);
+      maceAngleSetStatus((achieved ? 'ACHIEVED  ' : '') + 'angle=' + ba.toFixed(1) + '  target=' + tgt.toFixed(0) + '  rate=' + br.toFixed(1) + '  wheel=' + wr.toFixed(0));
+      var log = st.angle_log || [];
+      if (log.length > 0) {
+        maceTestDrawChart('maceAnglePlot', log, [
+          {key: 'body_angle', color: '#a78bfa'},
+          {key: 'target', color: '#38bdf8'}
+        ], '');
+        maceTestDrawChart('maceAngleWheelPlot', log, [
+          {key: 'wheel_rpm', color: '#34d399'}
+        ], '');
+      }
+    });
+  }, 500);
+}
+
+/* ---- MACE Comp ---- */
+var maceCompState = 'idle'; // idle, priming, primed, running, desaturating
+var maceCompTimer = null;
+var maceCompStartWheelSign = 0;
+
+function maceCompSetStatus(text) {
+  var el = document.getElementById('maceCompStatus');
+  if (el) el.textContent = text || '';
+}
+
+function maceCompStop() {
+  maceCompState = 'idle';
+  if (maceCompTimer) { clearInterval(maceCompTimer); maceCompTimer = null; }
+  fetch('/api/mace/control/stop', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'})
+    .then(function() { maceCompSetStatus('Stopped'); });
+}
+
+function maceCompPrime() {
+  var limit = maceTestField('macePrimeRpm', 500);
+  maceCompState = 'priming';
+  maceCompSetStatus('Priming wheel to ' + limit + ' RPM (slow ramp)...');
+  fetch('/api/mace/control/stop', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'});
+  setTimeout(function() {
+    fetch('/api/mace/control/zero', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'});
+  }, 300);
+  setTimeout(function() {
+    var payload = {
+      mode: 'rate',
+      rate_target_rpm: limit,
+      voltage: maceTestField('maceBodyRateVoltage', 24),
+      rate_ramp: maceTestField('macePrimeRamp', 2.0),
+      kp: 0.3, ki: 0.8, kd: 0,
+      min_uq: 2.6, max_uq: maceTestField('maceBodyRateMaxUq', 18),
+      angle_target: 0, body_rate_target_dps: 0
+    };
+    fetch('/api/mace/control/start', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+    if (maceCompTimer) clearInterval(maceCompTimer);
+    maceCompTimer = setInterval(function() {
+      fetch('/api/mace/control/state').then(function(r){return r.json();}).then(function(st) {
+        var wr = Math.abs(Number(st.wheel_rpm || 0));
+        var pct = Math.min(100, Math.round(wr / limit * 100));
+        maceCompSetStatus('Priming... ' + wr.toFixed(0) + ' / ' + limit + ' RPM (' + pct + '%)');
+        if (wr >= limit * 0.95) {
+          maceCompState = 'primed';
+          maceCompSetStatus('>>> READY <<< Holding at ' + wr.toFixed(0) + ' RPM. Press RUN.');
+          clearInterval(maceCompTimer);
+          maceCompTimer = null;
+          // Keep rate mode active - holds wheel at setpoint until RUN is clicked
+        }
+      });
+    }, 500);
+  }, 600);
+}
+
+function maceCompRun() {
+  var rate = maceTestField('maceCompRate', 50);
+  var limit = Math.abs(maceTestField('maceFinishRpm', -500));
+  var rampTime = 2;
+  maceCompState = 'running';
+  maceCompSetStatus('Starting run at ' + rate + ' deg/s...');
+
+  // Stop rate mode, brief pause for worker to exit, then start body_rate
+  fetch('/api/mace/control/stop', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'})
+  .then(function() { return new Promise(function(r) { setTimeout(r, 200); }); })
+  .then(function() {
+    var payload = {
+      mode: 'body_rate',
+      body_rate_target_dps: rate,
+      kp: maceTestField('maceBodyRateKp', 0.3),
+      ki: maceTestField('maceBodyRateKi', 0.8),
+      kd: 0,
+      min_uq: 2.6,
+      max_uq: maceTestField('maceBodyRateMaxUq', 18),
+      voltage: maceTestField('maceBodyRateVoltage', 24),
+      rate_target_rpm: 0, rate_ramp: 5.0, angle_target: 0
+    };
+    maceCompStartWheelSign = 0;
+    fetch('/api/mace/control/state').then(function(r){return r.json();}).then(function(st) {
+      maceCompStartWheelSign = Number(st.wheel_rpm || 0) < 0 ? -1 : 1;
+    });
+    maceCompSetStatus('Running... ' + rate + ' deg/s');
+    // Start at 0 body rate, then ramp to target over 2s
+    payload.body_rate_target_dps = 0;
+    console.log('[MACE RUN] start payload:', JSON.stringify(payload));
+    return fetch('/api/mace/control/start', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+  }).then(function() {
+    // Ramp target from 0 to rate over 2 seconds
+    var rampSteps = 20;
+    var rampIdx = 0;
+    var rampTimer = setInterval(function() {
+      rampIdx++;
+      var frac = Math.min(1.0, rampIdx / rampSteps);
+      var tgt = rate * frac;
+      fetch('/api/mace/control/config', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({body_rate_target_dps: tgt})
+      });
+      if (rampIdx >= rampSteps) clearInterval(rampTimer);
+    }, 100);
+  }).then(function() {
+
+    // Poll until wheel hits -limit
+    if (maceCompTimer) clearInterval(maceCompTimer);
+    maceCompTimer = setInterval(function() {
+      if (maceCompState !== 'running') return;
+      fetch('/api/mace/control/state').then(function(r){return r.json();}).then(function(st) {
+        var wr = Number(st.wheel_rpm || 0);
+        var br = Number(st.body_rate || 0);
+        maceCompSetStatus('Running... rate=' + br.toFixed(1) + ' wheel=' + wr.toFixed(0) + ' RPM');
+        // Update plots
+        var log = st.angle_log || [];
+        if (log.length > 0) {
+          maceTestDrawChart('maceCompRatePlot', log, [
+            {key: 'body_rate', color: '#a78bfa'},
+            {key: 'body_rate_ref', color: '#38bdf8'}
+          ], '');
+          maceTestDrawChart('maceCompWheelPlot', log, [
+            {key: 'wheel_rpm', color: '#34d399'}
+          ], '');
+          maceTestDrawChart('maceCompUqPlot', log, [
+            {key: 'uq', color: '#f472b6'}
+          ], '');
+        }
+        var finishMag = Math.abs(maceTestField('maceFinishRpm', -500));
+        if (Math.abs(wr) >= finishMag && ((maceCompStartWheelSign < 0 && wr > 0) || (maceCompStartWheelSign > 0 && wr < 0) || maceCompStartWheelSign === 0)) {
+          maceCompSetStatus('Hit -' + limit + ' RPM! Stopping and desaturating...');
+          clearInterval(maceCompTimer);
+          maceCompTimer = null;
+          maceCompDesaturate(limit, rampTime);
+        }
+      });
+    }, 500);
+  });
+}
+
+function maceCompDesaturate(limit, rampTime) {
+  maceCompState = 'idle';
+  fetch('/api/mace/control/stop', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'});
+  maceCompSetStatus('Complete. Coasting to stop.');
+}
+
+function maceBodyRatePayload() {
+  return {
+    mode: 'body_rate',
+    body_rate_target_dps: maceTestField('maceBodyRateTarget', 50),
+    kp: maceTestField('maceBodyRateKp', 0.3),
+    ki: maceTestField('maceBodyRateKi', 0.8),
+    kd: 0,
+    min_uq: maceTestField('maceBodyRateMinUq', 2.6),
+    max_uq: maceTestField('maceBodyRateMaxUq', 18),
+    voltage: maceTestField('maceBodyRateVoltage', 24),
+    rate_target_rpm: 0,
+    rate_ramp: 5.0
+  };
+}
+
+function maceControlStartBodyRate() {
+  maceControlPost('/api/mace/control/start', maceBodyRatePayload());
+}
+
+function maceControlApplyBodyRate() {
+  maceControlPost('/api/mace/control/config', maceBodyRatePayload());
+}
+
+function maceBodyRateSetStatus(text) {
+  var el = document.getElementById('maceBodyRateStatus');
+  if (el) el.textContent = text || '';
+}
+
+function maceBodyRateRender(state) {
+  state = state || {};
+  var text = (state.mode || '?') + ' / ' + (state.status || 'idle');
+  if (state.enabled) text += ' / enabled';
+  if (state.error) text += ' / ' + state.error;
+  text += ' / rate=' + Number(state.body_rate || 0).toFixed(1) + ' deg/s';
+  text += ' / target=' + Number(state.body_rate_target_dps || 0).toFixed(1);
+  text += ' / wheel=' + Number(state.wheel_rpm || 0).toFixed(0) + ' rpm';
+  text += ' / Uq=' + Number(state.uq || 0).toFixed(2);
+  text += ' / angle=' + Number(state.body_angle || 0).toFixed(1);
+  maceBodyRateSetStatus(text);
+
+  var log = state.angle_log || [];
+  if (log.length > 0) {
+    maceTestDrawChart('maceBodyRatePlot', log, [
+      {key: 'body_rate', color: '#a78bfa'},
+      {key: 'body_rate_ref', color: '#38bdf8'}
+    ], 'No body rate log yet.');
+    maceTestDrawChart('maceWheelRpmPlot', log, [
+      {key: 'wheel_rpm', color: '#34d399'}
+    ], 'No wheel RPM log yet.');
+    maceTestDrawChart('maceBodyRateUqPlot', log, [
+      {key: 'uq', color: '#f472b6'}
+    ], 'No Uq log yet.');
+  }
+}
+
+function maceControlRender(state) {
+  state = state || {};
+  var text = (state.mode || 'angle') + ' / ' + (state.status || 'idle');
+  if (state.enabled) text += ' / enabled';
+  if (state.error) text += ' / ' + state.error;
+  text += ' / angle=' + Number(state.body_angle || 0).toFixed(2) + ' deg';
+  text += ' / rate=' + Number(state.body_rate || 0).toFixed(2) + ' deg/s';
+  if (state.gyro_rate_z !== undefined) text += ' / gyroZ=' + Number(state.gyro_rate_z || 0).toFixed(2) + ' deg/s';
+  text += ' / Uq=' + Number(state.uq || 0).toFixed(3);
+  maceControlSetStatus(text);
+  maceBreakawayRender(state);
+  maceTorqueRefresh();
+  maceBodyRateRender(state);
+}
+
+function maceBreakawayRender(state) {
+  var el = document.getElementById('maceBreakawaySummary');
+  if (!el) return;
+  var log = state.sweep_log || [];
+  var minWheel = state.min_wheel_uq;
+  var minBody = state.min_body_uq;
+  var last = log.length ? log[log.length - 1] : null;
+  var items = {
+    min_wheel_uq: minWheel == null ? 0 : Number(minWheel),
+    min_body_uq: minBody == null ? 0 : Number(minBody),
+    sweep_steps: log.length,
+    last_uq: last ? Number(last.uq || 0) : 0,
+    last_body_delta: last ? Number(last.body_delta_deg || 0) : 0,
+    last_wheel_rpm_delta: last ? Number(last.max_wheel_rpm_delta || 0) : 0
+  };
+  el.innerHTML = Object.entries(items).map(function(entry) {
+    var label = entry[0];
+    var value = Number(entry[1] || 0);
+    return '<div class="stat"><div class="label">' + label + '</div><div class="value">' + value.toFixed(label === 'sweep_steps' ? 0 : 3) + '</div></div>';
+  }).join('');
+}
+
+function maceTestRefresh() {
+  var panel = document.getElementById('maceTestStatus');
+  if (!panel) return;
+  fetch('/api/mace/test/state').then(function(r) { return r.json(); }).then(maceTestRender).catch(function(err) {
+    maceTestSetStatus('MACE test API unavailable: ' + err);
+  });
+}
+
+setInterval(maceTestRefresh, 1000);
+maceTestRefresh();
+
+function maceControlRefresh() {
+  var panel = document.getElementById('maceControlStatus');
+  if (!panel) return;
+  fetch('/api/mace/control/state').then(function(r) { return r.json(); }).then(maceControlRender).catch(function(err) {
+    maceControlSetStatus('MACE control API unavailable: ' + err);
+  });
+}
+
+setInterval(maceControlRefresh, 1000);
+maceControlRefresh();
+var maceMode = 'body_rate';

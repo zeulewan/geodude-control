@@ -1,0 +1,330 @@
+<div class="page-panel active" id="pagePanelManual">
+
+<div class="dashboard-grid">
+  <!-- Camera -->
+  <div class="card dashboard-card dashboard-camera">
+    <div class="camera-head">
+      <h3>Camera</h3>
+      <div class="camera-toggle-row">
+        <span class="camera-toggle-label" id="cameraStatusLabel">STREAM ON</span>
+        <button class="btn btn-sm btn-dark" id="cameraToggleBtn" onclick="toggleCameraStream()">TURN OFF</button>
+      </div>
+    </div>
+    <div class="cam-wrapper" id="camWrapper">
+      <img id="camFeed" src="/api/camera" alt="Camera Feed" crossorigin="anonymous">
+      <div class="cam-off-overlay" id="camOffOverlay">CAMERA STREAM OFF</div>
+    </div>
+    <button class="btn btn-sm btn-dark" style="margin-top:6px" id="snapshotBtn" onclick="takeSnapshot()">Snapshot</button>
+  </div>
+
+  <!-- Sensors -->
+  <div class="card dashboard-card dashboard-sensors">
+    <h3>Sensors</h3>
+    <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
+      <div>
+        <div class="sensor-panel-title">Gyro (deg/s)</div>
+        <div class="sensor-row">
+          <div class="sensor-val"><div class="label">X</div><div class="value red" id="gx">0.0</div></div>
+          <div class="sensor-val"><div class="label">Y</div><div class="value green" id="gy">0.0</div></div>
+          <div class="sensor-val"><div class="label">Z</div><div class="value blue" id="gz">0.0</div></div>
+        </div>
+      </div>
+      <div>
+        <div class="sensor-panel-title">Encoder</div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <div class="dial-wrapper" style="width:40px;height:40px;"><div class="dial-ring" style="width:40px;height:40px;"><div id="needle" style="height:20px;"></div><div class="dial-center"></div></div></div>
+          <div>
+            <div class="value" id="angleText" style="font-size:16px;">0.0&deg;</div>
+            <div class="sub"><span id="rpmText">0</span> RPM</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- System Stats -->
+  <div class="card dashboard-card">
+    <h3>System Stats</h3>
+    <div class="sys-grid">
+      <div class="inner">
+        <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Groundstation</div>
+        <div class="sys-item"><span class="label">CPU</span><span class="value" id="gsCpu">--</span></div>
+        <div class="sys-item"><span class="label">Temp</span><span class="value" id="gsTemp">--</span></div>
+        <div class="sys-item"><span class="label">Load</span><span class="value" id="gsLoad">--</span></div>
+      </div>
+      <div class="inner">
+        <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">GEO-DUDe</div>
+        <div class="sys-item"><span class="label">CPU</span><span class="value" id="gdCpu">--</span></div>
+        <div class="sys-item"><span class="label">Temp</span><span class="value" id="gdTemp">--</span></div>
+        <div class="sys-item"><span class="label">Load</span><span class="value" id="gdLoad">--</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MACE Reaction Wheel -->
+  <div class="card dashboard-card" style="grid-column: 1 / -1;">
+    <h3>MACE Reaction Wheel</h3>
+    <div class="mace-live-controls">
+      <label>Body Rate (deg/s) <input id="maceCompRate" type="number" step="5" value="50"></label>
+      <label>Kp <input id="maceBodyRateKp" type="number" step="0.05" value="0.1"></label>
+      <label>Ki <input id="maceBodyRateKi" type="number" step="0.05" value="0.8"></label>
+      <label>Max Uq <input id="maceBodyRateMaxUq" type="number" step="0.5" value="18"></label>
+      <label>Voltage <input id="maceBodyRateVoltage" type="number" step="1" value="24"></label>
+      <label>Prime RPM <input id="macePrimeRpm" type="number" step="50" value="500"></label>
+      <label>Finish RPM <input id="maceFinishRpm" type="number" step="50" value="-500"></label>
+      <label>Prime Ramp <input id="macePrimeRamp" type="number" step="0.5" value="2.0"></label>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-sm btn-dark" onclick="maceCompPrime()">PRIME</button>
+      <button class="btn btn-sm" onclick="maceCompRun()">RUN</button>
+      <button class="btn btn-sm btn-red" onclick="maceCompStop()">STOP</button>
+    </div>
+    <div class="mace-test-status" id="maceCompStatus">Idle</div>
+    <div class="mace-plot-title">Body Rate (deg/s)</div>
+    <canvas class="mace-test-plot" id="maceCompRatePlot"></canvas>
+    <div class="mace-plot-title">Wheel RPM</div>
+    <canvas class="mace-test-plot" id="maceCompWheelPlot"></canvas>
+    <div class="mace-plot-title">Uq (V)</div>
+    <canvas class="mace-test-plot" id="maceCompUqPlot"></canvas>
+  </div>
+
+  
+  <!-- Angle Control -->
+  <div class="card dashboard-card" style="grid-column: 1 / -1;">
+    <h3>Angle Control</h3>
+    <div class="mace-live-controls">
+      <label>Target (deg) <input id="maceAngleTarget" type="number" step="5" value="0"></label>
+      <label>Kp <input id="maceAngleKp" type="number" step="0.05" value="0.8"></label>
+      <label>Ki <input id="maceAngleKi" type="number" step="0.05" value="0.2"></label>
+      <label>Kd <input id="maceAngleKd" type="number" step="0.05" value="0.10"></label>
+      <label>Min Uq <input id="maceAngleMinUq" type="number" step="0.5" value="3.0"></label>
+      <label>Max Uq <input id="maceAngleMaxUq" type="number" step="0.5" value="8.0"></label>
+      <label>Tolerance (deg) <input id="maceAngleTolerance" type="number" step="1" value="5"></label>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-sm" onclick="maceAngleStart()">START</button>
+      <button class="btn btn-sm btn-dark" onclick="maceAngleGo()">GO TO</button>
+      <button class="btn btn-sm btn-dark" onclick="maceAngleZero()">ZERO</button>
+      <button class="btn btn-sm btn-red" onclick="maceAngleStop()">STOP</button>
+    </div>
+    <div class="mace-test-status" id="maceAngleStatus">Idle</div>
+    <div class="mace-plot-title">Angle (deg)</div>
+    <canvas class="mace-test-plot" id="maceAnglePlot"></canvas>
+    <div class="mace-plot-title">Wheel RPM</div>
+    <canvas class="mace-test-plot" id="maceAngleWheelPlot"></canvas>
+  </div>
+
+  </div>
+
+<div class="section-title">Gimbal</div>
+
+<div class="wide-two-col">
+
+<!-- Gimbal Global Controls -->
+<div class="card compact-wide-card">
+  <h3>Gimbal Controls</h3>
+  <div class="gimbal-global-bar">
+    <button class="btn btn-sm" onclick="gimbalSetup()">SETUP DRIVERS</button>
+    <button class="btn btn-sm btn-dark" onclick="gimbalScan()">SCAN</button>
+    <button class="btn btn-sm btn-red" onclick="gimbalStopAll()">STOP ALL</button>
+    <button class="btn-estop" onclick="gimbalEstop()">EMERGENCY STOP</button>
+  </div>
+  <div class="gimbal-global-status" id="gimbalStatus">Not connected</div>
+
+  <div style="margin-top:6px;">
+    <div class="slider-group">
+      <div class="slider-label"><span class="label">Speed</span><span class="value" id="gimbalSpeedVal">2000 us</span></div>
+      <input type="range" id="gimbalSpeed" min="100" max="8000" value="2000"
+             oninput="gimbalSetSpeed(this.value)">
+    </div>
+    <div class="btn-row" style="margin-top:0">
+      <button class="btn btn-sm btn-dark" onclick="gimbalSetSpeed(5000)">Slow (5000us)</button>
+      <button class="btn btn-sm btn-dark" onclick="gimbalSetSpeed(2000)">Medium (2000us)</button>
+      <button class="btn btn-sm btn-dark" onclick="gimbalSetSpeed(500)">Fast (500us)</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Per-driver cards (populated by JS) -->
+<div id="gimbalDrivers"></div>
+
+<!-- Sequence Programmer -->
+<div class="card">
+  <h3>Sequence Programmer</h3>
+  <table class="seq-table">
+    <thead>
+      <tr>
+        <th>Motor</th>
+        <th>Value (deg/steps)</th>
+        <th>Time (ms)</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="seqBody"></tbody>
+  </table>
+  <div class="seq-btn-row">
+    <button class="btn btn-sm" onclick="seqAddRow()">ADD ROW</button>
+    <button class="btn btn-sm btn-dark" onclick="seqClearAll()">CLEAR ALL</button>
+    <button class="btn btn-seq-run" onclick="seqRun()">RUN SEQUENCE</button>
+  </div>
+  <div class="seq-status" id="seqStatus"></div>
+</div>
+</div>
+
+<div class="section-title">Servos</div>
+
+<div class="servo-layout">
+  <div class="servo-controls-col">
+    <div class="card servo-compact-card">
+      <h3>Controller Mode</h3>
+      <div class="controller-grid">
+        <div class="controller-stat"><span class="label">Mode</span><span class="value" id="controllerMode">OFF</span></div>
+        <div class="controller-stat"><span class="label">Link</span><span class="value" id="controllerLink">DISCONNECTED</span></div>
+        <div class="controller-stat"><span class="label">Arm</span><span class="value" id="controllerArm">LEFT</span></div>
+        <div class="controller-stat"><span class="label">Deadman</span><span class="value" id="controllerDeadman">RELEASED</span></div>
+        <div class="controller-stat"><span class="label">Activity</span><span class="value" id="controllerActivity">IDLE</span></div>
+      </div>
+      <div class="controller-help">Select one arm at a time. Hold L1 or R1 as the deadman. Left stick controls base and shoulder. Right stick controls wrist X and elbow Y.</div>
+      <div class="btn-row" style="margin-top:8px;">
+        <button class="btn btn-dark" id="controllerArmLeftBtn" onclick="setControllerArm('left')">LEFT ARM</button>
+        <button class="btn btn-dark" id="controllerArmRightBtn" onclick="setControllerArm('right')">RIGHT ARM</button>
+      </div>
+      <div class="btn-row" style="margin-top:6px;">
+        <button class="btn btn-dark" id="controllerToggleBtn" onclick="toggleControllerMode()">ENABLE CONTROLLER</button>
+      </div>
+      <div class="controller-error" id="controllerError"></div>
+    </div>
+
+    <div class="card servo-compact-card">
+      <h3>Inverse Kinematics</h3>
+      <div class="controller-grid ik-status-grid">
+        <div class="controller-stat"><span class="label">Arm</span><span class="value" id="ikArmLabel">LEFT</span></div>
+        <div class="controller-stat"><span class="label">Solver</span><span class="value" id="ikSolverState">IDLE</span></div>
+        <div class="controller-stat controller-stat-wide"><span class="label">Current Tip</span><span class="value" id="ikCurrentTip">x:0 y:0 z:0</span></div>
+        <div class="controller-stat controller-stat-wide"><span class="label">Solved Tip</span><span class="value" id="ikSolvedTip">x:0 y:0 z:0</span></div>
+      </div>
+      <div class="ik-target-grid">
+        <label class="ik-target-field" for="ikTargetX"><span>X (mm)</span><input type="number" id="ikTargetX" value="-250" step="5"></label>
+        <label class="ik-target-field" for="ikTargetY"><span>Y (mm)</span><input type="number" id="ikTargetY" value="220" step="5"></label>
+        <label class="ik-target-field" for="ikTargetZ"><span>Z (mm)</span><input type="number" id="ikTargetZ" value="40" step="5"></label>
+        <label class="ik-target-field" for="ikTargetWristRoll"><span>Wrist Roll (deg)</span><input type="number" id="ikTargetWristRoll" value="0" step="5"></label>
+      </div>
+      <div class="slider-group servo-tight-group" style="margin-top:8px;margin-bottom:6px;">
+        <div class="slider-label">
+          <span class="label">Stiffness Optimizer</span>
+          <span class="value" id="ikOptimizerVal">70 / 100</span>
+        </div>
+        <input type="range" id="ikOptimizerBias" min="0" max="100" step="1" value="70" oninput="updateIkOptimizerLabel(this.value)">
+        <div class="servo-mini-scale"><span>Exact Reach</span><span>Min Shoulder/Elbow</span></div>
+      </div>
+      <div class="btn-row" style="margin-top:8px;">
+        <button class="btn btn-dark" onclick="ikLoadCurrentTip()">LOAD CURRENT TIP</button>
+        <button class="btn btn-dark" onclick="ikSolve(false)">SOLVE</button>
+        <button class="btn btn-amber" onclick="ikSolve(true)">MOVE SOLVED POSE</button>
+      </div>
+      <div class="ik-solution-grid">
+        <div class="ik-solution-line"><span>Base</span><span id="ikBaseResult">--</span></div>
+        <div class="ik-solution-line"><span>Shoulder</span><span id="ikShoulderResult">--</span></div>
+        <div class="ik-solution-line"><span>Elbow</span><span id="ikElbowResult">--</span></div>
+        <div class="ik-solution-line"><span>Wrist Roll</span><span id="ikWristRollResult">--</span></div>
+        <div class="ik-solution-line"><span>Wrist Pitch</span><span id="ikWristPitchResult">--</span></div>
+      </div>
+      <div class="ik-note" id="ikNote">Solver uses the measured arm lengths in this branch. On the dev page, MOVE SOLVED POSE reuses the dashed solution and stays dry-run only until you explicitly choose otherwise.</div>
+    </div>
+
+    <div class="card servo-compact-card">
+      <h3>PCA9685 Channels</h3>
+      <div class="slider-group servo-tight-group" style="margin-bottom:4px;">
+        <div class="slider-label">
+          <span class="label">Servo Speed</span>
+          <span class="value" id="servoSpeedVal">50 us/tick (1500 us/s)</span>
+        </div>
+        <input type="range" id="servoSpeed" min="1" max="200" step="1" value="50"
+               oninput="updateServoSpeedLabel(this.value); saveServoSettings(); sendServoSettings()">
+        <div class="servo-mini-scale"><span>Slow</span><span>Fast</span></div>
+      </div>
+      <div class="slider-group servo-tight-group" style="margin-bottom:6px;">
+        <div class="slider-label">
+          <span class="label">Ramp Rate</span>
+          <span class="value" id="servoRampVal">20 us/tick (600 us/s)</span>
+        </div>
+        <input type="range" id="servoRampRate" min="1" max="100" step="1" value="20"
+               oninput="updateServoRampLabel(this.value); saveServoSettings(); sendServoSettings()">
+        <div class="servo-mini-scale"><span>Gentle</span><span>Snappy</span></div>
+      </div>
+      <div class="btn-row servo-action-row" style="margin-bottom:6px;margin-top:0;">
+        <button class="btn btn-green" onclick="startupNeutral()">STARTUP</button>
+        <button class="btn" onclick="allChannelsNeutral()">ALL NEUTRAL</button>
+      </div>
+      <div class="ch-grid ch-grid-compact" id="chGrid"></div>
+    </div>
+  </div>
+
+  <div class="card armviz-card">
+    <h3>Arm Workspace View</h3>
+    <div class="armviz-shell">
+      <canvas id="armVizCanvas" class="armviz-canvas" width="960" height="420"></canvas>
+      <div class="armviz-toolbar">
+        <div class="armviz-slider-wrap">
+          <label for="armVizAzimuth">Orbit</label>
+          <input type="range" id="armVizAzimuth" min="-180" max="180" value="28" oninput="armVizSetView()">
+        </div>
+        <div class="armviz-slider-wrap">
+          <label for="armVizElevation">Elevation</label>
+          <input type="range" id="armVizElevation" min="-10" max="70" value="18" oninput="armVizSetView()">
+        </div>
+        <div class="armviz-slider-wrap">
+          <label for="armVizZoom">Zoom</label>
+          <input type="range" id="armVizZoom" min="60" max="180" value="100" oninput="armVizSetView()">
+        </div>
+        <div class="armviz-mode-block">
+          <div class="armviz-mode-label">Visualization Source</div>
+          <div class="btn-row armviz-mode-row">
+            <button class="btn btn-sm btn-dark" id="armVizLiveBtn" onclick="armVizSetMode('live')">LIVE</button>
+            <button class="btn btn-sm btn-dark" id="armVizTestBtn" onclick="armVizSetMode('test')">TEST MOVES</button>
+          </div>
+        </div>
+        <div class="btn-row armviz-btn-row">
+          <button class="btn btn-sm btn-dark" id="armVizOrbitBtn" onclick="armVizToggleOrbit()">AUTO ORBIT</button>
+          <button class="btn btn-sm btn-dark" onclick="armVizResetView()">RESET VIEW</button>
+        </div>
+      </div>
+      <div class="armviz-stats">
+        <div class="armviz-stat"><span class="label">Left Tip</span><span class="value" id="armVizLeftTip">x:0 y:0 z:0</span></div>
+        <div class="armviz-stat"><span class="label">Right Tip</span><span class="value" id="armVizRightTip">x:0 y:0 z:0</span></div>
+        <div class="armviz-stat"><span class="label">Keep-Out Zones</span><span class="value">SAT + FLOOR</span></div>
+        <div class="armviz-stat"><span class="label">Scene</span><span class="value">ARMS + WORKSPACE</span></div>
+        <div class="armviz-stat"><span class="label">Source</span><span class="value" id="armVizModeStatus">LIVE</span></div>
+        <div class="armviz-stat"><span class="label">Truth</span><span class="value">SUBSCALE PI</span></div>
+      </div>
+      <div class="armviz-geometry-block">
+        <div class="armviz-geometry-head">
+          <div class="armviz-geometry-title">mizi-dev Geometry Hot Edit</div>
+          <div class="armviz-geometry-subtitle">Defaults match the dimensions you gave me. These inputs update the browser visualization live on this dev page; backend IK constants still need a later sync pass if you want hot edits to affect the solver too.</div>
+        </div>
+        <div class="armviz-geometry-grid">
+          <label class="armviz-geometry-field"><span>Sat Width</span><input type="number" id="armVizSatWidth" value="240" step="5" oninput="armVizGeometryChanged()"></label>
+          <label class="armviz-geometry-field"><span>Sat Length</span><input type="number" id="armVizSatLength" value="240" step="5" oninput="armVizGeometryChanged()"></label>
+          <label class="armviz-geometry-field"><span>Sat Height</span><input type="number" id="armVizSatHeight" value="300" step="5" oninput="armVizGeometryChanged()"></label>
+          <label class="armviz-geometry-field"><span>Attach From Bottom</span><input type="number" id="armVizAttachBottom" value="200" step="5" oninput="armVizGeometryChanged()"></label>
+          <label class="armviz-geometry-field"><span>Attach From Rear</span><input type="number" id="armVizAttachRear" value="65" step="5" oninput="armVizGeometryChanged()"></label>
+          <label class="armviz-geometry-field"><span>Base Link</span><input type="number" id="armVizLinkBase" value="103" step="1" oninput="armVizGeometryChanged()"></label>
+          <label class="armviz-geometry-field"><span>Bicep</span><input type="number" id="armVizLinkUpper" value="310" step="1" oninput="armVizGeometryChanged()"></label>
+          <label class="armviz-geometry-field"><span>Forearm</span><input type="number" id="armVizLinkForearm" value="230" step="1" oninput="armVizGeometryChanged()"></label>
+          <label class="armviz-geometry-field"><span>Wrist A</span><input type="number" id="armVizLinkWristA" value="55" step="1" oninput="armVizGeometryChanged()"></label>
+          <label class="armviz-geometry-field"><span>Wrist B to EE</span><input type="number" id="armVizLinkTool" value="75" step="1" oninput="armVizGeometryChanged()"></label>
+        </div>
+        <div class="armviz-geometry-readback">
+          <div class="armviz-stat"><span class="label">Sat</span><span class="value" id="armVizSatSummary">240 x 240 x 300 mm</span></div>
+          <div class="armviz-stat"><span class="label">Anchors</span><span class="value" id="armVizAnchorSummary">L(-120, 50, -55) R(120, 50, -55)</span></div>
+          <div class="armviz-stat"><span class="label">Links</span><span class="value" id="armVizLinkSummary">103 / 310 / 230 / 55 / 75 mm</span></div>
+          <div class="armviz-stat"><span class="label">Floor Zone</span><span class="value" id="armVizFloorSummary">AUTO-EXPANDED</span></div>
+        </div>
+      </div>
+      <div class="armviz-note">Frontend visualization only. `LIVE` follows actual servo output from the subscale Pi and remains the source of truth. `TEST MOVES` only changes the browser visualization from slider motion for staging; the control pipeline will need a later backend update if you want that mode reflected outside the GUI.</div>
+    </div>
+  </div>
+</div>
+
+</div>
