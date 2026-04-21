@@ -1683,7 +1683,7 @@ function gimbalPoll() {
         html += '</div>';
         html += '<div class="motor-slider-group">';
         html += '<div class="motor-slider-label"><span class="label">Idle Current</span><span class="value" id="motorIholdLabel_' + i + '">' + (drv.ihold_ma || 0) + ' mA</span></div>';
-        html += '<input type="range" id="motorIholdSlider_' + i + '" min="0" max="500" step="10" value="' + (drv.ihold_ma || 0) + '" oninput="gimbalSetMotorIhold(' + i + ', this.value)">';
+        html += '<input type="range" id="motorIholdSlider_' + i + '" min="0" max="2000" step="10" value="' + (drv.ihold_ma || 0) + '" oninput="gimbalSetMotorIhold(' + i + ', this.value)">';
         html += '</div>';
 
         if (!isBelt) {

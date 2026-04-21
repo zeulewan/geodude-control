@@ -86,6 +86,28 @@ bool sendBusyIfStepping(int targetDriver) {
   return false;
 }
 
+void applyIdleDriverCurrent(int d) {
+  if (!motorEnabled[d]) {
+    drivers[d]->toff(0);
+    return;
+  }
+  if (motorIholdMA[d] > 0) {
+    drivers[d]->toff(4);
+    drivers[d]->rms_current(motorIholdMA[d], 1.0f);
+  } else {
+    drivers[d]->toff(0);
+  }
+}
+
+void applyRunDriverCurrent(int d) {
+  if (!motorEnabled[d]) {
+    drivers[d]->toff(0);
+    return;
+  }
+  drivers[d]->toff(4);
+  drivers[d]->rms_current(motorCurrentMA[d], 0.0f);
+}
+
 void handleStatus() {
   bool stepping = anyMotorRunning();
   String r = "{\"drivers_found\":" + String(driversFound) +
@@ -179,8 +201,7 @@ void handleMove() {
   stepsRemaining[d] = abs(steps);
 
   motorRunning[d] = true;
-  drivers[d]->toff(4);
-  drivers[d]->rms_current(motorCurrentMA[d], 0.0f);
+  applyRunDriverCurrent(d);
   sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"steps\":" + String(steps) + "}");
 }
 
@@ -203,8 +224,7 @@ void handleMoveDeg() {
   stepsRemaining[d] = abs(steps);
 
   motorRunning[d] = true;
-  drivers[d]->toff(4);
-  drivers[d]->rms_current(motorCurrentMA[d], 0.0f);
+  applyRunDriverCurrent(d);
   sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"deg\":" + String(deg, 2) + ",\"steps\":" + String(steps) + "}");
 }
 
@@ -219,11 +239,11 @@ void handleEnable() {
   // Full driver configuration on enable
   motorEnabled[d] = true;
   drivers[d]->toff(4);
-  drivers[d]->rms_current(motorCurrentMA[d], 0.0f);
   drivers[d]->microsteps(16);
   drivers[d]->en_spreadCycle(false);
   drivers[d]->pwm_autoscale(true);
   drivers[d]->GSTAT(0x07);
+  applyIdleDriverCurrent(d);
   sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"enabled\":true}");
 }
 
@@ -255,7 +275,9 @@ void handleMotorCurrent() {
     return;
   }
   motorCurrentMA[d] = ma;
-  drivers[d]->rms_current(ma, 0.0f);
+  if (motorEnabled[d]) {
+    applyIdleDriverCurrent(d);
+  }
   sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"current_ma\":" + String(ma) + "}");
 }
 
@@ -273,16 +295,8 @@ void handleMotorIhold() {
     return;
   }
   motorIholdMA[d] = ma;
-  // If enabled and idle, apply the new hold current immediately WITHOUT touching IRUN.
-  // rms_current(run_ma, hold_ratio) sets IRUN for run_ma and IHOLD = IRUN * hold_ratio.
   if (motorEnabled[d] && !motorRunning[d]) {
-    if (ma > 0 && motorCurrentMA[d] > 0) {
-      float hold_ratio = (float)ma / (float)motorCurrentMA[d];
-      if (hold_ratio > 1.0f) hold_ratio = 1.0f;
-      drivers[d]->rms_current(motorCurrentMA[d], hold_ratio);
-    } else {
-      drivers[d]->toff(0);
-    }
+    applyIdleDriverCurrent(d);
   }
   sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"ihold_ma\":" + String(ma) + "}");
 }
@@ -307,9 +321,7 @@ void handleStop() {
   }
   motorRunning[d] = false;
   stepsRemaining[d] = 0;
-  if (motorIholdMA[d] == 0) {
-    drivers[d]->toff(0);
-  }
+  applyIdleDriverCurrent(d);
   sendJson("{\"ok\":true,\"driver\":" + String(d) + "}");
 }
 
@@ -317,9 +329,7 @@ void handleStopAll() {
   for (int i = 0; i < 4; i++) {
     motorRunning[i] = false;
     stepsRemaining[i] = 0;
-    if (motorIholdMA[i] == 0) {
-      drivers[i]->toff(0);
-    }
+    applyIdleDriverCurrent(i);
   }
   sendJson("{\"ok\":true}");
 }
@@ -466,11 +476,7 @@ void loop() {
       stepsRemaining[i]--;
       if (stepsRemaining[i] <= 0) {
         motorRunning[i] = false;
-        if (motorIholdMA[i] > 0) {
-          drivers[i]->rms_current(motorIholdMA[i], 1.0f);
-        } else {
-          drivers[i]->toff(0);
-        }
+        applyIdleDriverCurrent(i);
       }
     }
   }
