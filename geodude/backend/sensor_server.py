@@ -18,6 +18,40 @@ PICO_PORT = "/dev/ttyACM0"
 PICO_BAUD = 115200
 pico_serial = None
 pico_lock = threading.Lock()
+simplefoc_status_lock = threading.Lock()
+simplefoc_status_cache = {
+    "connected": False,
+    "status": None,
+    "error": None,
+    "updated_at": 0.0,
+}
+
+
+def _simplefoc_cache_status(status=None, error=None):
+    with simplefoc_status_lock:
+        simplefoc_status_cache["connected"] = bool(pico_serial is not None and pico_serial.is_open)
+        if status is not None:
+            simplefoc_status_cache["status"] = dict(status)
+        if error is not None:
+            simplefoc_status_cache["error"] = str(error)
+        elif status is not None:
+            simplefoc_status_cache["error"] = None
+        simplefoc_status_cache["updated_at"] = time.monotonic()
+
+
+def _simplefoc_status_snapshot():
+    with simplefoc_status_lock:
+        snap = dict(simplefoc_status_cache)
+    status = snap.get("status") or {}
+    return {
+        "connected": bool(snap.get("connected")),
+        "target": status.get("target", status.get("run_target")),
+        "foc_ready": status.get("foc_ready"),
+        "armed": status.get("armed"),
+        "raw_status": status if status else None,
+        "serial_error": snap.get("error"),
+        "updated_at": snap.get("updated_at", 0.0),
+    }
 
 def get_pico():
     """Return open serial port to the STM32 / Nucleo controller, opening it lazily if needed."""
@@ -26,26 +60,71 @@ def get_pico():
         if pico_serial is None or not pico_serial.is_open:
             try:
                 pico_serial = serial.Serial(PICO_PORT, PICO_BAUD, timeout=0.5)
+                _simplefoc_cache_status(status=None, error=None)
             except Exception as e:
                 print("SimpleFOC serial open error: %s" % e, flush=True)
                 pico_serial = None
+                _simplefoc_cache_status(status=None, error=e)
         return pico_serial
 
-def simplefoc_send(cmd):
-    """Send a raw SimpleFOC Commander command (e.g. 'T5\\n'). Returns True on success."""
+
+def _simplefoc_exchange_locked(ser, cmd, read_for=0.2):
+    cmd = str(cmd).strip()
+    if not cmd:
+        return [], None, None
+    try:
+        ser.reset_input_buffer()
+    except Exception:
+        pass
+    ser.write((cmd + "\n").encode())
+    ser.flush()
+    lines = []
+    last_status = None
+    err = None
+    end = time.time() + read_for
+    while time.time() < end:
+        line = ser.readline().decode(errors="ignore").strip()
+        if not line:
+            continue
+        lines.append(line)
+        if line.startswith("ERR"):
+            err = line
+            break
+        if line.startswith("{") and line.endswith("}"):
+            try:
+                last_status = json.loads(line)
+                _simplefoc_cache_status(status=last_status, error=None)
+            except Exception as exc:
+                err = "status parse error: %s" % exc
+                _simplefoc_cache_status(error=err)
+                break
+    return lines, last_status, err
+
+
+def _simplefoc_status_locked(ser, timeout=0.25):
+    _lines, status, err = _simplefoc_exchange_locked(ser, "S", read_for=timeout)
+    if err:
+        raise RuntimeError(err)
+    return status
+
+
+def simplefoc_send(cmd, read_for=0.2):
+    """Send a raw SimpleFOC Commander command and surface firmware ERR replies."""
+    global pico_serial
     try:
         ser = get_pico()
         if ser is None:
             return False, "serial not available"
         with pico_lock:
-            ser.write((cmd.rstrip("\n") + "\n").encode())
-        print("SimpleFOC: sent %r" % cmd.strip(), flush=True)
+            _lines, _status, err = _simplefoc_exchange_locked(ser, cmd, read_for=read_for)
+        print("SimpleFOC: sent %r" % str(cmd).strip(), flush=True)
+        if err:
+            return False, err
         return True, None
     except Exception as e:
-        # Reset so next call retries open
-        global pico_serial
         with pico_lock:
             pico_serial = None
+        _simplefoc_cache_status(error=e)
         print("SimpleFOC serial error: %s" % e, flush=True)
         return False, str(e)
 
@@ -63,6 +142,7 @@ simplefoc_jog_state = {
     "active": None,  # forward/backward/brake
     "status": "idle",
     "error": None,
+    "simplefoc_target": 0.0,
     "max_voltage": 12.0,
     "accel_ramp": 5.0,
     "brake_ramp": 12.0,
@@ -82,28 +162,8 @@ def _simplefoc_jog_clamp_ramp(value):
 def _simplefoc_jog_snapshot():
     with simplefoc_jog_lock:
         snap = dict(simplefoc_jog_state)
-    ser = get_pico()
-    snap["connected"] = bool(ser is not None and ser.is_open)
-    try:
-        if snap["connected"]:
-            with pico_lock:
-                ser.write(b"S\n")
-                deadline = time.time() + 0.25
-                line = ""
-                while time.time() < deadline:
-                    line = ser.readline().decode(errors="ignore").strip()
-                    if line.startswith("{") and line.endswith("}"):
-                        break
-            if line.startswith("{") and line.endswith("}"):
-                status = json.loads(line)
-                snap["target"] = status.get("target", status.get("run_target"))
-            else:
-                snap["target"] = None
-        else:
-            snap["target"] = None
-    except Exception as exc:
-        snap["target"] = None
-        snap["serial_error"] = str(exc)
+    snap.update(_simplefoc_status_snapshot())
+    snap["target"] = snap.get("simplefoc_target")
     return snap
 
 
@@ -113,6 +173,7 @@ def _simplefoc_jog_disable(status="idle", error=None):
         simplefoc_jog_state["active"] = None
         simplefoc_jog_state["status"] = status
         simplefoc_jog_state["error"] = error
+        simplefoc_jog_state["simplefoc_target"] = 0.0
         simplefoc_jog_state["last_command_at"] = time.monotonic()
 
 
@@ -127,25 +188,37 @@ def _simplefoc_jog_start(direction, max_voltage, accel_ramp, brake_ramp):
     else:
         raise ValueError("direction must be forward/backward/brake")
     ramp = brake_ramp if direction == "brake" else accel_ramp
-    for cmd in (
-        "D",
-        "MR",
-        f"V{_simplefoc_jog_clamp_voltage(max_voltage):.3f}",
-        f"R{_simplefoc_jog_clamp_ramp(ramp):.3f}",
-        "E",
-        f"T{target:.5f}",
-    ):
-        ok, err = simplefoc_send(cmd)
-        if not ok:
-            raise RuntimeError(err or ("command failed: %s" % cmd))
-        time.sleep(0.03)
+    max_voltage = _simplefoc_jog_clamp_voltage(max_voltage)
+    accel_ramp = _simplefoc_jog_clamp_ramp(accel_ramp)
+    brake_ramp = _simplefoc_jog_clamp_ramp(brake_ramp)
+    ser = get_pico()
+    if ser is None:
+        raise RuntimeError("serial not available")
+    with pico_lock:
+        status = _simplefoc_status_locked(ser, timeout=0.25)
+        if not status or not status.get("foc_ready"):
+            raise RuntimeError("wheel not calibrated; run calibration first")
+        for cmd, delay in (
+            ("D", 0.15),
+            ("MR", 0.15),
+            (f"V{max_voltage:.3f}", 0.15),
+            (f"R{ramp:.3f}", 0.15),
+            ("E", 0.25),
+            (f"T{target:.5f}", 0.15),
+            ("S", 0.25),
+        ):
+            _lines, _status, err = _simplefoc_exchange_locked(ser, cmd, read_for=delay)
+            print("SimpleFOC: sent %r" % cmd.strip(), flush=True)
+            if err:
+                raise RuntimeError(err)
     with simplefoc_jog_lock:
         simplefoc_jog_state["active"] = direction
         simplefoc_jog_state["status"] = "running"
         simplefoc_jog_state["error"] = None
-        simplefoc_jog_state["max_voltage"] = _simplefoc_jog_clamp_voltage(max_voltage)
-        simplefoc_jog_state["accel_ramp"] = _simplefoc_jog_clamp_ramp(accel_ramp)
-        simplefoc_jog_state["brake_ramp"] = _simplefoc_jog_clamp_ramp(brake_ramp)
+        simplefoc_jog_state["simplefoc_target"] = target
+        simplefoc_jog_state["max_voltage"] = max_voltage
+        simplefoc_jog_state["accel_ramp"] = accel_ramp
+        simplefoc_jog_state["brake_ramp"] = brake_ramp
         simplefoc_jog_state["last_heartbeat"] = time.monotonic()
         simplefoc_jog_state["last_command_at"] = time.monotonic()
 
@@ -530,9 +603,18 @@ def simplefoc():
 
 @app.route("/simplefoc/status")
 def simplefoc_status():
-    """Query STM32 connection/target without fighting active live control."""
+    """Query STM32 connection/target without fighting active serial traffic."""
     ser = get_pico()
     connected = ser is not None and ser.is_open
+    cached = _simplefoc_status_snapshot()
+    if simplefoc_jog_state.get("active"):
+        return jsonify({
+            "connected": connected,
+            "target": simplefoc_jog_state.get("simplefoc_target"),
+            "live": False,
+            "jog": True,
+            "foc_ready": cached.get("foc_ready"),
+        })
     target = None
     if simplefoc_live_state.get("enabled") or simplefoc_live_state.get("sweep_busy"):
         return jsonify({
@@ -543,19 +625,19 @@ def simplefoc_status():
     if connected:
         try:
             with pico_lock:
-                ser.write(b"S\n")
-                deadline = time.time() + 0.25
-                line = ""
-                while time.time() < deadline:
-                    line = ser.readline().decode(errors="ignore").strip()
-                    if line.startswith("{") and line.endswith("}"):
-                        break
-            if line.startswith("{") and line.endswith("}"):
-                status = json.loads(line)
+                status = _simplefoc_status_locked(ser, timeout=0.25)
+            if status:
                 target = status.get("target", status.get("run_target"))
         except Exception as e:
             print("SimpleFOC status read error: %s" % e, flush=True)
-    return jsonify({"connected": connected, "target": target})
+            _simplefoc_cache_status(error=e)
+    return jsonify({
+        "connected": connected,
+        "target": target,
+        "foc_ready": cached.get("foc_ready"),
+        "armed": cached.get("armed"),
+        "serial_error": cached.get("serial_error"),
+    })
 
 
 @app.route("/simplefoc/jog/status")

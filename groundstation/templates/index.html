@@ -91,9 +91,13 @@
     <h3>Reaction Wheel</h3>
     <div class="mace-grid">
       <div class="mace-stat"><span class="label">Status</span><span class="value" id="maceJogStatus">IDLE</span></div>
+      <div class="mace-stat"><span class="label">Cal</span><span class="value" id="maceCalStatus">NOT READY</span></div>
       <div class="mace-stat"><span class="label">Link</span><span class="value" id="maceJogLink">DISCONNECTED</span></div>
       <div class="mace-stat"><span class="label">Target</span><span class="value" id="maceJogTarget">0.00 rad/s</span></div>
       <div class="mace-stat"><span class="label">Body RPM</span><span class="value" id="maceJogRpm">0.0</span></div>
+    </div>
+    <div class="btn-row mace-btn-row">
+      <button class="btn btn-sm btn-dark" id="maceCalibrateBtn">CALIBRATE</button>
     </div>
     <div class="slider-group mace-slider-group">
       <div class="slider-label"><span class="label">Accel Ramp</span><span class="value" id="maceAccelRampVal">5.0 rad/s²</span></div>

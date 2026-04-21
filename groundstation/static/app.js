@@ -1177,6 +1177,8 @@ function toggleControllerMode() {
 
 var maceJogActive = null;
 var maceJogHeartbeatTimer = null;
+var maceJogReady = false;
+var maceJogCalibrating = false;
 
 function maceCfg() {
   return {
@@ -1210,6 +1212,14 @@ function maceSetButtons(active) {
   });
 }
 
+function maceSetHoldEnabled(enabled) {
+  ['maceBackwardBtn', 'maceBrakeBtn', 'maceForwardBtn'].forEach(function(id) {
+    var btn = document.getElementById(id);
+    if (!btn) return;
+    btn.disabled = !enabled;
+  });
+}
+
 function maceStartHeartbeat(direction) {
   if (maceJogHeartbeatTimer) clearInterval(maceJogHeartbeatTimer);
   maceJogHeartbeatTimer = setInterval(function() {
@@ -1227,6 +1237,7 @@ function maceStopHeartbeat() {
 }
 
 function maceJogStart(direction) {
+  if (!maceJogReady || maceJogCalibrating) return;
   var cfg = maceCfg();
   fetch('/api/mace/jog/start', {
     method: 'POST',
@@ -1259,6 +1270,21 @@ function maceJogStart(direction) {
   });
 }
 
+function maceCalibrate() {
+  if (maceJogCalibrating) return;
+  var note = document.getElementById('maceJogNote');
+  fetch('/api/mace/calibrate', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    maceRenderStatus(d);
+    if (!d.ok && note) note.textContent = d.error || 'Calibration failed';
+  }).catch(function(err) {
+    if (note) note.textContent = 'Calibration failed: ' + err;
+  });
+}
+
 function maceJogStop() {
   maceStopHeartbeat();
   fetch('/api/mace/jog/stop', {
@@ -1285,11 +1311,21 @@ function maceReleaseAll() {
 function maceRenderStatus(d) {
   d = d || {};
   var status = document.getElementById('maceJogStatus');
+  var cal = document.getElementById('maceCalStatus');
   var link = document.getElementById('maceJogLink');
   var target = document.getElementById('maceJogTarget');
   var rpm = document.getElementById('maceJogRpm');
   var note = document.getElementById('maceJogNote');
+  var calBtn = document.getElementById('maceCalibrateBtn');
+  maceJogReady = !!d.foc_ready;
+  maceJogCalibrating = !!d.calibrating;
+  maceSetHoldEnabled(maceJogReady && !maceJogCalibrating);
   if (status) status.textContent = (d.active || 'idle').toUpperCase() + ' / ' + String(d.status || 'idle').toUpperCase();
+  if (cal) {
+    if (maceJogCalibrating) cal.textContent = 'CALIBRATING';
+    else cal.textContent = maceJogReady ? 'READY' : 'NOT READY';
+    cal.style.color = maceJogCalibrating ? '#f59e0b' : (maceJogReady ? '#22c55e' : '#ef4444');
+  }
   if (link) {
     var connected = !!d.connected;
     link.textContent = connected ? 'CONNECTED' : 'DISCONNECTED';
@@ -1300,8 +1336,12 @@ function maceRenderStatus(d) {
     target.textContent = val.toFixed(2) + ' rad/s';
   }
   if (rpm && d.body_rpm != null) rpm.textContent = Number(d.body_rpm).toFixed(1);
+  if (calBtn) calBtn.disabled = maceJogCalibrating || !d.connected;
   if (note) {
     if (d.error) note.textContent = d.error;
+    else if (d.calibration_error) note.textContent = d.calibration_error;
+    else if (maceJogCalibrating) note.textContent = 'Calibration running. Wait for READY before using hold controls.';
+    else if (!maceJogReady) note.textContent = 'Click CALIBRATE before using the wheel controls.';
     else note.textContent = d.active ? ('Holding ' + d.active.toUpperCase() + '. Release to coast.') : 'Release any button to coast. Hold BRAKE for active stop.';
   }
 }
@@ -1865,6 +1905,8 @@ function seqRun() {
   maceBindMomentaryButton('maceBackwardBtn', 'backward');
   maceBindMomentaryButton('maceBrakeBtn', 'brake');
   maceBindMomentaryButton('maceForwardBtn', 'forward');
+  var maceCalBtn = document.getElementById('maceCalibrateBtn');
+  if (maceCalBtn) maceCalBtn.addEventListener('click', maceCalibrate);
   maceStatusPoll();
   window.addEventListener('blur', maceReleaseAll);
   window.addEventListener('mouseup', maceReleaseAll);

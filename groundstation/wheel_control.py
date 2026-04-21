@@ -235,6 +235,15 @@ def _mace_fetch_status():
         return json.loads(resp.read().decode())
 
 
+def _mace_fetch_profile_state():
+    with urllib.request.urlopen(f"{GEODUDE_URL}/simplefoc/profile/state", timeout=2.0) as resp:
+        return json.loads(resp.read().decode())
+
+
+def _mace_start_calibration():
+    return _mace_post_jog("/simplefoc/profile/calibrate")
+
+
 def _mace_disable():
     return _mace_post_jog("/simplefoc/jog/stop")
 
@@ -250,9 +259,17 @@ def _mace_snapshot():
         snap["connected"] = False
         snap["simplefoc_error"] = str(exc)
         return snap
+    try:
+        profile = _mace_fetch_profile_state()
+    except Exception as exc:
+        profile = {"busy": False, "status": "error", "error": str(exc)}
     snap["connected"] = bool(sfoc.get("connected"))
     snap["simplefoc_target"] = sfoc.get("target")
     snap["simplefoc_live"] = bool(sfoc.get("live"))
+    snap["foc_ready"] = bool(sfoc.get("foc_ready"))
+    snap["calibrating"] = bool(profile.get("busy"))
+    snap["calibration_status"] = profile.get("status")
+    snap["calibration_error"] = profile.get("error")
     for key in ("active", "status", "error", "max_voltage", "accel_ramp", "brake_ramp"):
         if key in sfoc:
             snap[key] = sfoc.get(key)
@@ -776,6 +793,21 @@ def mace_jog_start():
         mace_jog_state["brake_ramp"] = brake_ramp
         mace_jog_state["last_heartbeat"] = time.monotonic()
         mace_jog_state["last_command_at"] = time.monotonic()
+    snap = _mace_snapshot()
+    if isinstance(remote, dict):
+        snap["geodude"] = remote
+    return jsonify({"ok": True, **snap})
+
+
+@app.route('/api/mace/calibrate', methods=['POST'])
+def mace_calibrate():
+    try:
+        remote = _mace_start_calibration()
+    except Exception as exc:
+        with mace_jog_lock:
+            mace_jog_state["status"] = "error"
+            mace_jog_state["error"] = str(exc)
+        return jsonify({"ok": False, "error": str(exc)}), 502
     snap = _mace_snapshot()
     if isinstance(remote, dict):
         snap["geodude"] = remote
