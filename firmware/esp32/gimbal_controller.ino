@@ -1,12 +1,14 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <ArduinoOTA.h>
+#include <Preferences.h>
 #include <TMCStepper.h>
 
 const char* ssid = "groundstation";
 const char* password = "Temp1234";
 
 WebServer server(80);
+Preferences prefs;
 
 #define TMC_RX_PIN 16
 #define TMC_TX_PIN 17
@@ -55,6 +57,46 @@ int motorRampSteps[4] = {0, 0, 0, 0};
 int motorMoveTotalSteps[4] = {0, 0, 0, 0};
 int stepsRemaining[4] = {0, 0, 0, 0};
 bool setupDone = false; // legacy, kept for /status but not required
+
+int clampRunCurrentMA(int ma) {
+  if (ma < 50) return 50;
+  if (ma > 2000) return 2000;
+  return ma;
+}
+
+int clampHoldCurrentMA(int ma) {
+  if (ma < 0) return 0;
+  if (ma > 2000) return 2000;
+  return ma;
+}
+
+int clampStepDelayUS(int us) {
+  if (us < 100) return 100;
+  if (us > 50000) return 50000;
+  return us;
+}
+
+int clampRampSteps(int steps) {
+  if (steps < 0) return 0;
+  if (steps > 5000) return 5000;
+  return steps;
+}
+
+void saveMotorConfig(int d) {
+  prefs.putInt(("cur" + String(d)).c_str(), motorCurrentMA[d]);
+  prefs.putInt(("ih" + String(d)).c_str(), motorIholdMA[d]);
+  prefs.putInt(("spd" + String(d)).c_str(), motorStepDelayUS[d]);
+  prefs.putInt(("rmp" + String(d)).c_str(), motorRampSteps[d]);
+}
+
+void loadMotorConfig() {
+  for (int i = 0; i < 4; i++) {
+    motorCurrentMA[i] = clampRunCurrentMA(prefs.getInt(("cur" + String(i)).c_str(), motorCurrentMA[i]));
+    motorIholdMA[i] = clampHoldCurrentMA(prefs.getInt(("ih" + String(i)).c_str(), motorIholdMA[i]));
+    motorStepDelayUS[i] = clampStepDelayUS(prefs.getInt(("spd" + String(i)).c_str(), motorStepDelayUS[i]));
+    motorRampSteps[i] = clampRampSteps(prefs.getInt(("rmp" + String(i)).c_str(), motorRampSteps[i]));
+  }
+}
 
 void initDrivers() {
   for (int i = 0; i < 4; i++) {
@@ -314,6 +356,7 @@ void handleMotorCurrent() {
     return;
   }
   motorCurrentMA[d] = ma;
+  saveMotorConfig(d);
   if (motorEnabled[d]) {
     applyIdleDriverCurrent(d);
   }
@@ -334,6 +377,7 @@ void handleMotorIhold() {
     return;
   }
   motorIholdMA[d] = ma;
+  saveMotorConfig(d);
   if (motorEnabled[d] && !motorRunning[d]) {
     applyIdleDriverCurrent(d);
   }
@@ -380,6 +424,10 @@ void handleSpeed() {
   if (us < 100) us = 100;
   if (us > 50000) us = 50000;
   stepDelay = us;
+  for (int i = 0; i < 4; i++) {
+    motorStepDelayUS[i] = us;
+    saveMotorConfig(i);
+  }
   sendJson("{\"ok\":true,\"step_delay\":" + String(stepDelay) + "}");
 }
 
@@ -398,6 +446,7 @@ void handleMotorSpeed() {
     return;
   }
   motorStepDelayUS[d] = us;
+  saveMotorConfig(d);
   sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"step_delay_us\":" + String(us) + "}");
 }
 
@@ -416,6 +465,7 @@ void handleMotorRamp() {
     return;
   }
   motorRampSteps[d] = steps;
+  saveMotorConfig(d);
   sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"ramp_steps\":" + String(steps) + "}");
 }
 
@@ -428,6 +478,7 @@ void handleCurrent() {
   }
   for (int i = 0; i < 4; i++) {
     motorCurrentMA[i] = ma;
+    saveMotorConfig(i);
     if (drivers[i]->version() == 0x21) {
       drivers[i]->rms_current(ma, 0.0f);
     }
@@ -454,6 +505,8 @@ void handleReboot() {
 void setup() {
   Serial.begin(115200);
   delay(500);
+  prefs.begin("gimbalcfg", false);
+  loadMotorConfig();
 
   for (int i = 0; i < 4; i++) {
     pinMode(drvPins[i].step, OUTPUT);
