@@ -48,17 +48,14 @@ MACE_JOG_MIN_VOLTAGE = 0.5
 MACE_JOG_MAX_VOLTAGE = 24.0
 MACE_JOG_MIN_RAMP = 0.1
 MACE_JOG_MAX_RAMP = 50.0
-MACE_JOG_HOLD_TIMEOUT_S = 0.25
 
+# Authoritative jog state lives on GEO-DUDe. This dict only caches the last
+# error surfaced to the UI. No watchdog here — GEO-DUDe owns the failsafe
+# (coast via D on heartbeat timeout).
 mace_jog_lock = threading.Lock()
 mace_jog_state = {
-    "active": None,   # "forward", "backward", "brake", or None
     "status": "idle",
     "error": None,
-    "max_voltage": 12.0,
-    "accel_ramp": 5.0,
-    "brake_ramp": 12.0,
-    "last_heartbeat": 0.0,
     "last_command_at": 0.0,
 }
 
@@ -235,13 +232,15 @@ def _mace_fetch_status():
         return json.loads(resp.read().decode())
 
 
-def _mace_fetch_profile_state():
-    with urllib.request.urlopen(f"{GEODUDE_URL}/simplefoc/profile/state", timeout=2.0) as resp:
+def _mace_fetch_calibrate_state():
+    with urllib.request.urlopen(f"{GEODUDE_URL}/simplefoc/calibrate/state", timeout=2.0) as resp:
         return json.loads(resp.read().decode())
 
 
 def _mace_start_calibration():
-    return _mace_post_jog("/simplefoc/profile/calibrate")
+    # Dedicated calibrate route — decoupled from the profile/tuning state
+    # machine so jog/start is no longer blocked by tuning busy flags.
+    return _mace_post_jog("/simplefoc/calibrate")
 
 
 def _mace_disable():
@@ -259,21 +258,24 @@ def _mace_snapshot():
         snap["connected"] = False
         snap["simplefoc_error"] = str(exc)
         return snap
-    try:
-        profile = _mace_fetch_profile_state()
-    except Exception as exc:
-        profile = {"busy": False, "status": "error", "error": str(exc)}
     snap["connected"] = bool(sfoc.get("connected"))
     snap["simplefoc_target"] = sfoc.get("target")
     snap["wheel_rpm"] = sfoc.get("wheel_rpm")
     snap["simplefoc_live"] = bool(sfoc.get("live"))
     snap["foc_ready"] = bool(sfoc.get("foc_ready"))
-    snap["calibrating"] = bool(profile.get("busy"))
-    snap["calibration_status"] = profile.get("status")
-    snap["calibration_error"] = profile.get("error")
     for key in ("active", "status", "error", "max_voltage", "accel_ramp", "brake_ramp"):
         if key in sfoc:
             snap[key] = sfoc.get(key)
+    # Only fetch calibrate state when we actually care (UI shows CALIBRATING).
+    # Cheap enough to always include; single extra HTTP hop. Fold into the
+    # same request-side try so a geodude blip doesn't kill the snapshot.
+    try:
+        cal = _mace_fetch_calibrate_state()
+    except Exception as exc:
+        cal = {"busy": False, "status": "error", "error": str(exc)}
+    snap["calibrating"] = bool(cal.get("busy"))
+    snap["calibration_status"] = cal.get("status")
+    snap["calibration_error"] = cal.get("error")
     return snap
 
 
@@ -737,28 +739,6 @@ def system_stats():
     return jsonify({"groundstation": gs, "geodude": gd})
 
 
-def mace_jog_watchdog_loop():
-    while True:
-        time.sleep(0.05)
-        with mace_jog_lock:
-            active = mace_jog_state["active"]
-            last_heartbeat = mace_jog_state["last_heartbeat"]
-        if not active:
-            continue
-        if time.monotonic() - last_heartbeat <= MACE_JOG_HOLD_TIMEOUT_S:
-            continue
-        try:
-            _mace_disable()
-            error = None
-        except Exception as exc:
-            error = str(exc)
-        with mace_jog_lock:
-            mace_jog_state["active"] = None
-            mace_jog_state["status"] = "watchdog stop" if error is None else "watchdog error"
-            mace_jog_state["error"] = error
-            mace_jog_state["last_command_at"] = time.monotonic()
-
-
 @app.route('/api/mace/jog/status')
 def mace_jog_status():
     return jsonify(_mace_snapshot())
@@ -784,15 +764,11 @@ def mace_jog_start():
         with mace_jog_lock:
             mace_jog_state["status"] = "error"
             mace_jog_state["error"] = str(exc)
+            mace_jog_state["last_command_at"] = time.monotonic()
         return jsonify({"ok": False, "error": str(exc)}), 502
     with mace_jog_lock:
-        mace_jog_state["active"] = direction
         mace_jog_state["status"] = "running"
         mace_jog_state["error"] = None
-        mace_jog_state["max_voltage"] = max_voltage
-        mace_jog_state["accel_ramp"] = accel_ramp
-        mace_jog_state["brake_ramp"] = brake_ramp
-        mace_jog_state["last_heartbeat"] = time.monotonic()
         mace_jog_state["last_command_at"] = time.monotonic()
     snap = _mace_snapshot()
     if isinstance(remote, dict):
@@ -817,13 +793,11 @@ def mace_calibrate():
 
 @app.route('/api/mace/jog/heartbeat', methods=['POST'])
 def mace_jog_heartbeat():
+    # Groundstation is a dumb proxy for heartbeats: forward to GEO-DUDe which
+    # owns the watchdog. No local "active" mirror — the browser and the
+    # watchdog are authoritative.
     data = request.json or {}
     direction = str(data.get("direction", "")).lower()
-    with mace_jog_lock:
-        if direction and mace_jog_state["active"] and direction != mace_jog_state["active"]:
-            return jsonify({"ok": False, "error": "active direction mismatch"}), 409
-        if not mace_jog_state["active"]:
-            return jsonify({"ok": False, "error": "no active hold"}), 409
     try:
         remote = _mace_post_jog("/simplefoc/jog/heartbeat", {"direction": direction})
     except Exception as exc:
@@ -832,8 +806,6 @@ def mace_jog_heartbeat():
             mace_jog_state["error"] = str(exc)
             mace_jog_state["last_command_at"] = time.monotonic()
         return jsonify({"ok": False, "error": str(exc)}), 502
-    with mace_jog_lock:
-        mace_jog_state["last_heartbeat"] = time.monotonic()
     return jsonify({"ok": True, "remote_status": remote.get("status")})
 
 
@@ -845,7 +817,6 @@ def mace_jog_stop():
     except Exception as exc:
         error = str(exc)
     with mace_jog_lock:
-        mace_jog_state["active"] = None
         mace_jog_state["status"] = "idle" if error is None else "error"
         mace_jog_state["error"] = error
         mace_jog_state["last_command_at"] = time.monotonic()
@@ -1084,7 +1055,6 @@ def start_background_threads():
     threading.Thread(target=_servo_ramp_loop, daemon=True).start()
     threading.Thread(target=sensor_loop, daemon=True).start()
     threading.Thread(target=positions_flush_loop, daemon=True).start()
-    threading.Thread(target=mace_jog_watchdog_loop, daemon=True).start()
 
 def main(port=8080):
     dev = os.environ.get('WHEEL_CONTROL_DEV') == '1'

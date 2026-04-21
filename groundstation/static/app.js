@@ -1368,13 +1368,12 @@ function maceRenderStatus(d) {
 }
 
 function maceStatusPoll() {
+  // Display-only. Do NOT mutate maceJogActive from the server snapshot:
+  // the browser is authoritative about "finger is down", and the GEO-DUDe
+  // watchdog is authoritative about "motor is coasting". Nulling local
+  // state from a stale poll cancels live holds mid-press.
   fetch('/api/mace/jog/status').then(function(r) { return r.json(); }).then(function(d) {
     maceRenderStatus(d);
-    if (!d.active && maceJogActive) {
-      maceJogActive = null;
-      maceSetButtons(null);
-      maceStopHeartbeat();
-    }
   }).catch(function() {});
 }
 
