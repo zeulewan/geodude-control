@@ -75,6 +75,20 @@ def get_pico():
         return pico_serial
 
 
+def _simplefoc_fire_and_forget_locked(ser, cmd):
+    """Write a command and return immediately, without draining replies.
+    Used on the jog hot path (T, E, D) where firmware produces no output
+    while armed and where we accept losing an ERR reply in exchange for
+    latency. Any status line the firmware emits will be picked up by the
+    next actual read (status poll, calibrate, etc.). Caller MUST hold
+    pico_lock."""
+    cmd = str(cmd).strip()
+    if not cmd:
+        return
+    ser.write((cmd + "\n").encode())
+    ser.flush()
+
+
 def _simplefoc_exchange_locked(ser, cmd, read_for=0.2):
     cmd = str(cmd).strip()
     if not cmd:
@@ -197,13 +211,23 @@ def _rw_log(event, **fields):
 def _simplefoc_jog_disable(status="idle", error=None):
     """Coast via firmware `D` (disable drivers). This is the release/watchdog
     failsafe: coast, never active brake."""
-    global simplefoc_last_stop_seq, simplefoc_cmd_counter
+    global simplefoc_last_stop_seq, simplefoc_cmd_counter, pico_serial
     t0 = time.monotonic()
     with simplefoc_jog_lock:
         simplefoc_cmd_counter += 1
         simplefoc_last_stop_seq = simplefoc_cmd_counter
         prev_active = simplefoc_jog_state["active"]
-    simplefoc_send("D")
+    # Fire-and-forget D. Release must be snappy; firmware emits nothing we
+    # need to read synchronously.
+    try:
+        ser = get_pico()
+        if ser is not None:
+            with pico_lock:
+                _simplefoc_fire_and_forget_locked(ser, "D")
+    except Exception as e:
+        with pico_lock:
+            pico_serial = None
+        _simplefoc_cache_status(error=e)
     with simplefoc_jog_lock:
         simplefoc_jog_state["active"] = None
         simplefoc_jog_state["status"] = status
@@ -258,10 +282,8 @@ def _simplefoc_jog_start(direction, max_voltage, accel_ramp, brake_ramp):
         if simplefoc_pushed["ramp"] != rstr:
             pending.append((f"R{rstr}", 0.03))
 
-        for cmd, delay in pending:
-            _lines, _status, err = _simplefoc_exchange_locked(ser, cmd, read_for=delay)
-            if err:
-                raise RuntimeError(err)
+        for cmd, _delay in pending:
+            _simplefoc_fire_and_forget_locked(ser, cmd)
         if pending:
             simplefoc_pushed["mode"] = "rate"
             simplefoc_pushed["voltage"] = vstr
@@ -280,11 +302,13 @@ def _simplefoc_jog_start(direction, max_voltage, accel_ramp, brake_ramp):
                     elapsed_ms=round((time.monotonic()-t0)*1000, 1))
             raise RuntimeError("preempted by release")
 
-        # Hot path: T then E. Two chars, ~50ms under pico_lock.
-        for cmd, delay in ((f"T{target:.5f}", 0.02), ("E", 0.05)):
-            _lines, _status, err = _simplefoc_exchange_locked(ser, cmd, read_for=delay)
-            if err:
-                raise RuntimeError(err)
+        # Hot path: T then E. Fire-and-forget — firmware produces no reply
+        # while armed, and we want pico_lock held for milliseconds not tens
+        # of ms. If the firmware rejects (unlikely since we checked
+        # foc_ready), the next status poll will show armed=false and the
+        # user can retry. Watchdog still owns the safety net.
+        _simplefoc_fire_and_forget_locked(ser, f"T{target:.5f}")
+        _simplefoc_fire_and_forget_locked(ser, "E")
 
     with simplefoc_jog_lock:
         # Only claim active if no newer stop arrived during T+E.
