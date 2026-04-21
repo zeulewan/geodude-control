@@ -12,16 +12,21 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
 }
 .header h1 {
   font-size: 18px;
   font-weight: 700;
   letter-spacing: 1px;
+  flex: 0 0 auto;
 }
 .header-status {
   display: flex;
   gap: 20px;
   align-items: center;
+  min-width: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 .status-indicator {
   display: flex;
@@ -29,6 +34,8 @@ body {
   gap: 6px;
   font-size: 13px;
   color: #9ca3af;
+  min-width: 0;
+  white-space: nowrap;
 }
 .status-dot {
   width: 10px;
@@ -84,17 +91,28 @@ body {
   border: 1px solid #243045;
   border-radius: 6px;
   padding: 6px 8px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
 .mace-stat .label {
   color: #6b7280;
   font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 0.4px;
+  min-width: 0;
 }
 .mace-stat .value {
   color: #f9fafb;
   font-size: 14px;
   font-variant-numeric: tabular-nums;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: right;
 }
 .mace-slider-group {
   margin-bottom: 0;
@@ -102,6 +120,11 @@ body {
 .mace-btn-row {
   margin-top: 0;
   gap: 6px;
+}
+.mace-btn-row .btn {
+  flex: 1 1 0;
+  min-width: 0;
+  white-space: nowrap;
 }
 .mace-btn-row .btn.active {
   box-shadow: inset 0 0 0 2px rgba(248, 250, 252, 0.9);
@@ -111,6 +134,7 @@ body {
   color: #9ca3af;
   font-size: 11px;
   line-height: 1.35;
+  min-height: 30px;
 }
 .mace-test-summary .stat {
   background: #0f141f;
@@ -205,6 +229,8 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
+  flex: 0 0 auto;
 }
 .camera-toggle-label {
   font-size: 11px;
@@ -212,6 +238,7 @@ body {
   letter-spacing: 0.6px;
   text-transform: uppercase;
   color: #22c55e;
+  white-space: nowrap;
 }
 .cam-off-overlay {
   position: absolute;
@@ -638,8 +665,10 @@ select {
   gap: 12px;
 }
 .sys-item {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
   padding: 6px 0;
   font-size: 13px;
 }
@@ -647,10 +676,14 @@ select {
 .sys-item .value {
   font-family: 'SF Mono', 'Fira Code', monospace;
   font-weight: 600;
+  white-space: nowrap;
+  text-align: right;
 }
 .status-row {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
   font-size: 12px;
   padding: 2px 0;
 }
@@ -658,6 +691,8 @@ select {
 .status-row .value {
   font-family: 'SF Mono', 'Fira Code', monospace;
   font-weight: 600;
+  white-space: nowrap;
+  text-align: right;
 }
 #motorError {
   color: #ef4444;
@@ -698,6 +733,7 @@ select {
   gap: 6px;
   flex-wrap: wrap;
   margin-top: 8px;
+  align-items: stretch;
 }
 .btn-hold.armed {
   background: #1e3a5f;
@@ -738,8 +774,10 @@ input[type="range"]::-moz-range-thumb {
   margin-bottom: 6px;
 }
 .slider-label {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
   font-size: 11px;
   margin-bottom: 2px;
 }
@@ -747,6 +785,8 @@ input[type="range"]::-moz-range-thumb {
 .slider-label .value {
   font-family: 'SF Mono', 'Fira Code', monospace;
   color: #e0e6f0;
+  white-space: nowrap;
+  text-align: right;
 }
 
 .controller-grid {
@@ -755,8 +795,10 @@ input[type="range"]::-moz-range-thumb {
   gap: 4px 12px;
 }
 .controller-stat {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
   font-size: 12px;
   padding: 2px 0;
 }
@@ -766,6 +808,8 @@ input[type="range"]::-moz-range-thumb {
 .controller-stat .value {
   font-family: 'SF Mono', 'Fira Code', monospace;
   font-weight: 600;
+  white-space: nowrap;
+  text-align: right;
 }
 .controller-help {
   margin-top: 10px;
@@ -976,6 +1020,10 @@ input[type="number"]::-webkit-outer-spin-button {
   flex-wrap: wrap;
   margin-bottom: 8px;
 }
+.gimbal-global-bar .btn,
+.gimbal-global-bar .btn-estop {
+  white-space: nowrap;
+}
 .gimbal-global-status {
   font-size: 12px;
   color: #9ca3af;
@@ -1016,8 +1064,10 @@ input[type="number"]::-webkit-outer-spin-button {
   margin: 6px 0;
 }
 .motor-slider-label {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
   font-size: 11px;
   margin-bottom: 2px;
 }
@@ -1026,6 +1076,8 @@ input[type="number"]::-webkit-outer-spin-button {
   font-family: 'SF Mono', 'Fira Code', monospace;
   color: #e0e6f0;
   font-size: 11px;
+  white-space: nowrap;
+  text-align: right;
 }
 
 /* Driver card position display */
@@ -1109,6 +1161,11 @@ input[type="number"]::-webkit-outer-spin-button {
   gap: 6px;
   margin-top: 8px;
   align-items: center;
+  flex-wrap: wrap;
+}
+.seq-btn-row .btn,
+.seq-btn-row .btn-seq-run {
+  white-space: nowrap;
 }
 .btn-seq-run {
   background: #22c55e;
