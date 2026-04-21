@@ -187,13 +187,22 @@ def _simplefoc_jog_snapshot():
     return snap
 
 
+def _rw_log(event, **fields):
+    """Structured jog-path log. Grep with: journalctl -u sensor-server -f | grep '\\[rw\\]'
+    Fields are key=value, space-separated, sorted by key for stable output."""
+    parts = [f"{k}={fields[k]}" for k in sorted(fields)]
+    print(f"[rw] {event} " + " ".join(parts), flush=True)
+
+
 def _simplefoc_jog_disable(status="idle", error=None):
     """Coast via firmware `D` (disable drivers). This is the release/watchdog
     failsafe: coast, never active brake."""
     global simplefoc_last_stop_seq, simplefoc_cmd_counter
+    t0 = time.monotonic()
     with simplefoc_jog_lock:
         simplefoc_cmd_counter += 1
         simplefoc_last_stop_seq = simplefoc_cmd_counter
+        prev_active = simplefoc_jog_state["active"]
     simplefoc_send("D")
     with simplefoc_jog_lock:
         simplefoc_jog_state["active"] = None
@@ -201,10 +210,13 @@ def _simplefoc_jog_disable(status="idle", error=None):
         simplefoc_jog_state["error"] = error
         simplefoc_jog_state["simplefoc_target"] = 0.0
         simplefoc_jog_state["last_command_at"] = time.monotonic()
+    _rw_log("coast", reason=status, prev=prev_active, err=error,
+            stop_seq=simplefoc_last_stop_seq, elapsed_ms=round((time.monotonic()-t0)*1000, 1))
 
 
 def _simplefoc_jog_start(direction, max_voltage, accel_ramp, brake_ramp):
     global simplefoc_cmd_counter
+    t0 = time.monotonic()
     target = 0.0
     if direction == "forward":
         target = SIMPLEFOC_JOG_MAX_RAD_S
@@ -263,6 +275,9 @@ def _simplefoc_jog_start(direction, max_voltage, accel_ramp, brake_ramp):
             # Belt-and-suspenders: ensure coast even if the release's D
             # somehow landed before our lock acquire.
             _simplefoc_exchange_locked(ser, "D", read_for=0.02)
+            _rw_log("preempt", phase="pre_TE", direction=direction, my_seq=my_seq,
+                    stop_seq=simplefoc_last_stop_seq,
+                    elapsed_ms=round((time.monotonic()-t0)*1000, 1))
             raise RuntimeError("preempted by release")
 
         # Hot path: T then E. Two chars, ~50ms under pico_lock.
@@ -289,7 +304,15 @@ def _simplefoc_jog_start(direction, max_voltage, accel_ramp, brake_ramp):
             simplefoc_jog_state["last_command_at"] = time.monotonic()
     if needs_coast:
         simplefoc_send("D")
+        _rw_log("preempt", phase="post_TE", direction=direction, my_seq=my_seq,
+                stop_seq=simplefoc_last_stop_seq,
+                elapsed_ms=round((time.monotonic()-t0)*1000, 1))
         raise RuntimeError("preempted by release")
+    _rw_log("hold_start", direction=direction, target=round(target, 3),
+            v=max_voltage, ramp=round(ramp, 3),
+            pushed=len(pending),
+            my_seq=my_seq,
+            elapsed_ms=round((time.monotonic()-t0)*1000, 1))
 
 
 def simplefoc_jog_watchdog_loop():
@@ -300,8 +323,10 @@ def simplefoc_jog_watchdog_loop():
             last_heartbeat = simplefoc_jog_state["last_heartbeat"]
         if not active:
             continue
-        if time.monotonic() - last_heartbeat <= SIMPLEFOC_JOG_TIMEOUT_S:
+        stale_ms = round((time.monotonic() - last_heartbeat) * 1000, 0)
+        if stale_ms <= SIMPLEFOC_JOG_TIMEOUT_S * 1000:
             continue
+        _rw_log("watchdog_trip", active=active, stale_ms=stale_ms)
         try:
             _simplefoc_jog_disable(status="watchdog stop", error=None)
         except Exception as exc:
@@ -310,6 +335,7 @@ def simplefoc_jog_watchdog_loop():
                 simplefoc_jog_state["status"] = "watchdog error"
                 simplefoc_jog_state["error"] = str(exc)
                 simplefoc_jog_state["last_command_at"] = time.monotonic()
+            _rw_log("watchdog_err", err=str(exc))
 
 sensor_data = {
     "ax": 0, "ay": 0, "az": 0,
@@ -757,6 +783,8 @@ def _simplefoc_calibrate_worker():
     Decoupled from the tuning/profile subsystem so calibration and jog state
     don't cross-contaminate. Total wall time up to ~10s on a slow calibration.
     """
+    t0 = time.monotonic()
+    _rw_log("calibrate_start")
     ser = get_pico()
     if ser is None:
         with simplefoc_calibrate_lock:
@@ -801,11 +829,15 @@ def _simplefoc_calibrate_worker():
             simplefoc_calibrate_state["busy"] = False
             simplefoc_calibrate_state["status"] = status
             simplefoc_calibrate_state["error"] = err
+        _rw_log("calibrate_done", status=status, err=err,
+                elapsed_ms=round((time.monotonic()-t0)*1000, 0))
     except Exception as exc:
         with simplefoc_calibrate_lock:
             simplefoc_calibrate_state["busy"] = False
             simplefoc_calibrate_state["status"] = "error"
             simplefoc_calibrate_state["error"] = str(exc)
+        _rw_log("calibrate_done", status="error", err=str(exc),
+                elapsed_ms=round((time.monotonic()-t0)*1000, 0))
 
 
 @app.route("/simplefoc/calibrate", methods=["POST"])
