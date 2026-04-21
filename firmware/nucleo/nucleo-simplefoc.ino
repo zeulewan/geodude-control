@@ -234,6 +234,15 @@ void start_live_control() {
   last_update_us = micros();
   motor.controller = live_mode == 1 ? MotionControlType::torque : MotionControlType::velocity;
   motor.torque_controller = TorqueControlType::voltage;
+  // Sync current_target (the ramped setpoint) to actual encoder velocity so
+  // we don't brake-pulse when re-enabling into a still-coasting wheel. In
+  // velocity mode the ramp then continues cleanly from the real speed toward
+  // run_target. In torque mode this is harmless; current_target will be
+  // overwritten by U on the next command.
+  encoder.update();
+  if (live_mode == 0) {
+    current_target = encoder.getVelocity();
+  }
   profile_phase = live_mode == 1 ? 7 : 6;
   motor.enable();
   armed = true;
@@ -319,7 +328,9 @@ void process_command(String cmd, bool allow_status) {
     run_target = constrain(cmd.substring(1).toFloat(), -250.0f, 250.0f);
     if (allow_status) print_status("target_set");
   } else if (cmd.startsWith("R")) {
-    run_ramp = constrain(cmd.substring(1).toFloat(), 0.01f, 50.0f);
+    // Ramp cap raised so R can be used as "step" (~2000 rad/s^2 => <30ms to
+    // full target): gives punch off the line at the cost of smoothness.
+    run_ramp = constrain(cmd.substring(1).toFloat(), 0.01f, 2000.0f);
     if (allow_status) print_status("ramp_set");
   } else if (cmd.startsWith("U")) {
     run_torque = constrain(cmd.substring(1).toFloat(), -24.0f, 24.0f);

@@ -47,7 +47,7 @@ MACE_JOG_MAX_RAD_S = MACE_JOG_MAX_RPM * 2.0 * 3.141592653589793 / 60.0
 MACE_JOG_MIN_VOLTAGE = 0.5
 MACE_JOG_MAX_VOLTAGE = 24.0
 MACE_JOG_MIN_RAMP = 0.1
-MACE_JOG_MAX_RAMP = 50.0
+MACE_JOG_MAX_RAMP = 2000.0  # ~30ms to full target = effectively a step
 
 # Authoritative jog state lives on GEO-DUDe. This dict only caches the last
 # error surfaced to the UI. No watchdog here — GEO-DUDe owns the failsafe
