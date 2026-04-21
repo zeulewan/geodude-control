@@ -240,9 +240,9 @@ def r16(addr, reg):
 
 def sensor_loop():
     ads = ADS1115(bus, ADS1115_ADDR)
-    with lock:
-        bus.write_byte_data(0x69, 0x06, 0x01)
-    time.sleep(0.05)
+    imu_ready = False
+    imu_warned = False
+    last_imu_error = None
     offset_a = OFFSET_A_V
     offset_b = OFFSET_B_V
     amp_a = 1.0
@@ -254,15 +254,39 @@ def sensor_loop():
     rpm_buf = []
     while True:
         try:
+            if not imu_ready:
+                try:
+                    with lock:
+                        bus.write_byte_data(0x69, 0x06, 0x01)
+                    time.sleep(0.05)
+                    imu_ready = True
+                    imu_warned = False
+                    last_imu_error = None
+                except Exception as e:
+                    imu_ready = False
+                    last_imu_error = e
+                    if not imu_warned:
+                        print("sensor_loop IMU unavailable; continuing without IMU: %s" % e, flush=True)
+                        imu_warned = True
             with lock:
-                ax = r16(0x69, 0x2D) / 16384.0
-                ay = r16(0x69, 0x2F) / 16384.0
-                az = r16(0x69, 0x31) / 16384.0
-                gx = r16(0x69, 0x33) / 131.0
-                gy = r16(0x69, 0x35) / 131.0
-                gz = r16(0x69, 0x37) / 131.0
                 va = ads.read_voltage(0)
                 vb = ads.read_voltage(1)
+            ax = ay = az = gx = gy = gz = 0.0
+            imu_ok = False
+            if imu_ready:
+                try:
+                    with lock:
+                        ax = r16(0x69, 0x2D) / 16384.0
+                        ay = r16(0x69, 0x2F) / 16384.0
+                        az = r16(0x69, 0x31) / 16384.0
+                        gx = r16(0x69, 0x33) / 131.0
+                        gy = r16(0x69, 0x35) / 131.0
+                        gz = r16(0x69, 0x37) / 131.0
+                    imu_ok = True
+                except Exception as e:
+                    imu_ready = False
+                    last_imu_error = e
+                    print("sensor_loop IMU read failed; retrying init: %s" % e, flush=True)
             centered_a = va - offset_a
             centered_b = vb - offset_b
             amp_a = max(MIN_SIGNAL_V, (1.0 - AMP_ALPHA) * amp_a + AMP_ALPHA * abs(centered_a))
@@ -311,11 +335,15 @@ def sensor_loop():
                 "analog_mechanical_deg": round(angle, 2),
                 "i2c_ok": True,
                 "ads_ok": True,
-                "imu_ok": True,
+                "imu_ok": imu_ok,
             })
         except Exception as e:
             print("sensor_loop error: %s" % e, flush=True)
-            sensor_data.update({"i2c_ok": False, "ads_ok": False, "imu_ok": False})
+            sensor_data.update({
+                "i2c_ok": False,
+                "ads_ok": False,
+                "imu_ok": imu_ready and last_imu_error is None,
+            })
         time.sleep(0.033)
 
 # --- API ---
