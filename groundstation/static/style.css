@@ -1079,6 +1079,24 @@ input[type="number"]::-webkit-outer-spin-button {
   white-space: nowrap;
   text-align: right;
 }
+.motor-mode-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 8px 0 4px;
+}
+.motor-mode-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+.motor-mode-toggle .label {
+  color: #6b7280;
+  font-size: 11px;
+  white-space: nowrap;
+}
 
 /* Driver card position display */
 .motor-position {

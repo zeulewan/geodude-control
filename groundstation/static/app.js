@@ -1624,6 +1624,22 @@ function gimbalSetMotorRamp(driver, steps) {
   });
 }
 
+function gimbalSetMotorStealthChop(driver, enabled) {
+  fetch('/api/gimbal/motor_stealthchop', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({driver: driver, enabled: !!enabled})
+  });
+}
+
+function gimbalSetMotorInterpolation(driver, enabled) {
+  fetch('/api/gimbal/motor_interpolation', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({driver: driver, enabled: !!enabled})
+  });
+}
+
 function gimbalPoll() {
   fetch('/api/gimbal/status').then(function(r) { return r.json(); }).then(function(d) {
     if (d.error) {
@@ -1691,6 +1707,10 @@ function gimbalPoll() {
         html += '<div class="motor-slider-group">';
         html += '<div class="motor-slider-label"><span class="label">Ramp</span><span class="value" id="motorRampLabel_' + i + '">' + (drv.ramp_steps || 0) + ' steps</span></div>';
         html += '<input type="range" id="motorRampSlider_' + i + '" min="0" max="2000" step="10" value="' + (drv.ramp_steps || 0) + '" oninput="gimbalSetMotorRamp(' + i + ', this.value)">';
+        html += '</div>';
+        html += '<div class="motor-mode-row">';
+        html += '<div class="motor-mode-toggle"><span class="label">StealthChop</span><label class="toggle-switch"><input type="checkbox" id="motorStealthToggle_' + i + '"' + (drv.stealthchop !== false ? ' checked' : '') + ' onchange="gimbalSetMotorStealthChop(' + i + ', this.checked)"><span class="toggle-slider"></span></label></div>';
+        html += '<div class="motor-mode-toggle"><span class="label">Interpolation</span><label class="toggle-switch"><input type="checkbox" id="motorInterpToggle_' + i + '"' + (drv.interpolation !== false ? ' checked' : '') + ' onchange="gimbalSetMotorInterpolation(' + i + ', this.checked)"><span class="toggle-slider"></span></label></div>';
         html += '</div>';
 
         if (!isBelt) {
@@ -1775,6 +1795,8 @@ function gimbalPoll() {
         if (drv.ihold_ma != null) parts.push('iHold: ' + drv.ihold_ma + 'mA');
         if (drv.step_delay_us != null) parts.push('Speed: ' + drv.step_delay_us + 'us');
         if (drv.ramp_steps != null) parts.push('Ramp: ' + drv.ramp_steps + 'st');
+        if (drv.stealthchop != null) parts.push('SC: ' + (drv.stealthchop ? 'ON' : 'OFF'));
+        if (drv.interpolation != null) parts.push('INTP: ' + (drv.interpolation ? 'ON' : 'OFF'));
         if (drv.steps_remaining != null) parts.push('Rem: ' + drv.steps_remaining);
         if (drv.standstill != null) parts.push(drv.standstill ? 'STBY' : 'MOVE');
         statsEl.textContent = parts.join(' | ');
@@ -1806,6 +1828,14 @@ function gimbalPoll() {
         rampSlider.value = drv.ramp_steps;
         var rampLabel = document.getElementById('motorRampLabel_' + i);
         if (rampLabel) rampLabel.textContent = drv.ramp_steps + ' steps';
+      }
+      var stealthToggle = document.getElementById('motorStealthToggle_' + i);
+      if (stealthToggle && !stealthToggle.matches(':active') && drv.stealthchop != null) {
+        stealthToggle.checked = !!drv.stealthchop;
+      }
+      var interpToggle = document.getElementById('motorInterpToggle_' + i);
+      if (interpToggle && !interpToggle.matches(':active') && drv.interpolation != null) {
+        interpToggle.checked = !!drv.interpolation;
       }
 
       /* Gear info */

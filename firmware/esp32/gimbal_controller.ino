@@ -41,6 +41,8 @@ bool driverFound[4] = {false, false, false, false};  // Cached from last version
 // Per-motor configuration
 int motorCurrentMA[4] = {400, 400, 400, 400};
 int motorIholdMA[4] = {0, 0, 0, 0};
+bool motorStealthChop[4] = {true, true, true, true};
+bool motorInterpolation[4] = {true, true, true, true};
 bool motorEnabled[4] = {false, false, false, false};
 
 // Gear ratios and angle conversion
@@ -87,6 +89,8 @@ void saveMotorConfig(int d) {
   prefs.putInt(("ih" + String(d)).c_str(), motorIholdMA[d]);
   prefs.putInt(("spd" + String(d)).c_str(), motorStepDelayUS[d]);
   prefs.putInt(("rmp" + String(d)).c_str(), motorRampSteps[d]);
+  prefs.putBool(("stl" + String(d)).c_str(), motorStealthChop[d]);
+  prefs.putBool(("int" + String(d)).c_str(), motorInterpolation[d]);
 }
 
 void loadMotorConfig() {
@@ -95,7 +99,16 @@ void loadMotorConfig() {
     motorIholdMA[i] = clampHoldCurrentMA(prefs.getInt(("ih" + String(i)).c_str(), motorIholdMA[i]));
     motorStepDelayUS[i] = clampStepDelayUS(prefs.getInt(("spd" + String(i)).c_str(), motorStepDelayUS[i]));
     motorRampSteps[i] = clampRampSteps(prefs.getInt(("rmp" + String(i)).c_str(), motorRampSteps[i]));
+    motorStealthChop[i] = prefs.getBool(("stl" + String(i)).c_str(), motorStealthChop[i]);
+    motorInterpolation[i] = prefs.getBool(("int" + String(i)).c_str(), motorInterpolation[i]);
   }
+}
+
+void applyDriverMode(int d) {
+  drivers[d]->microsteps(16);
+  drivers[d]->intpol(motorInterpolation[d]);
+  drivers[d]->en_spreadCycle(!motorStealthChop[d]);
+  drivers[d]->pwm_autoscale(true);
 }
 
 void initDrivers() {
@@ -105,10 +118,9 @@ void initDrivers() {
     driverFound[i] = false;
   }
   delay(100);
-  // Aggressively disable all drivers: SpreadCycle + toff(0)
+  // Aggressively disable all drivers with the saved chopper/interpolation mode.
   for (int i = 0; i < 4; i++) {
-    drivers[i]->en_spreadCycle(false);
-    drivers[i]->pwm_autoscale(true);
+    applyDriverMode(i);
     drivers[i]->toff(0);
     motorEnabled[i] = false;
   }
@@ -129,6 +141,10 @@ bool sendBusyIfStepping(int targetDriver) {
     return true;
   }
   return false;
+}
+
+bool parseEnabledArg(const String& value) {
+  return value.equalsIgnoreCase("1") || value.equalsIgnoreCase("true") || value.equalsIgnoreCase("on");
 }
 
 void applyIdleDriverCurrent(int d) {
@@ -208,6 +224,8 @@ void handleStatus() {
       ",\"found\":" + String(found ? "true" : "false") +
       ",\"running\":" + String(motorRunning[i] ? "true" : "false") +
       ",\"enabled\":" + String(motorEnabled[i] ? "true" : "false") +
+      ",\"stealthchop\":" + String(motorStealthChop[i] ? "true" : "false") +
+      ",\"interpolation\":" + String(motorInterpolation[i] ? "true" : "false") +
       ",\"dir\":\"" + String(motorDir[i] ? "CW" : "CCW") + "\"" +
       ",\"steps_remaining\":" + String(stepsRemaining[i]) +
       ",\"step_delay_us\":" + String(motorStepDelayUS[i]) +
@@ -219,6 +237,8 @@ void handleStatus() {
       ",\"steps_per_deg\":" + String(stepsPerDeg[i], 4);
     if (found && !stepping) {
       r += ",\"microsteps\":" + String(drivers[i]->microsteps()) +
+        ",\"actual_stealthchop\":" + String(drivers[i]->en_spreadCycle() ? "false" : "true") +
+        ",\"actual_interpolation\":" + String(drivers[i]->intpol() ? "true" : "false") +
         ",\"rms_current\":" + String(drivers[i]->rms_current()) +
         ",\"irun\":" + String(drivers[i]->irun()) +
         ",\"ihold\":" + String(drivers[i]->ihold()) +
@@ -249,9 +269,7 @@ void handleSetup() {
     if (drivers[i]->version() == 0x21) {
       drivers[i]->toff(4);
       drivers[i]->rms_current(motorCurrentMA[i], 0.0f);
-      drivers[i]->microsteps(16);
-      drivers[i]->en_spreadCycle(false);
-      drivers[i]->pwm_autoscale(true);
+      applyDriverMode(i);
       drivers[i]->GSTAT(0x07);
       drivers[i]->toff(0);
       configured++;
@@ -320,9 +338,7 @@ void handleEnable() {
   // Full driver configuration on enable
   motorEnabled[d] = true;
   drivers[d]->toff(4);
-  drivers[d]->microsteps(16);
-  drivers[d]->en_spreadCycle(false);
-  drivers[d]->pwm_autoscale(true);
+  applyDriverMode(d);
   drivers[d]->GSTAT(0x07);
   applyIdleDriverCurrent(d);
   sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"enabled\":true}");
@@ -469,6 +485,36 @@ void handleMotorRamp() {
   sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"ramp_steps\":" + String(steps) + "}");
 }
 
+void handleMotorStealthChop() {
+  int d = server.arg("d").toInt();
+  if (sendBusyIfStepping(d)) return;
+  if (d < 0 || d >= 4) {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid driver\"}");
+    return;
+  }
+  bool enabled = parseEnabledArg(server.arg("enabled"));
+  motorStealthChop[d] = enabled;
+  saveMotorConfig(d);
+  applyDriverMode(d);
+  sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"stealthchop\":" + String(enabled ? "true" : "false") + "}");
+}
+
+void handleMotorInterpolation() {
+  int d = server.arg("d").toInt();
+  if (sendBusyIfStepping(d)) return;
+  if (d < 0 || d >= 4) {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid driver\"}");
+    return;
+  }
+  bool enabled = parseEnabledArg(server.arg("enabled"));
+  motorInterpolation[d] = enabled;
+  saveMotorConfig(d);
+  applyDriverMode(d);
+  sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"interpolation\":" + String(enabled ? "true" : "false") + "}");
+}
+
 void handleCurrent() {
   int ma = server.arg("ma").toInt();
   if (ma < 50 || ma > 2000) {
@@ -545,6 +591,8 @@ void setup() {
   server.on("/motor_ihold", handleMotorIhold);
   server.on("/motor_speed", handleMotorSpeed);
   server.on("/motor_ramp", handleMotorRamp);
+  server.on("/motor_stealthchop", handleMotorStealthChop);
+  server.on("/motor_interpolation", handleMotorInterpolation);
   server.on("/estop", handleEstop);
   server.on("/stop", handleStop);
   server.on("/stop_all", handleStopAll);
@@ -570,8 +618,7 @@ void checkDriverPower() {
   if (anyFound && !driversInitialized) {
     // 24V just came on — immediately disable all drivers
     for (int i = 0; i < 4; i++) {
-      drivers[i]->en_spreadCycle(false);
-      drivers[i]->pwm_autoscale(true);
+      applyDriverMode(i);
       drivers[i]->toff(0);
       motorEnabled[i] = false;
     }

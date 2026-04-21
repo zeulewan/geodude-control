@@ -918,6 +918,22 @@ def gimbal_motor_ramp():
     return jsonify(data), code
 
 
+@app.route('/api/gimbal/motor_stealthchop', methods=['POST'])
+def gimbal_motor_stealthchop():
+    d = request.json.get("driver", 0)
+    enabled = 1 if request.json.get("enabled", True) else 0
+    data, code = gimbal_get(f"motor_stealthchop?d={d}&enabled={enabled}")
+    return jsonify(data), code
+
+
+@app.route('/api/gimbal/motor_interpolation', methods=['POST'])
+def gimbal_motor_interpolation():
+    d = request.json.get("driver", 0)
+    enabled = 1 if request.json.get("enabled", True) else 0
+    data, code = gimbal_get(f"motor_interpolation?d={d}&enabled={enabled}")
+    return jsonify(data), code
+
+
 @app.route('/api/gimbal/current', methods=['POST'])
 def gimbal_current():
     ma = request.json.get("ma", 400)
