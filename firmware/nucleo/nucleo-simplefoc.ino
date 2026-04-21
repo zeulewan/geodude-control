@@ -234,14 +234,25 @@ void start_live_control() {
   last_update_us = micros();
   motor.controller = live_mode == 1 ? MotionControlType::torque : MotionControlType::velocity;
   motor.torque_controller = TorqueControlType::voltage;
-  // Sync current_target (the ramped setpoint) to actual encoder velocity so
-  // we don't brake-pulse when re-enabling into a still-coasting wheel. In
-  // velocity mode the ramp then continues cleanly from the real speed toward
-  // run_target. In torque mode this is harmless; current_target will be
-  // overwritten by U on the next command.
+  // Bumpless resume: we have to reseed BOTH the ramped setpoint AND the
+  // velocity LPF. LPF.y_prev is frozen at pre-release steady state while
+  // disabled; on fast re-press the PID reads that stale value for ~5*Tf and
+  // outputs a brake pulse. LPF's 300ms stale self-reset is why SLOW re-presses
+  // looked fine but quick taps didn't. Work in the sensor_direction-corrected
+  // frame so it matches motor.shaftVelocity() (what the PID measures against).
   encoder.update();
+  int dir_mult = (motor.sensor_direction == Direction::UNKNOWN)
+                 ? 1 : (int)motor.sensor_direction;
+  float v_shaft = dir_mult * encoder.getVelocity();
+  // y_prev/timestamp_prev are protected; force a latch by running the filter
+  // once with Tf=0 (alpha=0 -> y = x, y_prev = x, timestamp_prev = now), then
+  // restore the real Tf.
+  float saved_tf = motor.LPF_velocity.Tf;
+  motor.LPF_velocity.Tf = 0.0f;
+  motor.LPF_velocity(v_shaft);
+  motor.LPF_velocity.Tf = saved_tf;
   if (live_mode == 0) {
-    current_target = encoder.getVelocity();
+    current_target = v_shaft;
   }
   profile_phase = live_mode == 1 ? 7 : 6;
   motor.enable();
