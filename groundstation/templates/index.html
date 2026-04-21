@@ -136,19 +136,6 @@
   </div>
   <div class="gimbal-global-status" id="gimbalStatus">Not connected</div>
 
-  <div style="margin-top:6px;">
-    <div class="slider-group">
-      <div class="slider-label"><span class="label">Speed</span><span class="value" id="gimbalSpeedVal">2000 us</span></div>
-      <input type="range" id="gimbalSpeed" min="100" max="8000" value="2000"
-             oninput="gimbalSetSpeed(this.value)">
-    </div>
-    <div class="btn-row" style="margin-top:0">
-      <button class="btn btn-sm btn-dark" onclick="gimbalSetSpeed(5000)">Slow (5000us)</button>
-      <button class="btn btn-sm btn-dark" onclick="gimbalSetSpeed(2000)">Medium (2000us)</button>
-      <button class="btn btn-sm btn-dark" onclick="gimbalSetSpeed(500)">Fast (500us)</button>
-    </div>
-  </div>
-
 </div>
 
 <!-- Per-driver cards (populated by JS) -->

@@ -902,6 +902,22 @@ def gimbal_speed():
     return jsonify(data), code
 
 
+@app.route('/api/gimbal/motor_speed', methods=['POST'])
+def gimbal_motor_speed():
+    d = request.json.get("driver", 0)
+    us = request.json.get("us", 2000)
+    data, code = gimbal_get(f"motor_speed?d={d}&us={us}")
+    return jsonify(data), code
+
+
+@app.route('/api/gimbal/motor_ramp', methods=['POST'])
+def gimbal_motor_ramp():
+    d = request.json.get("driver", 0)
+    steps = request.json.get("steps", 0)
+    data, code = gimbal_get(f"motor_ramp?d={d}&steps={steps}")
+    return jsonify(data), code
+
+
 @app.route('/api/gimbal/current', methods=['POST'])
 def gimbal_current():
     ma = request.json.get("ma", 400)

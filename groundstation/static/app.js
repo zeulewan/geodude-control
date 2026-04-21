@@ -1556,19 +1556,6 @@ function gimbalStop(driver) {
   });
 }
 
-function gimbalSetSpeed(us) {
-  us = parseInt(us);
-  var slider = document.getElementById('gimbalSpeed');
-  if (slider) slider.value = us;
-  var label = document.getElementById('gimbalSpeedVal');
-  if (label) label.textContent = us + ' us';
-  fetch('/api/gimbal/speed', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({us: us})
-  });
-}
-
 function gimbalEnable(driver) {
   fetch('/api/gimbal/enable', {
     method: 'POST',
@@ -1615,6 +1602,28 @@ function gimbalSetMotorIhold(driver, ma) {
   });
 }
 
+function gimbalSetMotorSpeed(driver, us) {
+  us = parseInt(us);
+  var label = document.getElementById('motorSpeedLabel_' + driver);
+  if (label) label.textContent = us + ' us';
+  fetch('/api/gimbal/motor_speed', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({driver: driver, us: us})
+  });
+}
+
+function gimbalSetMotorRamp(driver, steps) {
+  steps = parseInt(steps);
+  var label = document.getElementById('motorRampLabel_' + driver);
+  if (label) label.textContent = steps + ' steps';
+  fetch('/api/gimbal/motor_ramp', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({driver: driver, steps: steps})
+  });
+}
+
 function gimbalPoll() {
   fetch('/api/gimbal/status').then(function(r) { return r.json(); }).then(function(d) {
     if (d.error) {
@@ -1631,18 +1640,8 @@ function gimbalPoll() {
     /* Global status */
     var statusParts = [];
     statusParts.push('Found: ' + (d.drivers_found != null ? d.drivers_found : drivers.length));
-    if (d.step_delay != null) statusParts.push('Speed: ' + d.step_delay + ' us');
     statusParts.push('Setup: ' + (gimbalSetupDone ? 'YES' : 'NO'));
     document.getElementById('gimbalStatus').textContent = statusParts.join(' | ');
-
-    /* Sync speed slider */
-    if (d.step_delay != null) {
-      var speedSlider = document.getElementById('gimbalSpeed');
-      if (speedSlider && !speedSlider.matches(':active')) {
-        speedSlider.value = d.step_delay;
-        document.getElementById('gimbalSpeedVal').textContent = d.step_delay + ' us';
-      }
-    }
 
     /* Render driver cards */
     var container = document.getElementById('gimbalDrivers');
@@ -1684,6 +1683,14 @@ function gimbalPoll() {
         html += '<div class="motor-slider-group">';
         html += '<div class="motor-slider-label"><span class="label">Idle Current</span><span class="value" id="motorIholdLabel_' + i + '">' + (drv.ihold_ma || 0) + ' mA</span></div>';
         html += '<input type="range" id="motorIholdSlider_' + i + '" min="0" max="2000" step="10" value="' + (drv.ihold_ma || 0) + '" oninput="gimbalSetMotorIhold(' + i + ', this.value)">';
+        html += '</div>';
+        html += '<div class="motor-slider-group">';
+        html += '<div class="motor-slider-label"><span class="label">Speed</span><span class="value" id="motorSpeedLabel_' + i + '">' + (drv.step_delay_us || 2000) + ' us</span></div>';
+        html += '<input type="range" id="motorSpeedSlider_' + i + '" min="100" max="8000" step="50" value="' + (drv.step_delay_us || 2000) + '" oninput="gimbalSetMotorSpeed(' + i + ', this.value)">';
+        html += '</div>';
+        html += '<div class="motor-slider-group">';
+        html += '<div class="motor-slider-label"><span class="label">Ramp Up</span><span class="value" id="motorRampLabel_' + i + '">' + (drv.ramp_steps || 0) + ' steps</span></div>';
+        html += '<input type="range" id="motorRampSlider_' + i + '" min="0" max="2000" step="10" value="' + (drv.ramp_steps || 0) + '" oninput="gimbalSetMotorRamp(' + i + ', this.value)">';
         html += '</div>';
 
         if (!isBelt) {
@@ -1766,6 +1773,8 @@ function gimbalPoll() {
         if (drv.rms_current != null) parts.push('RMS: ' + drv.rms_current + 'mA');
         if (drv.current_ma != null) parts.push('iRun: ' + drv.current_ma + 'mA');
         if (drv.ihold_ma != null) parts.push('iHold: ' + drv.ihold_ma + 'mA');
+        if (drv.step_delay_us != null) parts.push('Speed: ' + drv.step_delay_us + 'us');
+        if (drv.ramp_steps != null) parts.push('Ramp: ' + drv.ramp_steps + 'st');
         if (drv.steps_remaining != null) parts.push('Rem: ' + drv.steps_remaining);
         if (drv.standstill != null) parts.push(drv.standstill ? 'STBY' : 'MOVE');
         statsEl.textContent = parts.join(' | ');
@@ -1785,6 +1794,18 @@ function gimbalPoll() {
         iholdSlider.value = drv.ihold_ma;
         var iholdLabel = document.getElementById('motorIholdLabel_' + i);
         if (iholdLabel) iholdLabel.textContent = drv.ihold_ma + ' mA';
+      }
+      var speedSlider = document.getElementById('motorSpeedSlider_' + i);
+      if (speedSlider && !speedSlider.matches(':active') && drv.step_delay_us != null) {
+        speedSlider.value = drv.step_delay_us;
+        var speedLabel = document.getElementById('motorSpeedLabel_' + i);
+        if (speedLabel) speedLabel.textContent = drv.step_delay_us + ' us';
+      }
+      var rampSlider = document.getElementById('motorRampSlider_' + i);
+      if (rampSlider && !rampSlider.matches(':active') && drv.ramp_steps != null) {
+        rampSlider.value = drv.ramp_steps;
+        var rampLabel = document.getElementById('motorRampLabel_' + i);
+        if (rampLabel) rampLabel.textContent = drv.ramp_steps + ' steps';
       }
 
       /* Gear info */

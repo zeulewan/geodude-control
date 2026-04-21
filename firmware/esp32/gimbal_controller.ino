@@ -50,6 +50,9 @@ float stepsPerDeg[4];
 bool motorRunning[4] = {false, false, false, false};
 bool motorDir[4] = {true, true, true, true};
 int stepDelay = 2000;
+int motorStepDelayUS[4] = {2000, 2000, 2000, 2000};
+int motorRampSteps[4] = {0, 0, 0, 0};
+int motorMoveTotalSteps[4] = {0, 0, 0, 0};
 int stepsRemaining[4] = {0, 0, 0, 0};
 bool setupDone = false; // legacy, kept for /status but not required
 
@@ -108,6 +111,29 @@ void applyRunDriverCurrent(int d) {
   drivers[d]->rms_current(motorCurrentMA[d], 0.0f);
 }
 
+int currentStepDelayForDriver(int d) {
+  int target = motorStepDelayUS[d];
+  int rampSteps = motorRampSteps[d];
+  int totalSteps = motorMoveTotalSteps[d];
+  if (rampSteps <= 0 || totalSteps <= 0) {
+    return target;
+  }
+  int stepsDone = totalSteps - stepsRemaining[d];
+  if (stepsDone <= 0) {
+    stepsDone = 0;
+  }
+  if (stepsDone >= rampSteps) {
+    return target;
+  }
+  int startDelay = target * 4;
+  if (startDelay < target) startDelay = target;
+  if (startDelay > 50000) startDelay = 50000;
+  long span = (long)startDelay - (long)target;
+  long delayNow = startDelay - (span * stepsDone) / rampSteps;
+  if (delayNow < target) delayNow = target;
+  return (int)delayNow;
+}
+
 void handleStatus() {
   bool stepping = anyMotorRunning();
   String r = "{\"drivers_found\":" + String(driversFound) +
@@ -134,6 +160,9 @@ void handleStatus() {
       ",\"enabled\":" + String(motorEnabled[i] ? "true" : "false") +
       ",\"dir\":\"" + String(motorDir[i] ? "CW" : "CCW") + "\"" +
       ",\"steps_remaining\":" + String(stepsRemaining[i]) +
+      ",\"step_delay_us\":" + String(motorStepDelayUS[i]) +
+      ",\"ramp_steps\":" + String(motorRampSteps[i]) +
+      ",\"current_step_delay_us\":" + String(motorRunning[i] ? currentStepDelayForDriver(i) : motorStepDelayUS[i]) +
       ",\"current_ma\":" + String(motorCurrentMA[i]) +
       ",\"ihold_ma\":" + String(motorIholdMA[i]) +
       ",\"gear_ratio\":" + String(gearRatio[i], 2) +
@@ -199,6 +228,7 @@ void handleMove() {
   motorDir[d] = steps > 0;
   digitalWrite(drvPins[d].dir, motorDir[d] ? HIGH : LOW);
   stepsRemaining[d] = abs(steps);
+  motorMoveTotalSteps[d] = stepsRemaining[d];
 
   motorRunning[d] = true;
   applyRunDriverCurrent(d);
@@ -222,6 +252,7 @@ void handleMoveDeg() {
   motorDir[d] = steps > 0;
   digitalWrite(drvPins[d].dir, motorDir[d] ? HIGH : LOW);
   stepsRemaining[d] = abs(steps);
+  motorMoveTotalSteps[d] = stepsRemaining[d];
 
   motorRunning[d] = true;
   applyRunDriverCurrent(d);
@@ -321,6 +352,7 @@ void handleStop() {
   }
   motorRunning[d] = false;
   stepsRemaining[d] = 0;
+  motorMoveTotalSteps[d] = 0;
   applyIdleDriverCurrent(d);
   sendJson("{\"ok\":true,\"driver\":" + String(d) + "}");
 }
@@ -329,6 +361,7 @@ void handleStopAll() {
   for (int i = 0; i < 4; i++) {
     motorRunning[i] = false;
     stepsRemaining[i] = 0;
+    motorMoveTotalSteps[i] = 0;
     applyIdleDriverCurrent(i);
   }
   sendJson("{\"ok\":true}");
@@ -340,6 +373,42 @@ void handleSpeed() {
   if (us > 50000) us = 50000;
   stepDelay = us;
   sendJson("{\"ok\":true,\"step_delay\":" + String(stepDelay) + "}");
+}
+
+void handleMotorSpeed() {
+  int d = server.arg("d").toInt();
+  if (sendBusyIfStepping(d)) return;
+  int us = server.arg("us").toInt();
+  if (d < 0 || d >= 4) {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid driver\"}");
+    return;
+  }
+  if (us < 100 || us > 50000) {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(400, "application/json", "{\"ok\":false,\"error\":\"range 100-50000\"}");
+    return;
+  }
+  motorStepDelayUS[d] = us;
+  sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"step_delay_us\":" + String(us) + "}");
+}
+
+void handleMotorRamp() {
+  int d = server.arg("d").toInt();
+  if (sendBusyIfStepping(d)) return;
+  int steps = server.arg("steps").toInt();
+  if (d < 0 || d >= 4) {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid driver\"}");
+    return;
+  }
+  if (steps < 0 || steps > 5000) {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(400, "application/json", "{\"ok\":false,\"error\":\"range 0-5000\"}");
+    return;
+  }
+  motorRampSteps[d] = steps;
+  sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"ramp_steps\":" + String(steps) + "}");
 }
 
 void handleCurrent() {
@@ -413,6 +482,8 @@ void setup() {
   server.on("/disable", handleDisable);
   server.on("/motor_current", handleMotorCurrent);
   server.on("/motor_ihold", handleMotorIhold);
+  server.on("/motor_speed", handleMotorSpeed);
+  server.on("/motor_ramp", handleMotorRamp);
   server.on("/estop", handleEstop);
   server.on("/stop", handleStop);
   server.on("/stop_all", handleStopAll);
@@ -471,11 +542,12 @@ void loop() {
       digitalWrite(drvPins[i].step, HIGH);
       delayMicroseconds(10);
       digitalWrite(drvPins[i].step, LOW);
-      delayMicroseconds(stepDelay);
+      delayMicroseconds(currentStepDelayForDriver(i));
 
       stepsRemaining[i]--;
       if (stepsRemaining[i] <= 0) {
         motorRunning[i] = false;
+        motorMoveTotalSteps[i] = 0;
         applyIdleDriverCurrent(i);
       }
     }
