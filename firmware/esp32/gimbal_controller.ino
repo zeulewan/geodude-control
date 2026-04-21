@@ -58,6 +58,7 @@ int motorStepDelayUS[4] = {2000, 2000, 2000, 2000};
 int motorRampSteps[4] = {0, 0, 0, 0};
 int motorMoveTotalSteps[4] = {0, 0, 0, 0};
 int stepsRemaining[4] = {0, 0, 0, 0};
+uint32_t motorNextStepAtUS[4] = {0, 0, 0, 0};
 bool setupDone = false; // legacy, kept for /status but not required
 
 int clampRunCurrentMA(int ma) {
@@ -297,7 +298,7 @@ void handleMove() {
   digitalWrite(drvPins[d].dir, motorDir[d] ? HIGH : LOW);
   stepsRemaining[d] = abs(steps);
   motorMoveTotalSteps[d] = stepsRemaining[d];
-
+  motorNextStepAtUS[d] = micros();
   motorRunning[d] = true;
   applyRunDriverCurrent(d);
   sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"steps\":" + String(steps) + "}");
@@ -321,7 +322,7 @@ void handleMoveDeg() {
   digitalWrite(drvPins[d].dir, motorDir[d] ? HIGH : LOW);
   stepsRemaining[d] = abs(steps);
   motorMoveTotalSteps[d] = stepsRemaining[d];
-
+  motorNextStepAtUS[d] = micros();
   motorRunning[d] = true;
   applyRunDriverCurrent(d);
   sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"deg\":" + String(deg, 2) + ",\"steps\":" + String(steps) + "}");
@@ -406,6 +407,8 @@ void handleEstop() {
     motorRunning[i] = false;
     stepsRemaining[i] = 0;
     motorEnabled[i] = false;
+    motorMoveTotalSteps[i] = 0;
+    motorNextStepAtUS[i] = 0;
     drivers[i]->toff(0);
   }
   sendJson("{\"ok\":true,\"estop\":true}");
@@ -421,6 +424,7 @@ void handleStop() {
   motorRunning[d] = false;
   stepsRemaining[d] = 0;
   motorMoveTotalSteps[d] = 0;
+  motorNextStepAtUS[d] = 0;
   applyIdleDriverCurrent(d);
   sendJson("{\"ok\":true,\"driver\":" + String(d) + "}");
 }
@@ -430,6 +434,7 @@ void handleStopAll() {
     motorRunning[i] = false;
     stepsRemaining[i] = 0;
     motorMoveTotalSteps[i] = 0;
+    motorNextStepAtUS[i] = 0;
     applyIdleDriverCurrent(i);
   }
   sendJson("{\"ok\":true}");
@@ -636,7 +641,6 @@ bool anyMotorRunning() {
 }
 
 void loop() {
-  // Only handle WiFi/OTA when no motors are stepping — prevents timing jitter
   if (!anyMotorRunning()) {
     ArduinoOTA.handle();
     server.handleClient();
@@ -644,27 +648,54 @@ void loop() {
     return;
   }
 
-  // Step all active motors (one step per motor per loop iteration)
+  uint32_t now = micros();
+  bool stepped = false;
+  uint32_t nextDue = now + 1000000UL;
+
+  // Step any motor whose own schedule says it's due. Each axis keeps its own cadence.
   for (int i = 0; i < 4; i++) {
-    if (motorRunning[i] && stepsRemaining[i] > 0) {
+    if (!motorRunning[i] || stepsRemaining[i] <= 0) continue;
+
+    if ((int32_t)(now - motorNextStepAtUS[i]) >= 0) {
+      int intervalUS = currentStepDelayForDriver(i);
       digitalWrite(drvPins[i].step, HIGH);
       delayMicroseconds(10);
       digitalWrite(drvPins[i].step, LOW);
-      delayMicroseconds(currentStepDelayForDriver(i));
-
+      motorNextStepAtUS[i] = now + (uint32_t)intervalUS;
       stepsRemaining[i]--;
+      stepped = true;
       if (stepsRemaining[i] <= 0) {
         motorRunning[i] = false;
         motorMoveTotalSteps[i] = 0;
+        motorNextStepAtUS[i] = 0;
         applyIdleDriverCurrent(i);
+      }
+    }
+
+    if (motorRunning[i] && stepsRemaining[i] > 0) {
+      if ((int32_t)(motorNextStepAtUS[i] - nextDue) < 0) {
+        nextDue = motorNextStepAtUS[i];
       }
     }
   }
 
-  // Briefly yield to WiFi every 100 steps so estop can get through
-  static int stepCounter = 0;
-  if (++stepCounter >= 100) {
-    stepCounter = 0;
+  static uint32_t lastServiceUS = 0;
+  uint32_t serviceNow = micros();
+  if ((int32_t)(serviceNow - lastServiceUS) >= 2000) {
+    lastServiceUS = serviceNow;
     server.handleClient();
+    ArduinoOTA.handle();
+  }
+
+  if (!stepped) {
+    uint32_t waitUS = 0;
+    uint32_t afterService = micros();
+    if ((int32_t)(nextDue - afterService) > 0) {
+      waitUS = nextDue - afterService;
+    }
+    if (waitUS > 50) waitUS = 50;
+    if (waitUS >= 5) {
+      delayMicroseconds(waitUS);
+    }
   }
 }
