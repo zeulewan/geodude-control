@@ -1353,9 +1353,10 @@ function maceRenderStatus(d) {
     target.textContent = val.toFixed(2) + ' rad/s';
   }
   if (rpm) {
-    var rpmVal = d.wheel_rpm;
-    if (rpmVal == null) rpmVal = d.body_rpm;
-    rpm.textContent = Number(rpmVal || 0).toFixed(1);
+    // Wheel RPM only. Body RPM (Pi I2C encoder) is a different sensor and
+    // belongs on the main Encoder card, not here.
+    if (d.wheel_rpm == null) rpm.textContent = '—';
+    else rpm.textContent = Number(d.wheel_rpm).toFixed(1);
   }
   if (calBtn) calBtn.disabled = maceJogCalibrating || !d.connected;
   if (note) {
@@ -1447,8 +1448,8 @@ function poll() {
       dirStatus.textContent = reverse ? 'REV' : 'FWD';
       dirStatus.style.color = reverse ? '#f59e0b' : '#22c55e';
     }
-    var maceJogRpm = document.getElementById('maceJogRpm');
-    if (maceJogRpm) maceJogRpm.textContent = Number(d.rpm || 0).toFixed(1);
+    // Wheel RPM comes from the Nucleo encoder via /api/mace/jog/status, not
+    // from the Pi's I2C body-encoder /api/sensors feed. Do NOT write it here.
     /* Throttle bars */
     var targetBar = document.getElementById('targetBar');
     var currentBar = document.getElementById('currentBar');
