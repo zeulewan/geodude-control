@@ -1675,6 +1675,7 @@ function gimbalPoll() {
         card.id = 'driverCard_' + i;
         var driverName = drv.name || GIMBAL_DRIVER_NAMES[i] || ('Driver ' + i);
         var isBelt = (driverName.toLowerCase() === 'belt');
+        var rampMax = isBelt ? 5000 : 2000;
 
         var html = '';
         /* Header with toggle */
@@ -1706,7 +1707,7 @@ function gimbalPoll() {
         html += '</div>';
         html += '<div class="motor-slider-group">';
         html += '<div class="motor-slider-label"><span class="label">Ramp</span><span class="value" id="motorRampLabel_' + i + '">' + (drv.ramp_steps || 0) + ' steps</span></div>';
-        html += '<input type="range" id="motorRampSlider_' + i + '" min="0" max="2000" step="10" value="' + (drv.ramp_steps || 0) + '" oninput="gimbalSetMotorRamp(' + i + ', this.value)">';
+        html += '<input type="range" id="motorRampSlider_' + i + '" min="0" max="' + rampMax + '" step="10" value="' + (drv.ramp_steps || 0) + '" oninput="gimbalSetMotorRamp(' + i + ', this.value)">';
         html += '</div>';
         html += '<div class="motor-mode-row">';
         html += '<div class="motor-mode-toggle"><span class="label">StealthChop</span><label class="toggle-switch"><input type="checkbox" id="motorStealthToggle_' + i + '"' + (drv.stealthchop !== false ? ' checked' : '') + ' onchange="gimbalSetMotorStealthChop(' + i + ', this.checked)"><span class="toggle-slider"></span></label></div>';
