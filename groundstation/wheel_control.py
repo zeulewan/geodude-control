@@ -42,6 +42,26 @@ state = {
     "i2c": {"ok": False, "ads_ok": False, "imu_ok": False},
 }
 
+MACE_JOG_MAX_RPM = 500.0
+MACE_JOG_MAX_RAD_S = MACE_JOG_MAX_RPM * 2.0 * 3.141592653589793 / 60.0
+MACE_JOG_MIN_VOLTAGE = 0.5
+MACE_JOG_MAX_VOLTAGE = 24.0
+MACE_JOG_MIN_RAMP = 0.1
+MACE_JOG_MAX_RAMP = 50.0
+MACE_JOG_HOLD_TIMEOUT_S = 0.25
+
+mace_jog_lock = threading.Lock()
+mace_jog_state = {
+    "active": None,   # "forward", "backward", "brake", or None
+    "status": "idle",
+    "error": None,
+    "max_voltage": 12.0,
+    "accel_ramp": 5.0,
+    "brake_ramp": 12.0,
+    "last_heartbeat": 0.0,
+    "last_command_at": 0.0,
+}
+
 # Server-side servo position tracking — persisted to disk, survives reboots
 POSITIONS_FILE = os.path.join(GROUNDSTATION_DIR, "servo_positions.json")
 
@@ -172,6 +192,76 @@ lock = threading.Lock()
 
 # L-B: legacy send_pwm removed. All servo traffic must go through the
 # server-side ramp and /api/pwm (which calls _servo_set_target).
+
+
+def _mace_clamp_voltage(value):
+    return max(MACE_JOG_MIN_VOLTAGE, min(float(value), MACE_JOG_MAX_VOLTAGE))
+
+
+def _mace_clamp_ramp(value):
+    return max(MACE_JOG_MIN_RAMP, min(float(value), MACE_JOG_MAX_RAMP))
+
+
+def _mace_post_simplefoc(payload):
+    body = json.dumps(payload).encode()
+    req = urllib.request.Request(
+        f"{GEODUDE_URL}/simplefoc",
+        data=body,
+        headers={"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(req, timeout=2.0) as resp:
+        data = json.loads(resp.read().decode())
+        if not data.get("ok"):
+            raise RuntimeError(data.get("error", "simplefoc command failed"))
+        return data
+
+
+def _mace_fetch_status():
+    with urllib.request.urlopen(f"{GEODUDE_URL}/simplefoc/status", timeout=2.0) as resp:
+        return json.loads(resp.read().decode())
+
+
+def _mace_disable():
+    _mace_post_simplefoc({"command": "D"})
+
+
+def _mace_start_motion(direction, max_voltage, ramp):
+    target = 0.0
+    if direction == "forward":
+        target = MACE_JOG_MAX_RAD_S
+    elif direction == "backward":
+        target = -MACE_JOG_MAX_RAD_S
+    elif direction == "brake":
+        target = 0.0
+    else:
+        raise ValueError("unknown MACE jog direction")
+    for cmd in (
+        "D",
+        "MR",
+        f"V{_mace_clamp_voltage(max_voltage):.3f}",
+        f"R{_mace_clamp_ramp(ramp):.3f}",
+        "E",
+        f"T{target:.5f}",
+    ):
+        _mace_post_simplefoc({"command": cmd})
+        time.sleep(0.03)
+
+
+def _mace_snapshot():
+    with mace_jog_lock:
+        snap = dict(mace_jog_state)
+    with lock:
+        snap["body_rpm"] = state.get("rpm", 0)
+    try:
+        sfoc = _mace_fetch_status()
+    except Exception as exc:
+        snap["connected"] = False
+        snap["simplefoc_error"] = str(exc)
+        return snap
+    snap["connected"] = bool(sfoc.get("connected"))
+    snap["simplefoc_target"] = sfoc.get("target")
+    snap["simplefoc_live"] = bool(sfoc.get("live"))
+    return snap
 
 
 def send_all_off():
@@ -634,6 +724,92 @@ def system_stats():
     return jsonify({"groundstation": gs, "geodude": gd})
 
 
+def mace_jog_watchdog_loop():
+    while True:
+        time.sleep(0.05)
+        with mace_jog_lock:
+            active = mace_jog_state["active"]
+            last_heartbeat = mace_jog_state["last_heartbeat"]
+        if not active:
+            continue
+        if time.monotonic() - last_heartbeat <= MACE_JOG_HOLD_TIMEOUT_S:
+            continue
+        try:
+            _mace_disable()
+            error = None
+        except Exception as exc:
+            error = str(exc)
+        with mace_jog_lock:
+            mace_jog_state["active"] = None
+            mace_jog_state["status"] = "watchdog stop" if error is None else "watchdog error"
+            mace_jog_state["error"] = error
+            mace_jog_state["last_command_at"] = time.monotonic()
+
+
+@app.route('/api/mace/jog/status')
+def mace_jog_status():
+    return jsonify(_mace_snapshot())
+
+
+@app.route('/api/mace/jog/start', methods=['POST'])
+def mace_jog_start():
+    data = request.json or {}
+    direction = str(data.get("direction", "")).lower()
+    if direction not in ("forward", "backward", "brake"):
+        return jsonify({"ok": False, "error": "direction must be forward/backward/brake"}), 400
+    max_voltage = _mace_clamp_voltage(data.get("max_voltage", 12.0))
+    accel_ramp = _mace_clamp_ramp(data.get("accel_ramp", 5.0))
+    brake_ramp = _mace_clamp_ramp(data.get("brake_ramp", 12.0))
+    ramp = brake_ramp if direction == "brake" else accel_ramp
+    try:
+        _mace_start_motion(direction, max_voltage, ramp)
+    except Exception as exc:
+        with mace_jog_lock:
+            mace_jog_state["status"] = "error"
+            mace_jog_state["error"] = str(exc)
+        return jsonify({"ok": False, "error": str(exc)}), 502
+    with mace_jog_lock:
+        mace_jog_state["active"] = direction
+        mace_jog_state["status"] = "running"
+        mace_jog_state["error"] = None
+        mace_jog_state["max_voltage"] = max_voltage
+        mace_jog_state["accel_ramp"] = accel_ramp
+        mace_jog_state["brake_ramp"] = brake_ramp
+        mace_jog_state["last_heartbeat"] = time.monotonic()
+        mace_jog_state["last_command_at"] = time.monotonic()
+    return jsonify({"ok": True, **_mace_snapshot()})
+
+
+@app.route('/api/mace/jog/heartbeat', methods=['POST'])
+def mace_jog_heartbeat():
+    data = request.json or {}
+    direction = str(data.get("direction", "")).lower()
+    with mace_jog_lock:
+        if direction and mace_jog_state["active"] and direction != mace_jog_state["active"]:
+            return jsonify({"ok": False, "error": "active direction mismatch"}), 409
+        if not mace_jog_state["active"]:
+            return jsonify({"ok": False, "error": "no active hold"}), 409
+        mace_jog_state["last_heartbeat"] = time.monotonic()
+    return jsonify({"ok": True})
+
+
+@app.route('/api/mace/jog/stop', methods=['POST'])
+def mace_jog_stop():
+    try:
+        _mace_disable()
+        error = None
+    except Exception as exc:
+        error = str(exc)
+    with mace_jog_lock:
+        mace_jog_state["active"] = None
+        mace_jog_state["status"] = "idle" if error is None else "error"
+        mace_jog_state["error"] = error
+        mace_jog_state["last_command_at"] = time.monotonic()
+    if error is not None:
+        return jsonify({"ok": False, "error": error}), 502
+    return jsonify({"ok": True, **_mace_snapshot()})
+
+
 @app.route('/api/camera')
 def camera():
     """Proxy MJPEG stream from GEO-DUDe."""
@@ -864,6 +1040,7 @@ def start_background_threads():
     threading.Thread(target=_servo_ramp_loop, daemon=True).start()
     threading.Thread(target=sensor_loop, daemon=True).start()
     threading.Thread(target=positions_flush_loop, daemon=True).start()
+    threading.Thread(target=mace_jog_watchdog_loop, daemon=True).start()
 
 def main(port=8080):
     dev = os.environ.get('WHEEL_CONTROL_DEV') == '1'

@@ -1175,6 +1175,173 @@ function toggleControllerMode() {
   });
 }
 
+var maceJogActive = null;
+var maceJogHeartbeatTimer = null;
+
+function maceCfg() {
+  return {
+    accel_ramp: parseFloat(document.getElementById('maceAccelRamp').value || '5') || 5,
+    brake_ramp: parseFloat(document.getElementById('maceBrakeRamp').value || '12') || 12,
+    max_voltage: parseFloat(document.getElementById('maceVoltage').value || '12') || 12
+  };
+}
+
+function maceUpdateLabels() {
+  var cfg = maceCfg();
+  var accel = document.getElementById('maceAccelRampVal');
+  var brake = document.getElementById('maceBrakeRampVal');
+  var volt = document.getElementById('maceVoltageVal');
+  if (accel) accel.textContent = cfg.accel_ramp.toFixed(1) + ' rad/s²';
+  if (brake) brake.textContent = cfg.brake_ramp.toFixed(1) + ' rad/s²';
+  if (volt) volt.textContent = cfg.max_voltage.toFixed(1) + ' V';
+}
+
+function maceSetButtons(active) {
+  var map = {
+    backward: document.getElementById('maceBackwardBtn'),
+    brake: document.getElementById('maceBrakeBtn'),
+    forward: document.getElementById('maceForwardBtn')
+  };
+  Object.keys(map).forEach(function(key) {
+    var btn = map[key];
+    if (!btn) return;
+    if (active === key) btn.classList.add('active');
+    else btn.classList.remove('active');
+  });
+}
+
+function maceStartHeartbeat(direction) {
+  if (maceJogHeartbeatTimer) clearInterval(maceJogHeartbeatTimer);
+  maceJogHeartbeatTimer = setInterval(function() {
+    fetch('/api/mace/jog/heartbeat', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({direction: direction})
+    }).catch(function() {});
+  }, 100);
+}
+
+function maceStopHeartbeat() {
+  if (maceJogHeartbeatTimer) clearInterval(maceJogHeartbeatTimer);
+  maceJogHeartbeatTimer = null;
+}
+
+function maceJogStart(direction) {
+  var cfg = maceCfg();
+  fetch('/api/mace/jog/start', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      direction: direction,
+      accel_ramp: cfg.accel_ramp,
+      brake_ramp: cfg.brake_ramp,
+      max_voltage: cfg.max_voltage
+    })
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    var note = document.getElementById('maceJogNote');
+    if (d.ok === false) {
+      if (note) note.textContent = d.error || 'MACE jog start failed';
+      maceJogActive = null;
+      maceSetButtons(null);
+      maceStopHeartbeat();
+      return;
+    }
+    maceJogActive = direction;
+    maceSetButtons(direction);
+    maceStartHeartbeat(direction);
+    maceRenderStatus(d);
+  }).catch(function(err) {
+    var note = document.getElementById('maceJogNote');
+    if (note) note.textContent = 'MACE jog start failed: ' + err;
+    maceJogActive = null;
+    maceSetButtons(null);
+    maceStopHeartbeat();
+  });
+}
+
+function maceJogStop() {
+  maceStopHeartbeat();
+  fetch('/api/mace/jog/stop', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    maceJogActive = null;
+    maceSetButtons(null);
+    maceRenderStatus(d);
+  }).catch(function(err) {
+    var note = document.getElementById('maceJogNote');
+    maceJogActive = null;
+    maceSetButtons(null);
+    if (note) note.textContent = 'MACE jog stop failed: ' + err;
+  });
+}
+
+function maceReleaseAll() {
+  if (!maceJogActive) return;
+  maceJogStop();
+}
+
+function maceRenderStatus(d) {
+  d = d || {};
+  var status = document.getElementById('maceJogStatus');
+  var link = document.getElementById('maceJogLink');
+  var target = document.getElementById('maceJogTarget');
+  var rpm = document.getElementById('maceJogRpm');
+  var note = document.getElementById('maceJogNote');
+  if (status) status.textContent = (d.active || 'idle').toUpperCase() + ' / ' + String(d.status || 'idle').toUpperCase();
+  if (link) {
+    var connected = !!d.connected;
+    link.textContent = connected ? 'CONNECTED' : 'DISCONNECTED';
+    link.style.color = connected ? '#22c55e' : '#ef4444';
+  }
+  if (target) {
+    var val = Number(d.simplefoc_target || 0);
+    target.textContent = val.toFixed(2) + ' rad/s';
+  }
+  if (rpm && d.body_rpm != null) rpm.textContent = Number(d.body_rpm).toFixed(1);
+  if (note) {
+    if (d.error) note.textContent = d.error;
+    else note.textContent = d.active ? ('Holding ' + d.active.toUpperCase() + '. Release to coast.') : 'Release any button to coast. Hold BRAKE for active stop.';
+  }
+}
+
+function maceStatusPoll() {
+  fetch('/api/mace/jog/status').then(function(r) { return r.json(); }).then(function(d) {
+    maceRenderStatus(d);
+    if (!d.active && maceJogActive) {
+      maceJogActive = null;
+      maceSetButtons(null);
+      maceStopHeartbeat();
+    }
+  }).catch(function() {});
+}
+
+function maceBindMomentaryButton(id, direction) {
+  var btn = document.getElementById(id);
+  if (!btn) return;
+  function press(ev) {
+    if (ev) ev.preventDefault();
+    if (ev && ev.pointerId != null && btn.setPointerCapture) btn.setPointerCapture(ev.pointerId);
+    if (maceJogActive && maceJogActive !== direction) maceJogStop();
+    if (maceJogActive === direction) return;
+    maceJogStart(direction);
+  }
+  function release(ev) {
+    if (ev) ev.preventDefault();
+    if (ev && ev.pointerId != null && btn.releasePointerCapture) {
+      try { btn.releasePointerCapture(ev.pointerId); } catch (e) {}
+    }
+    if (maceJogActive === direction) maceJogStop();
+  }
+  btn.addEventListener('pointerdown', press);
+  btn.addEventListener('pointerup', release);
+  btn.addEventListener('pointercancel', release);
+  btn.addEventListener('touchstart', press, {passive: false});
+  btn.addEventListener('touchend', release, {passive: false});
+  btn.addEventListener('mouseup', release);
+}
+
 function poll() {
   fetch('/api/sensors').then(function(r) { return r.json(); }).then(function(d) {
     /* Gyro */
@@ -1216,14 +1383,8 @@ function poll() {
       dirStatus.textContent = reverse ? 'REV' : 'FWD';
       dirStatus.style.color = reverse ? '#f59e0b' : '#22c55e';
     }
-    var maceRpm = document.getElementById('maceRpm');
-    if (maceRpm) maceRpm.textContent = d.rpm;
-    var sat = d.rpm >= 600;
-    var maceSat = document.getElementById('maceSat');
-    if (maceSat) {
-      maceSat.textContent = sat ? 'YES' : 'NO';
-      maceSat.style.color = sat ? '#ef4444' : '#22c55e';
-    }
+    var maceJogRpm = document.getElementById('maceJogRpm');
+    if (maceJogRpm) maceJogRpm.textContent = Number(d.rpm || 0).toFixed(1);
     /* Throttle bars */
     var targetBar = document.getElementById('targetBar');
     var currentBar = document.getElementById('currentBar');
@@ -1693,12 +1854,23 @@ function seqRun() {
   applyServoLimits();
   setInterval(servoSyncPoll, 500);
   setInterval(controllerPoll, 250);
+  setInterval(maceStatusPoll, 500);
   setInterval(ikRefreshStatus, 1000);
 
   /* Immediate calls */
   sysPoll();
   gimbalPoll();
   controllerPoll();
+  maceUpdateLabels();
+  maceBindMomentaryButton('maceBackwardBtn', 'backward');
+  maceBindMomentaryButton('maceBrakeBtn', 'brake');
+  maceBindMomentaryButton('maceForwardBtn', 'forward');
+  maceStatusPoll();
+  window.addEventListener('blur', maceReleaseAll);
+  window.addEventListener('mouseup', maceReleaseAll);
+  window.addEventListener('touchend', maceReleaseAll, {passive: false});
+  window.addEventListener('pointerup', maceReleaseAll);
+  window.addEventListener('pointercancel', maceReleaseAll);
   ikRefreshStatus();
   updateVisionUI();
   loadCameraStreamState();

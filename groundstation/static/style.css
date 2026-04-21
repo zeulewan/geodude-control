@@ -69,6 +69,49 @@ body {
   min-width: 0;
   overflow: hidden;
 }
+.dashboard-mace {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mace-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.mace-stat {
+  background: #0f141f;
+  border: 1px solid #243045;
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+.mace-stat .label {
+  color: #6b7280;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.mace-stat .value {
+  color: #f9fafb;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.mace-slider-group {
+  margin-bottom: 0;
+}
+.mace-btn-row {
+  margin-top: 0;
+  gap: 6px;
+}
+.mace-btn-row .btn.active {
+  box-shadow: inset 0 0 0 2px rgba(248, 250, 252, 0.9);
+  filter: brightness(1.1);
+}
+.mace-note {
+  color: #9ca3af;
+  font-size: 11px;
+  line-height: 1.35;
+}
 .mace-test-summary .stat {
   background: #0f141f;
   border: 1px solid #243045;
