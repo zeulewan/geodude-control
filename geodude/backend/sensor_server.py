@@ -63,6 +63,11 @@ def get_pico():
             try:
                 pico_serial = serial.Serial(PICO_PORT, PICO_BAUD, timeout=0.5)
                 _simplefoc_cache_status(status=None, error=None)
+                # Firmware state unknown across a re-open: force re-push of
+                # mode/voltage/ramp on next jog.
+                simplefoc_pushed["mode"] = None
+                simplefoc_pushed["voltage"] = None
+                simplefoc_pushed["ramp"] = None
             except Exception as e:
                 print("SimpleFOC serial open error: %s" % e, flush=True)
                 pico_serial = None
@@ -152,6 +157,19 @@ simplefoc_jog_state = {
     "last_command_at": 0.0,
 }
 
+# Pre-empt counter: any /jog/stop bumps cmd_counter and stamps last_stop_seq.
+# /jog/start captures its own seq; if last_stop_seq > my_seq before we emit
+# T+E, we abort. Ensures a release that arrives mid-start cannot be overtaken
+# by the start's final motor-enable.
+simplefoc_cmd_counter = 0
+simplefoc_last_stop_seq = 0
+
+# Cached firmware config. Only push MR/V/R over serial when the request
+# differs from what the firmware already has. Turns the hot path from a
+# 6-command burst into 1-2 commands on repeat presses.
+# Cleared on disconnect / boot so first press after reboot still pushes.
+simplefoc_pushed = {"mode": None, "voltage": None, "ramp": None}
+
 
 def _simplefoc_jog_clamp_voltage(value):
     return max(SIMPLEFOC_JOG_MIN_VOLTAGE, min(float(value), SIMPLEFOC_JOG_MAX_VOLTAGE))
@@ -170,6 +188,12 @@ def _simplefoc_jog_snapshot():
 
 
 def _simplefoc_jog_disable(status="idle", error=None):
+    """Coast via firmware `D` (disable drivers). This is the release/watchdog
+    failsafe: coast, never active brake."""
+    global simplefoc_last_stop_seq, simplefoc_cmd_counter
+    with simplefoc_jog_lock:
+        simplefoc_cmd_counter += 1
+        simplefoc_last_stop_seq = simplefoc_cmd_counter
     simplefoc_send("D")
     with simplefoc_jog_lock:
         simplefoc_jog_state["active"] = None
@@ -180,6 +204,7 @@ def _simplefoc_jog_disable(status="idle", error=None):
 
 
 def _simplefoc_jog_start(direction, max_voltage, accel_ramp, brake_ramp):
+    global simplefoc_cmd_counter
     target = 0.0
     if direction == "forward":
         target = SIMPLEFOC_JOG_MAX_RAD_S
@@ -193,35 +218,78 @@ def _simplefoc_jog_start(direction, max_voltage, accel_ramp, brake_ramp):
     max_voltage = _simplefoc_jog_clamp_voltage(max_voltage)
     accel_ramp = _simplefoc_jog_clamp_ramp(accel_ramp)
     brake_ramp = _simplefoc_jog_clamp_ramp(brake_ramp)
+
+    # Use cached foc_ready instead of a pre-flight serial round-trip. If the
+    # cache is stale the firmware will reject `E` with ERR anyway.
+    cached = _simplefoc_status_snapshot()
+    if not cached.get("foc_ready"):
+        raise RuntimeError("wheel not calibrated; run calibration first")
+
+    with simplefoc_jog_lock:
+        simplefoc_cmd_counter += 1
+        my_seq = simplefoc_cmd_counter
+
     ser = get_pico()
     if ser is None:
         raise RuntimeError("serial not available")
+
     with pico_lock:
-        status = _simplefoc_status_locked(ser, timeout=0.25)
-        if not status or not status.get("foc_ready"):
-            raise RuntimeError("wheel not calibrated; run calibration first")
-        for cmd, delay in (
-            ("D", 0.05),
-            ("MR", 0.05),
-            (f"V{max_voltage:.3f}", 0.05),
-            (f"R{ramp:.3f}", 0.05),
-            ("E", 0.08),
-            (f"T{target:.5f}", 0.02),
-        ):
+        # Lazy config push. Only send MR/V/R when the firmware doesn't already
+        # have these values.
+        pending = []
+        if simplefoc_pushed["mode"] != "rate":
+            pending.append(("MR", 0.03))
+        vstr = f"{max_voltage:.3f}"
+        if simplefoc_pushed["voltage"] != vstr:
+            pending.append((f"V{vstr}", 0.03))
+        rstr = f"{ramp:.3f}"
+        if simplefoc_pushed["ramp"] != rstr:
+            pending.append((f"R{rstr}", 0.03))
+
+        for cmd, delay in pending:
             _lines, _status, err = _simplefoc_exchange_locked(ser, cmd, read_for=delay)
-            print("SimpleFOC: sent %r" % cmd.strip(), flush=True)
             if err:
                 raise RuntimeError(err)
+        if pending:
+            simplefoc_pushed["mode"] = "rate"
+            simplefoc_pushed["voltage"] = vstr
+            simplefoc_pushed["ramp"] = rstr
+
+        # Pre-empt check: if a /jog/stop arrived after we took my_seq, abort.
+        # The release has already (or will) coast via D; don't re-arm.
+        with simplefoc_jog_lock:
+            preempted = simplefoc_last_stop_seq > my_seq
+        if preempted:
+            # Belt-and-suspenders: ensure coast even if the release's D
+            # somehow landed before our lock acquire.
+            _simplefoc_exchange_locked(ser, "D", read_for=0.02)
+            raise RuntimeError("preempted by release")
+
+        # Hot path: T then E. Two chars, ~50ms under pico_lock.
+        for cmd, delay in ((f"T{target:.5f}", 0.02), ("E", 0.05)):
+            _lines, _status, err = _simplefoc_exchange_locked(ser, cmd, read_for=delay)
+            if err:
+                raise RuntimeError(err)
+
     with simplefoc_jog_lock:
-        simplefoc_jog_state["active"] = direction
-        simplefoc_jog_state["status"] = "running"
-        simplefoc_jog_state["error"] = None
-        simplefoc_jog_state["simplefoc_target"] = target
-        simplefoc_jog_state["max_voltage"] = max_voltage
-        simplefoc_jog_state["accel_ramp"] = accel_ramp
-        simplefoc_jog_state["brake_ramp"] = brake_ramp
-        simplefoc_jog_state["last_heartbeat"] = time.monotonic()
-        simplefoc_jog_state["last_command_at"] = time.monotonic()
+        # Only claim active if no newer stop arrived during T+E.
+        if simplefoc_last_stop_seq > my_seq:
+            # A release snuck in; disable after unlocking.
+            needs_coast = True
+        else:
+            needs_coast = False
+            simplefoc_jog_state["active"] = direction
+            simplefoc_jog_state["status"] = "running"
+            simplefoc_jog_state["error"] = None
+            simplefoc_jog_state["simplefoc_target"] = target
+            simplefoc_jog_state["max_voltage"] = max_voltage
+            simplefoc_jog_state["accel_ramp"] = accel_ramp
+            simplefoc_jog_state["brake_ramp"] = brake_ramp
+            simplefoc_jog_state["last_heartbeat"] = time.monotonic()
+            simplefoc_jog_state["last_command_at"] = time.monotonic()
+    if needs_coast:
+        simplefoc_send("D")
+        raise RuntimeError("preempted by release")
 
 
 def simplefoc_jog_watchdog_loop():
@@ -648,6 +716,9 @@ def simplefoc_jog_status():
 
 @app.route("/simplefoc/jog/start", methods=["POST"])
 def simplefoc_jog_start_route():
+    with simplefoc_calibrate_lock:
+        if simplefoc_calibrate_state["busy"]:
+            return jsonify({"ok": False, "error": "calibrating"}), 409
     with simplefoc_profile_lock:
         if simplefoc_profile_state["busy"] or simplefoc_torque_state["busy"]:
             return jsonify({"ok": False, "error": "profile/torque busy"}), 409
@@ -672,11 +743,101 @@ def simplefoc_jog_start_route():
     return jsonify({"ok": True, **_simplefoc_jog_snapshot()})
 
 
+simplefoc_calibrate_lock = threading.Lock()
+simplefoc_calibrate_state = {
+    "busy": False,
+    "status": "idle",
+    "error": None,
+}
+
+
+def _simplefoc_calibrate_worker():
+    """Send G to the firmware and wait for initFOC_ok / initFOC_failed.
+
+    Decoupled from the tuning/profile subsystem so calibration and jog state
+    don't cross-contaminate. Total wall time up to ~10s on a slow calibration.
+    """
+    ser = get_pico()
+    if ser is None:
+        with simplefoc_calibrate_lock:
+            simplefoc_calibrate_state["busy"] = False
+            simplefoc_calibrate_state["status"] = "error"
+            simplefoc_calibrate_state["error"] = "serial not available"
+        return
+    try:
+        with pico_lock:
+            try:
+                ser.reset_input_buffer()
+            except Exception:
+                pass
+            ser.write(b"G\n")
+            ser.flush()
+            status = "running"
+            err = None
+            deadline = time.time() + 10.0
+            while time.time() < deadline:
+                line = ser.readline().decode(errors="ignore").strip()
+                if not line:
+                    continue
+                if line.startswith("ERR"):
+                    err = line
+                    status = "error"
+                    break
+                if line.startswith("{") and line.endswith("}"):
+                    try:
+                        data = json.loads(line)
+                        _simplefoc_cache_status(status=data, error=None)
+                        event = data.get("event", "")
+                        if event == "initFOC_ok" or data.get("foc_ready"):
+                            status = "ready"
+                            break
+                        if event == "initFOC_failed":
+                            status = "failed"
+                            err = "initFOC_failed"
+                            break
+                    except Exception:
+                        pass
+        with simplefoc_calibrate_lock:
+            simplefoc_calibrate_state["busy"] = False
+            simplefoc_calibrate_state["status"] = status
+            simplefoc_calibrate_state["error"] = err
+    except Exception as exc:
+        with simplefoc_calibrate_lock:
+            simplefoc_calibrate_state["busy"] = False
+            simplefoc_calibrate_state["status"] = "error"
+            simplefoc_calibrate_state["error"] = str(exc)
+
+
+@app.route("/simplefoc/calibrate", methods=["POST"])
+def simplefoc_calibrate_route():
+    with simplefoc_calibrate_lock:
+        if simplefoc_calibrate_state["busy"]:
+            return jsonify({"ok": False, "error": "calibrating"}), 409
+        simplefoc_calibrate_state["busy"] = True
+        simplefoc_calibrate_state["status"] = "running"
+        simplefoc_calibrate_state["error"] = None
+    # A calibration invalidates cached pushed config (firmware disables motor
+    # and resets limits inside run_calibration()).
+    simplefoc_pushed["mode"] = None
+    simplefoc_pushed["voltage"] = None
+    simplefoc_pushed["ramp"] = None
+    threading.Thread(target=_simplefoc_calibrate_worker, daemon=True).start()
+    return jsonify({"ok": True})
+
+
+@app.route("/simplefoc/calibrate/state")
+def simplefoc_calibrate_state_route():
+    with simplefoc_calibrate_lock:
+        return jsonify(dict(simplefoc_calibrate_state))
+
+
 @app.route("/simplefoc/jog/heartbeat", methods=["POST"])
 def simplefoc_jog_heartbeat_route():
+    """Heartbeat MUST NOT touch the serial port. It runs at 10Hz; a serial
+    round-trip here starves the stop path of pico_lock. Fresh telemetry is
+    the status poll's job."""
     data = request.json or {}
     direction = str(data.get("direction", "")).lower()
-    status_refresh_error = None
     with simplefoc_jog_lock:
         active = simplefoc_jog_state["active"]
         if direction and active and direction != active:
@@ -684,18 +845,7 @@ def simplefoc_jog_heartbeat_route():
         if not active:
             return jsonify({"ok": False, "error": "no active hold"}), 409
         simplefoc_jog_state["last_heartbeat"] = time.monotonic()
-    try:
-        ser = get_pico()
-        if ser is not None:
-            with pico_lock:
-                _simplefoc_status_locked(ser, timeout=0.04)
-    except Exception as exc:
-        status_refresh_error = str(exc)
-        _simplefoc_cache_status(error=exc)
-    snap = _simplefoc_jog_snapshot()
-    if status_refresh_error:
-        snap["status_refresh_error"] = status_refresh_error
-    return jsonify({"ok": True, **snap})
+    return jsonify({"ok": True, **_simplefoc_jog_snapshot()})
 
 
 @app.route("/simplefoc/jog/stop", methods=["POST"])
