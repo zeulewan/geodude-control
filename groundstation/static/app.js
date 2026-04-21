@@ -1640,6 +1640,14 @@ function gimbalSetMotorInterpolation(driver, enabled) {
   });
 }
 
+function gimbalSetMotorMultistepFilt(driver, enabled) {
+  fetch('/api/gimbal/motor_multistep_filt', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({driver: driver, enabled: !!enabled})
+  });
+}
+
 function gimbalPoll() {
   fetch('/api/gimbal/status').then(function(r) { return r.json(); }).then(function(d) {
     if (d.error) {
@@ -1712,6 +1720,7 @@ function gimbalPoll() {
         html += '<div class="motor-mode-row">';
         html += '<div class="motor-mode-toggle"><span class="label">StealthChop</span><label class="toggle-switch"><input type="checkbox" id="motorStealthToggle_' + i + '"' + (drv.stealthchop !== false ? ' checked' : '') + ' onchange="gimbalSetMotorStealthChop(' + i + ', this.checked)"><span class="toggle-slider"></span></label></div>';
         html += '<div class="motor-mode-toggle"><span class="label">Interpolation</span><label class="toggle-switch"><input type="checkbox" id="motorInterpToggle_' + i + '"' + (drv.interpolation !== false ? ' checked' : '') + ' onchange="gimbalSetMotorInterpolation(' + i + ', this.checked)"><span class="toggle-slider"></span></label></div>';
+        html += '<div class="motor-mode-toggle"><span class="label">Multi-Step Filter</span><label class="toggle-switch"><input type="checkbox" id="motorMsfToggle_' + i + '"' + (drv.multistep_filt !== false ? ' checked' : '') + ' onchange="gimbalSetMotorMultistepFilt(' + i + ', this.checked)"><span class="toggle-slider"></span></label></div>';
         html += '</div>';
 
         if (!isBelt) {
@@ -1798,6 +1807,7 @@ function gimbalPoll() {
         if (drv.ramp_steps != null) parts.push('Ramp: ' + drv.ramp_steps + 'st');
         if (drv.stealthchop != null) parts.push('SC: ' + (drv.stealthchop ? 'ON' : 'OFF'));
         if (drv.interpolation != null) parts.push('INTP: ' + (drv.interpolation ? 'ON' : 'OFF'));
+        if (drv.multistep_filt != null) parts.push('MSF: ' + (drv.multistep_filt ? 'ON' : 'OFF'));
         if (drv.steps_remaining != null) parts.push('Rem: ' + drv.steps_remaining);
         if (drv.standstill != null) parts.push(drv.standstill ? 'STBY' : 'MOVE');
         statsEl.textContent = parts.join(' | ');
@@ -1837,6 +1847,10 @@ function gimbalPoll() {
       var interpToggle = document.getElementById('motorInterpToggle_' + i);
       if (interpToggle && !interpToggle.matches(':active') && drv.interpolation != null) {
         interpToggle.checked = !!drv.interpolation;
+      }
+      var msfToggle = document.getElementById('motorMsfToggle_' + i);
+      if (msfToggle && !msfToggle.matches(':active') && drv.multistep_filt != null) {
+        msfToggle.checked = !!drv.multistep_filt;
       }
 
       /* Gear info */

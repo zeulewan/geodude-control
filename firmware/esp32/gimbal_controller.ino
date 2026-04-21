@@ -43,6 +43,7 @@ int motorCurrentMA[4] = {400, 400, 400, 400};
 int motorIholdMA[4] = {0, 0, 0, 0};
 bool motorStealthChop[4] = {true, true, true, true};
 bool motorInterpolation[4] = {true, true, true, true};
+bool motorMultistepFilt[4] = {true, true, true, true};
 bool motorEnabled[4] = {false, false, false, false};
 
 // Gear ratios and angle conversion
@@ -92,6 +93,7 @@ void saveMotorConfig(int d) {
   prefs.putInt(("rmp" + String(d)).c_str(), motorRampSteps[d]);
   prefs.putBool(("stl" + String(d)).c_str(), motorStealthChop[d]);
   prefs.putBool(("int" + String(d)).c_str(), motorInterpolation[d]);
+  prefs.putBool(("msf" + String(d)).c_str(), motorMultistepFilt[d]);
 }
 
 void loadMotorConfig() {
@@ -102,12 +104,14 @@ void loadMotorConfig() {
     motorRampSteps[i] = clampRampSteps(prefs.getInt(("rmp" + String(i)).c_str(), motorRampSteps[i]));
     motorStealthChop[i] = prefs.getBool(("stl" + String(i)).c_str(), motorStealthChop[i]);
     motorInterpolation[i] = prefs.getBool(("int" + String(i)).c_str(), motorInterpolation[i]);
+    motorMultistepFilt[i] = prefs.getBool(("msf" + String(i)).c_str(), motorMultistepFilt[i]);
   }
 }
 
 void applyDriverMode(int d) {
   drivers[d]->microsteps(16);
   drivers[d]->intpol(motorInterpolation[d]);
+  drivers[d]->multistep_filt(motorMultistepFilt[d]);
   drivers[d]->en_spreadCycle(!motorStealthChop[d]);
   drivers[d]->pwm_autoscale(true);
 }
@@ -227,6 +231,7 @@ void handleStatus() {
       ",\"enabled\":" + String(motorEnabled[i] ? "true" : "false") +
       ",\"stealthchop\":" + String(motorStealthChop[i] ? "true" : "false") +
       ",\"interpolation\":" + String(motorInterpolation[i] ? "true" : "false") +
+      ",\"multistep_filt\":" + String(motorMultistepFilt[i] ? "true" : "false") +
       ",\"dir\":\"" + String(motorDir[i] ? "CW" : "CCW") + "\"" +
       ",\"steps_remaining\":" + String(stepsRemaining[i]) +
       ",\"step_delay_us\":" + String(motorStepDelayUS[i]) +
@@ -240,6 +245,7 @@ void handleStatus() {
       r += ",\"microsteps\":" + String(drivers[i]->microsteps()) +
         ",\"actual_stealthchop\":" + String(drivers[i]->en_spreadCycle() ? "false" : "true") +
         ",\"actual_interpolation\":" + String(drivers[i]->intpol() ? "true" : "false") +
+        ",\"actual_multistep_filt\":" + String(drivers[i]->multistep_filt() ? "true" : "false") +
         ",\"rms_current\":" + String(drivers[i]->rms_current()) +
         ",\"irun\":" + String(drivers[i]->irun()) +
         ",\"ihold\":" + String(drivers[i]->ihold()) +
@@ -520,6 +526,21 @@ void handleMotorInterpolation() {
   sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"interpolation\":" + String(enabled ? "true" : "false") + "}");
 }
 
+void handleMotorMultistepFilt() {
+  int d = server.arg("d").toInt();
+  if (sendBusyIfStepping(d)) return;
+  if (d < 0 || d >= 4) {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid driver\"}");
+    return;
+  }
+  bool enabled = parseEnabledArg(server.arg("enabled"));
+  motorMultistepFilt[d] = enabled;
+  saveMotorConfig(d);
+  applyDriverMode(d);
+  sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"multistep_filt\":" + String(enabled ? "true" : "false") + "}");
+}
+
 void handleCurrent() {
   int ma = server.arg("ma").toInt();
   if (ma < 50 || ma > 2000) {
@@ -598,6 +619,7 @@ void setup() {
   server.on("/motor_ramp", handleMotorRamp);
   server.on("/motor_stealthchop", handleMotorStealthChop);
   server.on("/motor_interpolation", handleMotorInterpolation);
+  server.on("/motor_multistep_filt", handleMotorMultistepFilt);
   server.on("/estop", handleEstop);
   server.on("/stop", handleStop);
   server.on("/stop_all", handleStopAll);
