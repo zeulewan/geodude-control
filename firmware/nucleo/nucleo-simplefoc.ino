@@ -264,7 +264,11 @@ void setup() {
   motor.velocity_limit = 250.0f;
   motor.controller = MotionControlType::velocity;
   motor.torque_controller = TorqueControlType::voltage;
-  motor.foc_modulation = FOCModulationType::SinePWM;
+  // SpaceVectorPWM gets max Uq = Vbus/sqrt(3) ~= 13.86V on a 24V bus, vs
+  // SinePWM's Vbus/2 = 12V. ~15% more peak torque with no waveform/ripple
+  // downside vs SinePWM. For even more (at the cost of smoothness) consider
+  // overmodulation or trapezoidal.
+  motor.foc_modulation = FOCModulationType::SpaceVectorPWM;
   motor.modulation_centered = 1;
   motor.PID_velocity.P = 0.02f;
   motor.PID_velocity.I = 0.10f;
