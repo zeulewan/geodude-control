@@ -339,6 +339,30 @@ def _simplefoc_jog_start(direction, max_voltage, accel_ramp, brake_ramp):
             elapsed_ms=round((time.monotonic()-t0)*1000, 1))
 
 
+def simplefoc_status_poll_loop():
+    """Refresh the status cache from the firmware so wheel_rpm stays live
+    while the motor is spinning. Firmware only prints on events, so without
+    this the UI reads a frozen value between press and release.
+
+    Cadence is 500ms while active (3.4% of firmware time blocked on
+    Serial.print — acceptable; tighten if needed) and 2s while idle (so
+    /simplefoc/jog/status still shows a recent foc_ready etc.). Uses
+    pico_lock with a short read_for so it loses the race to any user
+    command cleanly."""
+    while True:
+        with simplefoc_jog_lock:
+            active = simplefoc_jog_state["active"]
+        period = 0.5 if active else 2.0
+        try:
+            ser = get_pico()
+            if ser is not None:
+                with pico_lock:
+                    _simplefoc_status_locked(ser, timeout=0.05)
+        except Exception as exc:
+            _simplefoc_cache_status(error=exc)
+        time.sleep(period)
+
+
 def simplefoc_jog_watchdog_loop():
     while True:
         time.sleep(0.05)
@@ -2259,5 +2283,6 @@ if __name__ == "__main__":
     # No pca_all_off() — groundstation sends neutral positions on connect
     threading.Thread(target=sensor_loop, daemon=True).start()
     threading.Thread(target=simplefoc_jog_watchdog_loop, daemon=True).start()
+    threading.Thread(target=simplefoc_status_poll_loop, daemon=True).start()
     threading.Thread(target=camera_reader_thread, daemon=True).start()
     app.run(host="0.0.0.0", port=5000, threaded=True)
