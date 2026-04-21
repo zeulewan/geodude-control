@@ -1,6 +1,15 @@
 # MACE Reaction Wheel - Development Log
 
-This document captures the full development history of the MACE reaction wheel system, including hardware iterations, firmware changes, issues encountered, and lessons learned. Written during the transition from the 2804 gimbal motor to a new motor.
+This document captures the full development history of the MACE reaction wheel system, including hardware iterations, firmware changes, issues encountered, and lessons learned.
+
+Important: the top section below is historical. The current wheel controller in the active repo is STM32 Nucleo F446RE + SimpleFOC, not Raspberry Pi Pico. The last full manual-control UI before the frontend purge was the Nucleo-backed panel with:
+
+- direct RPM input
+- `ENABLE`, `DISABLE`, and `STOP`
+- `CALIBRATE FOC`
+- manual voltage-limit tuning
+
+The older Pico / DRV8313 notes are kept here because they are still useful history, but they are not the current hardware state.
 
 ## Hardware Configuration (Final State - 2804 Motor)
 

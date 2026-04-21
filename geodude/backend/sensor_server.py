@@ -12,7 +12,7 @@ app = Flask(__name__)
 bus = smbus2.SMBus(1)
 lock = threading.Lock()
 
-# --- SimpleFOC serial (Pi Pico over USB) ---
+# --- SimpleFOC serial (STM32 / Nucleo over USB) ---
 
 PICO_PORT = "/dev/ttyACM0"
 PICO_BAUD = 115200
@@ -20,7 +20,7 @@ pico_serial = None
 pico_lock = threading.Lock()
 
 def get_pico():
-    """Return open serial port to Pico, opening it lazily if needed."""
+    """Return open serial port to the STM32 / Nucleo controller, opening it lazily if needed."""
     global pico_serial
     with pico_lock:
         if pico_serial is None or not pico_serial.is_open:
@@ -186,7 +186,7 @@ PRESCALE = 0xFE
 LED0_ON_L = 0x06
 
 # Channel mapping (pin - 1 = 0-indexed)
-# MACE reaction wheel is no longer on PCA9685 — it is driven by Pi Pico via SimpleFOC
+# MACE reaction wheel is no longer on PCA9685 — it is driven by the STM32 / Nucleo SimpleFOC controller
 CHANNELS = {
     "B1":   0,
     "S1":   1,
@@ -509,7 +509,7 @@ def system_stats():
 
 @app.route("/simplefoc", methods=["POST"])
 def simplefoc():
-    """Send a velocity command to the Pico (SimpleFOC Commander protocol).
+    """Send a velocity command to the wheel controller (SimpleFOC Commander protocol).
     Body: {"velocity": 5.0}  — sets target velocity in rad/s
        or {"command": "T5"} — sends a raw commander command
     """

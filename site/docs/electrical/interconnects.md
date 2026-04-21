@@ -167,7 +167,9 @@ Every wire connection in both systems. Use this as the wiring reference when bui
 | PCA9685 | Ch 7 | Arm 2 Elbow servo | Signal | 22 AWG | PWM |
 | PCA9685 | Ch 8 | Arm 2 Wrist Rotate | Signal | 22 AWG | PWM |
 | PCA9685 | Ch 9 | Arm 2 Wrist Pan | Signal | 22 AWG | PWM |
-| PCA9685 | Ch 14 | ESC | PWM | 22 AWG | MACE reaction wheel |
+| Pi | USB serial (`/dev/ttyACM0`) | STM32 Nucleo F446RE | USB | USB cable | SimpleFOC commander + telemetry |
+| STM32 Nucleo F446RE | 3PWM outputs | SimpleFOC Shield V2 / wheel driver | PWM phases | Board-level | Reaction wheel motor commutation |
+| STM32 Nucleo F446RE | Encoder inputs | Reaction wheel encoder | A/B | Board-level | Wheel speed / angle feedback |
 
 ### Limit Switches (Pi GPIO direct)
 

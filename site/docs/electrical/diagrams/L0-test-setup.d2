@@ -46,7 +46,7 @@ geodude: GEO-DUDe Servicer - 12V System {
 
   psu: "12V 600W PSU" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
   busbar: "V+ Bus Bar" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
-  pi: "Raspberry Pi | PCA9685 PWM | Pi Camera" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
+  pi: "Raspberry Pi | PCA9685 PWM | Pi Camera | STM32/Nucleo serial bridge" {shape: rectangle; style.fill: "#F3E5F5"; style.stroke: "#7B1FA2"}
   arms: "2x Arm Fuse Boards | 10 servos (5 per arm)" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
   mace: "MACE Reaction Wheel | X2807 BLDC + 40A ESC" {shape: rectangle; style.fill: "#BBDEFB"; style.stroke: "#1565C0"}
   limits: "10x Limit Switches" {shape: rectangle; style.fill: "#FFF3E0"; style.stroke: "#EF6C00"}
@@ -56,7 +56,7 @@ geodude: GEO-DUDe Servicer - 12V System {
   busbar -> arms: "40A fuse + toggle" {style.stroke: "#1565C0"}
   busbar -> mace: "12 AWG direct" {style.stroke: "#3949AB"}
   pi -> arms: "PWM" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
-  pi -> mace: "PWM + I2C" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
+  pi -> mace: "USB serial + sensor links" {style.stroke: "#7B1FA2"; style.stroke-dash: 3}
   pi -> limits: "GPIO" {style.stroke: "#EF6C00"; style.stroke-dash: 3}
 }
 

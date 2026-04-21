@@ -145,26 +145,20 @@ Flask web app exposed to operators at **`http://192.168.50.2/`**. Internally the
 
 **MACE (Reaction Wheel) panel:**
 
-- Hold-to-spin with configurable power and server-side ramp rate (0.1-100 %/s)
-- **Bidirectional ESC** — center-stick control (1500us=stop, forward/reverse proportional)
-- Ramp progress bar showing target vs current throttle
-- No arming sequence needed (plug and play ESC)
-- RPM display from encoder (computed server-side at 30Hz, 10-sample rolling average)
-- RPM saturation limit at 600 RPM with hysteresis (coast at 600, resume at 420)
-- 3-second watchdog — auto-stops motor if browser disconnects
+- STM32 Nucleo / SimpleFOC manual wheel control
+- Direct target entry in wheel RPM, plus quick-set buttons for common values
+- `ENABLE`, `DISABLE`, and `STOP` buttons for live control state
+- `CALIBRATE FOC` button to run `initFOC()` on the wheel controller before enabling live motion
+- Live wheel RPM readout from the wheel encoder over serial status polling
+- Voltage limit input for tuning authority in manual mode
+- Manual MACE control is mutually exclusive with the higher-level attitude control paths
 
 **Attitude Control panel:**
 
-- Closed-loop PID controller for body angle (runs on GEO-DUDe at 100Hz)
-- Gyro gz integration for body angle estimation with bias calibration
-- Angle dial (body angle + setpoint), revolution counter
-- Nudge buttons (+10°, -10°, +90°, -90°) and direct setpoint input
-- Live-adjustable PID gains (Kp, Ki, Kd) and max throttle ceiling
-- Wheel saturation detection (600 RPM max, auto-coast when saturated)
-- Rate-limited output (40.5%/s max)
-- Deadband-skip mapping (PID output → bidirectional motor range, skipping ±50-75us center deadband)
-- 5-second watchdog auto-disable
-- Mutual exclusion with manual MACE control
+- Closed-loop body-angle and body-rate experimentation built on the same STM32 / SimpleFOC stack
+- Body angle zeroing and gyro bias calibration from the GEO-DUDe side
+- Angle dial, setpoint controls, live gains, and breakaway/profile tooling
+- Shared safety constraints with manual MACE control, including mutual exclusion and wheel-speed limits
 
 **PCA9685 Channels panel:**
 
@@ -180,29 +174,20 @@ Flask web app exposed to operators at **`http://192.168.50.2/`**. Internally the
 
 ### Sensor Server (`sensor-server.service` on GEO-DUDe)
 
-Flask API on GEO-DUDe (`192.168.4.166:5000`). Controls PCA9685 over I2C and reads IMU/encoder.
+Flask API on GEO-DUDe (`192.168.4.166:5000`). Owns the PCA9685 servo path, wheel telemetry, and the STM32 / SimpleFOC serial bridge.
 
-- `GET /sensors` — gyro, accel, encoder angle, RPM (30Hz I2C polling)
+- `GET /sensors` — gyro, accel, encoder angle, RPM
 - `GET /system` — CPU%, temperature, load average
-- `POST /motor` — MACE ESC control (pulse width in us, 1500=stop, >1500=forward, <1500=reverse, blocked when attitude controller active)
 - `POST /pwm` — per-channel PCA9685 control (`{"channel": "B1", "pw": 1500}`)
-- `POST /pwm/off` — all channels off
-- `GET /channels` — channel mapping
+- `GET /pwm_health` — servo write/readback health and last pulse widths
 - `GET /camera` — MJPEG stream from RPi Camera Module 3
+- `POST /simplefoc` — raw SimpleFOC commander bridge for the wheel controller
+- `GET /simplefoc/status` — current wheel target / controller connectivity
+- `POST /simplefoc/profile/calibrate` — run wheel `initFOC()` calibration on the STM32 side
+- `GET /simplefoc/control/state` — live body control state
+- `POST /simplefoc/control/start|config|zero|stop|breakaway` — higher-level wheel/body control routes
 
-### Attitude Controller (`attitude-controller.service` on GEO-DUDe)
-
-Separate Flask API on GEO-DUDe (`192.168.4.166:5001`). PID control loop for body angle.
-
-- `GET /status` — full controller state (body angle, setpoint, error, output, gains, RPM, saturation)
-- `POST /enable` — calibrate gyro (2s), arm ESC (3s), start PID
-- `POST /disable` — stop PID, coast motor
-- `POST /setpoint` — set target body angle
-- `POST /nudge` — adjust setpoint by delta
-- `POST /zero` — reset body angle and setpoint to 0
-- `POST /gains` — adjust PID gains live
-- `POST /calibrate` — re-run gyro bias calibration
-- `POST /stop` — emergency disable
+There is no longer a separate ESC-style `/motor` path for MACE, and the old `attitude-controller.service` split is obsolete. Those capabilities now live under the unified `sensor-server.service` + SimpleFOC stack.
 
 ### Networking Notes
 
