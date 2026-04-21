@@ -122,14 +122,22 @@ int currentStepDelayForDriver(int d) {
   if (stepsDone <= 0) {
     stepsDone = 0;
   }
-  if (stepsDone >= rampSteps) {
+  int stepsLeftAfterThis = stepsRemaining[d] - 1;
+  if (stepsLeftAfterThis < 0) {
+    stepsLeftAfterThis = 0;
+  }
+  int rampProgress = stepsDone;
+  if (stepsLeftAfterThis < rampProgress) {
+    rampProgress = stepsLeftAfterThis;
+  }
+  if (rampProgress >= rampSteps) {
     return target;
   }
   int startDelay = target * 4;
   if (startDelay < target) startDelay = target;
   if (startDelay > 50000) startDelay = 50000;
   long span = (long)startDelay - (long)target;
-  long delayNow = startDelay - (span * stepsDone) / rampSteps;
+  long delayNow = startDelay - (span * rampProgress) / rampSteps;
   if (delayNow < target) delayNow = target;
   return (int)delayNow;
 }

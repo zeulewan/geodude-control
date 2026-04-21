@@ -1689,7 +1689,7 @@ function gimbalPoll() {
         html += '<input type="range" id="motorSpeedSlider_' + i + '" min="100" max="8000" step="50" value="' + (drv.step_delay_us || 2000) + '" oninput="gimbalSetMotorSpeed(' + i + ', this.value)">';
         html += '</div>';
         html += '<div class="motor-slider-group">';
-        html += '<div class="motor-slider-label"><span class="label">Ramp Up</span><span class="value" id="motorRampLabel_' + i + '">' + (drv.ramp_steps || 0) + ' steps</span></div>';
+        html += '<div class="motor-slider-label"><span class="label">Ramp</span><span class="value" id="motorRampLabel_' + i + '">' + (drv.ramp_steps || 0) + ' steps</span></div>';
         html += '<input type="range" id="motorRampSlider_' + i + '" min="0" max="2000" step="10" value="' + (drv.ramp_steps || 0) + '" oninput="gimbalSetMotorRamp(' + i + ', this.value)">';
         html += '</div>';
 
