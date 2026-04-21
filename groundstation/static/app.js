@@ -1179,6 +1179,8 @@ var maceJogActive = null;
 var maceJogHeartbeatTimer = null;
 var maceJogReady = false;
 var maceJogCalibrating = false;
+var maceJogPendingDirection = null;
+var maceJogRequestSeq = 0;
 
 function maceCfg() {
   return {
@@ -1238,6 +1240,8 @@ function maceStopHeartbeat() {
 
 function maceJogStart(direction) {
   if (!maceJogReady || maceJogCalibrating) return;
+  maceJogPendingDirection = direction;
+  var reqSeq = ++maceJogRequestSeq;
   var cfg = maceCfg();
   fetch('/api/mace/jog/start', {
     method: 'POST',
@@ -1250,14 +1254,24 @@ function maceJogStart(direction) {
     })
   }).then(function(r) { return r.json(); }).then(function(d) {
     var note = document.getElementById('maceJogNote');
+    if (reqSeq !== maceJogRequestSeq || maceJogPendingDirection !== direction) {
+      fetch('/api/mace/jog/stop', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({})
+      }).catch(function() {});
+      return;
+    }
     if (d.ok === false) {
       if (note) note.textContent = d.error || 'MACE jog start failed';
       maceJogActive = null;
+      maceJogPendingDirection = null;
       maceSetButtons(null);
       maceStopHeartbeat();
       return;
     }
     maceJogActive = direction;
+    maceJogPendingDirection = null;
     maceSetButtons(direction);
     maceStartHeartbeat(direction);
     maceRenderStatus(d);
@@ -1265,6 +1279,7 @@ function maceJogStart(direction) {
     var note = document.getElementById('maceJogNote');
     if (note) note.textContent = 'MACE jog start failed: ' + err;
     maceJogActive = null;
+    maceJogPendingDirection = null;
     maceSetButtons(null);
     maceStopHeartbeat();
   });
@@ -1286,6 +1301,8 @@ function maceCalibrate() {
 }
 
 function maceJogStop() {
+  maceJogRequestSeq += 1;
+  maceJogPendingDirection = null;
   maceStopHeartbeat();
   fetch('/api/mace/jog/stop', {
     method: 'POST',
@@ -1304,7 +1321,7 @@ function maceJogStop() {
 }
 
 function maceReleaseAll() {
-  if (!maceJogActive) return;
+  if (!maceJogActive && !maceJogPendingDirection) return;
   maceJogStop();
 }
 
@@ -1360,26 +1377,30 @@ function maceStatusPoll() {
 function maceBindMomentaryButton(id, direction) {
   var btn = document.getElementById(id);
   if (!btn) return;
+  var activePointerId = null;
   function press(ev) {
     if (ev) ev.preventDefault();
+    if (btn.disabled) return;
+    if (activePointerId !== null) return;
+    activePointerId = ev && ev.pointerId != null ? ev.pointerId : 'mouse';
     if (ev && ev.pointerId != null && btn.setPointerCapture) btn.setPointerCapture(ev.pointerId);
     if (maceJogActive && maceJogActive !== direction) maceJogStop();
-    if (maceJogActive === direction) return;
+    if (maceJogActive === direction || maceJogPendingDirection === direction) return;
     maceJogStart(direction);
   }
   function release(ev) {
     if (ev) ev.preventDefault();
+    if (activePointerId === null) return;
     if (ev && ev.pointerId != null && btn.releasePointerCapture) {
       try { btn.releasePointerCapture(ev.pointerId); } catch (e) {}
     }
-    if (maceJogActive === direction) maceJogStop();
+    activePointerId = null;
+    if (maceJogActive === direction || maceJogPendingDirection === direction) maceJogStop();
   }
   btn.addEventListener('pointerdown', press);
   btn.addEventListener('pointerup', release);
   btn.addEventListener('pointercancel', release);
-  btn.addEventListener('touchstart', press, {passive: false});
-  btn.addEventListener('touchend', release, {passive: false});
-  btn.addEventListener('mouseup', release);
+  btn.addEventListener('lostpointercapture', release);
 }
 
 function poll() {
