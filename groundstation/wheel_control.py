@@ -128,25 +128,25 @@ if os.path.exists(NEUTRAL_FILE) and not servo_neutral:
 
 # --- L6: Per-channel servo PW envelope (mechanical safety) ---
 #
-# Commands that would drive a joint past its envelope are clamped to the
-# edge before even reaching the ramp. This prevents a buggy UI or a
-# typo from driving a servo into a mechanical stop.
+# Commands outside a channel's envelope are clamped before the ramp, so a
+# buggy UI/typo can't drive a servo into a mechanical stop.
 #
-# Defaults = neutral +/- 600 us, clamped to [500, 2500]. Override per joint
-# by placing groundstation/servo_limits.json with {"B1": {"min": 1000, "max": 2000}, ...}.
+# Defaults are the full 500..2500 us pulse window -- no assumption about
+# where the joint's real mechanical limits are. To tighten per joint (once
+# you've measured real stops), drop a groundstation/servo_limits.json with
+# e.g. {"B1": {"min": 1000, "max": 2000}, ...}.
+#
+# Previously defaults were neutral +/- 600 us, which silently chopped half
+# of travel whenever a neutral was a joint-extended position rather than a
+# mechanical center. Slew-rate safety (SERVO_MAX_DELTA_US) already handles
+# bad single commands; mechanical-stop safety needs measured limits, not
+# guessed ones.
 
 LIMITS_FILE = os.path.join(GROUNDSTATION_DIR, "servo_limits.json")
 
 
 def _default_servo_limits():
-    limits = {}
-    for name in CHANNELS:
-        neutral = servo_neutral.get(name, 1500)
-        limits[name] = {
-            "min": max(500, neutral - 600),
-            "max": min(2500, neutral + 600),
-        }
-    return limits
+    return {name: {"min": 500, "max": 2500} for name in CHANNELS}
 
 
 def _load_servo_limits():
@@ -673,12 +673,6 @@ def set_servo_neutral():
     if name in CHANNELS:
         servo_neutral[name] = pw
         save_neutral(servo_neutral)
-    # M2: neutral changed -> envelope may be re-centered; reload limits.
-    global servo_limits
-    try:
-        servo_limits = _load_servo_limits()
-    except Exception as e:
-        print(f"[servo] servo_limits reload after neutral edit failed: {e}", flush=True)
     return jsonify({"ok": True})
 
 
@@ -931,6 +925,14 @@ def gimbal_motor_interpolation():
     d = request.json.get("driver", 0)
     enabled = 1 if request.json.get("enabled", True) else 0
     data, code = gimbal_get(f"motor_interpolation?d={d}&enabled={enabled}")
+    return jsonify(data), code
+
+
+@app.route('/api/gimbal/motor_multistep_filt', methods=['POST'])
+def gimbal_motor_multistep_filt():
+    d = request.json.get("driver", 0)
+    enabled = 1 if request.json.get("enabled", True) else 0
+    data, code = gimbal_get(f"motor_multistep_filt?d={d}&enabled={enabled}")
     return jsonify(data), code
 
 
