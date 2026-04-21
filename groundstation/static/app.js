@@ -1699,6 +1699,7 @@ function gimbalPoll() {
 
         /* Stats line */
         html += '<div class="driver-stats" id="driverStats_' + i + '"></div>';
+        html += '<div class="driver-debug" id="driverDebug_' + i + '"></div>';
 
         /* Current sliders */
         html += '<div class="motor-slider-group">';
@@ -1813,6 +1814,15 @@ function gimbalPoll() {
         statsEl.textContent = parts.join(' | ');
       } else if (statsEl) {
         statsEl.textContent = '';
+      }
+      var debugEl = document.getElementById('driverDebug_' + i);
+      if (debugEl) {
+        var debugParts = [];
+        if (drv.target_step_hz != null) debugParts.push('Target ' + Math.round(drv.target_step_hz) + 'Hz');
+        if (drv.actual_step_hz != null && drv.actual_step_hz > 0) debugParts.push('Actual ' + Math.round(drv.actual_step_hz) + 'Hz');
+        if (drv.last_step_lag_us != null) debugParts.push('Lag ' + drv.last_step_lag_us + 'us');
+        if (drv.last_step_interval_us != null && drv.last_step_interval_us > 0) debugParts.push('Dt ' + drv.last_step_interval_us + 'us');
+        debugEl.textContent = debugParts.join(' | ');
       }
 
       /* Sync current sliders (only if not being dragged) */

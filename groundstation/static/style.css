@@ -884,6 +884,14 @@ input[type="range"]::-moz-range-thumb {
   font-family: 'SF Mono', 'Fira Code', monospace;
   margin-bottom: 10px;
 }
+.driver-debug {
+  font-size: 11px;
+  color: #60a5fa;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  margin-top: -6px;
+  margin-bottom: 10px;
+  min-height: 14px;
+}
 
 /* Servo channels */
 .ch-grid {

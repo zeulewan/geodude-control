@@ -60,6 +60,9 @@ int motorRampSteps[4] = {0, 0, 0, 0};
 int motorMoveTotalSteps[4] = {0, 0, 0, 0};
 int stepsRemaining[4] = {0, 0, 0, 0};
 uint32_t motorNextStepAtUS[4] = {0, 0, 0, 0};
+uint32_t motorLastStepAtUS[4] = {0, 0, 0, 0};
+uint32_t motorLastStepIntervalUS[4] = {0, 0, 0, 0};
+uint32_t motorLastStepLagUS[4] = {0, 0, 0, 0};
 bool setupDone = false; // legacy, kept for /status but not required
 
 int clampRunCurrentMA(int ma) {
@@ -205,6 +208,12 @@ int currentStepDelayForDriver(int d) {
   return (int)delayNow;
 }
 
+void clearStepDebug(int d) {
+  motorLastStepAtUS[d] = 0;
+  motorLastStepIntervalUS[d] = 0;
+  motorLastStepLagUS[d] = 0;
+}
+
 void handleStatus() {
   bool stepping = anyMotorRunning();
   String r = "{\"drivers_found\":" + String(driversFound) +
@@ -237,6 +246,10 @@ void handleStatus() {
       ",\"step_delay_us\":" + String(motorStepDelayUS[i]) +
       ",\"ramp_steps\":" + String(motorRampSteps[i]) +
       ",\"current_step_delay_us\":" + String(motorRunning[i] ? currentStepDelayForDriver(i) : motorStepDelayUS[i]) +
+      ",\"target_step_hz\":" + String((motorRunning[i] ? (1000000.0f / currentStepDelayForDriver(i)) : (1000000.0f / motorStepDelayUS[i])), 1) +
+      ",\"actual_step_hz\":" + String(motorLastStepIntervalUS[i] > 0 ? (1000000.0f / motorLastStepIntervalUS[i]) : 0.0f, 1) +
+      ",\"last_step_interval_us\":" + String(motorLastStepIntervalUS[i]) +
+      ",\"last_step_lag_us\":" + String(motorLastStepLagUS[i]) +
       ",\"current_ma\":" + String(motorCurrentMA[i]) +
       ",\"ihold_ma\":" + String(motorIholdMA[i]) +
       ",\"gear_ratio\":" + String(gearRatio[i], 2) +
@@ -305,6 +318,7 @@ void handleMove() {
   stepsRemaining[d] = abs(steps);
   motorMoveTotalSteps[d] = stepsRemaining[d];
   motorNextStepAtUS[d] = micros();
+  clearStepDebug(d);
   motorRunning[d] = true;
   applyRunDriverCurrent(d);
   sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"steps\":" + String(steps) + "}");
@@ -329,6 +343,7 @@ void handleMoveDeg() {
   stepsRemaining[d] = abs(steps);
   motorMoveTotalSteps[d] = stepsRemaining[d];
   motorNextStepAtUS[d] = micros();
+  clearStepDebug(d);
   motorRunning[d] = true;
   applyRunDriverCurrent(d);
   sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"deg\":" + String(deg, 2) + ",\"steps\":" + String(steps) + "}");
@@ -415,6 +430,7 @@ void handleEstop() {
     motorEnabled[i] = false;
     motorMoveTotalSteps[i] = 0;
     motorNextStepAtUS[i] = 0;
+    clearStepDebug(i);
     drivers[i]->toff(0);
   }
   sendJson("{\"ok\":true,\"estop\":true}");
@@ -431,6 +447,7 @@ void handleStop() {
   stepsRemaining[d] = 0;
   motorMoveTotalSteps[d] = 0;
   motorNextStepAtUS[d] = 0;
+  clearStepDebug(d);
   applyIdleDriverCurrent(d);
   sendJson("{\"ok\":true,\"driver\":" + String(d) + "}");
 }
@@ -441,6 +458,7 @@ void handleStopAll() {
     stepsRemaining[i] = 0;
     motorMoveTotalSteps[i] = 0;
     motorNextStepAtUS[i] = 0;
+    clearStepDebug(i);
     applyIdleDriverCurrent(i);
   }
   sendJson("{\"ok\":true}");
@@ -673,19 +691,34 @@ void loop() {
   uint32_t now = micros();
   bool stepped = false;
   uint32_t nextDue = now + 1000000UL;
+  static uint32_t steppedSinceService = 0;
 
   // Step any motor whose own schedule says it's due. Each axis keeps its own cadence.
   for (int i = 0; i < 4; i++) {
     if (!motorRunning[i] || stepsRemaining[i] <= 0) continue;
 
-    if ((int32_t)(now - motorNextStepAtUS[i]) >= 0) {
+    uint32_t dueAt = motorNextStepAtUS[i];
+    if ((int32_t)(now - dueAt) >= 0) {
       int intervalUS = currentStepDelayForDriver(i);
+      uint32_t lagUS = (uint32_t)((int32_t)(now - dueAt) > 0 ? (now - dueAt) : 0);
       digitalWrite(drvPins[i].step, HIGH);
       delayMicroseconds(10);
       digitalWrite(drvPins[i].step, LOW);
-      motorNextStepAtUS[i] = now + (uint32_t)intervalUS;
+      uint32_t pulseDone = micros();
+      if (motorLastStepAtUS[i] != 0) {
+        motorLastStepIntervalUS[i] = pulseDone - motorLastStepAtUS[i];
+      }
+      motorLastStepAtUS[i] = pulseDone;
+      motorLastStepLagUS[i] = lagUS;
+      uint32_t scheduledNext = dueAt + (uint32_t)intervalUS;
+      uint32_t minNext = pulseDone + 4;
+      if ((int32_t)(scheduledNext - minNext) < 0) {
+        scheduledNext = minNext;
+      }
+      motorNextStepAtUS[i] = scheduledNext;
       stepsRemaining[i]--;
       stepped = true;
+      steppedSinceService++;
       if (stepsRemaining[i] <= 0) {
         motorRunning[i] = false;
         motorMoveTotalSteps[i] = 0;
@@ -701,23 +734,20 @@ void loop() {
     }
   }
 
-  static uint32_t lastServiceUS = 0;
-  uint32_t serviceNow = micros();
-  if ((int32_t)(serviceNow - lastServiceUS) >= 2000) {
-    lastServiceUS = serviceNow;
+  // Keep control responsive, but don't inject a 500 Hz wobble into the step train.
+  if (steppedSinceService >= 100) {
+    steppedSinceService = 0;
     server.handleClient();
-    ArduinoOTA.handle();
   }
 
   if (!stepped) {
     uint32_t waitUS = 0;
-    uint32_t afterService = micros();
-    if ((int32_t)(nextDue - afterService) > 0) {
-      waitUS = nextDue - afterService;
+    uint32_t afterLoop = micros();
+    if ((int32_t)(nextDue - afterLoop) > 0) {
+      waitUS = nextDue - afterLoop;
     }
-    if (waitUS > 50) waitUS = 50;
-    if (waitUS >= 5) {
-      delayMicroseconds(waitUS);
+    if (waitUS > 10) {
+      delayMicroseconds(waitUS - 5);
     }
   }
 }
