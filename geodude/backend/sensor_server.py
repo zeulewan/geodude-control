@@ -49,6 +49,126 @@ def simplefoc_send(cmd):
         print("SimpleFOC serial error: %s" % e, flush=True)
         return False, str(e)
 
+
+SIMPLEFOC_JOG_MAX_RPM = 500.0
+SIMPLEFOC_JOG_MAX_RAD_S = SIMPLEFOC_JOG_MAX_RPM * 2.0 * math.pi / 60.0
+SIMPLEFOC_JOG_MIN_VOLTAGE = 0.5
+SIMPLEFOC_JOG_MAX_VOLTAGE = 24.0
+SIMPLEFOC_JOG_MIN_RAMP = 0.1
+SIMPLEFOC_JOG_MAX_RAMP = 50.0
+SIMPLEFOC_JOG_TIMEOUT_S = 0.25
+
+simplefoc_jog_lock = threading.Lock()
+simplefoc_jog_state = {
+    "active": None,  # forward/backward/brake
+    "status": "idle",
+    "error": None,
+    "max_voltage": 12.0,
+    "accel_ramp": 5.0,
+    "brake_ramp": 12.0,
+    "last_heartbeat": 0.0,
+    "last_command_at": 0.0,
+}
+
+
+def _simplefoc_jog_clamp_voltage(value):
+    return max(SIMPLEFOC_JOG_MIN_VOLTAGE, min(float(value), SIMPLEFOC_JOG_MAX_VOLTAGE))
+
+
+def _simplefoc_jog_clamp_ramp(value):
+    return max(SIMPLEFOC_JOG_MIN_RAMP, min(float(value), SIMPLEFOC_JOG_MAX_RAMP))
+
+
+def _simplefoc_jog_snapshot():
+    with simplefoc_jog_lock:
+        snap = dict(simplefoc_jog_state)
+    ser = get_pico()
+    snap["connected"] = bool(ser is not None and ser.is_open)
+    try:
+        if snap["connected"]:
+            with pico_lock:
+                ser.write(b"S\n")
+                deadline = time.time() + 0.25
+                line = ""
+                while time.time() < deadline:
+                    line = ser.readline().decode(errors="ignore").strip()
+                    if line.startswith("{") and line.endswith("}"):
+                        break
+            if line.startswith("{") and line.endswith("}"):
+                status = json.loads(line)
+                snap["target"] = status.get("target", status.get("run_target"))
+            else:
+                snap["target"] = None
+        else:
+            snap["target"] = None
+    except Exception as exc:
+        snap["target"] = None
+        snap["serial_error"] = str(exc)
+    return snap
+
+
+def _simplefoc_jog_disable(status="idle", error=None):
+    simplefoc_send("D")
+    with simplefoc_jog_lock:
+        simplefoc_jog_state["active"] = None
+        simplefoc_jog_state["status"] = status
+        simplefoc_jog_state["error"] = error
+        simplefoc_jog_state["last_command_at"] = time.monotonic()
+
+
+def _simplefoc_jog_start(direction, max_voltage, accel_ramp, brake_ramp):
+    target = 0.0
+    if direction == "forward":
+        target = SIMPLEFOC_JOG_MAX_RAD_S
+    elif direction == "backward":
+        target = -SIMPLEFOC_JOG_MAX_RAD_S
+    elif direction == "brake":
+        target = 0.0
+    else:
+        raise ValueError("direction must be forward/backward/brake")
+    ramp = brake_ramp if direction == "brake" else accel_ramp
+    for cmd in (
+        "D",
+        "MR",
+        f"V{_simplefoc_jog_clamp_voltage(max_voltage):.3f}",
+        f"R{_simplefoc_jog_clamp_ramp(ramp):.3f}",
+        "E",
+        f"T{target:.5f}",
+    ):
+        ok, err = simplefoc_send(cmd)
+        if not ok:
+            raise RuntimeError(err or ("command failed: %s" % cmd))
+        time.sleep(0.03)
+    with simplefoc_jog_lock:
+        simplefoc_jog_state["active"] = direction
+        simplefoc_jog_state["status"] = "running"
+        simplefoc_jog_state["error"] = None
+        simplefoc_jog_state["max_voltage"] = _simplefoc_jog_clamp_voltage(max_voltage)
+        simplefoc_jog_state["accel_ramp"] = _simplefoc_jog_clamp_ramp(accel_ramp)
+        simplefoc_jog_state["brake_ramp"] = _simplefoc_jog_clamp_ramp(brake_ramp)
+        simplefoc_jog_state["last_heartbeat"] = time.monotonic()
+        simplefoc_jog_state["last_command_at"] = time.monotonic()
+
+
+def simplefoc_jog_watchdog_loop():
+    while True:
+        time.sleep(0.05)
+        with simplefoc_jog_lock:
+            active = simplefoc_jog_state["active"]
+            last_heartbeat = simplefoc_jog_state["last_heartbeat"]
+        if not active:
+            continue
+        if time.monotonic() - last_heartbeat <= SIMPLEFOC_JOG_TIMEOUT_S:
+            continue
+        try:
+            _simplefoc_jog_disable(status="watchdog stop", error=None)
+        except Exception as exc:
+            with simplefoc_jog_lock:
+                simplefoc_jog_state["active"] = None
+                simplefoc_jog_state["status"] = "watchdog error"
+                simplefoc_jog_state["error"] = str(exc)
+                simplefoc_jog_state["last_command_at"] = time.monotonic()
+
 sensor_data = {
     "ax": 0, "ay": 0, "az": 0,
     "gx": 0, "gy": 0, "gz": 0,
@@ -436,6 +556,68 @@ def simplefoc_status():
         except Exception as e:
             print("SimpleFOC status read error: %s" % e, flush=True)
     return jsonify({"connected": connected, "target": target})
+
+
+@app.route("/simplefoc/jog/status")
+def simplefoc_jog_status():
+    return jsonify(_simplefoc_jog_snapshot())
+
+
+@app.route("/simplefoc/jog/start", methods=["POST"])
+def simplefoc_jog_start_route():
+    with simplefoc_profile_lock:
+        if simplefoc_profile_state["busy"] or simplefoc_torque_state["busy"]:
+            return jsonify({"ok": False, "error": "profile/torque busy"}), 409
+    with simplefoc_live_lock:
+        if simplefoc_live_state.get("enabled") or simplefoc_live_state.get("sweep_busy"):
+            return jsonify({"ok": False, "error": "live control busy"}), 409
+    data = request.json or {}
+    direction = str(data.get("direction", "")).lower()
+    if direction not in ("forward", "backward", "brake"):
+        return jsonify({"ok": False, "error": "direction must be forward/backward/brake"}), 400
+    max_voltage = _simplefoc_jog_clamp_voltage(data.get("max_voltage", 12.0))
+    accel_ramp = _simplefoc_jog_clamp_ramp(data.get("accel_ramp", 5.0))
+    brake_ramp = _simplefoc_jog_clamp_ramp(data.get("brake_ramp", 12.0))
+    try:
+        _simplefoc_jog_start(direction, max_voltage, accel_ramp, brake_ramp)
+    except Exception as exc:
+        with simplefoc_jog_lock:
+            simplefoc_jog_state["status"] = "error"
+            simplefoc_jog_state["error"] = str(exc)
+            simplefoc_jog_state["last_command_at"] = time.monotonic()
+        return jsonify({"ok": False, "error": str(exc)}), 502
+    return jsonify({"ok": True, **_simplefoc_jog_snapshot()})
+
+
+@app.route("/simplefoc/jog/heartbeat", methods=["POST"])
+def simplefoc_jog_heartbeat_route():
+    data = request.json or {}
+    direction = str(data.get("direction", "")).lower()
+    with simplefoc_jog_lock:
+        active = simplefoc_jog_state["active"]
+        if direction and active and direction != active:
+            return jsonify({"ok": False, "error": "active direction mismatch"}), 409
+        if not active:
+            return jsonify({"ok": False, "error": "no active hold"}), 409
+        simplefoc_jog_state["last_heartbeat"] = time.monotonic()
+    return jsonify({"ok": True, **_simplefoc_jog_snapshot()})
+
+
+@app.route("/simplefoc/jog/stop", methods=["POST"])
+def simplefoc_jog_stop_route():
+    try:
+        _simplefoc_jog_disable()
+        error = None
+    except Exception as exc:
+        error = str(exc)
+    with simplefoc_jog_lock:
+        simplefoc_jog_state["last_command_at"] = time.monotonic()
+    if error is not None:
+        with simplefoc_jog_lock:
+            simplefoc_jog_state["status"] = "error"
+            simplefoc_jog_state["error"] = error
+        return jsonify({"ok": False, "error": error}), 502
+    return jsonify({"ok": True, **_simplefoc_jog_snapshot()})
 
 
 # --- SimpleFOC autonomous profile tuning/logging ---
@@ -1775,5 +1957,6 @@ if __name__ == "__main__":
         print("PCA9685 init failed; continuing without PCA init: %s" % e, flush=True)
     # No pca_all_off() — groundstation sends neutral positions on connect
     threading.Thread(target=sensor_loop, daemon=True).start()
+    threading.Thread(target=simplefoc_jog_watchdog_loop, daemon=True).start()
     threading.Thread(target=camera_reader_thread, daemon=True).start()
     app.run(host="0.0.0.0", port=5000, threaded=True)

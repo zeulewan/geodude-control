@@ -216,35 +216,27 @@ def _mace_post_simplefoc(payload):
         return data
 
 
+def _mace_post_jog(path, payload=None):
+    body = json.dumps(payload or {}).encode()
+    req = urllib.request.Request(
+        f"{GEODUDE_URL}{path}",
+        data=body,
+        headers={"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(req, timeout=2.0) as resp:
+        data = json.loads(resp.read().decode())
+        if not data.get("ok"):
+            raise RuntimeError(data.get("error", "MACE jog command failed"))
+        return data
+
+
 def _mace_fetch_status():
-    with urllib.request.urlopen(f"{GEODUDE_URL}/simplefoc/status", timeout=2.0) as resp:
+    with urllib.request.urlopen(f"{GEODUDE_URL}/simplefoc/jog/status", timeout=2.0) as resp:
         return json.loads(resp.read().decode())
 
 
 def _mace_disable():
-    _mace_post_simplefoc({"command": "D"})
-
-
-def _mace_start_motion(direction, max_voltage, ramp):
-    target = 0.0
-    if direction == "forward":
-        target = MACE_JOG_MAX_RAD_S
-    elif direction == "backward":
-        target = -MACE_JOG_MAX_RAD_S
-    elif direction == "brake":
-        target = 0.0
-    else:
-        raise ValueError("unknown MACE jog direction")
-    for cmd in (
-        "D",
-        "MR",
-        f"V{_mace_clamp_voltage(max_voltage):.3f}",
-        f"R{_mace_clamp_ramp(ramp):.3f}",
-        "E",
-        f"T{target:.5f}",
-    ):
-        _mace_post_simplefoc({"command": cmd})
-        time.sleep(0.03)
+    return _mace_post_jog("/simplefoc/jog/stop")
 
 
 def _mace_snapshot():
@@ -261,6 +253,9 @@ def _mace_snapshot():
     snap["connected"] = bool(sfoc.get("connected"))
     snap["simplefoc_target"] = sfoc.get("target")
     snap["simplefoc_live"] = bool(sfoc.get("live"))
+    for key in ("active", "status", "error", "max_voltage", "accel_ramp", "brake_ramp"):
+        if key in sfoc:
+            snap[key] = sfoc.get(key)
     return snap
 
 
@@ -760,9 +755,13 @@ def mace_jog_start():
     max_voltage = _mace_clamp_voltage(data.get("max_voltage", 12.0))
     accel_ramp = _mace_clamp_ramp(data.get("accel_ramp", 5.0))
     brake_ramp = _mace_clamp_ramp(data.get("brake_ramp", 12.0))
-    ramp = brake_ramp if direction == "brake" else accel_ramp
     try:
-        _mace_start_motion(direction, max_voltage, ramp)
+        remote = _mace_post_jog("/simplefoc/jog/start", {
+            "direction": direction,
+            "max_voltage": max_voltage,
+            "accel_ramp": accel_ramp,
+            "brake_ramp": brake_ramp,
+        })
     except Exception as exc:
         with mace_jog_lock:
             mace_jog_state["status"] = "error"
@@ -777,7 +776,10 @@ def mace_jog_start():
         mace_jog_state["brake_ramp"] = brake_ramp
         mace_jog_state["last_heartbeat"] = time.monotonic()
         mace_jog_state["last_command_at"] = time.monotonic()
-    return jsonify({"ok": True, **_mace_snapshot()})
+    snap = _mace_snapshot()
+    if isinstance(remote, dict):
+        snap["geodude"] = remote
+    return jsonify({"ok": True, **snap})
 
 
 @app.route('/api/mace/jog/heartbeat', methods=['POST'])
@@ -789,8 +791,17 @@ def mace_jog_heartbeat():
             return jsonify({"ok": False, "error": "active direction mismatch"}), 409
         if not mace_jog_state["active"]:
             return jsonify({"ok": False, "error": "no active hold"}), 409
+    try:
+        remote = _mace_post_jog("/simplefoc/jog/heartbeat", {"direction": direction})
+    except Exception as exc:
+        with mace_jog_lock:
+            mace_jog_state["status"] = "error"
+            mace_jog_state["error"] = str(exc)
+            mace_jog_state["last_command_at"] = time.monotonic()
+        return jsonify({"ok": False, "error": str(exc)}), 502
+    with mace_jog_lock:
         mace_jog_state["last_heartbeat"] = time.monotonic()
-    return jsonify({"ok": True})
+    return jsonify({"ok": True, "remote_status": remote.get("status")})
 
 
 @app.route('/api/mace/jog/stop', methods=['POST'])
