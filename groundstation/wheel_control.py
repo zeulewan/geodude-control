@@ -265,6 +265,7 @@ def _mace_snapshot():
         profile = {"busy": False, "status": "error", "error": str(exc)}
     snap["connected"] = bool(sfoc.get("connected"))
     snap["simplefoc_target"] = sfoc.get("target")
+    snap["wheel_rpm"] = sfoc.get("wheel_rpm")
     snap["simplefoc_live"] = bool(sfoc.get("live"))
     snap["foc_ready"] = bool(sfoc.get("foc_ready"))
     snap["calibrating"] = bool(profile.get("busy"))

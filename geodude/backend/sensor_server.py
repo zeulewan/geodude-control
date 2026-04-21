@@ -46,6 +46,8 @@ def _simplefoc_status_snapshot():
     return {
         "connected": bool(snap.get("connected")),
         "target": status.get("target", status.get("run_target")),
+        "wheel_rpm": status.get("enc_rpm"),
+        "wheel_angle_deg": status.get("enc_deg"),
         "foc_ready": status.get("foc_ready"),
         "armed": status.get("armed"),
         "raw_status": status if status else None,
@@ -135,7 +137,7 @@ SIMPLEFOC_JOG_MIN_VOLTAGE = 0.5
 SIMPLEFOC_JOG_MAX_VOLTAGE = 24.0
 SIMPLEFOC_JOG_MIN_RAMP = 0.1
 SIMPLEFOC_JOG_MAX_RAMP = 50.0
-SIMPLEFOC_JOG_TIMEOUT_S = 0.25
+SIMPLEFOC_JOG_TIMEOUT_S = 0.5
 
 simplefoc_jog_lock = threading.Lock()
 simplefoc_jog_state = {
@@ -199,13 +201,12 @@ def _simplefoc_jog_start(direction, max_voltage, accel_ramp, brake_ramp):
         if not status or not status.get("foc_ready"):
             raise RuntimeError("wheel not calibrated; run calibration first")
         for cmd, delay in (
-            ("D", 0.15),
-            ("MR", 0.15),
-            (f"V{max_voltage:.3f}", 0.15),
-            (f"R{ramp:.3f}", 0.15),
-            ("E", 0.25),
-            (f"T{target:.5f}", 0.15),
-            ("S", 0.25),
+            ("D", 0.05),
+            ("MR", 0.05),
+            (f"V{max_voltage:.3f}", 0.05),
+            (f"R{ramp:.3f}", 0.05),
+            ("E", 0.08),
+            (f"T{target:.5f}", 0.02),
         ):
             _lines, _status, err = _simplefoc_exchange_locked(ser, cmd, read_for=delay)
             print("SimpleFOC: sent %r" % cmd.strip(), flush=True)
@@ -675,6 +676,7 @@ def simplefoc_jog_start_route():
 def simplefoc_jog_heartbeat_route():
     data = request.json or {}
     direction = str(data.get("direction", "")).lower()
+    status_refresh_error = None
     with simplefoc_jog_lock:
         active = simplefoc_jog_state["active"]
         if direction and active and direction != active:
@@ -682,7 +684,18 @@ def simplefoc_jog_heartbeat_route():
         if not active:
             return jsonify({"ok": False, "error": "no active hold"}), 409
         simplefoc_jog_state["last_heartbeat"] = time.monotonic()
-    return jsonify({"ok": True, **_simplefoc_jog_snapshot()})
+    try:
+        ser = get_pico()
+        if ser is not None:
+            with pico_lock:
+                _simplefoc_status_locked(ser, timeout=0.04)
+    except Exception as exc:
+        status_refresh_error = str(exc)
+        _simplefoc_cache_status(error=exc)
+    snap = _simplefoc_jog_snapshot()
+    if status_refresh_error:
+        snap["status_refresh_error"] = status_refresh_error
+    return jsonify({"ok": True, **snap})
 
 
 @app.route("/simplefoc/jog/stop", methods=["POST"])

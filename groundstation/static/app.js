@@ -1352,7 +1352,11 @@ function maceRenderStatus(d) {
     var val = Number(d.simplefoc_target || 0);
     target.textContent = val.toFixed(2) + ' rad/s';
   }
-  if (rpm && d.body_rpm != null) rpm.textContent = Number(d.body_rpm).toFixed(1);
+  if (rpm) {
+    var rpmVal = d.wheel_rpm;
+    if (rpmVal == null) rpmVal = d.body_rpm;
+    rpm.textContent = Number(rpmVal || 0).toFixed(1);
+  }
   if (calBtn) calBtn.disabled = maceJogCalibrating || !d.connected;
   if (note) {
     if (d.error) note.textContent = d.error;
