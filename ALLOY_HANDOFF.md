@@ -6,18 +6,18 @@ Scope: gimbal controls only
 
 ## TL;DR
 
-- Current working gimbal source line is `zeul/gimbal-limit-draft-fix-pi` / local `pi-main` at `760d80df`.
-- Live groundstation Pi `/opt/geodude-control` is at `760d80df`.
-- Live ESP32 gimbal firmware was recompiled and OTA flashed from that same source line.
-- `origin/main` is not the current gimbal/UI truth. Do not deploy UI/backend gimbal files from `main` without reconcile.
-- Roll has no software limits now.
-- Min/max textbox draft stomping is fixed.
-- S-curve ramp is live.
-- All positions are currently untrusted after the ESP32 reboot from flashing.
+- Current live gimbal deploy line is `zeul/gimbal-tumble-rebased` at `ad0aec3b`.
+- Live groundstation Pi `/opt/geodude-control` is at `ad0aec3b`.
+- Live ESP32 gimbal firmware matches that line and now supports tumble mode.
+- Do not use `main` as gimbal/UI deploy truth.
+- Do not manually copy files into `/opt`.
+- Roll has no software limits.
+- Tumble exists for Yaw / Pitch / Roll only, not Belt.
+- All axes are currently untrusted after the latest ESP32 flash, so nothing tumble-related should start until the user re-zeroes the axis.
 
 ## User Intent / Product Rules
 
-- Work on gimbal controls only unless user explicitly says otherwise.
+- Work on gimbal controls only unless the user explicitly says otherwise.
 - No homing hardware exists.
 - Zero is manual: `SET ZERO`, not fake “calibration”.
 - Yaw:
@@ -36,6 +36,7 @@ Scope: gimbal controls only
 - Belt:
   - linear axis
   - no wrap
+  - no tumble mode
 
 ## Network / Runtime Architecture
 
@@ -44,7 +45,7 @@ Scope: gimbal controls only
 - Groundstation live app: `http://192.168.50.2:8080`
 - Groundstation live repo: `/opt/geodude-control`
 - ESP32 gimbal controller: `192.168.4.222`
-- ESP32 status endpoint: `http://192.168.4.222/status`
+- ESP32 direct status endpoint: `http://192.168.4.222/status`
 
 Command path:
 
@@ -60,9 +61,9 @@ Relevant files:
 - `groundstation/wheel_control.py`
 - `firmware/esp32/gimbal_controller.ino`
 
-## Standing Coordination Rules For UI Files
+## Standing Coordination Rules For UI / Backend Files
 
-These were explicitly agreed and should be treated as standing protocol for:
+These are standing protocol for:
 
 - `groundstation/static/app.js`
 - `groundstation/static/style.css`
@@ -87,7 +88,7 @@ Rules:
 7. Cache-busting must stay via `style_rev` / `app_rev`, not manual copies.
 8. If uncertain, stop and ask one blocking question instead of stomping the Pi.
 
-Additional constraints I added:
+Additional constraints:
 
 - No live-only hotfixes in those four files.
 - Pre-deploy diff on exactly those four files.
@@ -96,79 +97,86 @@ Additional constraints I added:
 
 ## Branch / Source-Of-Truth Reality
 
-Current local branches of interest:
+### Current truth
 
-- `zeul/gimbal-limit-draft-fix-pi` -> `760d80df`
-- `pi-main` -> `760d80df`
-- `main` -> `308e4f6d`
+- Current live gimbal branch: `zeul/gimbal-tumble-rebased`
+- Current live gimbal commit: `ad0aec3b`
+- Pi live repo `/opt/geodude-control`: `ad0aec3b`
+- `wheel-control.service`: active
 
-Important reality:
+### Recent gimbal branch history
 
-- `main` diverged badly from the reconciled frontend line.
-- `origin/main` currently points to `27effd46`, which is not the latest gimbal deployment source.
-- The current gimbal/UI deployment line is `zeul/gimbal-limit-draft-fix-pi` / `pi-main`.
-- That line descended from the reconciled frontend merge:
-  - `b54226b9`
-  - then `b4092c62`
-  - then later frontend/Pi reconcile commits
-  - then my two latest commits on top:
-    - `7bb8d881` Preserve unsaved gimbal limit drafts
-    - `760d80df` Remove roll soft limits
+- `efae09a7` `Merge branch 'zeul/ui-trim-servo-panels-clean'`
+- `6c7f70a3` `Add gimbal tumble mode`
+- `ad0aec3b` `Preserve gimbal proxy validation errors`
 
-Current useful refs:
+### Important reality
 
-- local branch: `zeul/gimbal-limit-draft-fix-pi`
-- remote GitHub branch: `origin/zeul/gimbal-limit-draft-fix-pi`
-- Pi branch: `groundstation/zeul/gimbal-limit-draft-fix-pi`
-- Pi live `main`: `760d80df`
-
-Do not assume `origin/main` matches deployed gimbal behavior.
+- `main` is not the current gimbal/UI deploy truth.
+- Older handoff assumptions about `zeul/gimbal-limit-draft-fix-pi` / `760d80df` are stale now.
+- Current gimbal feature work should start from `zeul/gimbal-tumble-rebased`, not the older limit-fix branch.
+- The current deploy line includes newer frontend reconcile work that landed on the Pi before tumble mode was rebased on top.
 
 ## Current Live State
 
 Groundstation Pi:
 
-- repo HEAD: `760d80df`
+- repo HEAD: `ad0aec3b`
 - service: `wheel-control.service` active
-- served app.js includes:
-  - `gimbalLimitDrafts`
-  - `gimbalDriverSupportsLimits`
-  - roll limit suppression logic
+- served `app.js` includes:
+  - `gimbalTumbleStart`
+  - `gimbalTumbleStop`
+  - `gimbalTumbleStateText`
+  - `motorTumbleStartBtn_*`
 
-ESP32 live status after latest flash:
+ESP32 live status:
 
 - Yaw:
-  - `limits_supported=true`
-  - `soft_limit_min=-90.0`
-  - `soft_limit_max=180.0`
-  - `go_zero_mode=absolute`
-  - `display_wrap=false`
+  - `tumble_supported=true`
+  - `tumble_active=false`
+  - `tumble_state="off"`
+  - `tumble_a=-45`
+  - `tumble_b=45`
+  - `tumble_dwell_ms=500`
+  - `position_trusted=false`
+  - `position_reason="boot"`
+  - `enabled=false`
 - Pitch:
-  - `limits_supported=true`
-  - `soft_limit_min=-80.0`
-  - `soft_limit_max=260.0`
-  - `go_zero_mode=absolute`
-  - `display_wrap=false`
+  - `tumble_supported=true`
+  - `tumble_active=false`
+  - `tumble_state="off"`
+  - `tumble_a=-45`
+  - `tumble_b=45`
+  - `tumble_dwell_ms=500`
+  - `position_trusted=false`
+  - `position_reason="boot"`
+  - `enabled=false`
 - Roll:
-  - `limits_supported=false`
-  - `soft_limit_min=null`
-  - `soft_limit_max=null`
-  - `hard_limit_min=null`
-  - `hard_limit_max=null`
-  - `go_zero_mode=shortest_path`
-  - `display_wrap=true`
+  - `tumble_supported=true`
+  - `tumble_active=false`
+  - `tumble_state="off"`
+  - `tumble_a=-45`
+  - `tumble_b=45`
+  - `tumble_dwell_ms=500`
+  - `position_trusted=false`
+  - `position_reason="boot"`
+  - `enabled=false`
 - Belt:
-  - `limits_supported=true`
-  - `soft_limit_min=0`
-  - `soft_limit_max=40000`
-  - `go_zero_mode=absolute`
-  - `display_wrap=false`
+  - `tumble_supported=false`
+  - `tumble_active=false`
+  - `tumble_state="off"`
+  - `tumble_a=null`
+  - `tumble_b=null`
+  - `tumble_dwell_ms=null`
+  - `position_trusted=false`
+  - `position_reason="boot"`
+  - `enabled=false`
 
 Important live side effect:
 
 - ESP32 rebooted during OTA.
-- All axes currently have untrusted position state (`position_reason=boot`).
-- User must re-zero as needed.
+- All axes currently have untrusted position state.
+- User must re-zero any axis before `GO ZERO` or tumble.
 
 ## Gimbal Behavior That Exists Now
 
@@ -188,9 +196,8 @@ These persist in ESP32 NVS across reboot.
 
 ### Ramp behavior
 
-- Ramp is now S-curve-ish via `smootherStep01()` in firmware.
+- Ramp is S-curve-ish via `smootherStep01()` in firmware.
 - It applies symmetrically for accel and decel.
-- This replaced the earlier linear ramp.
 
 ### Position ownership
 
@@ -220,7 +227,7 @@ Per-axis actions:
 
 Semantics:
 
-- Yaw/Pitch/Belt `GO ZERO` = absolute zero
+- Yaw / Pitch / Belt `GO ZERO` = absolute zero
 - Roll `GO ZERO` = shortest path to zero-equivalent
 
 ### Soft limits
@@ -243,6 +250,99 @@ Roll limit support was removed both in UI and firmware.
 - Roll: wrapped angle display
 - Belt: steps
 
+## Tumble Mode
+
+### What exists now
+
+Tumble mode is implemented and live for:
+
+- Yaw
+- Pitch
+- Roll
+
+It is not implemented for Belt.
+
+### Where it lives
+
+Tumble is owned by the ESP32, not the browser.
+
+Firmware adds:
+
+- per-axis tumble config:
+  - `tumble_a`
+  - `tumble_b`
+  - `tumble_dwell_ms`
+- per-axis tumble runtime:
+  - `tumble_active`
+  - `tumble_state`
+
+Backend adds proxy routes:
+
+- `/api/gimbal/tumble_start`
+- `/api/gimbal/tumble_stop`
+
+Frontend adds per-axis controls:
+
+- `A`
+- `B`
+- `Dwell ms`
+- `START`
+- `STOP`
+
+### Tumble rules
+
+- Only Yaw / Pitch / Roll support tumble.
+- Axis must be `enabled`.
+- Position must be `trusted`.
+- If soft limits exist and are trusted, endpoints must stay inside them.
+- `A` and `B` cannot be identical.
+- Start picks the nearer endpoint first, then bounces `A <-> B`.
+- Stop kills tumble immediately for that axis.
+
+### Tumble state machine
+
+Firmware states:
+
+- `off`
+- `to_a`
+- `dwell_a`
+- `to_b`
+- `dwell_b`
+
+### Tumble is cleared/stopped by
+
+- manual move
+- manual move_deg
+- `SET ZERO`
+- `UNTRUST`
+- `GO ZERO`
+- motor limit changes
+- disable
+- stop
+- stop_all
+- estop
+- power loss / power return handling
+
+### Tumble defaults currently stored
+
+For Yaw / Pitch / Roll:
+
+- `A = -45`
+- `B = 45`
+- `Dwell = 500 ms`
+
+### Current validation behavior
+
+The Pi proxy now preserves ESP32 validation errors instead of flattening them into fake `502`s.
+
+Example:
+
+- starting tumble on a disabled axis returns `409 {"error":"motor not enabled","ok":false}`
+
+That proxy fix is commit:
+
+- `ad0aec3b` `Preserve gimbal proxy validation errors`
+
 ## Bugs Fixed Recently
 
 ### 1. Min/max textbox reset-on-blur bug
@@ -251,10 +351,6 @@ Symptom:
 
 - user typed a different min/max
 - on blur, polling reset it to the saved value before `APPLY`
-
-Root cause:
-
-- `app.js` poll loop overwrote non-focused limit inputs from `drv.soft_limit_min/max`
 
 Fix:
 
@@ -279,19 +375,23 @@ User requirement:
 Fix:
 
 - firmware:
-  - added `driverSupportsSoftLimits(d)`
-  - returns `false` for Roll
+  - `limits_supported=false` for Roll
   - roll moves are no longer checked against soft limits
   - `/status` reports roll limit fields as `null`
   - `/motor_limits` rejects Roll
 - UI:
-  - added `gimbalDriverSupportsLimits()`
   - no Min/Max UI is rendered for Roll
   - direct Roll limit apply is blocked client-side too
 
 Commit:
 
 - `760d80df` Remove roll soft limits
+
+### 3. Tumble mode implementation
+
+Commit:
+
+- `6c7f70a3` Add gimbal tumble mode
 
 ## Important Deployment Lessons
 
@@ -335,7 +435,7 @@ Gotcha:
 
 Mac direct OTA to `192.168.4.222` was flaky and often timed out after invitation.
 
-Reliable path was:
+Reliable path:
 
 1. Copy these to the Pi:
    - built `.bin`
@@ -345,8 +445,6 @@ Reliable path was:
 ```bash
 python3 /tmp/espota.py -i 192.168.4.222 -f /tmp/gimbal_controller_sketch.ino.bin -r -d
 ```
-
-That path succeeded cleanly.
 
 Use:
 
@@ -362,26 +460,26 @@ Use:
 
 ## Remaining Work / Known Gaps
 
-### Tumble mode
+### Hardware validation
 
-Not implemented yet.
+Code is in. The next honest step is hardware validation, not more code theater.
 
-Desired direction:
+Need to verify in the real mechanism:
 
-1. Keep it on ESP32, not browser.
-2. Use trusted zero / signed position model.
-3. Use per-axis A/B endpoints and dwell.
-4. Gate it on trusted position and soft limits.
+- tumble start/stop feel sane
+- dwell timing is sane
+- soft limits reject bad endpoints cleanly
+- trusted/untrusted gating feels clear
+- zeroing workflow is not annoying
 
 ### Mechanical bounds
 
 Right now:
 
-- Yaw/Pitch/Belt use user-set soft limits
+- Yaw / Pitch / Belt use user-set soft limits
 - Roll has none
 
 Hardcoded mechanical bounds were intentionally not finalized.
-User wanted GUI-set limits first, then maybe hardcode later.
 
 ### Skipped-step truth
 
@@ -394,15 +492,13 @@ Trust model exists, but there is no encoder/homing truth.
 
 ### Branch cleanup
 
-Current deployed gimbal line is on `zeul/gimbal-limit-draft-fix-pi` / `pi-main`.
-
-At some point this should be reconciled back into a sane mainline, but do not do that casually through the four coordinated UI files without following the protocol.
+At some point the gimbal branch situation should be reconciled back into a sane mainline, but do not do that casually through the coordinated UI/backend files without following the protocol.
 
 ## Recommended Next-Agent Workflow
 
 If Alloy is touching gimbal UI/backend files:
 
-1. Start from `zeul/gimbal-limit-draft-fix-pi` or `pi-main`, not `main`.
+1. Start from `zeul/gimbal-tumble-rebased`, not `main`.
 2. Check diff against:
    - `groundstation/static/app.js`
    - `groundstation/static/style.css`
@@ -412,13 +508,13 @@ If Alloy is touching gimbal UI/backend files:
    - branch
    - commit
    - touched files
-   - replace vs merge on top of `760d80df`
+   - replace vs merge on top of `ad0aec3b`
 4. Avoid direct `/opt` edits.
-5. Verify served assets after deploy.
+5. Verify served assets and route behavior after deploy.
 
 If Alloy is touching only ESP32 firmware:
 
-- still start from `zeul/gimbal-limit-draft-fix-pi`, because that branch now contains the real deployed firmware state
+- still start from `zeul/gimbal-tumble-rebased`, because that branch now contains the real deployed firmware state
 
 ## Local Dirty / Unrelated Files
 
@@ -431,6 +527,7 @@ These existed and I intentionally did not touch/revert them:
 - `site/docs/electrical/index.md`
 - `reaction-wheel-audit-prompt.md` (untracked)
 - `ADAM_HANDOFF.md` (untracked)
+- `ALICE_HANDOFF.md` (untracked)
 
 Do not “clean these up” unless the user explicitly wants that.
 
@@ -456,10 +553,24 @@ ssh 192.168.50.2 'cd /opt/geodude-control && git rev-parse --short HEAD'
 
 Current expected answer:
 
-- `760d80df`
+- `ad0aec3b`
+
+Test tumble validation path without moving hardware:
+
+```bash
+ssh 192.168.50.2 'curl -s -o /tmp/tumble_test.out -w "%{http_code}\n" -X POST \
+  -H "Content-Type: application/json" \
+  -d "{\"driver\":\"Yaw\",\"a\":-10,\"b\":10,\"dwell_ms\":500}" \
+  http://localhost:8080/api/gimbal/tumble_start && echo --- && cat /tmp/tumble_test.out'
+```
+
+Current expected answer when Yaw is disabled:
+
+- HTTP `409`
+- body `{"error":"motor not enabled","ok":false}`
 
 ## Bottom Line
 
 If Alloy needs one sentence:
 
-Start from `zeul/gimbal-limit-draft-fix-pi` / `pi-main` at `760d80df`, do not use `main` as gimbal/UI deploy truth, and do not reintroduce roll limits or direct `/opt` file-copy deploys.
+Start from `zeul/gimbal-tumble-rebased` at `ad0aec3b`, treat that as the current gimbal deploy truth, do not use `main`, do not reintroduce roll limits, and do not touch `/opt` by hand.
