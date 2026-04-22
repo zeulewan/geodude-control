@@ -2671,6 +2671,301 @@ function setpointRender() {
   el.innerHTML = html;
 }
 
+/* ========== Actions ==========
+   Ordered sequences of setpoints. Server plays them back through the
+   ramp at the operator's servo speed. No pauses between steps except
+   at user-tagged breakpoints (park there until /continue). */
+var actions = [];
+var actionState = {running: false, phase: 'idle'};
+var actionEditorState = null;  // null | {id: string|null, name, steps, append_setpoint_id}
+
+function htmlEscape(s) {
+  return String(s || '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function actionRefresh() {
+  return fetch('/api/actions').then(function(r) { return r.json(); }).then(function(list) {
+    actions = Array.isArray(list) ? list : [];
+    actionRender();
+  }).catch(function() { /* empty list on error */ });
+}
+
+function actionStatePoll() {
+  fetch('/api/actions/state').then(function(r) { return r.json(); }).then(function(st) {
+    actionState = st || {running: false, phase: 'idle'};
+    actionRenderStatus();
+  }).catch(function() {});
+}
+
+function actionSetpointName(sid) {
+  var sp = setpoints.find(function(s) { return s.id === sid; });
+  return sp ? sp.name : '(missing: ' + sid + ')';
+}
+
+function actionRender() {
+  var el = document.getElementById('actionList');
+  if (!el) return;
+  if (!actions.length) {
+    el.innerHTML = '<div class="setpoint-empty">No actions yet. Click New Action.</div>';
+    return;
+  }
+  var html = '';
+  for (var i = 0; i < actions.length; i++) {
+    var a = actions[i];
+    var aid = String(a.id).replace(/[^a-f0-9]/gi, '');
+    var safeName = htmlEscape(a.name);
+    var nSteps = (a.steps || []).length + (a.append_setpoint_id ? 1 : 0);
+    var breakpoints = (a.steps || []).filter(function(s) { return s.breakpoint; }).length;
+    var appendLabel = a.append_setpoint_id ? ' + ' + htmlEscape(actionSetpointName(a.append_setpoint_id)) : '';
+    var summary = nSteps + ' step' + (nSteps === 1 ? '' : 's') + (breakpoints ? ', ' + breakpoints + ' breakpoint' + (breakpoints === 1 ? '' : 's') : '') + appendLabel;
+    html += '<div class="action-item">' +
+      '<div class="action-head">' +
+        '<span class="action-name">' + safeName + '</span>' +
+        '<span class="action-summary">' + summary + '</span>' +
+      '</div>' +
+      '<div class="action-buttons">' +
+        '<button class="btn btn-sm btn-green" onclick="actionPlay(\'' + aid + '\')">Play</button>' +
+        '<button class="btn btn-sm" onclick="actionOpenEditor(\'' + aid + '\')">Edit</button>' +
+        '<button class="btn btn-sm btn-red" onclick="actionDelete(\'' + aid + '\', \'' + safeName.replace(/'/g, "\\'") + '\')">X</button>' +
+      '</div>' +
+      '</div>';
+  }
+  el.innerHTML = html;
+}
+
+function actionRenderStatus() {
+  var el = document.getElementById('actionStatus');
+  if (!el) return;
+  if (!actionState.running && actionState.phase !== 'waiting-breakpoint') {
+    el.innerHTML = '';
+    el.className = 'action-status';
+    return;
+  }
+  var name = htmlEscape(actionState.action_name || '');
+  var progress = actionState.step_index + ' / ' + actionState.total_steps;
+  var phaseLabel = {
+    'running': 'Running',
+    'waiting-breakpoint': 'At breakpoint',
+    'error': 'Error',
+    'stopped': 'Stopped',
+    'done': 'Done'
+  }[actionState.phase] || actionState.phase;
+  var html = '<div class="action-status-body">' +
+    '<span class="action-status-name">' + name + '</span>' +
+    '<span class="action-status-phase">' + phaseLabel + ' · step ' + progress + '</span>';
+  if (actionState.phase === 'waiting-breakpoint') {
+    html += '<button class="btn btn-sm btn-green" onclick="actionContinue(\'' + actionState.action_id + '\')">Continue</button>';
+  }
+  if (actionState.running) {
+    html += '<button class="btn btn-sm btn-red" onclick="actionStop()">Stop</button>';
+  }
+  if (actionState.phase === 'error' && actionState.error) {
+    html += '<span class="action-status-error">' + htmlEscape(actionState.error) + '</span>';
+  }
+  html += '</div>';
+  el.innerHTML = html;
+  el.className = 'action-status action-status-active';
+}
+
+function actionPlay(aid) {
+  fetch('/api/actions/' + encodeURIComponent(aid) + '/play', {method: 'POST'})
+    .then(function(r) { return r.json().then(function(d) { return {ok: r.ok, body: d}; }); })
+    .then(function(res) {
+      if (!res.ok || !res.body.ok) {
+        alert('Play failed: ' + ((res.body && res.body.error) || 'unknown'));
+      }
+      actionStatePoll();
+    })
+    .catch(function(e) { alert('Play request failed: ' + e); });
+}
+
+function actionContinue(aid) {
+  fetch('/api/actions/' + encodeURIComponent(aid) + '/continue', {method: 'POST'})
+    .then(function(r) { return r.json().then(function(d) { return {ok: r.ok, body: d}; }); })
+    .then(function(res) {
+      if (!res.ok || !res.body.ok) alert('Continue failed: ' + ((res.body && res.body.error) || 'unknown'));
+    });
+}
+
+function actionStop() {
+  fetch('/api/actions/stop', {method: 'POST'}).catch(function() {});
+}
+
+function actionDelete(aid, name) {
+  if (!confirm('Delete action "' + name + '"?')) return;
+  fetch('/api/actions/' + encodeURIComponent(aid), {method: 'DELETE'})
+    .then(function(r) { return r.json().then(function(d) { return {ok: r.ok, body: d}; }); })
+    .then(function(res) {
+      if (!res.ok || !res.body.ok) {
+        alert('Delete failed: ' + ((res.body && res.body.error) || 'unknown'));
+        return;
+      }
+      actionRefresh();
+    });
+}
+
+/* ---------- Action editor ---------- */
+
+function actionOpenEditor(aid) {
+  var editor = document.getElementById('actionEditor');
+  if (!editor) return;
+  if (aid) {
+    var existing = actions.find(function(a) { return a.id === aid; });
+    if (!existing) { alert('Action not found.'); return; }
+    actionEditorState = {
+      id: aid,
+      name: existing.name,
+      steps: (existing.steps || []).map(function(s) { return {setpoint_id: s.setpoint_id, breakpoint: !!s.breakpoint}; }),
+      append_setpoint_id: existing.append_setpoint_id || null,
+    };
+  } else {
+    actionEditorState = {id: null, name: '', steps: [], append_setpoint_id: null};
+  }
+  actionRenderEditor();
+  editor.style.display = 'block';
+}
+
+function actionCloseEditor() {
+  actionEditorState = null;
+  var editor = document.getElementById('actionEditor');
+  if (editor) { editor.style.display = 'none'; editor.innerHTML = ''; }
+}
+
+function actionEditorAddStep() {
+  if (!actionEditorState) return;
+  if (!setpoints.length) { alert('Create at least one setpoint first.'); return; }
+  actionEditorState.steps.push({setpoint_id: setpoints[0].id, breakpoint: false});
+  actionRenderEditor();
+}
+
+function actionEditorRemoveStep(idx) {
+  if (!actionEditorState) return;
+  actionEditorState.steps.splice(idx, 1);
+  actionRenderEditor();
+}
+
+function actionEditorMove(idx, dir) {
+  if (!actionEditorState) return;
+  var j = idx + dir;
+  if (j < 0 || j >= actionEditorState.steps.length) return;
+  var tmp = actionEditorState.steps[idx];
+  actionEditorState.steps[idx] = actionEditorState.steps[j];
+  actionEditorState.steps[j] = tmp;
+  actionRenderEditor();
+}
+
+function actionEditorSetStepSetpoint(idx, sid) {
+  if (!actionEditorState || !actionEditorState.steps[idx]) return;
+  actionEditorState.steps[idx].setpoint_id = sid;
+}
+
+function actionEditorSetBreakpoint(idx, flag) {
+  if (!actionEditorState || !actionEditorState.steps[idx]) return;
+  actionEditorState.steps[idx].breakpoint = !!flag;
+}
+
+function actionEditorSetAppend(sid) {
+  if (!actionEditorState) return;
+  actionEditorState.append_setpoint_id = sid || null;
+}
+
+function actionEditorSetName(name) {
+  if (!actionEditorState) return;
+  actionEditorState.name = name;
+}
+
+function actionRenderEditor() {
+  var editor = document.getElementById('actionEditor');
+  if (!editor || !actionEditorState) return;
+  var st = actionEditorState;
+  var spOptions = setpoints.map(function(s) {
+    return '<option value="' + htmlEscape(s.id) + '">' + htmlEscape(s.name) + '</option>';
+  }).join('');
+  if (!spOptions) spOptions = '<option value="">(no setpoints)</option>';
+  var appendOptions = '<option value="">(none)</option>' + setpoints.map(function(s) {
+    var sel = (st.append_setpoint_id === s.id) ? ' selected' : '';
+    return '<option value="' + htmlEscape(s.id) + '"' + sel + '>' + htmlEscape(s.name) + '</option>';
+  }).join('');
+  var stepsHtml = '';
+  if (!st.steps.length) {
+    stepsHtml = '<div class="action-editor-empty">No steps. Click Add Step.</div>';
+  } else {
+    for (var i = 0; i < st.steps.length; i++) {
+      var step = st.steps[i];
+      var selOpts = setpoints.map(function(s) {
+        var sel = (step.setpoint_id === s.id) ? ' selected' : '';
+        return '<option value="' + htmlEscape(s.id) + '"' + sel + '>' + htmlEscape(s.name) + '</option>';
+      }).join('');
+      if (!selOpts) selOpts = '<option value="">(no setpoints)</option>';
+      stepsHtml += '<div class="action-step-row">' +
+        '<span class="action-step-num">' + (i + 1) + '.</span>' +
+        '<select onchange="actionEditorSetStepSetpoint(' + i + ', this.value)">' + selOpts + '</select>' +
+        '<label class="action-step-bp"><input type="checkbox" ' + (step.breakpoint ? 'checked' : '') + ' onchange="actionEditorSetBreakpoint(' + i + ', this.checked)"> breakpoint</label>' +
+        '<button class="btn btn-sm" onclick="actionEditorMove(' + i + ', -1)" ' + (i === 0 ? 'disabled' : '') + '>&uarr;</button>' +
+        '<button class="btn btn-sm" onclick="actionEditorMove(' + i + ', 1)" ' + (i === st.steps.length - 1 ? 'disabled' : '') + '>&darr;</button>' +
+        '<button class="btn btn-sm btn-red" onclick="actionEditorRemoveStep(' + i + ')">X</button>' +
+      '</div>';
+    }
+  }
+  editor.innerHTML =
+    '<div class="action-editor-head">' +
+      '<strong>' + (st.id ? 'Edit Action' : 'New Action') + '</strong>' +
+      '<button class="btn btn-sm" onclick="actionCloseEditor()">Close</button>' +
+    '</div>' +
+    '<div class="action-editor-row">' +
+      '<label>Name</label>' +
+      '<input type="text" value="' + htmlEscape(st.name) + '" maxlength="64" oninput="actionEditorSetName(this.value)" style="flex:1;">' +
+    '</div>' +
+    '<div class="action-editor-steps">' + stepsHtml + '</div>' +
+    '<div class="action-editor-row">' +
+      '<button class="btn btn-sm" onclick="actionEditorAddStep()">Add Step</button>' +
+    '</div>' +
+    '<div class="action-editor-row">' +
+      '<label>Append at end</label>' +
+      '<select onchange="actionEditorSetAppend(this.value)">' + appendOptions + '</select>' +
+    '</div>' +
+    '<div class="action-editor-row">' +
+      '<button class="btn btn-sm btn-green" onclick="actionEditorSave()">Save</button>' +
+    '</div>';
+}
+
+function actionEditorSave() {
+  if (!actionEditorState) return;
+  var st = actionEditorState;
+  var name = (st.name || '').trim();
+  if (!name) { alert('Name required.'); return; }
+  if (!st.steps.length) { alert('Add at least one step.'); return; }
+  var body = {
+    name: name,
+    steps: st.steps.map(function(s) { return {setpoint_id: s.setpoint_id, breakpoint: !!s.breakpoint}; }),
+    append_setpoint_id: st.append_setpoint_id || null,
+  };
+  var method, url;
+  if (st.id) {
+    method = 'PATCH';
+    url = '/api/actions/' + encodeURIComponent(st.id);
+  } else {
+    method = 'POST';
+    url = '/api/actions';
+  }
+  fetch(url, {
+    method: method,
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body),
+  }).then(function(r) { return r.json().then(function(d) { return {ok: r.ok, body: d}; }); })
+    .then(function(res) {
+      if (!res.ok || !res.body.ok) {
+        alert('Save failed: ' + ((res.body && res.body.error) || 'unknown'));
+        return;
+      }
+      actionCloseEditor();
+      actionRefresh();
+    });
+}
+
+setInterval(actionStatePoll, 500);
+
 /* ========== Init ========== */
 (function() {
   /* SAFETY: neutrals MUST be fetched from the server before any code path
@@ -2703,7 +2998,8 @@ function setpointRender() {
     console.error('[cal] failed to fetch /api/joint_calibration');
   });
 
-  setpointRefresh();
+  setpointRefresh().then(function() { actionRefresh(); });
+  actionStatePoll();
 
   /* Fetch last-known servo positions from server. Safe even before neutrals
      load: positions come fully specified from the server, no neutral fallback. */

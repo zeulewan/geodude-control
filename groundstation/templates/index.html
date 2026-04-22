@@ -217,6 +217,18 @@
           </div>
           <div id="setpointList" class="setpoint-list"></div>
         </section>
+        <section class="setpoints-section" aria-labelledby="actionsTitle">
+          <div class="setpoints-head">
+            <h4 id="actionsTitle">Actions</h4>
+            <span>Ordered sequences of setpoints. Same speed as the slider above, no pauses between steps. Tag a step as a breakpoint to park there until Continue.</span>
+          </div>
+          <div id="actionStatus" class="action-status"></div>
+          <div class="setpoints-add-row">
+            <button type="button" class="btn btn-sm" onclick="actionOpenEditor(null)">New Action</button>
+          </div>
+          <div id="actionList" class="action-list"></div>
+          <div id="actionEditor" class="action-editor" style="display:none;"></div>
+        </section>
       </article>
     </section>
   </section>

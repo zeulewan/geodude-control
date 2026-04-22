@@ -3254,3 +3254,110 @@ input[type="range"]::-moz-range-thumb {
   color: #6b7280;
   font-style: italic;
 }
+
+/* Actions */
+.action-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.action-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+}
+.action-head {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.action-name {
+  font-weight: 600;
+  font-size: 13px;
+}
+.action-summary {
+  font-size: 11px;
+  color: #6b7280;
+}
+.action-buttons {
+  display: flex;
+  gap: 4px;
+}
+.action-status {
+  min-height: 0;
+}
+.action-status-active {
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  background: #eff6ff;
+  border: 1px solid #3b82f6;
+  border-radius: 4px;
+}
+.action-status-body {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+.action-status-name { font-weight: 700; }
+.action-status-phase { color: #2563eb; font-family: 'SF Mono', monospace; }
+.action-status-error { color: #dc2626; font-size: 11px; }
+.action-editor {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid #3b82f6;
+  border-radius: 4px;
+  background: #f9fafb;
+}
+.action-editor-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+.action-editor-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0;
+  font-size: 12px;
+}
+.action-editor-row label {
+  color: #6b7280;
+  font-weight: 600;
+  min-width: 90px;
+}
+.action-editor-steps {
+  margin: 6px 0;
+}
+.action-editor-empty {
+  font-size: 12px;
+  color: #6b7280;
+  font-style: italic;
+  padding: 8px 0;
+}
+.action-step-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  font-size: 12px;
+}
+.action-step-num {
+  min-width: 22px;
+  color: #6b7280;
+  font-family: 'SF Mono', monospace;
+}
+.action-step-bp {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #6b7280;
+}

@@ -909,6 +909,14 @@ def setpoints_rename(sid):
 
 @app.route('/api/setpoints/<sid>', methods=['DELETE'])
 def setpoints_delete(sid):
+    # Block if any action references this setpoint. The action's playback
+    # would otherwise error mid-sequence with a dangling reference.
+    used_by = _setpoints_used_by_actions(sid)
+    if used_by:
+        return jsonify({
+            "ok": False,
+            "error": "in use by action(s): " + ", ".join(used_by),
+        }), 409
     with _setpoints_lock:
         before = len(servo_setpoints)
         servo_setpoints[:] = [sp for sp in servo_setpoints if sp["id"] != sid]
@@ -951,6 +959,13 @@ def setpoints_go(sid):
                 + "); refusing to drop the arm. Delete and re-capture."
             ),
         }), 409
+    # Block direct Go while an action is playing so two movement sources
+    # can't fight over the targets.
+    if _action_state.get("running"):
+        return jsonify({
+            "ok": False,
+            "error": "action running; stop it first",
+        }), 409
     with _servo_state_lock:
         if _servo_disarmed:
             return jsonify({"ok": False, "error": "disarmed; POST /api/arm first"}), 409
@@ -960,6 +975,452 @@ def setpoints_go(sid):
             _servo_target_pw[ch] = pw
         _servo_last_heartbeat = time.monotonic()
     return jsonify({"ok": True, "id": sid, "name": entry["name"]})
+
+
+# --- Actions: ordered sequences of setpoints ---
+#
+# Schema (servo_actions.json):
+#   [{"id": "<12hex>",
+#     "name": "<label>",
+#     "steps": [{"setpoint_id": "<sp>", "breakpoint": bool}, ...],
+#     "append_setpoint_id": "<sp or null>",
+#     "created_at": <epoch>}, ...]
+#
+# Playback model: one action at a time. For each step, write that
+# setpoint's positions to _servo_target_pw and wait until every channel
+# satisfies actual == target (arrival). If the step has breakpoint=True,
+# park there until /continue is POSTed. Stop freezes targets to current
+# actuals and exits.
+#
+# No pause between steps: as soon as one arrives, the next step's targets
+# are written so the ramp flows continuously at the operator's servo
+# speed. The normal ramp loop's step_cap IS the speed profile -- there's
+# no separate accel/decel, just constant velocity between targets.
+ACTIONS_FILE = os.path.join(GROUNDSTATION_DIR, "servo_actions.json")
+_actions_lock = threading.Lock()
+_action_play_lock = threading.Lock()
+_action_state = {
+    "running": False,
+    "action_id": None,
+    "action_name": None,
+    "step_index": 0,      # 1-based step number currently executing (0 = idle)
+    "total_steps": 0,     # includes appended home step if any
+    "phase": "idle",      # idle | running | waiting-breakpoint | done | error
+    "error": None,
+}
+_action_stop_flag = threading.Event()
+_action_continue_flag = threading.Event()
+ACTION_ARRIVAL_POLL_S = 0.1
+ACTION_ARRIVAL_TIMEOUT_S = 60.0  # per step
+
+
+def load_actions():
+    try:
+        with open(ACTIONS_FILE) as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        return []
+    except Exception as e:
+        print(f"[actions] parse failed, using empty list: {e}", flush=True)
+        return []
+    if not isinstance(data, list):
+        return []
+    out = []
+    for raw in data:
+        if not isinstance(raw, dict):
+            continue
+        aid = str(raw.get("id", "")).strip()
+        name = str(raw.get("name", "")).strip()
+        steps_raw = raw.get("steps") or []
+        if not aid or not name or not isinstance(steps_raw, list):
+            continue
+        steps = []
+        for s in steps_raw:
+            if not isinstance(s, dict):
+                continue
+            sp_id = str(s.get("setpoint_id", "")).strip()
+            if not sp_id:
+                continue
+            steps.append({
+                "setpoint_id": sp_id,
+                "breakpoint": bool(s.get("breakpoint", False)),
+            })
+        append_id = raw.get("append_setpoint_id")
+        if append_id:
+            append_id = str(append_id).strip() or None
+        else:
+            append_id = None
+        out.append({
+            "id": aid,
+            "name": name,
+            "steps": steps,
+            "append_setpoint_id": append_id,
+            "created_at": float(raw.get("created_at", 0.0)),
+        })
+    return out
+
+
+def save_actions(data):
+    tmp = f"{ACTIONS_FILE}.{os.getpid()}.tmp"
+    with open(tmp, "w") as f:
+        json.dump(data, f, indent=2)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, ACTIONS_FILE)
+
+
+servo_actions = load_actions()
+
+
+def _new_action_id():
+    import secrets
+    return secrets.token_hex(6)
+
+
+def _setpoints_used_by_actions(sp_id):
+    """Return list of action names that reference sp_id. Used to block
+    setpoint delete when an action depends on it."""
+    with _actions_lock:
+        snapshot = list(servo_actions)
+    used = []
+    for a in snapshot:
+        if a.get("append_setpoint_id") == sp_id:
+            used.append(a["name"])
+            continue
+        for s in a.get("steps") or []:
+            if s.get("setpoint_id") == sp_id:
+                used.append(a["name"])
+                break
+    return used
+
+
+def _validate_setpoint_for_playback(sp_id):
+    """Resolve setpoint id to its positions dict, or return (None, error)."""
+    with _setpoints_lock:
+        sp = next((s for s in servo_setpoints if s["id"] == sp_id), None)
+    if sp is None:
+        return None, f"setpoint {sp_id} not found"
+    positions = sp.get("positions") or {}
+    missing = [ch for ch in CHANNELS if ch not in positions]
+    if missing:
+        return None, f"setpoint {sp['name']} missing channels: {','.join(missing)}"
+    unpowered = [ch for ch in CHANNELS if int(positions[ch]) < 500]
+    if unpowered:
+        return None, f"setpoint {sp['name']} has unpowered channels ({','.join(unpowered)})"
+    return sp, None
+
+
+def _action_state_snapshot():
+    with _actions_lock:
+        return dict(_action_state)
+
+
+def _action_apply_setpoint(positions):
+    """Write a setpoint's positions into _servo_target_pw. Returns True on
+    success, False if disarmed."""
+    global _servo_last_heartbeat
+    with _servo_state_lock:
+        if _servo_disarmed:
+            return False
+        for ch in CHANNELS:
+            pw = max(0, min(2500, int(positions[ch])))
+            pw = _clamp_to_envelope(ch, pw)
+            _servo_target_pw[ch] = pw
+        _servo_last_heartbeat = time.monotonic()
+    return True
+
+
+def _action_wait_arrival(deadline):
+    """Block until every channel's actual matches its target, stop flag
+    fires, or deadline passes. Returns 'arrived' | 'stopped' | 'timeout'.
+    Also refreshes the heartbeat so the ramp doesn't freeze mid-move:
+    the playback thread is effectively a surrogate client during an
+    action, responsible for keeping motion alive."""
+    global _servo_last_heartbeat
+    while time.monotonic() < deadline:
+        if _action_stop_flag.is_set():
+            return "stopped"
+        with _servo_state_lock:
+            _servo_last_heartbeat = time.monotonic()
+            done = all(
+                _servo_actual_pw.get(ch) == _servo_target_pw.get(ch)
+                for ch in CHANNELS
+            )
+        if done:
+            return "arrived"
+        time.sleep(ACTION_ARRIVAL_POLL_S)
+    return "timeout"
+
+
+def _action_freeze_to_actual():
+    """Stop behavior: set every target to the current actual so the ramp
+    halts cleanly where the arms currently are, instead of snapping back
+    to whatever the last setpoint commanded."""
+    global _servo_last_heartbeat
+    with _servo_state_lock:
+        for ch in CHANNELS:
+            a = _servo_actual_pw.get(ch)
+            if a is not None:
+                _servo_target_pw[ch] = a
+        _servo_last_heartbeat = time.monotonic()
+
+
+def _action_playback_worker(action):
+    """Run one action to completion (or stop / error). Sole writer of
+    _action_state while playing. Locks are narrow to avoid holding
+    _actions_lock across blocking waits."""
+    def set_state(**kwargs):
+        with _actions_lock:
+            _action_state.update(kwargs)
+
+    # Build the flat step list: action.steps + optional appended step.
+    flat_steps = []
+    for s in action.get("steps") or []:
+        flat_steps.append({
+            "setpoint_id": s["setpoint_id"],
+            "breakpoint": bool(s.get("breakpoint", False)),
+        })
+    if action.get("append_setpoint_id"):
+        flat_steps.append({
+            "setpoint_id": action["append_setpoint_id"],
+            "breakpoint": False,
+        })
+    if not flat_steps:
+        set_state(running=False, phase="error", error="action has no steps")
+        return
+
+    set_state(
+        running=True,
+        action_id=action["id"],
+        action_name=action["name"],
+        step_index=0,
+        total_steps=len(flat_steps),
+        phase="running",
+        error=None,
+    )
+
+    try:
+        for idx, step in enumerate(flat_steps, start=1):
+            if _action_stop_flag.is_set():
+                set_state(phase="stopped")
+                return
+
+            sp, err = _validate_setpoint_for_playback(step["setpoint_id"])
+            if err:
+                _action_freeze_to_actual()
+                set_state(phase="error", error=err)
+                return
+
+            set_state(step_index=idx, phase="running")
+            if not _action_apply_setpoint(sp["positions"]):
+                _action_freeze_to_actual()
+                set_state(phase="error", error="disarmed mid-action")
+                return
+
+            result = _action_wait_arrival(time.monotonic() + ACTION_ARRIVAL_TIMEOUT_S)
+            if result == "stopped":
+                _action_freeze_to_actual()
+                set_state(phase="stopped")
+                return
+            if result == "timeout":
+                _action_freeze_to_actual()
+                set_state(phase="error", error=f"step {idx} did not arrive within {ACTION_ARRIVAL_TIMEOUT_S:.0f}s")
+                return
+
+            if step["breakpoint"]:
+                set_state(phase="waiting-breakpoint")
+                _action_continue_flag.clear()
+                # Keep heartbeat fresh so the ramp (at rest) doesn't
+                # hit the watchdog while we sit at the breakpoint.
+                while not _action_continue_flag.is_set():
+                    if _action_stop_flag.is_set():
+                        _action_freeze_to_actual()
+                        set_state(phase="stopped")
+                        return
+                    with _servo_state_lock:
+                        globals()["_servo_last_heartbeat"] = time.monotonic()
+                    time.sleep(0.2)
+                set_state(phase="running")
+
+        set_state(phase="done")
+    finally:
+        # Always clear the running flag so the UI stops thinking an action
+        # is active and other endpoints unblock.
+        with _actions_lock:
+            _action_state["running"] = False
+
+
+@app.route('/api/actions')
+def actions_list():
+    with _actions_lock:
+        return jsonify(list(servo_actions))
+
+
+@app.route('/api/actions', methods=['POST'])
+def actions_create():
+    data = request.json or {}
+    name = str(data.get("name", "")).strip()
+    if not name:
+        return jsonify({"ok": False, "error": "name required"}), 400
+    if len(name) > 64:
+        return jsonify({"ok": False, "error": "name too long (max 64)"}), 400
+    steps_raw = data.get("steps")
+    if not isinstance(steps_raw, list) or not steps_raw:
+        return jsonify({"ok": False, "error": "need at least one step"}), 400
+    with _setpoints_lock:
+        known_sp_ids = {s["id"] for s in servo_setpoints}
+    steps = []
+    for s in steps_raw:
+        if not isinstance(s, dict):
+            return jsonify({"ok": False, "error": "bad step"}), 400
+        sp_id = str(s.get("setpoint_id", "")).strip()
+        if sp_id not in known_sp_ids:
+            return jsonify({"ok": False, "error": f"unknown setpoint: {sp_id}"}), 400
+        steps.append({"setpoint_id": sp_id, "breakpoint": bool(s.get("breakpoint", False))})
+    append_id = data.get("append_setpoint_id")
+    if append_id:
+        append_id = str(append_id).strip() or None
+        if append_id and append_id not in known_sp_ids:
+            return jsonify({"ok": False, "error": f"unknown append setpoint: {append_id}"}), 400
+    entry = {
+        "id": _new_action_id(),
+        "name": name,
+        "steps": steps,
+        "append_setpoint_id": append_id,
+        "created_at": time.time(),
+    }
+    with _actions_lock:
+        servo_actions.append(entry)
+        snapshot = list(servo_actions)
+    try:
+        save_actions(snapshot)
+    except Exception as e:
+        with _actions_lock:
+            try:
+                servo_actions.remove(entry)
+            except ValueError:
+                pass
+        return jsonify({"ok": False, "error": f"save failed: {e}"}), 500
+    return jsonify({"ok": True, "action": entry})
+
+
+@app.route('/api/actions/<aid>', methods=['PATCH'])
+def actions_update(aid):
+    if _action_state.get("running"):
+        return jsonify({"ok": False, "error": "action running; stop it first"}), 409
+    data = request.json or {}
+    with _setpoints_lock:
+        known_sp_ids = {s["id"] for s in servo_setpoints}
+    with _actions_lock:
+        action = next((a for a in servo_actions if a["id"] == aid), None)
+        if action is None:
+            return jsonify({"ok": False, "error": "not found"}), 404
+        if "name" in data:
+            name = str(data["name"]).strip()
+            if not name or len(name) > 64:
+                return jsonify({"ok": False, "error": "bad name"}), 400
+            action["name"] = name
+        if "steps" in data:
+            steps_raw = data["steps"]
+            if not isinstance(steps_raw, list) or not steps_raw:
+                return jsonify({"ok": False, "error": "need at least one step"}), 400
+            steps = []
+            for s in steps_raw:
+                if not isinstance(s, dict):
+                    return jsonify({"ok": False, "error": "bad step"}), 400
+                sp_id = str(s.get("setpoint_id", "")).strip()
+                if sp_id not in known_sp_ids:
+                    return jsonify({"ok": False, "error": f"unknown setpoint: {sp_id}"}), 400
+                steps.append({"setpoint_id": sp_id, "breakpoint": bool(s.get("breakpoint", False))})
+            action["steps"] = steps
+        if "append_setpoint_id" in data:
+            append_id = data["append_setpoint_id"]
+            if append_id is None or append_id == "":
+                action["append_setpoint_id"] = None
+            else:
+                append_id = str(append_id).strip()
+                if append_id not in known_sp_ids:
+                    return jsonify({"ok": False, "error": f"unknown append setpoint: {append_id}"}), 400
+                action["append_setpoint_id"] = append_id
+        snapshot = list(servo_actions)
+        entry = dict(action)
+    try:
+        save_actions(snapshot)
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"save failed: {e}"}), 500
+    return jsonify({"ok": True, "action": entry})
+
+
+@app.route('/api/actions/<aid>', methods=['DELETE'])
+def actions_delete(aid):
+    if _action_state.get("running") and _action_state.get("action_id") == aid:
+        return jsonify({"ok": False, "error": "this action is playing; stop it first"}), 409
+    with _actions_lock:
+        before = len(servo_actions)
+        servo_actions[:] = [a for a in servo_actions if a["id"] != aid]
+        if len(servo_actions) == before:
+            return jsonify({"ok": False, "error": "not found"}), 404
+        snapshot = list(servo_actions)
+    try:
+        save_actions(snapshot)
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"save failed: {e}"}), 500
+    return jsonify({"ok": True})
+
+
+@app.route('/api/actions/state')
+def actions_state():
+    return jsonify(_action_state_snapshot())
+
+
+@app.route('/api/actions/<aid>/play', methods=['POST'])
+def actions_play(aid):
+    if not _servo_bootstrap_complete:
+        return jsonify({"ok": False, "error": "bootstrap not complete"}), 409
+    with _servo_state_lock:
+        if _servo_disarmed:
+            return jsonify({"ok": False, "error": "disarmed; POST /api/arm first"}), 409
+    # Serialize play attempts. First acquire beats duplicate clicks.
+    if not _action_play_lock.acquire(blocking=False):
+        return jsonify({"ok": False, "error": "an action is already running"}), 409
+    try:
+        with _actions_lock:
+            action = next((a for a in servo_actions if a["id"] == aid), None)
+            if action is None:
+                return jsonify({"ok": False, "error": "not found"}), 404
+            action_copy = dict(action)
+        _action_stop_flag.clear()
+        _action_continue_flag.clear()
+
+        def runner():
+            try:
+                _action_playback_worker(action_copy)
+            finally:
+                _action_play_lock.release()
+
+        threading.Thread(target=runner, daemon=True).start()
+    except Exception:
+        _action_play_lock.release()
+        raise
+    return jsonify({"ok": True, "id": aid, "name": action_copy["name"]})
+
+
+@app.route('/api/actions/<aid>/continue', methods=['POST'])
+def actions_continue(aid):
+    snap = _action_state_snapshot()
+    if not snap.get("running") or snap.get("action_id") != aid:
+        return jsonify({"ok": False, "error": "no running action with that id"}), 409
+    if snap.get("phase") != "waiting-breakpoint":
+        return jsonify({"ok": False, "error": "action is not at a breakpoint"}), 409
+    _action_continue_flag.set()
+    return jsonify({"ok": True})
+
+
+@app.route('/api/actions/stop', methods=['POST'])
+def actions_stop():
+    _action_stop_flag.set()
+    _action_continue_flag.set()  # unblock breakpoint wait
+    return jsonify({"ok": True})
 
 
 @app.route('/api/servo_speed', methods=['POST'])
