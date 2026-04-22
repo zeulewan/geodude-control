@@ -141,6 +141,24 @@ void markPositionTrusted(int d, bool trusted, uint8_t reason) {
   motorPositionReason[d] = reason;
 }
 
+bool driverUsesWrappedDegrees(int d) {
+  return d >= 0 && d < 3;  // Yaw, Pitch, Roll
+}
+
+int32_t stepsPerRevForDriver(int d) {
+  return (int32_t)lroundf(stepsPerDeg[d] * 360.0f);
+}
+
+int32_t shortestWrappedDeltaToZero(int d, int32_t positionSteps) {
+  int32_t stepsPerRev = stepsPerRevForDriver(d);
+  if (stepsPerRev <= 0) return -positionSteps;
+  int32_t wrapped = positionSteps % stepsPerRev;
+  int32_t halfRev = stepsPerRev / 2;
+  if (wrapped > halfRev) wrapped -= stepsPerRev;
+  if (wrapped < -halfRev) wrapped += stepsPerRev;
+  return -wrapped;
+}
+
 void applyDriverMode(int d) {
   drivers[d]->microsteps(16);
   drivers[d]->intpol(motorInterpolation[d]);
@@ -427,9 +445,9 @@ void handleGoZero() {
     server.send(409, "application/json", "{\"ok\":false,\"error\":\"position untrusted\"}");
     return;
   }
-  int32_t steps = -motorPositionSteps[d];
+  int32_t steps = driverUsesWrappedDegrees(d) ? shortestWrappedDeltaToZero(d, motorPositionSteps[d]) : -motorPositionSteps[d];
   startMoveSteps(d, steps);
-  sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"steps\":" + String(steps) + ",\"target\":\"zero\"}");
+  sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"steps\":" + String(steps) + ",\"target\":\"zero\",\"mode\":\"" + String(driverUsesWrappedDegrees(d) ? "shortest_path" : "absolute") + "\"}");
 }
 
 void handleEnable() {
