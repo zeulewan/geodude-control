@@ -1455,13 +1455,6 @@ body {
   gap: 4px;
 }
 
-.header-kicker {
-  color: var(--ui-text-muted);
-  font-size: 11px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-}
-
 .header h1 {
   font-size: 28px;
   line-height: 1.05;
@@ -1814,6 +1807,17 @@ select {
 .wide-two-col {
   grid-template-columns: minmax(360px, 0.82fr) minmax(0, 1.18fr);
   align-items: start;
+}
+
+.gimbal-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+#gimbalDrivers {
+  min-width: 0;
 }
 
 .gimbal-global-bar {
@@ -2476,10 +2480,6 @@ body {
   backdrop-filter: none;
 }
 
-.header-kicker {
-  color: #7f8b97;
-}
-
 .header h1 {
   font-size: 24px;
   letter-spacing: 0.01em;
@@ -3131,7 +3131,6 @@ button.btn:hover {
 .servo-chip-label,
 .servo-calib-field span,
 .seq-table th,
-.header-kicker,
 .section-title,
 .card h3,
 .mace-stat .label {
