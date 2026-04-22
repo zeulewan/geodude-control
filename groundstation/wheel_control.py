@@ -1044,28 +1044,33 @@ def _refresh_hardware_pw():
                 _servo_hardware_pw[name] = snap[name]
         _servo_hardware_last_fetch = time.monotonic()
 
-def _servo_bootstrap_seed():
-    """On boot, seed GEO-DUDe's _servo_last_pw for any channel that is at
-    0/None, using our saved neutral. Prevents the 50us staircase slam on
-    first user jog.
+def _servo_bootstrap_seed_once():
+    """One pass: seed every unpowered channel on GEO-DUDe to its saved
+    position (fallback neutral, then 1500). Returns True once every
+    channel is either live or successfully seeded, so the caller can
+    stop retrying.
 
-    Runs once at startup, AFTER _servo_init_state. Only touches channels
-    that GEO-DUDe reports as unseeded; armed/moving channels are left
-    alone (/pwm_seed rejects them anyway).
+    /pwm_seed writes the PCA register directly and updates
+    _servo_last_pw in one step, avoiding the 50us staircase from 0.
+    Armed/moving channels are left alone (pwm_seed rejects them).
     """
     snap = _fetch_geodude_last_pw()
     if snap is None:
-        print("[servo bootstrap] GEO-DUDe unreachable; skipping seed", flush=True)
-        return
+        return False
+    all_done = True
     for name in CHANNELS:
         hw = snap.get(name)
         if hw not in (None, 0):
-            continue  # live signal, leave it alone
-        neutral = servo_neutral.get(name, 1500)
-        if neutral <= 0 or neutral > 2500:
+            continue  # already live; leave alone
+        # Prefer last-known position so reboot restores where we were.
+        # Fall back to neutral, then 1500 (dangerous default, but bounded
+        # by /pwm_seed's 0<pw<=2500 check).
+        target = servo_positions.get(name) or servo_neutral.get(name, 1500)
+        if target <= 0 or target > 2500:
+            all_done = False
             continue
         try:
-            body = json.dumps({"channel": name, "pw": int(neutral)}).encode()
+            body = json.dumps({"channel": name, "pw": int(target)}).encode()
             req = urllib.request.Request(
                 f"{GEODUDE_URL}/pwm_seed",
                 data=body,
@@ -1073,19 +1078,39 @@ def _servo_bootstrap_seed():
             )
             resp = urllib.request.urlopen(req, timeout=2.0)
             if resp.status == 200:
-                # Our belief already matches neutral; just mirror into hw cache.
                 with _servo_hardware_pw_lock:
-                    _servo_hardware_pw[name] = int(neutral)
-                print(f"[servo bootstrap] seeded {name} -> {neutral}us", flush=True)
+                    _servo_hardware_pw[name] = int(target)
+                # Keep ramp state consistent with hardware so the next
+                # user slider doesn't staircase.
+                with _servo_state_lock:
+                    _servo_actual_pw[name] = int(target)
+                    _servo_target_pw[name] = int(target)
+                print(f"[servo bootstrap] seeded {name} -> {target}us", flush=True)
             else:
                 print(f"[servo bootstrap] seed {name} rejected: HTTP {resp.status}", flush=True)
+                all_done = False
         except Exception as e:
             print(f"[servo bootstrap] seed {name} failed: {e!r}", flush=True)
+            all_done = False
+    return all_done
+
+
+def _servo_bootstrap_loop():
+    """Retry seed until GEO-DUDe answers and every channel is seeded.
+    Handles the case where groundstation boots before GEO-DUDe (or
+    vice versa). Sleeps 2s between attempts; exits on success."""
+    attempt = 0
+    while True:
+        attempt += 1
+        if _servo_bootstrap_seed_once():
+            print(f"[servo bootstrap] complete after {attempt} attempt(s)", flush=True)
+            return
+        time.sleep(2.0)
 
 
 def start_background_threads():
     _servo_init_state()
-    _servo_bootstrap_seed()
+    threading.Thread(target=_servo_bootstrap_loop, daemon=True).start()
     threading.Thread(target=_servo_ramp_loop, daemon=True).start()
     threading.Thread(target=sensor_loop, daemon=True).start()
     threading.Thread(target=positions_flush_loop, daemon=True).start()
