@@ -689,7 +689,16 @@ def sensor_loop():
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    def static_rev(name):
+        try:
+            return int(os.path.getmtime(os.path.join(app.static_folder, name)))
+        except OSError:
+            return 0
+    return render_template(
+        'index.html',
+        style_rev=static_rev('style.css'),
+        app_rev=static_rev('app.js'),
+    )
 
 
 @app.route('/api/sensors')
@@ -1285,6 +1294,15 @@ def gimbal_motor_ihold():
     d = request.json.get("driver", 0)
     ma = request.json.get("ma", 0)
     data, code = gimbal_get(f"motor_ihold?d={d}&ma={ma}")
+    return jsonify(data), code
+
+
+@app.route('/api/gimbal/motor_limits', methods=['POST'])
+def gimbal_motor_limits():
+    d = request.json.get("driver", 0)
+    min_value = request.json.get("min", 0)
+    max_value = request.json.get("max", 0)
+    data, code = gimbal_get(f"motor_limits?d={d}&min={min_value}&max={max_value}")
     return jsonify(data), code
 
 
