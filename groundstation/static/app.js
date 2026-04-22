@@ -1512,8 +1512,15 @@ function sysPoll() {
 /* ========== Gimbal ========== */
 var gimbalPollTimer = null;
 var GIMBAL_DRIVER_NAMES = ['Yaw', 'Pitch', 'Roll', 'Belt'];
+var GIMBAL_POLL_MS = 250;
 var gimbalSetupDone = false;
 var gimbalDriverCache = [];
+
+function wrapDegrees360(deg) {
+  var wrapped = deg % 360;
+  if (wrapped < 0) wrapped += 360;
+  return wrapped;
+}
 
 function gimbalSetup() {
   fetch('/api/gimbal/setup', {method: 'POST'}).then(function(r) { return r.json(); }).then(function() {
@@ -1903,7 +1910,7 @@ function gimbalPoll() {
       var posStateEl = document.getElementById('motorPosState_' + i);
       if (posEl) {
         if (drv.position_trusted) {
-          posEl.textContent = isBelt ? ((drv.position_steps || 0) + ' st') : ((drv.position_deg != null ? drv.position_deg : 0).toFixed(1) + '\u00b0');
+          posEl.textContent = isBelt ? ((drv.position_steps || 0) + ' st') : (wrapDegrees360(drv.position_deg != null ? drv.position_deg : 0).toFixed(1) + '\u00b0');
         } else {
           posEl.textContent = 'UNTRUSTED';
         }
@@ -2083,7 +2090,7 @@ function seqRun() {
   /* Start polling */
   setInterval(poll, 100);
   setInterval(sysPoll, 2000);
-  setInterval(gimbalPoll, 1000);
+  setInterval(gimbalPoll, GIMBAL_POLL_MS);
   applyServoLimits();
   setInterval(servoSyncPoll, 500);
   setInterval(controllerPoll, 250);
