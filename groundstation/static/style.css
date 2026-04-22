@@ -2964,3 +2964,161 @@ input[type="range"]::-moz-range-thumb {
 .toggle-switch input:checked + .toggle-slider:before {
   background: #eef4f0;
 }
+
+/* Warm graphite palette */
+:root {
+  --ui-bg: #24232b;
+  --ui-panel: #2b2a33;
+  --ui-panel-soft: #312f39;
+  --ui-panel-strong: #35333e;
+  --ui-border: #46434f;
+  --ui-border-strong: #5a5664;
+  --ui-text: #eceaf1;
+  --ui-text-soft: #b6b2be;
+  --ui-text-muted: #9893a1;
+  --ui-accent: #8f8aa0;
+  --ui-accent-cool: #aaa5b8;
+}
+
+body {
+  background: var(--ui-bg);
+  color: var(--ui-text);
+}
+
+.header {
+  background: #26252d;
+  border-bottom-color: var(--ui-border);
+}
+
+.status-indicator,
+.card,
+.inner,
+.mace-stat,
+.armviz-stat,
+.driver-card,
+.driver-stats,
+.driver-debug,
+.ch-item,
+.servo-inline-guide,
+.servo-calib-panel,
+.servo-calib-capture-card,
+.armviz-geometry-block,
+.seq-table td,
+.cam-wrapper,
+.armviz-canvas,
+input[type="number"],
+select {
+  background: var(--ui-panel);
+  border-color: var(--ui-border);
+}
+
+.driver-stats,
+.driver-debug,
+.servo-inline-guide,
+.servo-calib-panel,
+.servo-calib-capture-card,
+.armviz-note,
+.armviz-geometry-block,
+input[type="number"],
+select {
+  background: var(--ui-panel-soft);
+}
+
+.btn,
+button.btn {
+  background: var(--ui-panel-strong);
+  border-color: var(--ui-border);
+  color: var(--ui-text);
+}
+
+.btn:hover,
+button.btn:hover {
+  background: #3d3a46;
+  border-color: var(--ui-border-strong);
+}
+
+.btn-dark {
+  background: #302e37;
+  border-color: var(--ui-border);
+  color: #d8d4df;
+}
+
+.btn-dark:hover {
+  background: #383540;
+  border-color: var(--ui-border-strong);
+}
+
+.status-copy-label,
+.slider-label .label,
+.controller-stat .label,
+.sys-item .label,
+.motor-slider-label .label,
+.motor-mode-toggle .label,
+.motor-position-label,
+.slider-mini-scale,
+.sensor-panel-title,
+.sensor-val .label,
+.armviz-mode-label,
+.armviz-slider-wrap label,
+.armviz-stat .label,
+.servo-chip-label,
+.servo-calib-field span,
+.seq-table th,
+.header-kicker,
+.section-title,
+.card h3,
+.mace-stat .label {
+  color: var(--ui-text-muted);
+}
+
+.status-copy-value,
+.slider-label .value,
+.controller-stat .value,
+.sys-item .value,
+.mace-stat .value,
+.armviz-stat .value,
+.driver-name,
+.ch-name,
+.ch-val,
+.motor-position {
+  color: var(--ui-text);
+}
+
+.mace-note,
+.controller-help,
+.servo-panel-note,
+.armviz-note,
+.armviz-geometry-subtitle,
+.motor-position-note,
+.gear-info,
+.seq-status,
+.gimbal-global-status,
+.servo-inline-guide-copy,
+.servo-calib-subtitle,
+.servo-calib-capture-readout,
+.controller-error {
+  color: var(--ui-text-soft);
+}
+
+.driver-debug,
+.servo-angle-readout {
+  color: #b2adbf;
+}
+
+input[type="range"] {
+  background: #3a3743;
+}
+
+input[type="range"]::-webkit-slider-thumb,
+input[type="range"]::-moz-range-thumb {
+  background: #c3bfcd;
+  border-color: #23222a;
+}
+
+.toggle-slider {
+  background: #3a3743;
+}
+
+.toggle-slider:before {
+  background: #8f8aa0;
+}
