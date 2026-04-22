@@ -141,8 +141,12 @@ void markPositionTrusted(int d, bool trusted, uint8_t reason) {
   motorPositionReason[d] = reason;
 }
 
-bool driverUsesWrappedDegrees(int d) {
+bool driverDisplaysWrappedDegrees(int d) {
   return d >= 0 && d < 3;  // Yaw, Pitch, Roll
+}
+
+bool driverGoZeroUsesShortestPath(int d) {
+  return d == 2;  // Roll only
 }
 
 int32_t stepsPerRevForDriver(int d) {
@@ -306,6 +310,8 @@ void handleStatus() {
       ",\"multistep_filt\":" + String(motorMultistepFilt[i] ? "true" : "false") +
       ",\"dir\":\"" + String(motorDir[i] ? "CW" : "CCW") + "\"" +
       ",\"steps_remaining\":" + String(stepsRemaining[i]) +
+      ",\"display_wrap\":" + String(driverDisplaysWrappedDegrees(i) ? "true" : "false") +
+      ",\"go_zero_mode\":\"" + String(driverGoZeroUsesShortestPath(i) ? "shortest_path" : "absolute") + "\"" +
       ",\"position_steps\":" + String(motorPositionSteps[i]) +
       ",\"position_deg\":" + String(motorPositionSteps[i] / stepsPerDeg[i], 2) +
       ",\"position_trusted\":" + String(motorPositionTrusted[i] ? "true" : "false") +
@@ -445,9 +451,9 @@ void handleGoZero() {
     server.send(409, "application/json", "{\"ok\":false,\"error\":\"position untrusted\"}");
     return;
   }
-  int32_t steps = driverUsesWrappedDegrees(d) ? shortestWrappedDeltaToZero(d, motorPositionSteps[d]) : -motorPositionSteps[d];
+  int32_t steps = driverGoZeroUsesShortestPath(d) ? shortestWrappedDeltaToZero(d, motorPositionSteps[d]) : -motorPositionSteps[d];
   startMoveSteps(d, steps);
-  sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"steps\":" + String(steps) + ",\"target\":\"zero\",\"mode\":\"" + String(driverUsesWrappedDegrees(d) ? "shortest_path" : "absolute") + "\"}");
+  sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"steps\":" + String(steps) + ",\"target\":\"zero\",\"mode\":\"" + String(driverGoZeroUsesShortestPath(d) ? "shortest_path" : "absolute") + "\"}");
 }
 
 void handleEnable() {

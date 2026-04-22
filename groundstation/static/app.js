@@ -2098,7 +2098,13 @@ function gimbalPoll() {
       var posStateEl = document.getElementById('motorPosState_' + i);
       if (posEl) {
         if (drv.position_trusted) {
-          posEl.textContent = isBelt ? ((drv.position_steps || 0) + ' st') : (wrapDegrees360(drv.position_deg != null ? drv.position_deg : 0).toFixed(1) + '\u00b0');
+          if (isBelt) {
+            posEl.textContent = (drv.position_steps || 0) + ' st';
+          } else {
+            var posDeg = drv.position_deg != null ? drv.position_deg : 0;
+            var shownDeg = drv.display_wrap ? wrapDegrees360(posDeg) : posDeg;
+            posEl.textContent = shownDeg.toFixed(1) + '\u00b0';
+          }
         } else {
           posEl.textContent = 'UNTRUSTED';
         }
