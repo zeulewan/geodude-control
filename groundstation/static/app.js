@@ -71,8 +71,13 @@ var chOrder = ["B1","B2","S1","S2","E1","E2","W1A","W2A","W1B","W2B","MACE"];
 var CH_RAMP_HZ = 30;
 var chActual = {};  // actual PWM value sent to hardware per channel
 
-/* Per-channel neutral positions (server-side, persisted to disk) */
-var chNeutral = {"B1":1160,"S1":970,"E1":2350,"W1A":1500,"W1B":1500,"B2":890,"S2":810,"E2":2190,"W2A":1500,"W2B":1500};
+/* Per-channel neutral positions. AUTHORITY: server-side servo_neutral.json.
+   Hydrated from /api/servo_neutral at page load (see init). Do NOT read
+   this map before that fetch resolves -- empty {} is the safe state; any
+   hardcoded fallback here will silently drive servos to stale positions
+   after the operator re-measures neutrals. */
+var chNeutral = {};
+var chNeutralLoaded = false;
 
 var controllerStatus = {enabled: false};
 
@@ -822,7 +827,10 @@ function armVizStart() {
 }
 
 function getNeutral(name) {
-  return chNeutral[name] != null ? chNeutral[name] : 1500;
+  // Safety: 1500us is the dangerous default per CLAUDE.md. If we haven't
+  // loaded server neutrals yet, return null so callers can refuse to move.
+  if (!chNeutralLoaded) return null;
+  return chNeutral[name] != null ? chNeutral[name] : null;
 }
 
 function getServoSpeed() {
@@ -897,6 +905,10 @@ function chSliderInput(name, val) {
 
 function chGoNeutral(name) {
   var target = getNeutral(name);
+  if (target == null) {
+    alert('Neutral positions not loaded from server yet. Refusing to move ' + name + '.');
+    return;
+  }
   var slider = document.getElementById('ch_' + name);
   if (slider) { slider.value = target; chUpdateLabel(name, target); }
   // L3: assigning .value does not fire the input event, so publish explicitly.
@@ -923,9 +935,14 @@ function allChannelsNeutral() {
 }
 
 function startupNeutral() {
+  if (!chNeutralLoaded) {
+    alert('Neutral positions not loaded from server yet. Refusing STARTUP.');
+    return;
+  }
   chOrder.forEach(function(name) {
     if (name === 'MACE') return;
     var pw = getNeutral(name);
+    if (pw == null) return;
     chActual[name] = pw;
     chVelocity[name] = 0;
     var slider = document.getElementById('ch_' + name);
@@ -1956,29 +1973,39 @@ function seqRun() {
 
 /* ========== Init ========== */
 (function() {
-  /* Neutral positions are hardcoded in chNeutral */
-  chOrder.forEach(function(name) {
-    if (name === 'MACE') return;
-    var label = document.getElementById('chn_' + name);
-    if (label) label.textContent = getNeutral(name) + ' us';
+  /* SAFETY: neutrals MUST be fetched from the server before any code path
+     that can move a servo (Go to Neutral, STARTUP, slider init). Previously
+     chNeutral was hardcoded in JS and silently drifted out of sync with
+     servo_neutral.json after the operator re-measured -- Go to Neutral
+     would then drive to stale old positions. */
+  fetch('/api/servo_neutral').then(function(r) { return r.json(); }).then(function(neutrals) {
+    chOrder.forEach(function(name) {
+      if (name === 'MACE') return;
+      if (neutrals && neutrals[name] != null) chNeutral[name] = neutrals[name];
+      var label = document.getElementById('chn_' + name);
+      if (label) label.textContent = (chNeutral[name] != null ? chNeutral[name] : '?') + ' us';
+    });
+    chNeutralLoaded = true;
+  }).catch(function() {
+    /* Server unreachable. Leave chNeutralLoaded=false so getNeutral() returns
+       null and Go to Neutral / STARTUP refuse to move anything. */
+    console.error('[servo] failed to fetch /api/servo_neutral -- Go to Neutral/STARTUP disabled until next refresh');
   });
 
-  /* Fetch last-known servo positions from server, fallback to neutral */
+  /* Fetch last-known servo positions from server. Safe even before neutrals
+     load: positions come fully specified from the server, no neutral fallback. */
   fetch('/api/servo_positions').then(function(r) { return r.json(); }).then(function(positions) {
     chOrder.forEach(function(name) {
       if (name === 'MACE') return;
-      var pw = positions[name] != null ? positions[name] : getNeutral(name);
+      var pw = positions[name];
+      if (pw == null) return;  // no stored position; leave slider at default
       chActual[name] = pw;
       var slider = document.getElementById('ch_' + name);
       if (slider) slider.value = pw;
       chUpdateLabel(name, pw);
     });
   }).catch(function() {
-    /* Server unreachable — default to neutral, do NOT send PWM */
-    chOrder.forEach(function(name) {
-      if (name === 'MACE') return;
-      chActual[name] = getNeutral(name);
-    });
+    /* Server unreachable — do NOT send PWM and do NOT seed chActual. */
   });
 
   /* Restore speed settings from localStorage */
