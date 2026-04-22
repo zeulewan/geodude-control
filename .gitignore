@@ -7,4 +7,7 @@ __pycache__/
 site/_build/
 groundstation/servo_neutral.json
 groundstation/servo_positions.json
+groundstation/servo_setpoints.json
+groundstation/servo_limits.json
+groundstation/joint_calibration.json
 .claude/
