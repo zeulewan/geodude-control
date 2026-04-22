@@ -44,8 +44,8 @@ int motorIholdMA[4] = {0, 0, 0, 0};
 bool motorStealthChop[4] = {true, true, true, true};
 bool motorInterpolation[4] = {true, true, true, true};
 bool motorMultistepFilt[4] = {true, true, true, true};
-float motorSoftLimitMin[4] = {0.0f, 0.0f, -360.0f, -50000.0f};
-float motorSoftLimitMax[4] = {270.0f, 340.0f, 360.0f, 50000.0f};
+float motorSoftLimitMin[4] = {-360.0f, -360.0f, -360.0f, -50000.0f};
+float motorSoftLimitMax[4] = {360.0f, 360.0f, 360.0f, 50000.0f};
 bool motorEnabled[4] = {false, false, false, false};
 
 // Gear ratios and angle conversion
@@ -105,8 +105,8 @@ int clampRampSteps(int steps) {
 
 float driverHardLimitMin(int d) {
   switch (d) {
-    case 0: return 0.0f;        // Yaw
-    case 1: return 0.0f;        // Pitch
+    case 0: return -360.0f;     // Yaw
+    case 1: return -360.0f;     // Pitch
     case 2: return -360.0f;     // Roll
     case 3: return -50000.0f;   // Belt steps
     default: return -50000.0f;
@@ -115,8 +115,8 @@ float driverHardLimitMin(int d) {
 
 float driverHardLimitMax(int d) {
   switch (d) {
-    case 0: return 270.0f;      // Yaw
-    case 1: return 340.0f;      // Pitch
+    case 0: return 360.0f;      // Yaw
+    case 1: return 360.0f;      // Pitch
     case 2: return 360.0f;      // Roll
     case 3: return 50000.0f;    // Belt steps
     default: return 50000.0f;
