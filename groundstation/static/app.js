@@ -1407,8 +1407,13 @@ setInterval(function() {
 }, 500);
 
 /* ========== Polling ========== */
+function controllerUnavailableMessage() {
+  return 'Controller backend unavailable on this deployment.';
+}
+
 function updateControllerUI(status) {
   controllerStatus = status || {enabled: false};
+  var unavailable = controllerStatus.available === false;
   var modeEl = document.getElementById('controllerMode');
   var linkEl = document.getElementById('controllerLink');
   var armEl = document.getElementById('controllerArm');
@@ -1419,34 +1424,43 @@ function updateControllerUI(status) {
   var leftBtn = document.getElementById('controllerArmLeftBtn');
   var rightBtn = document.getElementById('controllerArmRightBtn');
   if (modeEl) {
-    modeEl.textContent = controllerStatus.enabled ? 'ON' : 'OFF';
-    modeEl.style.color = controllerStatus.enabled ? '#22c55e' : '#9ca3af';
+    modeEl.textContent = unavailable ? 'UNAVAILABLE' : (controllerStatus.enabled ? 'ON' : 'OFF');
+    modeEl.style.color = unavailable ? '#f59e0b' : (controllerStatus.enabled ? '#22c55e' : '#9ca3af');
   }
   if (linkEl) {
-    linkEl.textContent = controllerStatus.connected ? 'CONNECTED' : 'DISCONNECTED';
-    linkEl.style.color = controllerStatus.connected ? '#22c55e' : '#ef4444';
+    linkEl.textContent = unavailable ? 'NOT INSTALLED' : (controllerStatus.connected ? 'CONNECTED' : 'DISCONNECTED');
+    linkEl.style.color = unavailable ? '#f59e0b' : (controllerStatus.connected ? '#22c55e' : '#ef4444');
   }
   if (armEl) {
-    armEl.textContent = (controllerStatus.selected_arm || "left").toUpperCase();
-    armEl.style.color = "#f59e0b";
+    armEl.textContent = unavailable ? '--' : (controllerStatus.selected_arm || "left").toUpperCase();
+    armEl.style.color = unavailable ? '#9ca3af' : '#f59e0b';
   }
-  if (leftBtn) leftBtn.className = controllerStatus.selected_arm === "left" ? "btn btn-amber" : "btn btn-dark";
-  if (rightBtn) rightBtn.className = controllerStatus.selected_arm === "right" ? "btn btn-amber" : "btn btn-dark";
+  if (leftBtn) {
+    leftBtn.className = (!unavailable && controllerStatus.selected_arm === "left") ? "btn btn-amber" : "btn btn-dark";
+    leftBtn.disabled = unavailable;
+  }
+  if (rightBtn) {
+    rightBtn.className = (!unavailable && controllerStatus.selected_arm === "right") ? "btn btn-amber" : "btn btn-dark";
+    rightBtn.disabled = unavailable;
+  }
   if (deadmanEl) {
-    deadmanEl.textContent = controllerStatus.deadman ? 'HELD' : 'RELEASED';
-    deadmanEl.style.color = controllerStatus.deadman ? '#22c55e' : '#9ca3af';
+    deadmanEl.textContent = unavailable ? '--' : (controllerStatus.deadman ? 'HELD' : 'RELEASED');
+    deadmanEl.style.color = unavailable ? '#9ca3af' : (controllerStatus.deadman ? '#22c55e' : '#9ca3af');
   }
   if (activeEl) {
-    activeEl.textContent = controllerStatus.active ? 'MOVING' : 'IDLE';
-    activeEl.style.color = controllerStatus.active ? '#3b82f6' : '#9ca3af';
+    activeEl.textContent = unavailable ? '--' : (controllerStatus.active ? 'MOVING' : 'IDLE');
+    activeEl.style.color = unavailable ? '#9ca3af' : (controllerStatus.active ? '#3b82f6' : '#9ca3af');
   }
   if (errorEl) {
-    errorEl.textContent = controllerStatus.last_error || '';
-    errorEl.style.display = controllerStatus.last_error ? 'block' : 'none';
+    var errorText = unavailable ? (controllerStatus.last_error || controllerUnavailableMessage()) : (controllerStatus.last_error || '');
+    errorEl.textContent = errorText;
+    errorEl.style.color = unavailable ? '#f59e0b' : '#ef4444';
+    errorEl.style.display = errorText ? 'block' : 'none';
   }
   if (btn) {
-    btn.textContent = controllerStatus.enabled ? 'DISABLE CONTROLLER' : 'ENABLE CONTROLLER';
-    btn.className = controllerStatus.enabled ? 'btn btn-red' : 'btn btn-dark';
+    btn.textContent = unavailable ? 'CONTROLLER OFFLINE' : (controllerStatus.enabled ? 'DISABLE CONTROLLER' : 'ENABLE CONTROLLER');
+    btn.className = unavailable ? 'btn btn-dark' : (controllerStatus.enabled ? 'btn btn-red' : 'btn btn-dark');
+    btn.disabled = unavailable;
   }
 }
 
@@ -1457,6 +1471,7 @@ function controllerPoll() {
 }
 
 function setControllerArm(selectedArm) {
+  if (controllerStatus.available === false) return;
   fetch('/api/controller/arm', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
@@ -1467,6 +1482,7 @@ function setControllerArm(selectedArm) {
 }
 
 function toggleControllerMode() {
+  if (controllerStatus.available === false) return;
   var enable = !controllerStatus.enabled;
   fetch('/api/controller/enable', {
     method: 'POST',

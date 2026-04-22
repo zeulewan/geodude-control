@@ -1570,6 +1570,14 @@ button.btn:active {
   transform: translateY(0);
 }
 
+.btn:disabled,
+button.btn:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+  transform: none;
+  filter: none;
+}
+
 .btn-dark {
   background: rgba(50, 66, 80, 0.86);
   border-color: var(--ui-border);
