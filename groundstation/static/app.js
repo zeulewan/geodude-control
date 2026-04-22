@@ -1237,71 +1237,80 @@ function calibPatch(name, field, value) {
 function renderCalibrationPanel() {
   var grid = document.getElementById('calibGrid');
   if (!grid) return;
-  var rows = ['<table style="width:100%;border-collapse:collapse;font-size:12px;">',
-    '<thead><tr style="text-align:left;color:#6b7280;border-bottom:1px solid #e5e7eb;">',
-    '<th style="padding:4px 6px;">Ch</th>',
-    '<th style="padding:4px 6px;">Current</th>',
-    '<th style="padding:4px 6px;">Angle A°</th>',
-    '<th style="padding:4px 6px;">Capture A</th>',
-    '<th style="padding:4px 6px;">Angle B°</th>',
-    '<th style="padding:4px 6px;">Capture B</th>',
-    '<th style="padding:4px 6px;">Solve</th>',
-    '<th style="padding:4px 6px;">us/rad</th>',
-    '<th style="padding:4px 6px;">sign</th>',
-    '<th style="padding:4px 6px;">neutral°</th>',
-    '<th style="padding:4px 6px;">min°</th>',
-    '<th style="padding:4px 6px;">max°</th>',
-    '</tr></thead><tbody>'];
+  var expanded = calibExpanded;
+  var parts = ['<div class="calib-grid">'];
   chOrder.forEach(function(name) {
     if (name === 'MACE') return;
     var c = calibCaptures[name] || {};
     var cal = jointCal[name] || {};
-    var neutralDeg = cal.neutral_angle_rad != null ? radToDeg(cal.neutral_angle_rad).toFixed(1) : '-';
+    var isOpen = expanded === name;
+    var neutralDeg = cal.neutral_angle_rad != null ? radToDeg(cal.neutral_angle_rad).toFixed(0) + '°' : '-';
     var minDeg = cal.min_angle_rad != null ? radToDeg(cal.min_angle_rad).toFixed(1) : '';
     var maxDeg = cal.max_angle_rad != null ? radToDeg(cal.max_angle_rad).toFixed(1) : '';
-    var capAstr = c.pw_A != null ? (c.pw_A + 'us @ ' + c.angle_A_deg + '°') : '-';
-    var capBstr = c.pw_B != null ? (c.pw_B + 'us @ ' + c.angle_B_deg + '°') : '-';
-    rows.push(
-      '<tr style="border-bottom:1px solid #f3f4f6;">' +
-      '<td style="padding:4px 6px;font-weight:600;">' + name + '</td>' +
-      '<td style="padding:4px 6px;"><span id="calibCur_' + name + '">-</span></td>' +
-      '<td style="padding:4px 6px;"><input type="number" step="1" id="calibAngA_' + name + '" style="width:60px;"></td>' +
-      '<td style="padding:4px 6px;"><button class="btn btn-sm" onclick="calibCaptureA(\'' + name + '\')">A</button> <span style="color:#6b7280;">' + capAstr + '</span></td>' +
-      '<td style="padding:4px 6px;"><input type="number" step="1" id="calibAngB_' + name + '" style="width:60px;"></td>' +
-      '<td style="padding:4px 6px;"><button class="btn btn-sm" onclick="calibCaptureB(\'' + name + '\')">B</button> <span style="color:#6b7280;">' + capBstr + '</span></td>' +
-      '<td style="padding:4px 6px;"><button class="btn btn-sm btn-green" onclick="calibSolve(\'' + name + '\')">Solve</button> <button class="btn btn-sm" onclick="calibReset(\'' + name + '\')" title="Clear captures">×</button></td>' +
-      '<td style="padding:4px 6px;">' + (cal.us_per_rad != null ? cal.us_per_rad.toFixed(1) : '-') + '</td>' +
-      '<td style="padding:4px 6px;">' + (cal.sign != null ? (cal.sign > 0 ? '+' : '−') : '-') + '</td>' +
-      '<td style="padding:4px 6px;">' + neutralDeg + '</td>' +
-      '<td style="padding:4px 6px;"><input type="number" step="1" value="' + minDeg + '" style="width:55px;" onchange="calibPatch(\'' + name + '\', \'min_angle_rad\', this.value === \'\' ? null : degToRad(parseFloat(this.value)))"></td>' +
-      '<td style="padding:4px 6px;"><input type="number" step="1" value="' + maxDeg + '" style="width:55px;" onchange="calibPatch(\'' + name + '\', \'max_angle_rad\', this.value === \'\' ? null : degToRad(parseFloat(this.value)))"></td>' +
-      '</tr>'
+    var signStr = cal.sign != null ? (cal.sign > 0 ? '+' : '−') : '-';
+    var usrStr = cal.us_per_rad != null ? cal.us_per_rad.toFixed(0) : '-';
+    var capAstr = c.pw_A != null ? (c.pw_A + 'us → ' + c.angle_A_deg + '°') : '—';
+    var capBstr = c.pw_B != null ? (c.pw_B + 'us → ' + c.angle_B_deg + '°') : '—';
+    var canSolve = c.pw_A != null && c.pw_B != null;
+    parts.push(
+      '<div class="calib-card' + (isOpen ? ' calib-card-open' : '') + '">' +
+        '<div class="calib-head" onclick="calibToggle(\'' + name + '\')">' +
+          '<span class="calib-name">' + name + '</span>' +
+          '<span class="calib-live" id="calibCur_' + name + '">-</span>' +
+          '<span class="calib-summary">' + usrStr + ' us/rad ' + signStr + ' · n=' + neutralDeg + '</span>' +
+          '<span class="calib-chev">' + (isOpen ? '▾' : '▸') + '</span>' +
+        '</div>' +
+        (isOpen ?
+          '<div class="calib-body">' +
+            '<div class="calib-row">' +
+              '<label>A:</label>' +
+              '<input type="number" step="1" id="calibAngA_' + name + '" placeholder="angle°" style="width:70px;">' +
+              '<button class="btn btn-sm" onclick="calibCaptureA(\'' + name + '\')">Capture</button>' +
+              '<span class="calib-capture">' + capAstr + '</span>' +
+            '</div>' +
+            '<div class="calib-row">' +
+              '<label>B:</label>' +
+              '<input type="number" step="1" id="calibAngB_' + name + '" placeholder="angle°" style="width:70px;">' +
+              '<button class="btn btn-sm" onclick="calibCaptureB(\'' + name + '\')">Capture</button>' +
+              '<span class="calib-capture">' + capBstr + '</span>' +
+            '</div>' +
+            '<div class="calib-row">' +
+              '<button class="btn btn-sm btn-green" ' + (canSolve ? '' : 'disabled') + ' onclick="calibSolve(\'' + name + '\')">Solve</button>' +
+              '<button class="btn btn-sm" onclick="calibReset(\'' + name + '\')">Clear</button>' +
+              '<span class="calib-limits">' +
+                'min° <input type="number" step="1" value="' + minDeg + '" style="width:55px;" onchange="calibPatch(\'' + name + '\', \'min_angle_rad\', this.value === \'\' ? null : degToRad(parseFloat(this.value)))"> ' +
+                'max° <input type="number" step="1" value="' + maxDeg + '" style="width:55px;" onchange="calibPatch(\'' + name + '\', \'max_angle_rad\', this.value === \'\' ? null : degToRad(parseFloat(this.value)))">' +
+              '</span>' +
+            '</div>' +
+          '</div>'
+        : '') +
+      '</div>'
     );
   });
-  rows.push('</tbody></table>');
-  grid.innerHTML = rows.join('');
-  // Update the "Current" cells with live angle from slider position.
+  parts.push('</div>');
+  grid.innerHTML = parts.join('');
+  refreshCalibLive();
+}
+
+function refreshCalibLive() {
   chOrder.forEach(function(name) {
     if (name === 'MACE') return;
     var slider = document.getElementById('ch_' + name);
     var curEl = document.getElementById('calibCur_' + name);
     if (!slider || !curEl) return;
     var rad = pwToAngleRad(name, parseInt(slider.value));
-    curEl.textContent = slider.value + 'us (' + (rad == null ? '-' : radToDeg(rad).toFixed(1) + '°') + ')';
+    curEl.textContent = slider.value + 'us' + (rad == null ? '' : ' · ' + radToDeg(rad).toFixed(1) + '°');
   });
 }
 
-// Refresh the "current angle" column in the calib panel every 500ms.
+var calibExpanded = null;
+function calibToggle(name) {
+  calibExpanded = (calibExpanded === name) ? null : name;
+  renderCalibrationPanel();
+}
+
 setInterval(function() {
-  if (!document.getElementById('calibGrid')) return;
-  chOrder.forEach(function(name) {
-    if (name === 'MACE') return;
-    var slider = document.getElementById('ch_' + name);
-    var curEl = document.getElementById('calibCur_' + name);
-    if (!slider || !curEl) return;
-    var rad = pwToAngleRad(name, parseInt(slider.value));
-    curEl.textContent = slider.value + 'us (' + (rad == null ? '-' : radToDeg(rad).toFixed(1) + '°') + ')';
-  });
+  if (document.getElementById('calibGrid')) refreshCalibLive();
 }, 500);
 
 /* ========== Polling ========== */
