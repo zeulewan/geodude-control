@@ -2566,71 +2566,109 @@ function gimbalPoll() {
   });
 }
 
-/* ========== Sequence Programmer ========== */
-var sequenceEntries = [];
+/* ========== Setpoints ==========
+   Named snapshots of all 10 servo targets. Server-authoritative
+   (groundstation/servo_setpoints.json). Clicking a setpoint drives
+   every channel toward the saved PW through the normal server-side
+   ramp, so moves are envelope-clamped and rate-limited. */
+var setpoints = [];
 
-function seqAddRow() {
-  sequenceEntries.push({driver: 0, value: 0, time_ms: 0});
-  seqRender();
+function setpointRefresh() {
+  return fetch('/api/setpoints').then(function(r) { return r.json(); }).then(function(list) {
+    setpoints = Array.isArray(list) ? list : [];
+    setpointRender();
+  }).catch(function() {
+    var el = document.getElementById('setpointList');
+    if (el) el.textContent = 'Failed to load setpoints.';
+  });
 }
 
-function seqRemoveRow(index) {
-  sequenceEntries.splice(index, 1);
-  seqRender();
-}
-
-function seqClearAll() {
-  sequenceEntries = [];
-  seqRender();
-}
-
-function seqRender() {
-  var tbody = document.getElementById('seqBody');
-  if (!tbody) return;
-  tbody.innerHTML = '';
-  for (var i = 0; i < sequenceEntries.length; i++) {
-    var entry = sequenceEntries[i];
-    var tr = document.createElement('tr');
-    /* Motor select */
-    var motorOpts = '';
-    for (var m = 0; m < GIMBAL_DRIVER_NAMES.length; m++) {
-      var sel = (entry.driver === m) ? ' selected' : '';
-      motorOpts += '<option value="' + m + '"' + sel + '>' + GIMBAL_DRIVER_NAMES[m] + '</option>';
-    }
-    tr.innerHTML = '<td><select onchange="sequenceEntries[' + i + '].driver = parseInt(this.value)">' + motorOpts + '</select></td>' +
-      '<td><input type="number" value="' + entry.value + '" step="1" onchange="sequenceEntries[' + i + '].value = parseFloat(this.value)"></td>' +
-      '<td><input type="number" value="' + entry.time_ms + '" step="100" min="0" onchange="sequenceEntries[' + i + '].time_ms = parseInt(this.value)"></td>' +
-      '<td><button class="btn btn-sm btn-red" onclick="seqRemoveRow(' + i + ')">X</button></td>';
-    tbody.appendChild(tr);
-  }
-}
-
-function seqRun() {
-  if (sequenceEntries.length === 0) return;
-  var entries = [];
-  for (var i = 0; i < sequenceEntries.length; i++) {
-    var e = sequenceEntries[i];
-    var driverName = GIMBAL_DRIVER_NAMES[e.driver] || '';
-    var isBelt = (driverName.toLowerCase() === 'belt');
-    var entry = {driver: e.driver, time_ms: e.time_ms};
-    if (isBelt) {
-      entry.steps = Math.round(e.value);
-    } else {
-      entry.deg = e.value;
-    }
-    entries.push(entry);
-  }
-  var statusEl = document.getElementById('seqStatus');
-  if (statusEl) statusEl.textContent = 'Running sequence (' + entries.length + ' entries)...';
-  fetch('/api/gimbal/sequence', {
+function setpointAdd() {
+  var input = document.getElementById('setpointName');
+  if (!input) return;
+  var name = (input.value || '').trim();
+  if (!name) { alert('Enter a name first.'); input.focus(); return; }
+  fetch('/api/setpoints', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({entries: entries})
-  }).then(function(r) { return r.json(); }).then(function(d) {
-    if (statusEl) statusEl.textContent = 'Sequence started: ' + (d.entries || 0) + ' entries queued';
-  }).catch(function() {
-    if (statusEl) statusEl.textContent = 'Error sending sequence';
-  });
+    body: JSON.stringify({name: name})
+  }).then(function(r) { return r.json().then(function(d) { return {ok: r.ok, body: d}; }); })
+    .then(function(res) {
+      if (!res.ok || !res.body.ok) {
+        alert('Save failed: ' + ((res.body && res.body.error) || 'unknown'));
+        return;
+      }
+      input.value = '';
+      setpointRefresh();
+    })
+    .catch(function(e) { alert('Save request failed: ' + e); });
+}
+
+function setpointGo(sid) {
+  fetch('/api/setpoints/' + encodeURIComponent(sid) + '/go', {method: 'POST'})
+    .then(function(r) { return r.json().then(function(d) { return {ok: r.ok, body: d}; }); })
+    .then(function(res) {
+      if (!res.ok || !res.body.ok) {
+        alert('Go failed: ' + ((res.body && res.body.error) || 'unknown'));
+      }
+    })
+    .catch(function(e) { alert('Go request failed: ' + e); });
+}
+
+function setpointDelete(sid, name) {
+  if (!confirm('Delete setpoint "' + name + '"?')) return;
+  fetch('/api/setpoints/' + encodeURIComponent(sid), {method: 'DELETE'})
+    .then(function(r) { return r.json().then(function(d) { return {ok: r.ok, body: d}; }); })
+    .then(function(res) {
+      if (!res.ok || !res.body.ok) {
+        alert('Delete failed: ' + ((res.body && res.body.error) || 'unknown'));
+        return;
+      }
+      setpointRefresh();
+    })
+    .catch(function(e) { alert('Delete request failed: ' + e); });
+}
+
+function setpointRename(sid, currentName) {
+  var next = prompt('Rename setpoint:', currentName);
+  if (next == null) return;
+  next = (next || '').trim();
+  if (!next) { alert('Name required.'); return; }
+  fetch('/api/setpoints/' + encodeURIComponent(sid), {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({name: next})
+  }).then(function(r) { return r.json().then(function(d) { return {ok: r.ok, body: d}; }); })
+    .then(function(res) {
+      if (!res.ok || !res.body.ok) {
+        alert('Rename failed: ' + ((res.body && res.body.error) || 'unknown'));
+        return;
+      }
+      setpointRefresh();
+    })
+    .catch(function(e) { alert('Rename request failed: ' + e); });
+}
+
+function setpointRender() {
+  var el = document.getElementById('setpointList');
+  if (!el) return;
+  if (!setpoints.length) {
+    el.innerHTML = '<div class="setpoint-empty">No setpoints yet. Set the arms where you want, name it, click Add.</div>';
+    return;
+  }
+  var html = '';
+  for (var i = 0; i < setpoints.length; i++) {
+    var sp = setpoints[i];
+    var sid = String(sp.id || '').replace(/[^a-f0-9]/gi, '');
+    var safeName = String(sp.name || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    var jsName = safeName.replace(/'/g, "\\'");
+    html += '<div class="setpoint-item">' +
+      '<button class="btn btn-sm setpoint-go" onclick="setpointGo(\'' + sid + '\')" title="Drive arms to this pose">' + safeName + '</button>' +
+      '<button class="btn btn-sm setpoint-rename" onclick="setpointRename(\'' + sid + '\', \'' + jsName + '\')" title="Rename">Edit</button>' +
+      '<button class="btn btn-sm btn-red setpoint-del" onclick="setpointDelete(\'' + sid + '\', \'' + jsName + '\')" title="Delete">X</button>' +
+      '</div>';
+  }
+  el.innerHTML = html;
 }
 
 /* ========== Init ========== */
@@ -2664,6 +2702,8 @@ function seqRun() {
   }).catch(function() {
     console.error('[cal] failed to fetch /api/joint_calibration');
   });
+
+  setpointRefresh();
 
   /* Fetch last-known servo positions from server. Safe even before neutrals
      load: positions come fully specified from the server, no neutral fallback. */
