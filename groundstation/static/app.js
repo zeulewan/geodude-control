@@ -2698,9 +2698,29 @@ function actionStatePoll() {
   }).catch(function() {});
 }
 
+var ACTION_NEUTRAL_ID = '__neutral__';
+
 function actionSetpointName(sid) {
+  if (sid === ACTION_NEUTRAL_ID) return 'ALL NEUTRAL';
   var sp = setpoints.find(function(s) { return s.id === sid; });
   return sp ? sp.name : '(missing: ' + sid + ')';
+}
+
+// Build option list: ALL NEUTRAL pseudo-entry + real setpoints.
+// selectedId is the currently-chosen id to mark with `selected`.
+function actionBuildOptions(selectedId, includeBlankAppendOption) {
+  var opts = '';
+  if (includeBlankAppendOption) {
+    opts += '<option value=""' + (!selectedId ? ' selected' : '') + '>(none)</option>';
+  }
+  var selNeutral = (selectedId === ACTION_NEUTRAL_ID) ? ' selected' : '';
+  opts += '<option value="' + ACTION_NEUTRAL_ID + '"' + selNeutral + '>ALL NEUTRAL</option>';
+  for (var i = 0; i < setpoints.length; i++) {
+    var s = setpoints[i];
+    var sel = (s.id === selectedId) ? ' selected' : '';
+    opts += '<option value="' + htmlEscape(s.id) + '"' + sel + '>' + htmlEscape(s.name) + '</option>';
+  }
+  return opts;
 }
 
 function actionRender() {
@@ -2834,8 +2854,9 @@ function actionCloseEditor() {
 
 function actionEditorAddStep() {
   if (!actionEditorState) return;
-  if (!setpoints.length) { alert('Create at least one setpoint first.'); return; }
-  actionEditorState.steps.push({setpoint_id: setpoints[0].id, breakpoint: false});
+  // Default to ALL NEUTRAL so an empty-setpoints install is still usable.
+  var defaultId = setpoints.length ? setpoints[0].id : ACTION_NEUTRAL_ID;
+  actionEditorState.steps.push({setpoint_id: defaultId, breakpoint: false});
   actionRenderEditor();
 }
 
@@ -2879,25 +2900,14 @@ function actionRenderEditor() {
   var editor = document.getElementById('actionEditor');
   if (!editor || !actionEditorState) return;
   var st = actionEditorState;
-  var spOptions = setpoints.map(function(s) {
-    return '<option value="' + htmlEscape(s.id) + '">' + htmlEscape(s.name) + '</option>';
-  }).join('');
-  if (!spOptions) spOptions = '<option value="">(no setpoints)</option>';
-  var appendOptions = '<option value="">(none)</option>' + setpoints.map(function(s) {
-    var sel = (st.append_setpoint_id === s.id) ? ' selected' : '';
-    return '<option value="' + htmlEscape(s.id) + '"' + sel + '>' + htmlEscape(s.name) + '</option>';
-  }).join('');
+  var appendOptions = actionBuildOptions(st.append_setpoint_id, true);
   var stepsHtml = '';
   if (!st.steps.length) {
     stepsHtml = '<div class="action-editor-empty">No steps. Click Add Step.</div>';
   } else {
     for (var i = 0; i < st.steps.length; i++) {
       var step = st.steps[i];
-      var selOpts = setpoints.map(function(s) {
-        var sel = (step.setpoint_id === s.id) ? ' selected' : '';
-        return '<option value="' + htmlEscape(s.id) + '"' + sel + '>' + htmlEscape(s.name) + '</option>';
-      }).join('');
-      if (!selOpts) selOpts = '<option value="">(no setpoints)</option>';
+      var selOpts = actionBuildOptions(step.setpoint_id, false);
       stepsHtml += '<div class="action-step-row">' +
         '<span class="action-step-num">' + (i + 1) + '.</span>' +
         '<select onchange="actionEditorSetStepSetpoint(' + i + ', this.value)">' + selOpts + '</select>' +

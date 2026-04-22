@@ -1094,8 +1094,32 @@ def _setpoints_used_by_actions(sp_id):
     return used
 
 
+# Magic id the action editor can use to mean "current ALL NEUTRAL" --
+# positions come from servo_neutral.json at play time rather than being
+# captured as a setpoint. Lets operators say "... then return to neutral"
+# without baking a specific neutral snapshot into the action.
+ACTION_NEUTRAL_ID = "__neutral__"
+
+
 def _validate_setpoint_for_playback(sp_id):
-    """Resolve setpoint id to its positions dict, or return (None, error)."""
+    """Resolve setpoint id (or ALL NEUTRAL) to a usable pseudo-setpoint
+    for the playback worker. Returns (sp_like, None) or (None, error).
+    The returned dict always has 'name' and 'positions' keys."""
+    if sp_id == ACTION_NEUTRAL_ID:
+        positions = {}
+        missing = []
+        for ch in CHANNELS:
+            val = servo_neutral.get(ch)
+            if val is None:
+                missing.append(ch)
+            else:
+                positions[ch] = int(val)
+        if missing:
+            return None, f"ALL NEUTRAL missing channels: {','.join(missing)}"
+        unpowered = [ch for ch in CHANNELS if positions[ch] < 500]
+        if unpowered:
+            return None, f"ALL NEUTRAL has unpowered channels ({','.join(unpowered)})"
+        return {"name": "ALL NEUTRAL", "positions": positions}, None
     with _setpoints_lock:
         sp = next((s for s in servo_setpoints if s["id"] == sp_id), None)
     if sp is None:
@@ -1288,6 +1312,7 @@ def actions_create():
         return jsonify({"ok": False, "error": "need at least one step"}), 400
     with _setpoints_lock:
         known_sp_ids = {s["id"] for s in servo_setpoints}
+    known_sp_ids.add(ACTION_NEUTRAL_ID)
     steps = []
     for s in steps_raw:
         if not isinstance(s, dict):
@@ -1330,6 +1355,7 @@ def actions_update(aid):
     data = request.json or {}
     with _setpoints_lock:
         known_sp_ids = {s["id"] for s in servo_setpoints}
+    known_sp_ids.add(ACTION_NEUTRAL_ID)
     with _actions_lock:
         action = next((a for a in servo_actions if a["id"] == aid), None)
         if action is None:
