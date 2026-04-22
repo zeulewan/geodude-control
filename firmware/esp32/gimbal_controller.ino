@@ -182,7 +182,7 @@ void markPositionTrusted(int d, bool trusted, uint8_t reason) {
 }
 
 bool driverDisplaysWrappedDegrees(int d) {
-  return d >= 0 && d < 3;  // Yaw, Pitch, Roll
+  return d == 2;  // Roll only
 }
 
 bool driverGoZeroUsesShortestPath(int d) {
