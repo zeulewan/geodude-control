@@ -743,6 +743,178 @@ def servo_state():
     return jsonify(_servo_snapshot())
 
 
+# --- Setpoints: named snapshots of all 10 servo targets ---
+#
+# Stored in groundstation/servo_setpoints.json as an ordered list.
+# Each entry: {id, name, positions:{B1..W2B}, created_at}.
+# Saving captures the current _servo_target_pw (what the ramp is
+# aiming for). Clicking a setpoint writes those back into
+# _servo_target_pw so the existing ramp loop drives the move gently,
+# respects envelope limits, disarm state, and per-channel seq.
+SETPOINTS_FILE = os.path.join(GROUNDSTATION_DIR, "servo_setpoints.json")
+_setpoints_lock = threading.Lock()
+
+
+def load_setpoints():
+    try:
+        with open(SETPOINTS_FILE) as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        return []
+    except Exception as e:
+        print(f"[setpoints] parse failed, using empty list: {e}", flush=True)
+        return []
+    if not isinstance(data, list):
+        return []
+    out = []
+    for raw in data:
+        if not isinstance(raw, dict):
+            continue
+        sid = str(raw.get("id", "")).strip()
+        name = str(raw.get("name", "")).strip()
+        positions = raw.get("positions") or {}
+        if not sid or not name or not isinstance(positions, dict):
+            continue
+        clean_pos = {}
+        for ch, pw in positions.items():
+            if ch in CHANNELS:
+                try:
+                    clean_pos[ch] = max(0, min(2500, int(pw)))
+                except (TypeError, ValueError):
+                    continue
+        out.append({
+            "id": sid,
+            "name": name,
+            "positions": clean_pos,
+            "created_at": float(raw.get("created_at", 0.0)),
+        })
+    return out
+
+
+def save_setpoints(data):
+    tmp = f"{SETPOINTS_FILE}.{os.getpid()}.tmp"
+    with open(tmp, "w") as f:
+        json.dump(data, f, indent=2)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, SETPOINTS_FILE)
+
+
+servo_setpoints = load_setpoints()
+
+
+def _new_setpoint_id():
+    import secrets
+    return secrets.token_hex(6)
+
+
+@app.route('/api/setpoints')
+def setpoints_list():
+    with _setpoints_lock:
+        return jsonify(list(servo_setpoints))
+
+
+@app.route('/api/setpoints', methods=['POST'])
+def setpoints_create():
+    """Capture all 10 current servo TARGETS under a named setpoint."""
+    data = request.json or {}
+    name = str(data.get("name", "")).strip()
+    if not name:
+        return jsonify({"ok": False, "error": "name required"}), 400
+    if len(name) > 64:
+        return jsonify({"ok": False, "error": "name too long (max 64)"}), 400
+    with _servo_state_lock:
+        targets = dict(_servo_target_pw)
+    missing = [ch for ch in CHANNELS if ch not in targets or targets[ch] is None]
+    if missing:
+        return jsonify({"ok": False, "error": f"no target for: {','.join(missing)}"}), 409
+    positions = {ch: int(targets[ch]) for ch in CHANNELS}
+    entry = {
+        "id": _new_setpoint_id(),
+        "name": name,
+        "positions": positions,
+        "created_at": time.time(),
+    }
+    with _setpoints_lock:
+        servo_setpoints.append(entry)
+        snapshot = list(servo_setpoints)
+    try:
+        save_setpoints(snapshot)
+    except Exception as e:
+        with _setpoints_lock:
+            try:
+                servo_setpoints.remove(entry)
+            except ValueError:
+                pass
+        return jsonify({"ok": False, "error": f"save failed: {e}"}), 500
+    return jsonify({"ok": True, "setpoint": entry})
+
+
+@app.route('/api/setpoints/<sid>', methods=['PATCH'])
+def setpoints_rename(sid):
+    data = request.json or {}
+    name = str(data.get("name", "")).strip()
+    if not name:
+        return jsonify({"ok": False, "error": "name required"}), 400
+    if len(name) > 64:
+        return jsonify({"ok": False, "error": "name too long (max 64)"}), 400
+    with _setpoints_lock:
+        for sp in servo_setpoints:
+            if sp["id"] == sid:
+                sp["name"] = name
+                snapshot = list(servo_setpoints)
+                entry = dict(sp)
+                break
+        else:
+            return jsonify({"ok": False, "error": "not found"}), 404
+    try:
+        save_setpoints(snapshot)
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"save failed: {e}"}), 500
+    return jsonify({"ok": True, "setpoint": entry})
+
+
+@app.route('/api/setpoints/<sid>', methods=['DELETE'])
+def setpoints_delete(sid):
+    with _setpoints_lock:
+        before = len(servo_setpoints)
+        servo_setpoints[:] = [sp for sp in servo_setpoints if sp["id"] != sid]
+        if len(servo_setpoints) == before:
+            return jsonify({"ok": False, "error": "not found"}), 404
+        snapshot = list(servo_setpoints)
+    try:
+        save_setpoints(snapshot)
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"save failed: {e}"}), 500
+    return jsonify({"ok": True})
+
+
+@app.route('/api/setpoints/<sid>/go', methods=['POST'])
+def setpoints_go(sid):
+    """Drive all 10 servos toward a saved setpoint via the normal ramp."""
+    global _servo_last_heartbeat
+    with _setpoints_lock:
+        entry = next((sp for sp in servo_setpoints if sp["id"] == sid), None)
+    if entry is None:
+        return jsonify({"ok": False, "error": "not found"}), 404
+    positions = entry.get("positions") or {}
+    missing = [ch for ch in CHANNELS if ch not in positions]
+    if missing:
+        return jsonify({
+            "ok": False,
+            "error": f"setpoint missing channels: {','.join(missing)}",
+        }), 409
+    with _servo_state_lock:
+        if _servo_disarmed:
+            return jsonify({"ok": False, "error": "disarmed; POST /api/arm first"}), 409
+        for ch in CHANNELS:
+            pw = max(0, min(2500, int(positions[ch])))
+            pw = _clamp_to_envelope(ch, pw)
+            _servo_target_pw[ch] = pw
+        _servo_last_heartbeat = time.monotonic()
+    return jsonify({"ok": True, "id": sid, "name": entry["name"]})
+
+
 @app.route('/api/servo_speed', methods=['POST'])
 def servo_speed():
     """Set ramp step size (us/tick, capped at SERVO_MAX_STEP_US_PER_TICK)."""

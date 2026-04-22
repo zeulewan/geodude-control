@@ -166,26 +166,6 @@
 
         <div id="gimbalDrivers"></div>
 
-        <article class="card">
-          <h3>Sequence Programmer</h3>
-          <table class="seq-table">
-            <thead>
-              <tr>
-                <th>Motor</th>
-                <th>Value (deg/steps)</th>
-                <th>Time (ms)</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="seqBody"></tbody>
-          </table>
-          <div class="seq-btn-row">
-            <button type="button" class="btn btn-sm" onclick="seqAddRow()">ADD ROW</button>
-            <button type="button" class="btn btn-sm btn-dark" onclick="seqClearAll()">CLEAR ALL</button>
-            <button type="button" class="btn btn-seq-run" onclick="seqRun()">RUN SEQUENCE</button>
-          </div>
-          <div class="seq-status" id="seqStatus"></div>
-        </article>
       </div>
     </section>
 
@@ -225,6 +205,17 @@
           </section>
         </div>
         <div class="ch-grid ch-grid-compact" id="chGrid"></div>
+        <section class="setpoints-section" aria-labelledby="setpointsTitle">
+          <div class="setpoints-head">
+            <h4 id="setpointsTitle">Setpoints</h4>
+            <span>Snapshot all 10 targets. Click a saved setpoint to drive there gently.</span>
+          </div>
+          <div class="setpoints-add-row">
+            <input type="text" id="setpointName" placeholder="name this pose" maxlength="64">
+            <button type="button" class="btn btn-sm btn-green" onclick="setpointAdd()">Add Setpoint</button>
+          </div>
+          <div id="setpointList" class="setpoint-list"></div>
+        </section>
       </article>
     </section>
   </section>
