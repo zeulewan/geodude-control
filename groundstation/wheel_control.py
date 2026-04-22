@@ -1306,6 +1306,23 @@ def gimbal_motor_limits():
     return jsonify(data), code
 
 
+@app.route('/api/gimbal/tumble_start', methods=['POST'])
+def gimbal_tumble_start():
+    d = request.json.get("driver", 0)
+    a_value = request.json.get("a", 0)
+    b_value = request.json.get("b", 0)
+    dwell_ms = request.json.get("dwell_ms", 0)
+    data, code = gimbal_get(f"tumble_start?d={d}&a={a_value}&b={b_value}&dwell_ms={dwell_ms}")
+    return jsonify(data), code
+
+
+@app.route('/api/gimbal/tumble_stop', methods=['POST'])
+def gimbal_tumble_stop():
+    d = request.json.get("driver", 0)
+    data, code = gimbal_get(f"tumble_stop?d={d}")
+    return jsonify(data), code
+
+
 @app.route('/api/gimbal/estop', methods=['POST'])
 def gimbal_estop():
     data, code = gimbal_get("estop")

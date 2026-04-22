@@ -68,6 +68,9 @@ uint32_t motorLastStepLagUS[4] = {0, 0, 0, 0};
 int32_t motorPositionSteps[4] = {0, 0, 0, 0};
 bool motorPositionTrusted[4] = {false, false, false, false};
 uint8_t motorPositionReason[4] = {0, 0, 0, 0};
+float motorTumbleA[4] = {-45.0f, -45.0f, -45.0f, 0.0f};
+float motorTumbleB[4] = {45.0f, 45.0f, 45.0f, 0.0f};
+uint32_t motorTumbleDwellMS[4] = {500, 500, 500, 0};
 bool setupDone = false; // legacy, kept for /status but not required
 
 enum PositionReason : uint8_t {
@@ -78,6 +81,17 @@ enum PositionReason : uint8_t {
   POSITION_REASON_ESTOP = 4,
   POSITION_REASON_POWER_LOSS = 5
 };
+
+enum TumbleState : uint8_t {
+  TUMBLE_STATE_OFF = 0,
+  TUMBLE_STATE_TO_A = 1,
+  TUMBLE_STATE_DWELL_A = 2,
+  TUMBLE_STATE_TO_B = 3,
+  TUMBLE_STATE_DWELL_B = 4
+};
+
+uint8_t motorTumbleState[4] = {TUMBLE_STATE_OFF, TUMBLE_STATE_OFF, TUMBLE_STATE_OFF, TUMBLE_STATE_OFF};
+uint32_t motorTumbleNextActionMS[4] = {0, 0, 0, 0};
 
 int clampRunCurrentMA(int ma) {
   if (ma < 50) return 50;
@@ -101,6 +115,12 @@ int clampRampSteps(int steps) {
   if (steps < 0) return 0;
   if (steps > 5000) return 5000;
   return steps;
+}
+
+uint32_t clampTumbleDwellMS(long ms) {
+  if (ms < 0) return 0;
+  if (ms > 600000L) return 600000UL;
+  return (uint32_t)ms;
 }
 
 float smootherStep01(float t) {
@@ -147,6 +167,9 @@ void saveMotorConfig(int d) {
   prefs.putBool(("msf" + String(d)).c_str(), motorMultistepFilt[d]);
   prefs.putFloat(("lmn" + String(d)).c_str(), motorSoftLimitMin[d]);
   prefs.putFloat(("lmx" + String(d)).c_str(), motorSoftLimitMax[d]);
+  prefs.putFloat(("tma" + String(d)).c_str(), motorTumbleA[d]);
+  prefs.putFloat(("tmb" + String(d)).c_str(), motorTumbleB[d]);
+  prefs.putUInt(("tmd" + String(d)).c_str(), motorTumbleDwellMS[d]);
 }
 
 void loadMotorConfig() {
@@ -160,6 +183,9 @@ void loadMotorConfig() {
     motorMultistepFilt[i] = prefs.getBool(("msf" + String(i)).c_str(), motorMultistepFilt[i]);
     motorSoftLimitMin[i] = clampSoftLimitValue(i, prefs.getFloat(("lmn" + String(i)).c_str(), motorSoftLimitMin[i]));
     motorSoftLimitMax[i] = clampSoftLimitValue(i, prefs.getFloat(("lmx" + String(i)).c_str(), motorSoftLimitMax[i]));
+    motorTumbleA[i] = clampSoftLimitValue(i, prefs.getFloat(("tma" + String(i)).c_str(), motorTumbleA[i]));
+    motorTumbleB[i] = clampSoftLimitValue(i, prefs.getFloat(("tmb" + String(i)).c_str(), motorTumbleB[i]));
+    motorTumbleDwellMS[i] = clampTumbleDwellMS((long)prefs.getUInt(("tmd" + String(i)).c_str(), motorTumbleDwellMS[i]));
     if (motorSoftLimitMin[i] > 0.0f) motorSoftLimitMin[i] = 0.0f;
     if (motorSoftLimitMax[i] < 0.0f) motorSoftLimitMax[i] = 0.0f;
     if (motorSoftLimitMin[i] > motorSoftLimitMax[i]) {
@@ -193,6 +219,10 @@ bool driverDisplaysWrappedDegrees(int d) {
 
 bool driverGoZeroUsesShortestPath(int d) {
   return d == 2;  // Roll only
+}
+
+bool driverSupportsTumble(int d) {
+  return d >= 0 && d < 3;  // Yaw, Pitch, Roll
 }
 
 bool driverSupportsSoftLimits(int d) {
@@ -262,6 +292,137 @@ String formatLimitValueForDriver(int d, float value) {
 String jsonLimitValueForDriver(int d, float value) {
   if (!driverSupportsSoftLimits(d)) return "null";
   return formatLimitValueForDriver(d, value);
+}
+
+String jsonTumbleValueForDriver(int d, float value) {
+  if (!driverSupportsTumble(d)) return "null";
+  return String(value, 1);
+}
+
+const char* tumbleStateName(uint8_t state) {
+  switch (state) {
+    case TUMBLE_STATE_TO_A: return "to_a";
+    case TUMBLE_STATE_DWELL_A: return "dwell_a";
+    case TUMBLE_STATE_TO_B: return "to_b";
+    case TUMBLE_STATE_DWELL_B: return "dwell_b";
+    case TUMBLE_STATE_OFF:
+    default:
+      return "off";
+  }
+}
+
+bool tumbleActiveForDriver(int d) {
+  return d >= 0 && d < 4 && motorTumbleState[d] != TUMBLE_STATE_OFF;
+}
+
+void clearTumbleState(int d) {
+  motorTumbleState[d] = TUMBLE_STATE_OFF;
+  motorTumbleNextActionMS[d] = 0;
+}
+
+void stopTumble(int d, bool stopMotion) {
+  clearTumbleState(d);
+  if (!stopMotion) return;
+  motorRunning[d] = false;
+  stepsRemaining[d] = 0;
+  motorMoveTotalSteps[d] = 0;
+  motorNextStepAtUS[d] = 0;
+  clearStepDebug(d);
+  applyIdleDriverCurrent(d);
+}
+
+bool tumbleConfigIsValid(int d, float aValue, float bValue, String &error) {
+  if (!driverSupportsTumble(d)) {
+    error = "tumble unsupported";
+    return false;
+  }
+  float hardMin = driverHardLimitMin(d);
+  float hardMax = driverHardLimitMax(d);
+  if (aValue < hardMin || aValue > hardMax || bValue < hardMin || bValue > hardMax) {
+    error = "outside hard range";
+    return false;
+  }
+  if (fabsf(aValue - bValue) < 0.1f) {
+    error = "A and B must differ";
+    return false;
+  }
+  if (motorPositionTrusted[d]) {
+    String limitError;
+    int32_t deltaToA = driverDisplayValueToSteps(d, aValue) - motorPositionSteps[d];
+    int32_t deltaToB = driverDisplayValueToSteps(d, bValue) - motorPositionSteps[d];
+    if (!driverMoveRespectsSoftLimits(d, deltaToA, limitError) ||
+        !driverMoveRespectsSoftLimits(d, deltaToB, limitError)) {
+      error = limitError;
+      return false;
+    }
+  }
+  return true;
+}
+
+void tumbleEnterDwell(int d, uint8_t dwellState) {
+  motorTumbleState[d] = dwellState;
+  motorTumbleNextActionMS[d] = millis() + motorTumbleDwellMS[d];
+}
+
+bool tumbleBeginMoveToValue(int d, float targetValue, uint8_t moveState, uint8_t dwellState, String &error) {
+  int32_t targetSteps = driverDisplayValueToSteps(d, targetValue);
+  int32_t deltaSteps = targetSteps - motorPositionSteps[d];
+  if (!driverMoveRespectsSoftLimits(d, deltaSteps, error)) {
+    return false;
+  }
+  if (deltaSteps == 0) {
+    tumbleEnterDwell(d, dwellState);
+    return true;
+  }
+  motorTumbleState[d] = moveState;
+  motorTumbleNextActionMS[d] = 0;
+  startMoveSteps(d, deltaSteps);
+  return true;
+}
+
+void serviceTumbleAxis(int d) {
+  if (!driverSupportsTumble(d) || motorTumbleState[d] == TUMBLE_STATE_OFF) return;
+  if (!motorEnabled[d] || !motorPositionTrusted[d]) {
+    clearTumbleState(d);
+    return;
+  }
+
+  String error;
+  switch (motorTumbleState[d]) {
+    case TUMBLE_STATE_TO_A:
+      if (!motorRunning[d]) {
+        tumbleEnterDwell(d, TUMBLE_STATE_DWELL_A);
+      }
+      break;
+    case TUMBLE_STATE_DWELL_A:
+      if ((int32_t)(millis() - motorTumbleNextActionMS[d]) >= 0) {
+        if (!tumbleBeginMoveToValue(d, motorTumbleB[d], TUMBLE_STATE_TO_B, TUMBLE_STATE_DWELL_B, error)) {
+          clearTumbleState(d);
+        }
+      }
+      break;
+    case TUMBLE_STATE_TO_B:
+      if (!motorRunning[d]) {
+        tumbleEnterDwell(d, TUMBLE_STATE_DWELL_B);
+      }
+      break;
+    case TUMBLE_STATE_DWELL_B:
+      if ((int32_t)(millis() - motorTumbleNextActionMS[d]) >= 0) {
+        if (!tumbleBeginMoveToValue(d, motorTumbleA[d], TUMBLE_STATE_TO_A, TUMBLE_STATE_DWELL_A, error)) {
+          clearTumbleState(d);
+        }
+      }
+      break;
+    case TUMBLE_STATE_OFF:
+    default:
+      break;
+  }
+}
+
+void serviceTumbleStates() {
+  for (int i = 0; i < 4; i++) {
+    serviceTumbleAxis(i);
+  }
 }
 
 void applyDriverMode(int d) {
@@ -423,6 +584,12 @@ void handleStatus() {
       ",\"position_deg\":" + String(motorPositionSteps[i] / stepsPerDeg[i], 2) +
       ",\"position_trusted\":" + String(motorPositionTrusted[i] ? "true" : "false") +
       ",\"position_reason\":\"" + String(positionReasonName(motorPositionReason[i])) + "\"" +
+      ",\"tumble_supported\":" + String(driverSupportsTumble(i) ? "true" : "false") +
+      ",\"tumble_active\":" + String(tumbleActiveForDriver(i) ? "true" : "false") +
+      ",\"tumble_state\":\"" + String(tumbleStateName(motorTumbleState[i])) + "\"" +
+      ",\"tumble_a\":" + jsonTumbleValueForDriver(i, motorTumbleA[i]) +
+      ",\"tumble_b\":" + jsonTumbleValueForDriver(i, motorTumbleB[i]) +
+      ",\"tumble_dwell_ms\":" + String(driverSupportsTumble(i) ? String(motorTumbleDwellMS[i]) : "null") +
       ",\"soft_limit_min\":" + jsonLimitValueForDriver(i, motorSoftLimitMin[i]) +
       ",\"soft_limit_max\":" + jsonLimitValueForDriver(i, motorSoftLimitMax[i]) +
       ",\"hard_limit_min\":" + jsonLimitValueForDriver(i, driverHardLimitMin(i)) +
@@ -501,6 +668,7 @@ void handleMove() {
     server.send(400, "application/json", "{\"ok\":false,\"error\":\"motor not enabled\"}");
     return;
   }
+  stopTumble(d, false);
   if (!driverMoveRespectsSoftLimits(d, steps, limitError)) {
     server.sendHeader("Access-Control-Allow-Origin", "*");
     server.send(409, "application/json", "{\"ok\":false,\"error\":\"" + limitError + "\"}");
@@ -524,6 +692,7 @@ void handleMoveDeg() {
     server.send(400, "application/json", "{\"ok\":false,\"error\":\"motor not enabled\"}");
     return;
   }
+  stopTumble(d, false);
   int32_t steps = (int32_t)round(deg * stepsPerDeg[d]);
   if (!driverMoveRespectsSoftLimits(d, steps, limitError)) {
     server.sendHeader("Access-Control-Allow-Origin", "*");
@@ -542,6 +711,7 @@ void handleSetZero() {
     server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid driver\"}");
     return;
   }
+  stopTumble(d, false);
   motorPositionSteps[d] = 0;
   markPositionTrusted(d, true, POSITION_REASON_SET_ZERO);
   sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"position_steps\":0,\"position_deg\":0.00,\"position_trusted\":true}");
@@ -555,6 +725,7 @@ void handleClearZero() {
     server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid driver\"}");
     return;
   }
+  stopTumble(d, false);
   markPositionTrusted(d, false, POSITION_REASON_CLEAR);
   sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"position_trusted\":false}");
 }
@@ -578,6 +749,7 @@ void handleGoZero() {
     server.send(409, "application/json", "{\"ok\":false,\"error\":\"position untrusted\"}");
     return;
   }
+  stopTumble(d, false);
   int32_t steps = driverGoZeroUsesShortestPath(d) ? shortestWrappedDeltaToZero(d, motorPositionSteps[d]) : -motorPositionSteps[d];
   if (!driverMoveRespectsSoftLimits(d, steps, limitError)) {
     server.sendHeader("Access-Control-Allow-Origin", "*");
@@ -614,6 +786,7 @@ void handleDisable() {
     return;
   }
   motorEnabled[d] = false;
+  clearTumbleState(d);
   motorRunning[d] = false;
   stepsRemaining[d] = 0;
   motorMoveTotalSteps[d] = 0;
@@ -680,6 +853,7 @@ void handleMotorLimits() {
     server.send(400, "application/json", "{\"ok\":false,\"error\":\"limits unsupported for this axis\"}");
     return;
   }
+  stopTumble(d, false);
   if (!server.hasArg("min") || !server.hasArg("max") || server.arg("min").length() == 0 || server.arg("max").length() == 0) {
     server.sendHeader("Access-Control-Allow-Origin", "*");
     server.send(400, "application/json", "{\"ok\":false,\"error\":\"min and max required\"}");
@@ -719,9 +893,89 @@ void handleMotorLimits() {
   );
 }
 
+void handleTumbleStart() {
+  int d = server.arg("d").toInt();
+  if (sendBusyIfStepping(d)) return;
+  if (d < 0 || d >= 4) {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid driver\"}");
+    return;
+  }
+  if (!driverSupportsTumble(d)) {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(400, "application/json", "{\"ok\":false,\"error\":\"tumble unsupported for this axis\"}");
+    return;
+  }
+  if (!motorEnabled[d]) {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(409, "application/json", "{\"ok\":false,\"error\":\"motor not enabled\"}");
+    return;
+  }
+  if (!motorPositionTrusted[d]) {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(409, "application/json", "{\"ok\":false,\"error\":\"position untrusted\"}");
+    return;
+  }
+  if (!server.hasArg("a") || !server.hasArg("b") || !server.hasArg("dwell_ms")) {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(400, "application/json", "{\"ok\":false,\"error\":\"need a, b, dwell_ms\"}");
+    return;
+  }
+
+  float aValue = server.arg("a").toFloat();
+  float bValue = server.arg("b").toFloat();
+  uint32_t dwellMS = clampTumbleDwellMS(server.arg("dwell_ms").toInt());
+  String error;
+  if (!tumbleConfigIsValid(d, aValue, bValue, error)) {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(400, "application/json", "{\"ok\":false,\"error\":\"" + error + "\"}");
+    return;
+  }
+
+  stopTumble(d, false);
+  motorTumbleA[d] = aValue;
+  motorTumbleB[d] = bValue;
+  motorTumbleDwellMS[d] = dwellMS;
+  saveMotorConfig(d);
+
+  int32_t targetA = driverDisplayValueToSteps(d, motorTumbleA[d]);
+  int32_t targetB = driverDisplayValueToSteps(d, motorTumbleB[d]);
+  bool goToAFirst = llabs((long long)targetA - (long long)motorPositionSteps[d]) <= llabs((long long)targetB - (long long)motorPositionSteps[d]);
+  bool ok = goToAFirst
+    ? tumbleBeginMoveToValue(d, motorTumbleA[d], TUMBLE_STATE_TO_A, TUMBLE_STATE_DWELL_A, error)
+    : tumbleBeginMoveToValue(d, motorTumbleB[d], TUMBLE_STATE_TO_B, TUMBLE_STATE_DWELL_B, error);
+  if (!ok) {
+    clearTumbleState(d);
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(409, "application/json", "{\"ok\":false,\"error\":\"" + error + "\"}");
+    return;
+  }
+
+  sendJson(
+    "{\"ok\":true,\"driver\":" + String(d) +
+    ",\"tumble_active\":true" +
+    ",\"tumble_state\":\"" + String(tumbleStateName(motorTumbleState[d])) + "\"" +
+    ",\"tumble_a\":" + String(motorTumbleA[d], 1) +
+    ",\"tumble_b\":" + String(motorTumbleB[d], 1) +
+    ",\"tumble_dwell_ms\":" + String(motorTumbleDwellMS[d]) + "}"
+  );
+}
+
+void handleTumbleStop() {
+  int d = server.arg("d").toInt();
+  if (d < 0 || d >= 4) {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid driver\"}");
+    return;
+  }
+  stopTumble(d, true);
+  sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"tumble_active\":false,\"tumble_state\":\"off\"}");
+}
+
 
 void handleEstop() {
   for (int i = 0; i < 4; i++) {
+    clearTumbleState(i);
     motorRunning[i] = false;
     stepsRemaining[i] = 0;
     motorEnabled[i] = false;
@@ -741,6 +995,7 @@ void handleStop() {
     server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid driver\"}");
     return;
   }
+  clearTumbleState(d);
   motorRunning[d] = false;
   stepsRemaining[d] = 0;
   motorMoveTotalSteps[d] = 0;
@@ -752,6 +1007,7 @@ void handleStop() {
 
 void handleStopAll() {
   for (int i = 0; i < 4; i++) {
+    clearTumbleState(i);
     motorRunning[i] = false;
     stepsRemaining[i] = 0;
     motorMoveTotalSteps[i] = 0;
@@ -935,6 +1191,8 @@ void setup() {
   server.on("/motor_current", handleMotorCurrent);
   server.on("/motor_ihold", handleMotorIhold);
   server.on("/motor_limits", handleMotorLimits);
+  server.on("/tumble_start", handleTumbleStart);
+  server.on("/tumble_stop", handleTumbleStop);
   server.on("/motor_speed", handleMotorSpeed);
   server.on("/motor_ramp", handleMotorRamp);
   server.on("/motor_stealthchop", handleMotorStealthChop);
@@ -965,6 +1223,7 @@ void checkDriverPower() {
   if (anyFound && !driversInitialized) {
     // 24V just came on — immediately disable all drivers
     for (int i = 0; i < 4; i++) {
+      clearTumbleState(i);
       applyDriverMode(i);
       drivers[i]->toff(0);
       motorEnabled[i] = false;
@@ -972,6 +1231,7 @@ void checkDriverPower() {
     driversInitialized = true;
   } else if (!anyFound) {
     for (int i = 0; i < 4; i++) {
+      clearTumbleState(i);
       motorEnabled[i] = false;
       markPositionTrusted(i, false, POSITION_REASON_POWER_LOSS);
     }
@@ -987,6 +1247,7 @@ bool anyMotorRunning() {
 }
 
 void loop() {
+  serviceTumbleStates();
   if (!anyMotorRunning()) {
     ArduinoOTA.handle();
     server.handleClient();
@@ -1046,6 +1307,8 @@ void loop() {
     steppedSinceService = 0;
     server.handleClient();
   }
+
+  serviceTumbleStates();
 
   if (!stepped) {
     uint32_t waitUS = 0;

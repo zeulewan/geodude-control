@@ -1906,6 +1906,47 @@ function gimbalGoZero(driver) {
   });
 }
 
+function gimbalTumbleStart(driver) {
+  var aEl = document.getElementById('motorTumbleA_' + driver);
+  var bEl = document.getElementById('motorTumbleB_' + driver);
+  var dwellEl = document.getElementById('motorTumbleDwell_' + driver);
+  if (!aEl || !bEl || !dwellEl) return;
+  var aValue = parseFloat(aEl.value);
+  var bValue = parseFloat(bEl.value);
+  var dwellMS = Math.round(parseFloat(dwellEl.value));
+  if (!isFinite(aValue) || !isFinite(bValue) || !isFinite(dwellMS)) {
+    document.getElementById('gimbalStatus').textContent = 'Tumble error: enter A, B, and dwell';
+    return;
+  }
+  fetch('/api/gimbal/tumble_start', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({driver: driver, a: aValue, b: bValue, dwell_ms: dwellMS})
+  }).then(function(r) {
+    return r.json().then(function(d) { return {ok: r.ok, data: d}; });
+  }).then(function(res) {
+    if (!res.ok || !res.data || res.data.ok === false) {
+      document.getElementById('gimbalStatus').textContent = 'Tumble error: ' + ((res.data && res.data.error) || 'unknown');
+      gimbalPoll();
+      return;
+    }
+    gimbalClearTumbleDraft(driver);
+    gimbalPoll();
+  }).catch(function(e) {
+    document.getElementById('gimbalStatus').textContent = 'Tumble error: ' + e;
+  });
+}
+
+function gimbalTumbleStop(driver) {
+  fetch('/api/gimbal/tumble_stop', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({driver: driver})
+  }).then(function() {
+    gimbalPoll();
+  });
+}
+
 function gimbalEnable(driver) {
   fetch('/api/gimbal/enable', {
     method: 'POST',
@@ -2010,9 +2051,20 @@ function gimbalDriverSupportsLimits(drv, driver) {
   return name.toLowerCase() !== 'roll';
 }
 
+function gimbalDriverSupportsTumble(drv, driver) {
+  if (drv && typeof drv.tumble_supported === 'boolean') return drv.tumble_supported;
+  var name = (drv && drv.name) || GIMBAL_DRIVER_NAMES[driver] || '';
+  return name.toLowerCase() !== 'belt';
+}
+
 function gimbalFormatLimitValue(drv, driver, value) {
   if (value == null || isNaN(value)) return '';
   return gimbalUsesStepLimits(drv, driver) ? String(Math.round(value)) : Number(value).toFixed(1);
+}
+
+function gimbalFormatTumbleValue(value) {
+  if (value == null || isNaN(value)) return '';
+  return Number(value).toFixed(1);
 }
 
 function gimbalLimitInputStep(drv, driver) {
@@ -2046,6 +2098,64 @@ function gimbalLimitDraft(driver, field, value) {
 
 function gimbalClearLimitDraft(driver) {
   delete gimbalLimitDrafts[driver];
+}
+
+var gimbalTumbleDrafts = {};
+
+function gimbalEnsureTumbleDraft(driver) {
+  if (!gimbalTumbleDrafts[driver]) {
+    gimbalTumbleDrafts[driver] = {
+      aDirty: false,
+      bDirty: false,
+      dwellDirty: false,
+      aValue: '',
+      bValue: '',
+      dwellValue: ''
+    };
+  }
+  return gimbalTumbleDrafts[driver];
+}
+
+function gimbalTumbleDraft(driver, field, value) {
+  var draft = gimbalEnsureTumbleDraft(driver);
+  if (field === 'a') {
+    draft.aDirty = true;
+    draft.aValue = value;
+  } else if (field === 'b') {
+    draft.bDirty = true;
+    draft.bValue = value;
+  } else if (field === 'dwell') {
+    draft.dwellDirty = true;
+    draft.dwellValue = value;
+  }
+}
+
+function gimbalClearTumbleDraft(driver) {
+  delete gimbalTumbleDrafts[driver];
+}
+
+function gimbalTumbleStateText(drv, driver) {
+  if (!gimbalDriverSupportsTumble(drv, driver)) return '';
+  var stateLabels = {
+    off: 'OFF',
+    to_a: 'TO A',
+    dwell_a: 'DWELL A',
+    to_b: 'TO B',
+    dwell_b: 'DWELL B'
+  };
+  var parts = [stateLabels[drv.tumble_state] || 'OFF'];
+  if (drv.tumble_a != null && drv.tumble_b != null) {
+    parts.push(gimbalFormatTumbleValue(drv.tumble_a) + '\u00b0 \u2194 ' + gimbalFormatTumbleValue(drv.tumble_b) + '\u00b0');
+  }
+  if (drv.tumble_dwell_ms != null) {
+    parts.push('dwell ' + drv.tumble_dwell_ms + ' ms');
+  }
+  if (!drv.position_trusted) {
+    parts.push('waiting for trusted zero');
+  } else if (!drv.enabled) {
+    parts.push('enable axis to start');
+  }
+  return parts.join(' | ');
 }
 
 function gimbalSetMotorLimits(driver) {
@@ -2129,12 +2239,16 @@ function gimbalPoll() {
         var isRoll = (driverName.toLowerCase() === 'roll');
         var rampMax = (isBelt || isRoll) ? 5000 : 2000;
         var supportsLimits = gimbalDriverSupportsLimits(drv, i);
+        var supportsTumble = gimbalDriverSupportsTumble(drv, i);
         var limitUnits = drv.limit_units || (isBelt ? 'steps' : 'deg');
         var limitMin = gimbalFormatLimitValue(drv, i, drv.soft_limit_min != null ? drv.soft_limit_min : drv.hard_limit_min);
         var limitMax = gimbalFormatLimitValue(drv, i, drv.soft_limit_max != null ? drv.soft_limit_max : drv.hard_limit_max);
         var hardMin = gimbalFormatLimitValue(drv, i, drv.hard_limit_min);
         var hardMax = gimbalFormatLimitValue(drv, i, drv.hard_limit_max);
         var limitStep = gimbalLimitInputStep(drv, i);
+        var tumbleA = gimbalFormatTumbleValue(drv.tumble_a != null ? drv.tumble_a : -45.0);
+        var tumbleB = gimbalFormatTumbleValue(drv.tumble_b != null ? drv.tumble_b : 45.0);
+        var tumbleDwell = (drv.tumble_dwell_ms != null ? drv.tumble_dwell_ms : 500);
 
         var html = '';
         /* Header with toggle */
@@ -2197,6 +2311,22 @@ function gimbalPoll() {
             html += '<div class="motor-limit-note" id="motorLimitNote_' + i + '">Hard ' + hardMin + ' to ' + hardMax + ' ' + limitUnits + ' from zero</div>';
             html += '</div>';
           }
+          if (supportsTumble) {
+            html += '<div class="motor-limit-group">';
+            html += '<div class="motor-position-label">Tumble</div>';
+            html += '<div class="motor-limit-row">';
+            html += '<label class="motor-limit-field"><span>A</span><input type="number" id="motorTumbleA_' + i + '" step="0.1" value="' + tumbleA + '" oninput="gimbalTumbleDraft(' + i + ', &quot;a&quot;, this.value)"></label>';
+            html += '<label class="motor-limit-field"><span>B</span><input type="number" id="motorTumbleB_' + i + '" step="0.1" value="' + tumbleB + '" oninput="gimbalTumbleDraft(' + i + ', &quot;b&quot;, this.value)"></label>';
+            html += '<button class="btn btn-sm btn-dark" id="motorTumbleStartBtn_' + i + '" onclick="gimbalTumbleStart(' + i + ')">START</button>';
+            html += '</div>';
+            html += '<div class="motor-limit-row" style="margin-top:6px;">';
+            html += '<label class="motor-limit-field"><span>Dwell ms</span><input type="number" id="motorTumbleDwell_' + i + '" min="0" max="600000" step="50" value="' + tumbleDwell + '" oninput="gimbalTumbleDraft(' + i + ', &quot;dwell&quot;, this.value)"></label>';
+            html += '<div></div>';
+            html += '<button class="btn btn-sm btn-red" id="motorTumbleStopBtn_' + i + '" onclick="gimbalTumbleStop(' + i + ')">STOP</button>';
+            html += '</div>';
+            html += '<div class="motor-limit-note" id="motorTumbleNote_' + i + '">' + gimbalTumbleStateText(drv, i) + '</div>';
+            html += '</div>';
+          }
           html += '<div class="move-input-row">';
           html += '<input type="number" id="gimbalDegInput_' + i + '" value="10" step="1" style="width:80px;">';
           html += '<button class="btn btn-sm" onclick="gimbalMoveDegFromInput(' + i + ')">GO</button>';
@@ -2257,6 +2387,7 @@ function gimbalPoll() {
     drivers.forEach(function(drv, i) {
       var driverName = drv.name || GIMBAL_DRIVER_NAMES[i] || ('Driver ' + i);
       var isBelt = (driverName.toLowerCase() === 'belt');
+      var supportsTumble = gimbalDriverSupportsTumble(drv, i);
 
       /* Badges */
       var badgesEl = document.getElementById('driverBadges_' + i);
@@ -2288,6 +2419,10 @@ function gimbalPoll() {
       if (clearZeroBtn) clearZeroBtn.disabled = !!drv.running;
       var limitSaveBtn = document.getElementById('motorLimitSaveBtn_' + i);
       if (limitSaveBtn) limitSaveBtn.disabled = !!drv.running;
+      var tumbleStartBtn = document.getElementById('motorTumbleStartBtn_' + i);
+      if (tumbleStartBtn) tumbleStartBtn.disabled = !drv.enabled || !drv.position_trusted || !!drv.running || !!drv.tumble_active;
+      var tumbleStopBtn = document.getElementById('motorTumbleStopBtn_' + i);
+      if (tumbleStopBtn) tumbleStopBtn.disabled = !drv.tumble_active;
 
       /* Stats */
       var statsEl = document.getElementById('driverStats_' + i);
@@ -2370,6 +2505,40 @@ function gimbalPoll() {
         }
         limitNoteParts.push(drv.limits_enforced ? 'active' : 'waiting for trusted zero');
         limitNote.textContent = limitNoteParts.join(' | ');
+      }
+      if (supportsTumble) {
+        var tumbleADraft = gimbalEnsureTumbleDraft(i);
+        var tumbleAInput = document.getElementById('motorTumbleA_' + i);
+        if (tumbleAInput) {
+          tumbleAInput.disabled = !!drv.tumble_active;
+          if (tumbleADraft.aDirty) {
+            tumbleAInput.value = tumbleADraft.aValue;
+          } else if (!tumbleAInput.matches(':focus') && drv.tumble_a != null) {
+            tumbleAInput.value = gimbalFormatTumbleValue(drv.tumble_a);
+          }
+        }
+        var tumbleBInput = document.getElementById('motorTumbleB_' + i);
+        if (tumbleBInput) {
+          tumbleBInput.disabled = !!drv.tumble_active;
+          if (tumbleADraft.bDirty) {
+            tumbleBInput.value = tumbleADraft.bValue;
+          } else if (!tumbleBInput.matches(':focus') && drv.tumble_b != null) {
+            tumbleBInput.value = gimbalFormatTumbleValue(drv.tumble_b);
+          }
+        }
+        var tumbleDwellInput = document.getElementById('motorTumbleDwell_' + i);
+        if (tumbleDwellInput) {
+          tumbleDwellInput.disabled = !!drv.tumble_active;
+          if (tumbleADraft.dwellDirty) {
+            tumbleDwellInput.value = tumbleADraft.dwellValue;
+          } else if (!tumbleDwellInput.matches(':focus') && drv.tumble_dwell_ms != null) {
+            tumbleDwellInput.value = drv.tumble_dwell_ms;
+          }
+        }
+        var tumbleNote = document.getElementById('motorTumbleNote_' + i);
+        if (tumbleNote) {
+          tumbleNote.textContent = gimbalTumbleStateText(drv, i);
+        }
       }
 
       /* Sync current sliders (only if not being dragged) */
