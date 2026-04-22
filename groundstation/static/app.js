@@ -1007,6 +1007,11 @@ function servoSyncPoll() {
         if (hwVal == null) {
           hwLabel.textContent = 'HW: ?';
           hwLabel.style.color = '#f59e0b';
+        } else if (hwVal === 0) {
+          // PCA output is 0us = no PWM = servo unpowered. Almost always
+          // a boot-restore that never happened; flag it loudly.
+          hwLabel.textContent = 'HW: 0 us ERROR';
+          hwLabel.style.color = '#dc2626';
         } else {
           hwLabel.textContent = 'HW: ' + hwVal + ' us';
           var mismatch = actual[name] != null && Math.abs(hwVal - actual[name]) > 5;
