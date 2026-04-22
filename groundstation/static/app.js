@@ -1512,7 +1512,6 @@ function sysPoll() {
 /* ========== Gimbal ========== */
 var gimbalPollTimer = null;
 var GIMBAL_DRIVER_NAMES = ['Yaw', 'Pitch', 'Roll', 'Belt'];
-var motorPosition = [0, 0, 0, 0];
 var gimbalSetupDone = false;
 var gimbalDriverCache = [];
 
@@ -1549,10 +1548,6 @@ function gimbalMoveDeg(driver, deg) {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({driver: driver, deg: deg})
-  }).then(function() {
-    motorPosition[driver] += deg;
-    var el = document.getElementById('motorPos_' + driver);
-    if (el) el.textContent = motorPosition[driver].toFixed(1) + '\u00b0';
   });
 }
 
@@ -1575,6 +1570,36 @@ function gimbalStop(driver) {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({driver: driver})
+  });
+}
+
+function gimbalSetZero(driver) {
+  fetch('/api/gimbal/set_zero', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({driver: driver})
+  }).then(function() {
+    gimbalPoll();
+  });
+}
+
+function gimbalClearZero(driver) {
+  fetch('/api/gimbal/clear_zero', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({driver: driver})
+  }).then(function() {
+    gimbalPoll();
+  });
+}
+
+function gimbalGoZero(driver) {
+  fetch('/api/gimbal/go_zero', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({driver: driver})
+  }).then(function() {
+    gimbalPoll();
   });
 }
 
@@ -1670,6 +1695,15 @@ function gimbalSetMotorMultistepFilt(driver, enabled) {
   });
 }
 
+function gimbalPositionReasonText(reason, trusted) {
+  if (trusted) return 'TRUSTED';
+  if (reason === 'power_loss') return 'UNTRUSTED - 24V cycled';
+  if (reason === 'disabled') return 'UNTRUSTED - driver disabled';
+  if (reason === 'estop') return 'UNTRUSTED - estop';
+  if (reason === 'cleared') return 'UNTRUSTED - zero cleared';
+  return 'UNTRUSTED - set zero manually';
+}
+
 function gimbalPoll() {
   fetch('/api/gimbal/status').then(function(r) { return r.json(); }).then(function(d) {
     if (d.error) {
@@ -1749,7 +1783,13 @@ function gimbalPoll() {
         if (!isBelt) {
           /* Angle control */
           html += '<div class="motor-position-label">Position</div>';
-          html += '<div class="motor-position" id="motorPos_' + i + '">' + motorPosition[i].toFixed(1) + '\u00b0</div>';
+          html += '<div class="motor-position" id="motorPos_' + i + '">UNTRUSTED</div>';
+          html += '<div class="motor-position-note" id="motorPosState_' + i + '">UNTRUSTED - set zero manually</div>';
+          html += '<div class="motor-zero-row">';
+          html += '<button class="btn btn-sm" id="motorSetZeroBtn_' + i + '" onclick="gimbalSetZero(' + i + ')">SET ZERO</button>';
+          html += '<button class="btn btn-sm btn-dark" id="motorGoZeroBtn_' + i + '" onclick="gimbalGoZero(' + i + ')">GO ZERO</button>';
+          html += '<button class="btn btn-sm btn-dark" id="motorClearZeroBtn_' + i + '" onclick="gimbalClearZero(' + i + ')">UNTRUST</button>';
+          html += '</div>';
           html += '<div class="gear-info" id="gearInfo_' + i + '"></div>';
           html += '<div class="move-input-row">';
           html += '<input type="number" id="gimbalDegInput_' + i + '" value="10" step="1" style="width:80px;">';
@@ -1766,8 +1806,14 @@ function gimbalPoll() {
           html += '</div>';
         } else {
           /* Step control for Belt */
-          html += '<div class="motor-position-label">Steps Moved</div>';
-          html += '<div class="motor-position" id="motorPos_' + i + '">' + motorPosition[i] + '</div>';
+          html += '<div class="motor-position-label">Position</div>';
+          html += '<div class="motor-position" id="motorPos_' + i + '">UNTRUSTED</div>';
+          html += '<div class="motor-position-note" id="motorPosState_' + i + '">UNTRUSTED - set zero manually</div>';
+          html += '<div class="motor-zero-row">';
+          html += '<button class="btn btn-sm" id="motorSetZeroBtn_' + i + '" onclick="gimbalSetZero(' + i + ')">SET ZERO</button>';
+          html += '<button class="btn btn-sm btn-dark" id="motorGoZeroBtn_' + i + '" onclick="gimbalGoZero(' + i + ')">GO ZERO</button>';
+          html += '<button class="btn btn-sm btn-dark" id="motorClearZeroBtn_' + i + '" onclick="gimbalClearZero(' + i + ')">UNTRUST</button>';
+          html += '</div>';
           html += '<div class="move-input-row">';
           html += '<input type="number" id="gimbalStepInput_' + i + '" value="1000" step="100" style="width:80px;">';
           html += '<button class="btn btn-sm" onclick="gimbalMoveStepsFromInput(' + i + ')">GO</button>';
@@ -1817,6 +1863,12 @@ function gimbalPoll() {
       if (toggle && !toggle.matches(':active')) {
         toggle.checked = drv.enabled || false;
       }
+      var setZeroBtn = document.getElementById('motorSetZeroBtn_' + i);
+      if (setZeroBtn) setZeroBtn.disabled = !!drv.running;
+      var goZeroBtn = document.getElementById('motorGoZeroBtn_' + i);
+      if (goZeroBtn) goZeroBtn.disabled = !drv.position_trusted || !drv.enabled || !!drv.running;
+      var clearZeroBtn = document.getElementById('motorClearZeroBtn_' + i);
+      if (clearZeroBtn) clearZeroBtn.disabled = !!drv.running;
 
       /* Stats */
       var statsEl = document.getElementById('driverStats_' + i);
@@ -1845,6 +1897,19 @@ function gimbalPoll() {
         if (drv.last_step_lag_us != null) debugParts.push('Lag ' + drv.last_step_lag_us + 'us');
         if (drv.last_step_interval_us != null && drv.last_step_interval_us > 0) debugParts.push('Dt ' + drv.last_step_interval_us + 'us');
         debugEl.textContent = debugParts.join(' | ');
+      }
+
+      var posEl = document.getElementById('motorPos_' + i);
+      var posStateEl = document.getElementById('motorPosState_' + i);
+      if (posEl) {
+        if (drv.position_trusted) {
+          posEl.textContent = isBelt ? ((drv.position_steps || 0) + ' st') : ((drv.position_deg != null ? drv.position_deg : 0).toFixed(1) + '\u00b0');
+        } else {
+          posEl.textContent = 'UNTRUSTED';
+        }
+      }
+      if (posStateEl) {
+        posStateEl.textContent = gimbalPositionReasonText(drv.position_reason, !!drv.position_trusted);
       }
 
       /* Sync current sliders (only if not being dragged) */
@@ -1891,11 +1956,6 @@ function gimbalPoll() {
         if (gearEl && drv.gear_ratio != null && drv.steps_per_deg != null) {
           gearEl.textContent = drv.gear_ratio + ':1 gear, ' + drv.steps_per_deg.toFixed(2) + ' steps/deg';
         }
-      }
-
-      /* Track position from steps_remaining going to 0 */
-      if (drv.running && drv.steps_remaining === 0) {
-        /* Move completed — position already updated in gimbalMoveDeg callback */
       }
     });
   }).catch(function() {

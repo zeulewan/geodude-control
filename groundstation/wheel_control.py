@@ -959,6 +959,27 @@ def gimbal_move_deg():
     return jsonify(data), code
 
 
+@app.route('/api/gimbal/set_zero', methods=['POST'])
+def gimbal_set_zero():
+    d = request.json.get("driver", 0)
+    data, code = gimbal_get(f"set_zero?d={d}")
+    return jsonify(data), code
+
+
+@app.route('/api/gimbal/clear_zero', methods=['POST'])
+def gimbal_clear_zero():
+    d = request.json.get("driver", 0)
+    data, code = gimbal_get(f"clear_zero?d={d}")
+    return jsonify(data), code
+
+
+@app.route('/api/gimbal/go_zero', methods=['POST'])
+def gimbal_go_zero():
+    d = request.json.get("driver", 0)
+    data, code = gimbal_get(f"go_zero?d={d}")
+    return jsonify(data), code
+
+
 @app.route('/api/gimbal/enable', methods=['POST'])
 def gimbal_enable():
     d = request.json.get("driver", 0)

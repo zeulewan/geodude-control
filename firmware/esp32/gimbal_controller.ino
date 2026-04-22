@@ -63,7 +63,19 @@ uint32_t motorNextStepAtUS[4] = {0, 0, 0, 0};
 uint32_t motorLastStepAtUS[4] = {0, 0, 0, 0};
 uint32_t motorLastStepIntervalUS[4] = {0, 0, 0, 0};
 uint32_t motorLastStepLagUS[4] = {0, 0, 0, 0};
+int32_t motorPositionSteps[4] = {0, 0, 0, 0};
+bool motorPositionTrusted[4] = {false, false, false, false};
+uint8_t motorPositionReason[4] = {0, 0, 0, 0};
 bool setupDone = false; // legacy, kept for /status but not required
+
+enum PositionReason : uint8_t {
+  POSITION_REASON_BOOT = 0,
+  POSITION_REASON_SET_ZERO = 1,
+  POSITION_REASON_CLEAR = 2,
+  POSITION_REASON_DISABLE = 3,
+  POSITION_REASON_ESTOP = 4,
+  POSITION_REASON_POWER_LOSS = 5
+};
 
 int clampRunCurrentMA(int ma) {
   if (ma < 50) return 50;
@@ -111,12 +123,45 @@ void loadMotorConfig() {
   }
 }
 
+const char* positionReasonName(uint8_t reason) {
+  switch (reason) {
+    case POSITION_REASON_SET_ZERO: return "set_zero";
+    case POSITION_REASON_CLEAR: return "cleared";
+    case POSITION_REASON_DISABLE: return "disabled";
+    case POSITION_REASON_ESTOP: return "estop";
+    case POSITION_REASON_POWER_LOSS: return "power_loss";
+    case POSITION_REASON_BOOT:
+    default:
+      return "boot";
+  }
+}
+
+void markPositionTrusted(int d, bool trusted, uint8_t reason) {
+  motorPositionTrusted[d] = trusted;
+  motorPositionReason[d] = reason;
+}
+
 void applyDriverMode(int d) {
   drivers[d]->microsteps(16);
   drivers[d]->intpol(motorInterpolation[d]);
   drivers[d]->multistep_filt(motorMultistepFilt[d]);
   drivers[d]->en_spreadCycle(!motorStealthChop[d]);
   drivers[d]->pwm_autoscale(true);
+}
+
+void startMoveSteps(int d, int32_t steps) {
+  motorDir[d] = steps > 0;
+  digitalWrite(drvPins[d].dir, motorDir[d] ? HIGH : LOW);
+  stepsRemaining[d] = abs((int)steps);
+  motorMoveTotalSteps[d] = stepsRemaining[d];
+  motorNextStepAtUS[d] = micros();
+  clearStepDebug(d);
+  motorRunning[d] = stepsRemaining[d] > 0;
+  if (motorRunning[d]) {
+    applyRunDriverCurrent(d);
+  } else {
+    applyIdleDriverCurrent(d);
+  }
 }
 
 void initDrivers() {
@@ -243,6 +288,10 @@ void handleStatus() {
       ",\"multistep_filt\":" + String(motorMultistepFilt[i] ? "true" : "false") +
       ",\"dir\":\"" + String(motorDir[i] ? "CW" : "CCW") + "\"" +
       ",\"steps_remaining\":" + String(stepsRemaining[i]) +
+      ",\"position_steps\":" + String(motorPositionSteps[i]) +
+      ",\"position_deg\":" + String(motorPositionSteps[i] / stepsPerDeg[i], 2) +
+      ",\"position_trusted\":" + String(motorPositionTrusted[i] ? "true" : "false") +
+      ",\"position_reason\":\"" + String(positionReasonName(motorPositionReason[i])) + "\"" +
       ",\"step_delay_us\":" + String(motorStepDelayUS[i]) +
       ",\"ramp_steps\":" + String(motorRampSteps[i]) +
       ",\"current_step_delay_us\":" + String(motorRunning[i] ? currentStepDelayForDriver(i) : motorStepDelayUS[i]) +
@@ -302,7 +351,7 @@ void handleSetup() {
 
 void handleMove() {
   int d = server.arg("d").toInt();
-  int steps = server.arg("steps").toInt();
+  int32_t steps = server.arg("steps").toInt();
   if (d < 0 || d >= 4) {
     server.sendHeader("Access-Control-Allow-Origin", "*");
     server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid driver\"}");
@@ -313,14 +362,7 @@ void handleMove() {
     server.send(400, "application/json", "{\"ok\":false,\"error\":\"motor not enabled\"}");
     return;
   }
-  motorDir[d] = steps > 0;
-  digitalWrite(drvPins[d].dir, motorDir[d] ? HIGH : LOW);
-  stepsRemaining[d] = abs(steps);
-  motorMoveTotalSteps[d] = stepsRemaining[d];
-  motorNextStepAtUS[d] = micros();
-  clearStepDebug(d);
-  motorRunning[d] = true;
-  applyRunDriverCurrent(d);
+  startMoveSteps(d, steps);
   sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"steps\":" + String(steps) + "}");
 }
 
@@ -337,16 +379,57 @@ void handleMoveDeg() {
     server.send(400, "application/json", "{\"ok\":false,\"error\":\"motor not enabled\"}");
     return;
   }
-  int steps = (int)round(deg * stepsPerDeg[d]);
-  motorDir[d] = steps > 0;
-  digitalWrite(drvPins[d].dir, motorDir[d] ? HIGH : LOW);
-  stepsRemaining[d] = abs(steps);
-  motorMoveTotalSteps[d] = stepsRemaining[d];
-  motorNextStepAtUS[d] = micros();
-  clearStepDebug(d);
-  motorRunning[d] = true;
-  applyRunDriverCurrent(d);
+  int32_t steps = (int32_t)round(deg * stepsPerDeg[d]);
+  startMoveSteps(d, steps);
   sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"deg\":" + String(deg, 2) + ",\"steps\":" + String(steps) + "}");
+}
+
+void handleSetZero() {
+  int d = server.arg("d").toInt();
+  if (sendBusyIfStepping(d)) return;
+  if (d < 0 || d >= 4) {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid driver\"}");
+    return;
+  }
+  motorPositionSteps[d] = 0;
+  markPositionTrusted(d, true, POSITION_REASON_SET_ZERO);
+  sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"position_steps\":0,\"position_deg\":0.00,\"position_trusted\":true}");
+}
+
+void handleClearZero() {
+  int d = server.arg("d").toInt();
+  if (sendBusyIfStepping(d)) return;
+  if (d < 0 || d >= 4) {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid driver\"}");
+    return;
+  }
+  markPositionTrusted(d, false, POSITION_REASON_CLEAR);
+  sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"position_trusted\":false}");
+}
+
+void handleGoZero() {
+  int d = server.arg("d").toInt();
+  if (sendBusyIfStepping(d)) return;
+  if (d < 0 || d >= 4) {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid driver\"}");
+    return;
+  }
+  if (!motorEnabled[d]) {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(400, "application/json", "{\"ok\":false,\"error\":\"motor not enabled\"}");
+    return;
+  }
+  if (!motorPositionTrusted[d]) {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(409, "application/json", "{\"ok\":false,\"error\":\"position untrusted\"}");
+    return;
+  }
+  int32_t steps = -motorPositionSteps[d];
+  startMoveSteps(d, steps);
+  sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"steps\":" + String(steps) + ",\"target\":\"zero\"}");
 }
 
 void handleEnable() {
@@ -375,6 +458,12 @@ void handleDisable() {
     return;
   }
   motorEnabled[d] = false;
+  motorRunning[d] = false;
+  stepsRemaining[d] = 0;
+  motorMoveTotalSteps[d] = 0;
+  motorNextStepAtUS[d] = 0;
+  clearStepDebug(d);
+  markPositionTrusted(d, false, POSITION_REASON_DISABLE);
   drivers[d]->toff(0);
   sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"enabled\":false}");
 }
@@ -431,6 +520,7 @@ void handleEstop() {
     motorMoveTotalSteps[i] = 0;
     motorNextStepAtUS[i] = 0;
     clearStepDebug(i);
+    markPositionTrusted(i, false, POSITION_REASON_ESTOP);
     drivers[i]->toff(0);
   }
   sendJson("{\"ok\":true,\"estop\":true}");
@@ -629,6 +719,9 @@ void setup() {
   server.on("/setup", handleSetup);
   server.on("/move", handleMove);
   server.on("/move_deg", handleMoveDeg);
+  server.on("/set_zero", handleSetZero);
+  server.on("/clear_zero", handleClearZero);
+  server.on("/go_zero", handleGoZero);
   server.on("/enable", handleEnable);
   server.on("/disable", handleDisable);
   server.on("/motor_current", handleMotorCurrent);
@@ -669,6 +762,10 @@ void checkDriverPower() {
     }
     driversInitialized = true;
   } else if (!anyFound) {
+    for (int i = 0; i < 4; i++) {
+      motorEnabled[i] = false;
+      markPositionTrusted(i, false, POSITION_REASON_POWER_LOSS);
+    }
     driversInitialized = false; // 24V is off, reset for next power-on
   }
 }
@@ -716,6 +813,7 @@ void loop() {
         scheduledNext = minNext;
       }
       motorNextStepAtUS[i] = scheduledNext;
+      motorPositionSteps[i] += motorDir[i] ? 1 : -1;
       stepsRemaining[i]--;
       stepped = true;
       steppedSinceService++;
