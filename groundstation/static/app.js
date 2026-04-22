@@ -101,7 +101,7 @@ function degToRad(d) { return d * Math.PI / 180; }
 
 var controllerStatus = {enabled: false};
 
-/* Minimal IK stubs - the IK UI was removed but the arm workspace viz still reads ikStatus for arm geometry. */
+/* IK status is only needed while the arm workspace view is mounted. */
 var ikStatus = null;
 var ikLastResult = null;
 
@@ -841,6 +841,7 @@ function armVizResetView() {
 }
 
 function armVizStart() {
+  if (!document.getElementById('armVizCanvas')) return;
   armVizLoadGeometry();
   armVizBindPointer();
   armVizUpdateModeUI();
@@ -980,34 +981,6 @@ function startupNeutral() {
     if (slider) slider.value = pw;
     chUpdateLabel(name, pw);
     chSendPwm(name, pw);
-  });
-}
-
-function servoArm() {
-  fetch('/api/arm', {
-    method: 'POST'
-  }).then(function(r) { return r.json(); }).then(function(d) {
-    if (d && d.ok === false) {
-      alert('Re-arm failed: ' + (d.error || 'unknown'));
-      return;
-    }
-    servoSyncPoll();
-  }).catch(function(e) {
-    alert('Re-arm request failed: ' + e);
-  });
-}
-
-function servoAllOff() {
-  fetch('/api/all_off', {
-    method: 'POST'
-  }).then(function(r) { return r.json(); }).then(function(d) {
-    if (d && d.ok === false) {
-      alert('ALL OFF failed: ' + (d.error || 'unknown'));
-      return;
-    }
-    servoSyncPoll();
-  }).catch(function(e) {
-    alert('ALL OFF request failed: ' + e);
   });
 }
 
@@ -2552,19 +2525,21 @@ function seqRun() {
   startServoRampLoop();
 
   /* Start polling */
+  var hasControllerUi = !!document.getElementById('controllerToggleBtn');
+  var hasArmVizUi = !!document.getElementById('armVizCanvas');
   setInterval(poll, 100);
   setInterval(sysPoll, 2000);
   setInterval(gimbalPoll, GIMBAL_POLL_MS);
   applyServoLimits();
   setInterval(servoSyncPoll, 500);
-  setInterval(controllerPoll, 250);
   setInterval(maceStatusPoll, 500);
-  setInterval(ikRefreshStatus, 1000);
+  if (hasControllerUi) setInterval(controllerPoll, 250);
+  if (hasArmVizUi) setInterval(ikRefreshStatus, 1000);
 
   /* Immediate calls */
   sysPoll();
   gimbalPoll();
-  controllerPoll();
+  if (hasControllerUi) controllerPoll();
   maceUpdateLabels();
   maceBindMomentaryButton('maceBackwardBtn', 'backward');
   maceBindMomentaryButton('maceBrakeBtn', 'brake');
@@ -2577,8 +2552,8 @@ function seqRun() {
   window.addEventListener('touchend', maceReleaseAll, {passive: false});
   window.addEventListener('pointerup', maceReleaseAll);
   window.addEventListener('pointercancel', maceReleaseAll);
-  ikRefreshStatus();
+  if (hasArmVizUi) ikRefreshStatus();
   updateVisionUI();
   loadCameraStreamState();
-  armVizStart();
+  if (hasArmVizUi) armVizStart();
 })();
