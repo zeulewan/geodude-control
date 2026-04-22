@@ -440,7 +440,11 @@ def send_all_off():
 SERVO_RAMP_HZ = 30
 SERVO_MAX_SEQ = 2**53  # L5: JS-safe integer max; unreachable at 30 Hz
 SERVO_MAX_STEP_US_PER_TICK = 10
-SERVO_HEARTBEAT_TIMEOUT_S = 1.0
+SERVO_HEARTBEAT_TIMEOUT_S = 3.0  # Was 1.0: razor-thin vs the client's 1Hz
+# heartbeat interval -- a single late heartbeat froze the ramp mid-move, so
+# a multi-second ALL NEUTRAL / setpoint Go arrived partially and needed
+# repeated clicks. 3s gives 3x margin while still failing servos safe
+# within a few seconds if the browser dies.
 
 _servo_target_pw = {}
 _servo_actual_pw = {}
