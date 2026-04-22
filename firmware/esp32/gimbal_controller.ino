@@ -44,6 +44,8 @@ int motorIholdMA[4] = {0, 0, 0, 0};
 bool motorStealthChop[4] = {true, true, true, true};
 bool motorInterpolation[4] = {true, true, true, true};
 bool motorMultistepFilt[4] = {true, true, true, true};
+float motorSoftLimitMin[4] = {-360.0f, -360.0f, -360.0f, -50000.0f};
+float motorSoftLimitMax[4] = {360.0f, 360.0f, 360.0f, 50000.0f};
 bool motorEnabled[4] = {false, false, false, false};
 
 // Gear ratios and angle conversion
@@ -101,6 +103,40 @@ int clampRampSteps(int steps) {
   return steps;
 }
 
+float smootherStep01(float t) {
+  if (t <= 0.0f) return 0.0f;
+  if (t >= 1.0f) return 1.0f;
+  return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f);
+}
+
+float driverHardLimitMin(int d) {
+  switch (d) {
+    case 0: return -360.0f;     // Yaw
+    case 1: return -360.0f;     // Pitch
+    case 2: return -360.0f;     // Roll
+    case 3: return -50000.0f;   // Belt steps
+    default: return -50000.0f;
+  }
+}
+
+float driverHardLimitMax(int d) {
+  switch (d) {
+    case 0: return 360.0f;      // Yaw
+    case 1: return 360.0f;      // Pitch
+    case 2: return 360.0f;      // Roll
+    case 3: return 50000.0f;    // Belt steps
+    default: return 50000.0f;
+  }
+}
+
+float clampSoftLimitValue(int d, float value) {
+  float lo = driverHardLimitMin(d);
+  float hi = driverHardLimitMax(d);
+  if (value < lo) return lo;
+  if (value > hi) return hi;
+  return value;
+}
+
 void saveMotorConfig(int d) {
   prefs.putInt(("cur" + String(d)).c_str(), motorCurrentMA[d]);
   prefs.putInt(("ih" + String(d)).c_str(), motorIholdMA[d]);
@@ -109,6 +145,8 @@ void saveMotorConfig(int d) {
   prefs.putBool(("stl" + String(d)).c_str(), motorStealthChop[d]);
   prefs.putBool(("int" + String(d)).c_str(), motorInterpolation[d]);
   prefs.putBool(("msf" + String(d)).c_str(), motorMultistepFilt[d]);
+  prefs.putFloat(("lmn" + String(d)).c_str(), motorSoftLimitMin[d]);
+  prefs.putFloat(("lmx" + String(d)).c_str(), motorSoftLimitMax[d]);
 }
 
 void loadMotorConfig() {
@@ -120,6 +158,14 @@ void loadMotorConfig() {
     motorStealthChop[i] = prefs.getBool(("stl" + String(i)).c_str(), motorStealthChop[i]);
     motorInterpolation[i] = prefs.getBool(("int" + String(i)).c_str(), motorInterpolation[i]);
     motorMultistepFilt[i] = prefs.getBool(("msf" + String(i)).c_str(), motorMultistepFilt[i]);
+    motorSoftLimitMin[i] = clampSoftLimitValue(i, prefs.getFloat(("lmn" + String(i)).c_str(), motorSoftLimitMin[i]));
+    motorSoftLimitMax[i] = clampSoftLimitValue(i, prefs.getFloat(("lmx" + String(i)).c_str(), motorSoftLimitMax[i]));
+    if (motorSoftLimitMin[i] > 0.0f) motorSoftLimitMin[i] = 0.0f;
+    if (motorSoftLimitMax[i] < 0.0f) motorSoftLimitMax[i] = 0.0f;
+    if (motorSoftLimitMin[i] > motorSoftLimitMax[i]) {
+      motorSoftLimitMin[i] = driverHardLimitMin(i);
+      motorSoftLimitMax[i] = driverHardLimitMax(i);
+    }
   }
 }
 
@@ -141,8 +187,38 @@ void markPositionTrusted(int d, bool trusted, uint8_t reason) {
   motorPositionReason[d] = reason;
 }
 
-bool driverUsesWrappedDegrees(int d) {
-  return d >= 0 && d < 3;  // Yaw, Pitch, Roll
+bool driverDisplaysWrappedDegrees(int d) {
+  return d == 2;  // Roll only
+}
+
+bool driverGoZeroUsesShortestPath(int d) {
+  return d == 2;  // Roll only
+}
+
+bool driverSupportsSoftLimits(int d) {
+  return d != 2;  // No software limits on Roll
+}
+
+bool driverUsesDegreeUnits(int d) {
+  return d >= 0 && d < 3;
+}
+
+const char* driverLimitUnits(int d) {
+  return driverUsesDegreeUnits(d) ? "deg" : "steps";
+}
+
+float driverPositionDisplayValue(int d, int32_t positionSteps) {
+  if (driverUsesDegreeUnits(d)) {
+    return positionSteps / stepsPerDeg[d];
+  }
+  return (float)positionSteps;
+}
+
+int32_t driverDisplayValueToSteps(int d, float value) {
+  if (driverUsesDegreeUnits(d)) {
+    return (int32_t)lroundf(value * stepsPerDeg[d]);
+  }
+  return (int32_t)lroundf(value);
 }
 
 int32_t stepsPerRevForDriver(int d) {
@@ -157,6 +233,35 @@ int32_t shortestWrappedDeltaToZero(int d, int32_t positionSteps) {
   if (wrapped > halfRev) wrapped -= stepsPerRev;
   if (wrapped < -halfRev) wrapped += stepsPerRev;
   return -wrapped;
+}
+
+bool driverMoveRespectsSoftLimits(int d, int32_t deltaSteps, String &error, int32_t *clampedTargetSteps = nullptr) {
+  int32_t targetSteps = motorPositionSteps[d] + deltaSteps;
+  if (!driverSupportsSoftLimits(d) || !motorPositionTrusted[d]) {
+    return true;  // limits are only meaningful once zero is trusted
+  }
+  int32_t minSteps = driverDisplayValueToSteps(d, motorSoftLimitMin[d]);
+  int32_t maxSteps = driverDisplayValueToSteps(d, motorSoftLimitMax[d]);
+  if (targetSteps < minSteps) {
+    error = "soft min limit";
+    if (clampedTargetSteps) *clampedTargetSteps = minSteps;
+    return false;
+  }
+  if (targetSteps > maxSteps) {
+    error = "soft max limit";
+    if (clampedTargetSteps) *clampedTargetSteps = maxSteps;
+    return false;
+  }
+  return true;
+}
+
+String formatLimitValueForDriver(int d, float value) {
+  return driverUsesDegreeUnits(d) ? String(value, 1) : String((int32_t)lroundf(value));
+}
+
+String jsonLimitValueForDriver(int d, float value) {
+  if (!driverSupportsSoftLimits(d)) return "null";
+  return formatLimitValueForDriver(d, value);
 }
 
 void applyDriverMode(int d) {
@@ -265,10 +370,16 @@ int currentStepDelayForDriver(int d) {
   int startDelay = target * 4;
   if (startDelay < target) startDelay = target;
   if (startDelay > 50000) startDelay = 50000;
-  long span = (long)startDelay - (long)target;
-  long delayNow = startDelay - (span * rampProgress) / rampSteps;
+  float startHz = 1000000.0f / (float)startDelay;
+  float targetHz = 1000000.0f / (float)target;
+  float t = (float)rampProgress / (float)rampSteps;
+  float eased = smootherStep01(t);
+  float hzNow = startHz + (targetHz - startHz) * eased;
+  if (hzNow <= 0.0f) return startDelay;
+  int delayNow = (int)lroundf(1000000.0f / hzNow);
   if (delayNow < target) delayNow = target;
-  return (int)delayNow;
+  if (delayNow > startDelay) delayNow = startDelay;
+  return delayNow;
 }
 
 void clearStepDebug(int d) {
@@ -306,10 +417,19 @@ void handleStatus() {
       ",\"multistep_filt\":" + String(motorMultistepFilt[i] ? "true" : "false") +
       ",\"dir\":\"" + String(motorDir[i] ? "CW" : "CCW") + "\"" +
       ",\"steps_remaining\":" + String(stepsRemaining[i]) +
+      ",\"display_wrap\":" + String(driverDisplaysWrappedDegrees(i) ? "true" : "false") +
+      ",\"go_zero_mode\":\"" + String(driverGoZeroUsesShortestPath(i) ? "shortest_path" : "absolute") + "\"" +
       ",\"position_steps\":" + String(motorPositionSteps[i]) +
       ",\"position_deg\":" + String(motorPositionSteps[i] / stepsPerDeg[i], 2) +
       ",\"position_trusted\":" + String(motorPositionTrusted[i] ? "true" : "false") +
       ",\"position_reason\":\"" + String(positionReasonName(motorPositionReason[i])) + "\"" +
+      ",\"soft_limit_min\":" + jsonLimitValueForDriver(i, motorSoftLimitMin[i]) +
+      ",\"soft_limit_max\":" + jsonLimitValueForDriver(i, motorSoftLimitMax[i]) +
+      ",\"hard_limit_min\":" + jsonLimitValueForDriver(i, driverHardLimitMin(i)) +
+      ",\"hard_limit_max\":" + jsonLimitValueForDriver(i, driverHardLimitMax(i)) +
+      ",\"limit_units\":\"" + String(driverLimitUnits(i)) + "\"" +
+      ",\"limits_supported\":" + String(driverSupportsSoftLimits(i) ? "true" : "false") +
+      ",\"limits_enforced\":" + String((driverSupportsSoftLimits(i) && motorPositionTrusted[i]) ? "true" : "false") +
       ",\"step_delay_us\":" + String(motorStepDelayUS[i]) +
       ",\"ramp_steps\":" + String(motorRampSteps[i]) +
       ",\"current_step_delay_us\":" + String(motorRunning[i] ? currentStepDelayForDriver(i) : motorStepDelayUS[i]) +
@@ -370,6 +490,7 @@ void handleSetup() {
 void handleMove() {
   int d = server.arg("d").toInt();
   int32_t steps = server.arg("steps").toInt();
+  String limitError;
   if (d < 0 || d >= 4) {
     server.sendHeader("Access-Control-Allow-Origin", "*");
     server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid driver\"}");
@@ -380,6 +501,11 @@ void handleMove() {
     server.send(400, "application/json", "{\"ok\":false,\"error\":\"motor not enabled\"}");
     return;
   }
+  if (!driverMoveRespectsSoftLimits(d, steps, limitError)) {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(409, "application/json", "{\"ok\":false,\"error\":\"" + limitError + "\"}");
+    return;
+  }
   startMoveSteps(d, steps);
   sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"steps\":" + String(steps) + "}");
 }
@@ -387,6 +513,7 @@ void handleMove() {
 void handleMoveDeg() {
   int d = server.arg("d").toInt();
   float deg = server.arg("deg").toFloat();
+  String limitError;
   if (d < 0 || d >= 4) {
     server.sendHeader("Access-Control-Allow-Origin", "*");
     server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid driver\"}");
@@ -398,6 +525,11 @@ void handleMoveDeg() {
     return;
   }
   int32_t steps = (int32_t)round(deg * stepsPerDeg[d]);
+  if (!driverMoveRespectsSoftLimits(d, steps, limitError)) {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(409, "application/json", "{\"ok\":false,\"error\":\"" + limitError + "\"}");
+    return;
+  }
   startMoveSteps(d, steps);
   sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"deg\":" + String(deg, 2) + ",\"steps\":" + String(steps) + "}");
 }
@@ -429,6 +561,7 @@ void handleClearZero() {
 
 void handleGoZero() {
   int d = server.arg("d").toInt();
+  String limitError;
   if (sendBusyIfStepping(d)) return;
   if (d < 0 || d >= 4) {
     server.sendHeader("Access-Control-Allow-Origin", "*");
@@ -445,9 +578,14 @@ void handleGoZero() {
     server.send(409, "application/json", "{\"ok\":false,\"error\":\"position untrusted\"}");
     return;
   }
-  int32_t steps = driverUsesWrappedDegrees(d) ? shortestWrappedDeltaToZero(d, motorPositionSteps[d]) : -motorPositionSteps[d];
+  int32_t steps = driverGoZeroUsesShortestPath(d) ? shortestWrappedDeltaToZero(d, motorPositionSteps[d]) : -motorPositionSteps[d];
+  if (!driverMoveRespectsSoftLimits(d, steps, limitError)) {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(409, "application/json", "{\"ok\":false,\"error\":\"" + limitError + "\"}");
+    return;
+  }
   startMoveSteps(d, steps);
-  sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"steps\":" + String(steps) + ",\"target\":\"zero\",\"mode\":\"" + String(driverUsesWrappedDegrees(d) ? "shortest_path" : "absolute") + "\"}");
+  sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"steps\":" + String(steps) + ",\"target\":\"zero\",\"mode\":\"" + String(driverGoZeroUsesShortestPath(d) ? "shortest_path" : "absolute") + "\"}");
 }
 
 void handleEnable() {
@@ -527,6 +665,58 @@ void handleMotorIhold() {
     applyIdleDriverCurrent(d);
   }
   sendJson("{\"ok\":true,\"driver\":" + String(d) + ",\"ihold_ma\":" + String(ma) + "}");
+}
+
+void handleMotorLimits() {
+  int d = server.arg("d").toInt();
+  if (sendBusyIfStepping(d)) return;
+  if (d < 0 || d >= 4) {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid driver\"}");
+    return;
+  }
+  if (!driverSupportsSoftLimits(d)) {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(400, "application/json", "{\"ok\":false,\"error\":\"limits unsupported for this axis\"}");
+    return;
+  }
+  if (!server.hasArg("min") || !server.hasArg("max") || server.arg("min").length() == 0 || server.arg("max").length() == 0) {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(400, "application/json", "{\"ok\":false,\"error\":\"min and max required\"}");
+    return;
+  }
+
+  float minValue = server.arg("min").toFloat();
+  float maxValue = server.arg("max").toFloat();
+  float hardMin = driverHardLimitMin(d);
+  float hardMax = driverHardLimitMax(d);
+
+  if (!driverUsesDegreeUnits(d)) {
+    minValue = lroundf(minValue);
+    maxValue = lroundf(maxValue);
+  }
+  if (minValue < hardMin || minValue > hardMax || maxValue < hardMin || maxValue > hardMax) {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(400, "application/json", "{\"ok\":false,\"error\":\"outside hard range\"}");
+    return;
+  }
+  if (minValue > 0.0f || maxValue < 0.0f || minValue > maxValue) {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(400, "application/json", "{\"ok\":false,\"error\":\"require min <= 0 <= max\"}");
+    return;
+  }
+
+  motorSoftLimitMin[d] = minValue;
+  motorSoftLimitMax[d] = maxValue;
+  saveMotorConfig(d);
+  sendJson(
+    "{\"ok\":true,\"driver\":" + String(d) +
+    ",\"soft_limit_min\":" + formatLimitValueForDriver(d, motorSoftLimitMin[d]) +
+    ",\"soft_limit_max\":" + formatLimitValueForDriver(d, motorSoftLimitMax[d]) +
+    ",\"hard_limit_min\":" + formatLimitValueForDriver(d, hardMin) +
+    ",\"hard_limit_max\":" + formatLimitValueForDriver(d, hardMax) +
+    ",\"limit_units\":\"" + String(driverLimitUnits(d)) + "\"}"
+  );
 }
 
 
@@ -744,6 +934,7 @@ void setup() {
   server.on("/disable", handleDisable);
   server.on("/motor_current", handleMotorCurrent);
   server.on("/motor_ihold", handleMotorIhold);
+  server.on("/motor_limits", handleMotorLimits);
   server.on("/motor_speed", handleMotorSpeed);
   server.on("/motor_ramp", handleMotorRamp);
   server.on("/motor_stealthchop", handleMotorStealthChop);

@@ -2004,6 +2004,12 @@ function gimbalUsesStepLimits(drv, driver) {
   return name.toLowerCase() === 'belt';
 }
 
+function gimbalDriverSupportsLimits(drv, driver) {
+  if (drv && typeof drv.limits_supported === 'boolean') return drv.limits_supported;
+  var name = (drv && drv.name) || GIMBAL_DRIVER_NAMES[driver] || '';
+  return name.toLowerCase() !== 'roll';
+}
+
 function gimbalFormatLimitValue(drv, driver, value) {
   if (value == null || isNaN(value)) return '';
   return gimbalUsesStepLimits(drv, driver) ? String(Math.round(value)) : Number(value).toFixed(1);
@@ -2043,6 +2049,11 @@ function gimbalClearLimitDraft(driver) {
 }
 
 function gimbalSetMotorLimits(driver) {
+  var drv = (gimbalDriverCache && gimbalDriverCache[driver]) || null;
+  if (!gimbalDriverSupportsLimits(drv, driver)) {
+    document.getElementById('gimbalStatus').textContent = 'Roll has no soft limits';
+    return;
+  }
   var minEl = document.getElementById('motorLimitMin_' + driver);
   var maxEl = document.getElementById('motorLimitMax_' + driver);
   if (!minEl || !maxEl) return;
@@ -2117,6 +2128,7 @@ function gimbalPoll() {
         var isBelt = (driverName.toLowerCase() === 'belt');
         var isRoll = (driverName.toLowerCase() === 'roll');
         var rampMax = (isBelt || isRoll) ? 5000 : 2000;
+        var supportsLimits = gimbalDriverSupportsLimits(drv, i);
         var limitUnits = drv.limit_units || (isBelt ? 'steps' : 'deg');
         var limitMin = gimbalFormatLimitValue(drv, i, drv.soft_limit_min != null ? drv.soft_limit_min : drv.hard_limit_min);
         var limitMax = gimbalFormatLimitValue(drv, i, drv.soft_limit_max != null ? drv.soft_limit_max : drv.hard_limit_max);
@@ -2174,15 +2186,17 @@ function gimbalPoll() {
           html += '<button class="btn btn-sm btn-dark" id="motorClearZeroBtn_' + i + '" onclick="gimbalClearZero(' + i + ')">UNTRUST</button>';
           html += '</div>';
           html += '<div class="gear-info" id="gearInfo_' + i + '"></div>';
-          html += '<div class="motor-limit-group">';
-          html += '<div class="motor-position-label">Soft Limits</div>';
-          html += '<div class="motor-limit-row">';
-          html += '<label class="motor-limit-field"><span>Min</span><input type="number" id="motorLimitMin_' + i + '" step="' + limitStep + '" value="' + limitMin + '" oninput="gimbalLimitDraft(' + i + ', &quot;min&quot;, this.value)"></label>';
-          html += '<label class="motor-limit-field"><span>Max</span><input type="number" id="motorLimitMax_' + i + '" step="' + limitStep + '" value="' + limitMax + '" oninput="gimbalLimitDraft(' + i + ', &quot;max&quot;, this.value)"></label>';
-          html += '<button class="btn btn-sm btn-dark" id="motorLimitSaveBtn_' + i + '" onclick="gimbalSetMotorLimits(' + i + ')">APPLY</button>';
-          html += '</div>';
-          html += '<div class="motor-limit-note" id="motorLimitNote_' + i + '">Hard ' + hardMin + ' to ' + hardMax + ' ' + limitUnits + ' from zero</div>';
-          html += '</div>';
+          if (supportsLimits) {
+            html += '<div class="motor-limit-group">';
+            html += '<div class="motor-position-label">Soft Limits</div>';
+            html += '<div class="motor-limit-row">';
+            html += '<label class="motor-limit-field"><span>Min</span><input type="number" id="motorLimitMin_' + i + '" step="' + limitStep + '" value="' + limitMin + '" oninput="gimbalLimitDraft(' + i + ', &quot;min&quot;, this.value)"></label>';
+            html += '<label class="motor-limit-field"><span>Max</span><input type="number" id="motorLimitMax_' + i + '" step="' + limitStep + '" value="' + limitMax + '" oninput="gimbalLimitDraft(' + i + ', &quot;max&quot;, this.value)"></label>';
+            html += '<button class="btn btn-sm btn-dark" id="motorLimitSaveBtn_' + i + '" onclick="gimbalSetMotorLimits(' + i + ')">APPLY</button>';
+            html += '</div>';
+            html += '<div class="motor-limit-note" id="motorLimitNote_' + i + '">Hard ' + hardMin + ' to ' + hardMax + ' ' + limitUnits + ' from zero</div>';
+            html += '</div>';
+          }
           html += '<div class="move-input-row">';
           html += '<input type="number" id="gimbalDegInput_' + i + '" value="10" step="1" style="width:80px;">';
           html += '<button class="btn btn-sm" onclick="gimbalMoveDegFromInput(' + i + ')">GO</button>';
@@ -2206,15 +2220,17 @@ function gimbalPoll() {
           html += '<button class="btn btn-sm btn-dark" id="motorGoZeroBtn_' + i + '" onclick="gimbalGoZero(' + i + ')">GO ZERO</button>';
           html += '<button class="btn btn-sm btn-dark" id="motorClearZeroBtn_' + i + '" onclick="gimbalClearZero(' + i + ')">UNTRUST</button>';
           html += '</div>';
-          html += '<div class="motor-limit-group">';
-          html += '<div class="motor-position-label">Soft Limits</div>';
-          html += '<div class="motor-limit-row">';
-          html += '<label class="motor-limit-field"><span>Min</span><input type="number" id="motorLimitMin_' + i + '" step="' + limitStep + '" value="' + limitMin + '" oninput="gimbalLimitDraft(' + i + ', &quot;min&quot;, this.value)"></label>';
-          html += '<label class="motor-limit-field"><span>Max</span><input type="number" id="motorLimitMax_' + i + '" step="' + limitStep + '" value="' + limitMax + '" oninput="gimbalLimitDraft(' + i + ', &quot;max&quot;, this.value)"></label>';
-          html += '<button class="btn btn-sm btn-dark" id="motorLimitSaveBtn_' + i + '" onclick="gimbalSetMotorLimits(' + i + ')">APPLY</button>';
-          html += '</div>';
-          html += '<div class="motor-limit-note" id="motorLimitNote_' + i + '">Hard ' + hardMin + ' to ' + hardMax + ' ' + limitUnits + ' from zero</div>';
-          html += '</div>';
+          if (supportsLimits) {
+            html += '<div class="motor-limit-group">';
+            html += '<div class="motor-position-label">Soft Limits</div>';
+            html += '<div class="motor-limit-row">';
+            html += '<label class="motor-limit-field"><span>Min</span><input type="number" id="motorLimitMin_' + i + '" step="' + limitStep + '" value="' + limitMin + '" oninput="gimbalLimitDraft(' + i + ', &quot;min&quot;, this.value)"></label>';
+            html += '<label class="motor-limit-field"><span>Max</span><input type="number" id="motorLimitMax_' + i + '" step="' + limitStep + '" value="' + limitMax + '" oninput="gimbalLimitDraft(' + i + ', &quot;max&quot;, this.value)"></label>';
+            html += '<button class="btn btn-sm btn-dark" id="motorLimitSaveBtn_' + i + '" onclick="gimbalSetMotorLimits(' + i + ')">APPLY</button>';
+            html += '</div>';
+            html += '<div class="motor-limit-note" id="motorLimitNote_' + i + '">Hard ' + hardMin + ' to ' + hardMax + ' ' + limitUnits + ' from zero</div>';
+            html += '</div>';
+          }
           html += '<div class="move-input-row">';
           html += '<input type="number" id="gimbalStepInput_' + i + '" value="1000" step="100" style="width:80px;">';
           html += '<button class="btn btn-sm" onclick="gimbalMoveStepsFromInput(' + i + ')">GO</button>';
