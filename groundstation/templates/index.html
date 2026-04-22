@@ -3,28 +3,40 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SOOS-1 Control</title>
+<title>GEO-DUDe Control</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<link rel="icon" href="data:,">
 </head>
 <body>
 
 <!-- Header -->
 <div class="header">
-  <h1>SOOS-1 Control</h1>
+  <div class="header-brand">
+    <div class="header-kicker">Groundstation Operator Console</div>
+    <h1>GEO-DUDe Control</h1>
+  </div>
   <div class="header-status">
     <div class="status-indicator">
       <div class="status-dot" id="statusDot"></div>
-      <span id="statusText">GEO-DUDe</span>
+      <div class="status-copy">
+        <span class="status-copy-label">Primary Link</span>
+        <span class="status-copy-value" id="statusText">GEO-DUDe</span>
+      </div>
     </div>
     <div class="status-indicator">
       <div class="status-dot" id="gimbalDot"></div>
-      <span id="gimbalDotText">Gimbal</span>
+      <div class="status-copy">
+        <span class="status-copy-label">Motion Bus</span>
+        <span class="status-copy-value" id="gimbalDotText">Gimbal</span>
+      </div>
     </div>
   </div>
 </div>
 
 <div class="container">
 <div class="page-panel active" id="pagePanelManual">
+
+<div class="section-title">Dashboard</div>
 
 <div class="dashboard-grid">
   <!-- Camera -->
@@ -40,13 +52,13 @@
       <img id="camFeed" src="/api/camera" alt="Camera Feed" crossorigin="anonymous">
       <div class="cam-off-overlay" id="camOffOverlay">CAMERA STREAM OFF</div>
     </div>
-    <button class="btn btn-sm btn-dark" style="margin-top:6px" id="snapshotBtn" onclick="takeSnapshot()">Snapshot</button>
+    <button class="btn btn-sm btn-dark camera-snapshot" id="snapshotBtn" onclick="takeSnapshot()">Snapshot</button>
   </div>
 
   <!-- Sensors -->
   <div class="card dashboard-card dashboard-sensors">
     <h3>Sensors</h3>
-    <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
+    <div class="sensor-topline">
       <div>
         <div class="sensor-panel-title">Gyro (deg/s)</div>
         <div class="sensor-row">
@@ -57,10 +69,10 @@
       </div>
       <div>
         <div class="sensor-panel-title">Encoder</div>
-        <div style="display:flex; gap:8px; align-items:center;">
-          <div class="dial-wrapper" style="width:40px;height:40px;"><div class="dial-ring" style="width:40px;height:40px;"><div id="needle" style="height:20px;"></div><div class="dial-center"></div></div></div>
+        <div class="encoder-inline">
+          <div class="dial-wrapper dial-wrapper-sm"><div class="dial-ring dial-ring-sm"><div id="needle" class="needle-sm"></div><div class="dial-center"></div></div></div>
           <div>
-            <div class="value" id="angleText" style="font-size:16px;">0.0&deg;</div>
+            <div class="value encoder-angle-readout" id="angleText">0.0&deg;</div>
             <div class="sub"><span id="rpmText">0</span> RPM</div>
           </div>
         </div>
@@ -73,13 +85,13 @@
     <h3>System Stats</h3>
     <div class="sys-grid">
       <div class="inner">
-        <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Groundstation</div>
+        <div class="inner-title">Groundstation</div>
         <div class="sys-item"><span class="label">CPU</span><span class="value" id="gsCpu">--</span></div>
         <div class="sys-item"><span class="label">Temp</span><span class="value" id="gsTemp">--</span></div>
         <div class="sys-item"><span class="label">Load</span><span class="value" id="gsLoad">--</span></div>
       </div>
       <div class="inner">
-        <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">GEO-DUDe</div>
+        <div class="inner-title">GEO-DUDe</div>
         <div class="sys-item"><span class="label">CPU</span><span class="value" id="gdCpu">--</span></div>
         <div class="sys-item"><span class="label">Temp</span><span class="value" id="gdTemp">--</span></div>
         <div class="sys-item"><span class="label">Load</span><span class="value" id="gdLoad">--</span></div>
@@ -190,7 +202,7 @@
 
     <div class="card servo-compact-card">
       <h3>PCA9685 Channels</h3>
-      <div class="slider-group servo-tight-group" style="margin-bottom:4px;">
+      <div class="slider-group servo-tight-group">
         <div class="slider-label">
           <span class="label">Servo Speed</span>
           <span class="value" id="servoSpeedVal">10 us/tick (300 us/s)</span>
@@ -199,7 +211,7 @@
                oninput="updateServoSpeedLabel(this.value); saveServoSettings(); sendServoSettings()">
         <div class="servo-mini-scale"><span>Slow</span><span>Fast</span></div>
       </div>
-      <div class="slider-group servo-tight-group" style="margin-bottom:6px;">
+      <div class="slider-group servo-tight-group">
         <div class="slider-label">
           <span class="label">Ramp Rate</span>
           <span class="value" id="servoRampVal">20 us/tick (600 us/s)</span>
@@ -208,21 +220,20 @@
                oninput="updateServoRampLabel(this.value); saveServoSettings(); sendServoSettings()">
         <div class="servo-mini-scale"><span>Gentle</span><span>Snappy</span></div>
       </div>
-      <div class="btn-row servo-action-row" style="margin-bottom:6px;margin-top:0;">
-        <button class="btn btn-green" onclick="startupNeutral()">STARTUP</button>
-        <button class="btn" onclick="allChannelsNeutral()">ALL NEUTRAL</button>
+      <div class="servo-panel-actions">
+        <div class="btn-row servo-emergency-row">
+          <button class="btn btn-red" onclick="servoAllOff()">ALL OFF</button>
+          <button class="btn btn-dark" onclick="servoArm()">RE-ARM</button>
+          <button class="btn btn-green" onclick="startupNeutral()">STARTUP</button>
+          <button class="btn" onclick="allChannelsNeutral()">ALL NEUTRAL</button>
+        </div>
+        <div class="servo-panel-note">
+          Neutrals stay server-authoritative. Open calibration inline on any joint row when you need two-point solve or angle limits.
+        </div>
+        <div id="calibGrid"></div>
       </div>
       <div class="ch-grid ch-grid-compact" id="chGrid"></div>
     </div>
-  </div>
-
-  <div class="card">
-    <h3 style="margin-bottom:4px;">Joint Calibration</h3>
-    <p style="font-size:11px;color:#6b7280;margin:0 0 10px;">
-      Click a joint to expand. Capture two known poses (A & B) → Solve.
-      Base 0° = forward · Shoulder/Elbow 0° = extended · Wrists 0° = aligned with bicep.
-    </p>
-    <div id="calibGrid"></div>
   </div>
 
   <div class="card armviz-card">

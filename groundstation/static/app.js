@@ -909,11 +909,14 @@ function usToDuty(us) {
 
 function chUpdateLabel(name, val) {
   var el = document.getElementById('chv_' + name);
-  if (el) el.textContent = val + ' us (' + usToDuty(val) + '%)';
+  if (el) {
+    el.textContent = val + ' us';
+    el.title = usToDuty(val) + '% duty cycle';
+  }
   var angleEl = document.getElementById('changle_' + name);
   if (angleEl) {
     var rad = pwToAngleRad(name, parseInt(val));
-    angleEl.textContent = rad == null ? '-' : radToDeg(rad).toFixed(1) + '°';
+    angleEl.textContent = rad == null ? '--' : radToDeg(rad).toFixed(1) + '°';
   }
 }
 
@@ -980,6 +983,34 @@ function startupNeutral() {
   });
 }
 
+function servoArm() {
+  fetch('/api/arm', {
+    method: 'POST'
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d && d.ok === false) {
+      alert('Re-arm failed: ' + (d.error || 'unknown'));
+      return;
+    }
+    servoSyncPoll();
+  }).catch(function(e) {
+    alert('Re-arm request failed: ' + e);
+  });
+}
+
+function servoAllOff() {
+  fetch('/api/all_off', {
+    method: 'POST'
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d && d.ok === false) {
+      alert('ALL OFF failed: ' + (d.error || 'unknown'));
+      return;
+    }
+    servoSyncPoll();
+  }).catch(function(e) {
+    alert('ALL OFF request failed: ' + e);
+  });
+}
+
 function updateServoSpeedLabel(val) {
   val = parseInt(val);
   var speed = (val * CH_RAMP_HZ).toFixed(0);
@@ -1000,6 +1031,14 @@ var chVelocity = {};  // current velocity per channel (us/tick, signed)
    actively dragging). chActual mirrors the live ramp position for display. */
 var chFrozenState = false;
 var chFreezeThresholdS = 0.8;  // matches server's 1.0s heartbeat timeout with headroom
+
+function servoSetHwLabel(name, text, tone) {
+  var el = document.getElementById('chhw_' + name);
+  if (!el) return;
+  el.textContent = text;
+  el.className = 'servo-chip-value';
+  if (tone) el.classList.add('servo-chip-value-' + tone);
+}
 
 function servoSyncPoll() {
   fetch('/api/servo_state').then(function(r) { return r.json(); }).then(function(state) {
@@ -1046,22 +1085,16 @@ function servoSyncPoll() {
     chOrder.forEach(function(name) {
       if (name === 'MACE') return;
       if (actual[name] != null) chActual[name] = actual[name];
-      var hwLabel = document.getElementById('chhw_' + name);
-      if (hwLabel) {
-        var hwVal = hw[name];
-        if (hwVal == null) {
-          hwLabel.textContent = 'HW: ?';
-          hwLabel.style.color = '#f59e0b';
-        } else if (hwVal === 0) {
-          // PCA output is 0us = no PWM = servo unpowered. Almost always
-          // a boot-restore that never happened; flag it loudly.
-          hwLabel.textContent = 'HW: 0 us ERROR';
-          hwLabel.style.color = '#dc2626';
-        } else {
-          hwLabel.textContent = 'HW: ' + hwVal + ' us';
-          var mismatch = actual[name] != null && Math.abs(hwVal - actual[name]) > 5;
-          hwLabel.style.color = mismatch ? '#dc2626' : '#6b7280';
-        }
+      var hwVal = hw[name];
+      if (hwVal == null) {
+        servoSetHwLabel(name, '?', 'warn');
+      } else if (hwVal === 0) {
+        // PCA output is 0us = no PWM = servo unpowered. Almost always
+        // a boot-restore that never happened; flag it loudly.
+        servoSetHwLabel(name, '0 us ERROR', 'error');
+      } else {
+        var mismatch = actual[name] != null && Math.abs(hwVal - actual[name]) > 5;
+        servoSetHwLabel(name, hwVal + ' us', mismatch ? 'error' : '');
       }
       if (target[name] == null) return;
       var slider = document.getElementById('ch_' + name);
@@ -1121,31 +1154,44 @@ function preventSliderJump(slider) {
   var grid = document.getElementById('chGrid');
   /* Column headers */
   var h1 = document.createElement('div');
-  h1.style.cssText = 'font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#6b7280;padding:4px 0;';
+  h1.className = 'ch-column-head';
   h1.textContent = 'Arm 1';
   grid.appendChild(h1);
   var h2 = document.createElement('div');
-  h2.style.cssText = 'font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#6b7280;padding:4px 0;';
+  h2.className = 'ch-column-head';
   h2.textContent = 'Arm 2';
   grid.appendChild(h2);
   chOrder.forEach(function(name) {
     if (name === 'MACE') return;
     var item = document.createElement('div');
+    item.id = 'chitem_' + name;
     item.className = 'ch-item';
     var neutralVal = getNeutral(name);
-    item.innerHTML = '<div class="ch-header">' +
-      '<span class="ch-name">' + name + ' <span style="font-size:11px;color:#6b7280;">(ch ' + CHANNELS[name].ch + ', pin ' + CHANNELS[name].pin + ')</span></span>' +
-      '<span class="ch-val" id="chv_' + name + '">1500 us (' + usToDuty(1500) + '%)</span>' +
+    item.innerHTML = '<div class="servo-row-head">' +
+      '<div class="servo-name-block">' +
+        '<div class="servo-name-line">' +
+          '<span class="ch-name">' + name + '</span>' +
+          '<span class="servo-channel-meta">ch ' + CHANNELS[name].ch + ' / pin ' + CHANNELS[name].pin + '</span>' +
+        '</div>' +
+        '<div class="servo-readout">' +
+          '<span class="ch-val" id="chv_' + name + '">-- us</span>' +
+          '<span id="changle_' + name + '" class="servo-angle-readout">--</span>' +
+        '</div>' +
       '</div>' +
+      '<div class="servo-chip-row">' +
+        '<span class="servo-chip"><span class="servo-chip-label">Neutral</span><span id="chn_' + name + '" class="servo-chip-value">' + (neutralVal == null ? '--' : neutralVal + ' us') + '</span></span>' +
+        '<span class="servo-chip servo-chip-hw"><span class="servo-chip-label">HW:</span><span id="chhw_' + name + '" class="servo-chip-value servo-chip-value-warn">--</span></span>' +
+      '</div>' +
+      '</div>' +
+      '<div class="servo-slider-row">' +
       '<input type="range" id="ch_' + name + '" min="500" max="2500" step="10" value="1500" ' +
-      'oninput="chSliderInput(&quot;' + name + '&quot;, this.value)">' +
-      '<div class="ch-controls">' +
+      'oninput="chSliderInput(&quot;' + name + '&quot;, this.value)"></div>' +
+      '<div class="servo-row-actions">' +
       '<button class="btn btn-sm" onclick="chGoNeutral(&quot;' + name + '&quot;)">Go to Neutral</button>' +
       '<button class="btn btn-sm btn-red" onclick="chSetNeutral(&quot;' + name + '&quot;)" title="Save current position as neutral">Set Neutral</button>' +
-      '<span style="font-size:11px;color:#6b7280;margin-left:4px;">N: <span id="chn_' + name + '">' + neutralVal + ' us</span></span>' +
-      '<span id="chhw_' + name + '" style="font-size:11px;color:#6b7280;margin-left:8px;">HW: -</span>' +
-      '<span id="changle_' + name + '" style="font-size:11px;color:#2563eb;margin-left:8px;font-family:\'SF Mono\',monospace;">-</span>' +
-      '</div>';
+      '<button class="btn btn-sm btn-dark" id="calibToggleBtn_' + name + '" onclick="calibToggle(&quot;' + name + '&quot;)">Calibrate</button>' +
+      '</div>' +
+      '<div class="servo-calib-mount" id="servoCalibMount_' + name + '"></div>';
     grid.appendChild(item);
 
     setTimeout(function() {
@@ -1157,10 +1203,21 @@ function preventSliderJump(slider) {
 
 /* ========== Joint Calibration UI ========== */
 var calibCaptures = {};  // { name: {pw_A, angle_A_deg, pw_B, angle_B_deg} }
+var calibDrafts = {};
 
 function calibEnsureCh(name) {
   if (!calibCaptures[name]) calibCaptures[name] = {};
   return calibCaptures[name];
+}
+
+function calibEnsureDraft(name) {
+  if (!calibDrafts[name]) calibDrafts[name] = {A: '', B: ''};
+  return calibDrafts[name];
+}
+
+function calibDraftAngle(name, key, value) {
+  var draft = calibEnsureDraft(name);
+  draft[key] = value;
 }
 
 function calibCaptureA(name) {
@@ -1170,6 +1227,7 @@ function calibCaptureA(name) {
   var deg = parseFloat(angInp.value);
   if (isNaN(deg)) { alert('Enter angle A (degrees) first'); return; }
   var c = calibEnsureCh(name);
+  calibEnsureDraft(name).A = angInp.value;
   c.pw_A = parseInt(slider.value);
   c.angle_A_deg = deg;
   renderCalibrationPanel();
@@ -1182,6 +1240,7 @@ function calibCaptureB(name) {
   var deg = parseFloat(angInp.value);
   if (isNaN(deg)) { alert('Enter angle B (degrees) first'); return; }
   var c = calibEnsureCh(name);
+  calibEnsureDraft(name).B = angInp.value;
   c.pw_B = parseInt(slider.value);
   c.angle_B_deg = deg;
   renderCalibrationPanel();
@@ -1205,6 +1264,7 @@ function calibSolve(name) {
     if (!d.ok) { alert('Solve failed: ' + (d.error || 'unknown')); return; }
     jointCal[name] = d.calibration;
     delete calibCaptures[name];
+    delete calibDrafts[name];
     renderCalibrationPanel();
     // Update live angle labels with the new calibration.
     chOrder.forEach(function(n) {
@@ -1217,6 +1277,7 @@ function calibSolve(name) {
 
 function calibReset(name) {
   delete calibCaptures[name];
+  delete calibDrafts[name];
   renderCalibrationPanel();
 }
 
@@ -1236,59 +1297,91 @@ function calibPatch(name, field, value) {
 
 function renderCalibrationPanel() {
   var grid = document.getElementById('calibGrid');
-  if (!grid) return;
+  if (grid) {
+    grid.innerHTML =
+      '<div class="servo-inline-guide">' +
+        '<div class="servo-inline-guide-title">Inline calibration</div>' +
+        '<div class="servo-inline-guide-copy">Open a joint row to capture pose A and B, solve, then patch angle limits. Base 0° is forward. Shoulder and elbow 0° are extended. Wrist 0° is aligned with the bicep.</div>' +
+      '</div>';
+  }
   var expanded = calibExpanded;
-  var parts = ['<div class="calib-grid">'];
   chOrder.forEach(function(name) {
     if (name === 'MACE') return;
     var c = calibCaptures[name] || {};
+    var draft = calibEnsureDraft(name);
     var cal = jointCal[name] || {};
     var isOpen = expanded === name;
-    var neutralDeg = cal.neutral_angle_rad != null ? radToDeg(cal.neutral_angle_rad).toFixed(0) + '°' : '-';
+    var mount = document.getElementById('servoCalibMount_' + name);
+    var item = document.getElementById('chitem_' + name);
+    var toggleBtn = document.getElementById('calibToggleBtn_' + name);
+    if (item) item.classList.toggle('servo-row-calibrating', isOpen);
+    if (toggleBtn) {
+      toggleBtn.textContent = isOpen ? 'Close' : 'Calibrate';
+      toggleBtn.className = isOpen ? 'btn btn-sm btn-amber' : 'btn btn-sm btn-dark';
+      toggleBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    }
+    if (!mount) return;
+    if (!isOpen) {
+      mount.innerHTML = '';
+      return;
+    }
+    var neutralDeg = cal.neutral_angle_rad != null ? radToDeg(cal.neutral_angle_rad).toFixed(1) + '°' : '--';
     var minDeg = cal.min_angle_rad != null ? radToDeg(cal.min_angle_rad).toFixed(1) : '';
     var maxDeg = cal.max_angle_rad != null ? radToDeg(cal.max_angle_rad).toFixed(1) : '';
-    var signStr = cal.sign != null ? (cal.sign > 0 ? '+' : '−') : '-';
-    var usrStr = cal.us_per_rad != null ? cal.us_per_rad.toFixed(0) : '-';
-    var capAstr = c.pw_A != null ? (c.pw_A + 'us → ' + c.angle_A_deg + '°') : '—';
-    var capBstr = c.pw_B != null ? (c.pw_B + 'us → ' + c.angle_B_deg + '°') : '—';
+    var signStr = cal.sign != null ? (cal.sign > 0 ? '+' : '-') : '--';
+    var usrStr = cal.us_per_rad != null ? cal.us_per_rad.toFixed(0) : '--';
+    var capAstr = c.pw_A != null ? (c.pw_A + ' us -> ' + c.angle_A_deg + '°') : 'Not captured';
+    var capBstr = c.pw_B != null ? (c.pw_B + ' us -> ' + c.angle_B_deg + '°') : 'Not captured';
     var canSolve = c.pw_A != null && c.pw_B != null;
-    parts.push(
-      '<div class="calib-card' + (isOpen ? ' calib-card-open' : '') + '">' +
-        '<div class="calib-head" onclick="calibToggle(\'' + name + '\')">' +
-          '<span class="calib-name">' + name + '</span>' +
-          '<span class="calib-live" id="calibCur_' + name + '">-</span>' +
-          '<span class="calib-summary">' + usrStr + ' us/rad ' + signStr + ' · n=' + neutralDeg + '</span>' +
-          '<span class="calib-chev">' + (isOpen ? '▾' : '▸') + '</span>' +
+    mount.innerHTML =
+      '<div class="servo-calib-panel">' +
+        '<div class="servo-calib-header">' +
+          '<div>' +
+            '<div class="servo-calib-title">Joint calibration</div>' +
+            '<div class="servo-calib-subtitle">Live <span id="calibCur_' + name + '">--</span></div>' +
+          '</div>' +
+          '<div class="servo-calib-summary">' +
+            '<span>' + usrStr + ' us/rad</span>' +
+            '<span>sign ' + signStr + '</span>' +
+            '<span>neutral ' + neutralDeg + '</span>' +
+          '</div>' +
         '</div>' +
-        (isOpen ?
-          '<div class="calib-body">' +
-            '<div class="calib-row">' +
-              '<label>A:</label>' +
-              '<input type="number" step="1" id="calibAngA_' + name + '" placeholder="angle°" style="width:70px;">' +
-              '<button class="btn btn-sm" onclick="calibCaptureA(\'' + name + '\')">Capture</button>' +
-              '<span class="calib-capture">' + capAstr + '</span>' +
-            '</div>' +
-            '<div class="calib-row">' +
-              '<label>B:</label>' +
-              '<input type="number" step="1" id="calibAngB_' + name + '" placeholder="angle°" style="width:70px;">' +
-              '<button class="btn btn-sm" onclick="calibCaptureB(\'' + name + '\')">Capture</button>' +
-              '<span class="calib-capture">' + capBstr + '</span>' +
-            '</div>' +
-            '<div class="calib-row">' +
-              '<button class="btn btn-sm btn-green" ' + (canSolve ? '' : 'disabled') + ' onclick="calibSolve(\'' + name + '\')">Solve</button>' +
-              '<button class="btn btn-sm" onclick="calibReset(\'' + name + '\')">Clear</button>' +
-              '<span class="calib-limits">' +
-                'min° <input type="number" step="1" value="' + minDeg + '" style="width:55px;" onchange="calibPatch(\'' + name + '\', \'min_angle_rad\', this.value === \'\' ? null : degToRad(parseFloat(this.value)))"> ' +
-                'max° <input type="number" step="1" value="' + maxDeg + '" style="width:55px;" onchange="calibPatch(\'' + name + '\', \'max_angle_rad\', this.value === \'\' ? null : degToRad(parseFloat(this.value)))">' +
-              '</span>' +
-            '</div>' +
-          '</div>'
-        : '') +
-      '</div>'
-    );
+        '<div class="servo-calib-capture-grid">' +
+          '<div class="servo-calib-capture-card">' +
+            '<label class="servo-calib-field">' +
+              '<span>Pose A angle</span>' +
+              '<input type="number" step="1" id="calibAngA_' + name + '" value="' + draft.A + '" placeholder="deg" oninput="calibDraftAngle(\'' + name + '\', \'A\', this.value)">' +
+            '</label>' +
+            '<button class="btn btn-sm" onclick="calibCaptureA(\'' + name + '\')">Capture A</button>' +
+            '<div class="servo-calib-capture-readout">' + capAstr + '</div>' +
+          '</div>' +
+          '<div class="servo-calib-capture-card">' +
+            '<label class="servo-calib-field">' +
+              '<span>Pose B angle</span>' +
+              '<input type="number" step="1" id="calibAngB_' + name + '" value="' + draft.B + '" placeholder="deg" oninput="calibDraftAngle(\'' + name + '\', \'B\', this.value)">' +
+            '</label>' +
+            '<button class="btn btn-sm" onclick="calibCaptureB(\'' + name + '\')">Capture B</button>' +
+            '<div class="servo-calib-capture-readout">' + capBstr + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="servo-calib-footer">' +
+          '<div class="servo-calib-button-row">' +
+            '<button class="btn btn-sm btn-green" ' + (canSolve ? '' : 'disabled') + ' onclick="calibSolve(\'' + name + '\')">Solve</button>' +
+            '<button class="btn btn-sm btn-dark" onclick="calibReset(\'' + name + '\')">Clear</button>' +
+          '</div>' +
+          '<div class="servo-calib-limit-row">' +
+            '<label class="servo-calib-field servo-calib-field-small">' +
+              '<span>Min deg</span>' +
+              '<input type="number" step="1" value="' + minDeg + '" onchange="calibPatch(\'' + name + '\', \'min_angle_rad\', this.value === \'\' ? null : degToRad(parseFloat(this.value)))">' +
+            '</label>' +
+            '<label class="servo-calib-field servo-calib-field-small">' +
+              '<span>Max deg</span>' +
+              '<input type="number" step="1" value="' + maxDeg + '" onchange="calibPatch(\'' + name + '\', \'max_angle_rad\', this.value === \'\' ? null : degToRad(parseFloat(this.value)))">' +
+            '</label>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
   });
-  parts.push('</div>');
-  grid.innerHTML = parts.join('');
   refreshCalibLive();
 }
 
@@ -1299,7 +1392,7 @@ function refreshCalibLive() {
     var curEl = document.getElementById('calibCur_' + name);
     if (!slider || !curEl) return;
     var rad = pwToAngleRad(name, parseInt(slider.value));
-    curEl.textContent = slider.value + 'us' + (rad == null ? '' : ' · ' + radToDeg(rad).toFixed(1) + '°');
+    curEl.textContent = slider.value + ' us' + (rad == null ? '' : ' · ' + radToDeg(rad).toFixed(1) + '°');
   });
 }
 
@@ -1314,8 +1407,13 @@ setInterval(function() {
 }, 500);
 
 /* ========== Polling ========== */
+function controllerUnavailableMessage() {
+  return 'Controller backend unavailable on this deployment.';
+}
+
 function updateControllerUI(status) {
   controllerStatus = status || {enabled: false};
+  var unavailable = controllerStatus.available === false;
   var modeEl = document.getElementById('controllerMode');
   var linkEl = document.getElementById('controllerLink');
   var armEl = document.getElementById('controllerArm');
@@ -1326,34 +1424,43 @@ function updateControllerUI(status) {
   var leftBtn = document.getElementById('controllerArmLeftBtn');
   var rightBtn = document.getElementById('controllerArmRightBtn');
   if (modeEl) {
-    modeEl.textContent = controllerStatus.enabled ? 'ON' : 'OFF';
-    modeEl.style.color = controllerStatus.enabled ? '#22c55e' : '#9ca3af';
+    modeEl.textContent = unavailable ? 'UNAVAILABLE' : (controllerStatus.enabled ? 'ON' : 'OFF');
+    modeEl.style.color = unavailable ? '#f59e0b' : (controllerStatus.enabled ? '#22c55e' : '#9ca3af');
   }
   if (linkEl) {
-    linkEl.textContent = controllerStatus.connected ? 'CONNECTED' : 'DISCONNECTED';
-    linkEl.style.color = controllerStatus.connected ? '#22c55e' : '#ef4444';
+    linkEl.textContent = unavailable ? 'NOT INSTALLED' : (controllerStatus.connected ? 'CONNECTED' : 'DISCONNECTED');
+    linkEl.style.color = unavailable ? '#f59e0b' : (controllerStatus.connected ? '#22c55e' : '#ef4444');
   }
   if (armEl) {
-    armEl.textContent = (controllerStatus.selected_arm || "left").toUpperCase();
-    armEl.style.color = "#f59e0b";
+    armEl.textContent = unavailable ? '--' : (controllerStatus.selected_arm || "left").toUpperCase();
+    armEl.style.color = unavailable ? '#9ca3af' : '#f59e0b';
   }
-  if (leftBtn) leftBtn.className = controllerStatus.selected_arm === "left" ? "btn btn-amber" : "btn btn-dark";
-  if (rightBtn) rightBtn.className = controllerStatus.selected_arm === "right" ? "btn btn-amber" : "btn btn-dark";
+  if (leftBtn) {
+    leftBtn.className = (!unavailable && controllerStatus.selected_arm === "left") ? "btn btn-amber" : "btn btn-dark";
+    leftBtn.disabled = unavailable;
+  }
+  if (rightBtn) {
+    rightBtn.className = (!unavailable && controllerStatus.selected_arm === "right") ? "btn btn-amber" : "btn btn-dark";
+    rightBtn.disabled = unavailable;
+  }
   if (deadmanEl) {
-    deadmanEl.textContent = controllerStatus.deadman ? 'HELD' : 'RELEASED';
-    deadmanEl.style.color = controllerStatus.deadman ? '#22c55e' : '#9ca3af';
+    deadmanEl.textContent = unavailable ? '--' : (controllerStatus.deadman ? 'HELD' : 'RELEASED');
+    deadmanEl.style.color = unavailable ? '#9ca3af' : (controllerStatus.deadman ? '#22c55e' : '#9ca3af');
   }
   if (activeEl) {
-    activeEl.textContent = controllerStatus.active ? 'MOVING' : 'IDLE';
-    activeEl.style.color = controllerStatus.active ? '#3b82f6' : '#9ca3af';
+    activeEl.textContent = unavailable ? '--' : (controllerStatus.active ? 'MOVING' : 'IDLE');
+    activeEl.style.color = unavailable ? '#9ca3af' : (controllerStatus.active ? '#3b82f6' : '#9ca3af');
   }
   if (errorEl) {
-    errorEl.textContent = controllerStatus.last_error || '';
-    errorEl.style.display = controllerStatus.last_error ? 'block' : 'none';
+    var errorText = unavailable ? (controllerStatus.last_error || controllerUnavailableMessage()) : (controllerStatus.last_error || '');
+    errorEl.textContent = errorText;
+    errorEl.style.color = unavailable ? '#f59e0b' : '#ef4444';
+    errorEl.style.display = errorText ? 'block' : 'none';
   }
   if (btn) {
-    btn.textContent = controllerStatus.enabled ? 'DISABLE CONTROLLER' : 'ENABLE CONTROLLER';
-    btn.className = controllerStatus.enabled ? 'btn btn-red' : 'btn btn-dark';
+    btn.textContent = unavailable ? 'CONTROLLER OFFLINE' : (controllerStatus.enabled ? 'DISABLE CONTROLLER' : 'ENABLE CONTROLLER');
+    btn.className = unavailable ? 'btn btn-dark' : (controllerStatus.enabled ? 'btn btn-red' : 'btn btn-dark');
+    btn.disabled = unavailable;
   }
 }
 
@@ -1364,6 +1471,7 @@ function controllerPoll() {
 }
 
 function setControllerArm(selectedArm) {
+  if (controllerStatus.available === false) return;
   fetch('/api/controller/arm', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
@@ -1374,6 +1482,7 @@ function setControllerArm(selectedArm) {
 }
 
 function toggleControllerMode() {
+  if (controllerStatus.available === false) return;
   var enable = !controllerStatus.enabled;
   fetch('/api/controller/enable', {
     method: 'POST',
@@ -1564,7 +1673,7 @@ function maceRenderStatus(d) {
   if (rpm) {
     // Wheel RPM only. Body RPM (Pi I2C encoder) is a different sensor and
     // belongs on the main Encoder card, not here.
-    if (d.wheel_rpm == null) rpm.textContent = '—';
+    if (d.wheel_rpm == null) rpm.textContent = '--';
     else rpm.textContent = Number(d.wheel_rpm).toFixed(1);
   }
   if (calBtn) calBtn.disabled = maceJogCalibrating || !d.connected;
@@ -1889,6 +1998,49 @@ function gimbalSetMotorMultistepFilt(driver, enabled) {
   });
 }
 
+function gimbalUsesStepLimits(drv, driver) {
+  if (drv && drv.limit_units) return drv.limit_units === 'steps';
+  var name = (drv && drv.name) || GIMBAL_DRIVER_NAMES[driver] || '';
+  return name.toLowerCase() === 'belt';
+}
+
+function gimbalFormatLimitValue(drv, driver, value) {
+  if (value == null || isNaN(value)) return '';
+  return gimbalUsesStepLimits(drv, driver) ? String(Math.round(value)) : Number(value).toFixed(1);
+}
+
+function gimbalLimitInputStep(drv, driver) {
+  return gimbalUsesStepLimits(drv, driver) ? '1' : '0.1';
+}
+
+function gimbalSetMotorLimits(driver) {
+  var minEl = document.getElementById('motorLimitMin_' + driver);
+  var maxEl = document.getElementById('motorLimitMax_' + driver);
+  if (!minEl || !maxEl) return;
+  var minValue = parseFloat(minEl.value);
+  var maxValue = parseFloat(maxEl.value);
+  if (!isFinite(minValue) || !isFinite(maxValue)) {
+    document.getElementById('gimbalStatus').textContent = 'Limit error: enter both min and max';
+    return;
+  }
+  fetch('/api/gimbal/motor_limits', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({driver: driver, min: minValue, max: maxValue})
+  }).then(function(r) {
+    return r.json().then(function(d) { return {ok: r.ok, data: d}; });
+  }).then(function(res) {
+    if (!res.ok || !res.data || res.data.ok === false) {
+      document.getElementById('gimbalStatus').textContent = 'Limit error: ' + ((res.data && res.data.error) || 'unknown');
+      gimbalPoll();
+      return;
+    }
+    gimbalPoll();
+  }).catch(function(e) {
+    document.getElementById('gimbalStatus').textContent = 'Limit error: ' + e;
+  });
+}
+
 function gimbalPositionReasonText(reason, trusted) {
   if (trusted) return 'TRUSTED';
   if (reason === 'power_loss') return 'UNTRUSTED - 24V cycled';
@@ -1935,6 +2087,12 @@ function gimbalPoll() {
         var isBelt = (driverName.toLowerCase() === 'belt');
         var isRoll = (driverName.toLowerCase() === 'roll');
         var rampMax = (isBelt || isRoll) ? 5000 : 2000;
+        var limitUnits = drv.limit_units || (isBelt ? 'steps' : 'deg');
+        var limitMin = gimbalFormatLimitValue(drv, i, drv.soft_limit_min != null ? drv.soft_limit_min : drv.hard_limit_min);
+        var limitMax = gimbalFormatLimitValue(drv, i, drv.soft_limit_max != null ? drv.soft_limit_max : drv.hard_limit_max);
+        var hardMin = gimbalFormatLimitValue(drv, i, drv.hard_limit_min);
+        var hardMax = gimbalFormatLimitValue(drv, i, drv.hard_limit_max);
+        var limitStep = gimbalLimitInputStep(drv, i);
 
         var html = '';
         /* Header with toggle */
@@ -1986,6 +2144,15 @@ function gimbalPoll() {
           html += '<button class="btn btn-sm btn-dark" id="motorClearZeroBtn_' + i + '" onclick="gimbalClearZero(' + i + ')">UNTRUST</button>';
           html += '</div>';
           html += '<div class="gear-info" id="gearInfo_' + i + '"></div>';
+          html += '<div class="motor-limit-group">';
+          html += '<div class="motor-position-label">Soft Limits</div>';
+          html += '<div class="motor-limit-row">';
+          html += '<label class="motor-limit-field"><span>Min</span><input type="number" id="motorLimitMin_' + i + '" step="' + limitStep + '" value="' + limitMin + '"></label>';
+          html += '<label class="motor-limit-field"><span>Max</span><input type="number" id="motorLimitMax_' + i + '" step="' + limitStep + '" value="' + limitMax + '"></label>';
+          html += '<button class="btn btn-sm btn-dark" id="motorLimitSaveBtn_' + i + '" onclick="gimbalSetMotorLimits(' + i + ')">APPLY</button>';
+          html += '</div>';
+          html += '<div class="motor-limit-note" id="motorLimitNote_' + i + '">Hard ' + hardMin + ' to ' + hardMax + ' ' + limitUnits + ' from zero</div>';
+          html += '</div>';
           html += '<div class="move-input-row">';
           html += '<input type="number" id="gimbalDegInput_' + i + '" value="10" step="1" style="width:80px;">';
           html += '<button class="btn btn-sm" onclick="gimbalMoveDegFromInput(' + i + ')">GO</button>';
@@ -2008,6 +2175,15 @@ function gimbalPoll() {
           html += '<button class="btn btn-sm" id="motorSetZeroBtn_' + i + '" onclick="gimbalSetZero(' + i + ')">SET ZERO</button>';
           html += '<button class="btn btn-sm btn-dark" id="motorGoZeroBtn_' + i + '" onclick="gimbalGoZero(' + i + ')">GO ZERO</button>';
           html += '<button class="btn btn-sm btn-dark" id="motorClearZeroBtn_' + i + '" onclick="gimbalClearZero(' + i + ')">UNTRUST</button>';
+          html += '</div>';
+          html += '<div class="motor-limit-group">';
+          html += '<div class="motor-position-label">Soft Limits</div>';
+          html += '<div class="motor-limit-row">';
+          html += '<label class="motor-limit-field"><span>Min</span><input type="number" id="motorLimitMin_' + i + '" step="' + limitStep + '" value="' + limitMin + '"></label>';
+          html += '<label class="motor-limit-field"><span>Max</span><input type="number" id="motorLimitMax_' + i + '" step="' + limitStep + '" value="' + limitMax + '"></label>';
+          html += '<button class="btn btn-sm btn-dark" id="motorLimitSaveBtn_' + i + '" onclick="gimbalSetMotorLimits(' + i + ')">APPLY</button>';
+          html += '</div>';
+          html += '<div class="motor-limit-note" id="motorLimitNote_' + i + '">Hard ' + hardMin + ' to ' + hardMax + ' ' + limitUnits + ' from zero</div>';
           html += '</div>';
           html += '<div class="move-input-row">';
           html += '<input type="number" id="gimbalStepInput_' + i + '" value="1000" step="100" style="width:80px;">';
@@ -2271,7 +2447,7 @@ function seqRun() {
       chUpdateLabel(name, pw);
     });
   }).catch(function() {
-    /* Server unreachable — do NOT send PWM and do NOT seed chActual. */
+    /* Server unreachable - do NOT send PWM and do NOT seed chActual. */
   });
 
   /* Restore speed settings from localStorage */
