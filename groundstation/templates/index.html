@@ -217,13 +217,10 @@
   </div>
 
   <div class="card">
-    <h3>Joint Calibration</h3>
-    <p style="font-size:12px;color:#6b7280;margin-top:0;">
-      Move the joint to a known physical angle, enter that angle (degrees),
-      click Capture A. Repeat at a different angle for Capture B. Click
-      Solve to compute us_per_rad, sign, and neutral_angle_rad from the two
-      points. Reference conventions: base 0° = arm forward; shoulder/elbow
-      0° = fully extended (neutral ≈ 90°); wrists 0° = aligned with bicep.
+    <h3 style="margin-bottom:4px;">Joint Calibration</h3>
+    <p style="font-size:11px;color:#6b7280;margin:0 0 10px;">
+      Click a joint to expand. Capture two known poses (A & B) → Solve.
+      Base 0° = forward · Shoulder/Elbow 0° = extended · Wrists 0° = aligned with bicep.
     </p>
     <div id="calibGrid"></div>
   </div>
