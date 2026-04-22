@@ -2224,6 +2224,8 @@ function gimbalPoll() {
       if (goZeroBtn) goZeroBtn.disabled = !drv.position_trusted || !drv.enabled || !!drv.running;
       var clearZeroBtn = document.getElementById('motorClearZeroBtn_' + i);
       if (clearZeroBtn) clearZeroBtn.disabled = !!drv.running;
+      var limitSaveBtn = document.getElementById('motorLimitSaveBtn_' + i);
+      if (limitSaveBtn) limitSaveBtn.disabled = !!drv.running;
 
       /* Stats */
       var statsEl = document.getElementById('driverStats_' + i);
@@ -2271,6 +2273,35 @@ function gimbalPoll() {
       }
       if (posStateEl) {
         posStateEl.textContent = gimbalPositionReasonText(drv.position_reason, !!drv.position_trusted);
+      }
+      var limitMinInput = document.getElementById('motorLimitMin_' + i);
+      if (limitMinInput) {
+        limitMinInput.step = gimbalLimitInputStep(drv, i);
+        if (drv.hard_limit_min != null) limitMinInput.min = gimbalFormatLimitValue(drv, i, drv.hard_limit_min);
+        if (drv.hard_limit_max != null) limitMinInput.max = gimbalFormatLimitValue(drv, i, drv.hard_limit_max);
+        limitMinInput.disabled = !!drv.running;
+        if (!limitMinInput.matches(':focus') && drv.soft_limit_min != null) {
+          limitMinInput.value = gimbalFormatLimitValue(drv, i, drv.soft_limit_min);
+        }
+      }
+      var limitMaxInput = document.getElementById('motorLimitMax_' + i);
+      if (limitMaxInput) {
+        limitMaxInput.step = gimbalLimitInputStep(drv, i);
+        if (drv.hard_limit_min != null) limitMaxInput.min = gimbalFormatLimitValue(drv, i, drv.hard_limit_min);
+        if (drv.hard_limit_max != null) limitMaxInput.max = gimbalFormatLimitValue(drv, i, drv.hard_limit_max);
+        limitMaxInput.disabled = !!drv.running;
+        if (!limitMaxInput.matches(':focus') && drv.soft_limit_max != null) {
+          limitMaxInput.value = gimbalFormatLimitValue(drv, i, drv.soft_limit_max);
+        }
+      }
+      var limitNote = document.getElementById('motorLimitNote_' + i);
+      if (limitNote) {
+        var limitNoteParts = [];
+        if (drv.hard_limit_min != null && drv.hard_limit_max != null) {
+          limitNoteParts.push('Hard ' + gimbalFormatLimitValue(drv, i, drv.hard_limit_min) + ' to ' + gimbalFormatLimitValue(drv, i, drv.hard_limit_max) + ' ' + (drv.limit_units || (isBelt ? 'steps' : 'deg')) + ' from zero');
+        }
+        limitNoteParts.push(drv.limits_enforced ? 'active' : 'waiting for trusted zero');
+        limitNote.textContent = limitNoteParts.join(' | ');
       }
 
       /* Sync current sliders (only if not being dragged) */
