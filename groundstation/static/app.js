@@ -1746,7 +1746,8 @@ function gimbalPoll() {
         card.id = 'driverCard_' + i;
         var driverName = drv.name || GIMBAL_DRIVER_NAMES[i] || ('Driver ' + i);
         var isBelt = (driverName.toLowerCase() === 'belt');
-        var rampMax = isBelt ? 5000 : 2000;
+        var isRoll = (driverName.toLowerCase() === 'roll');
+        var rampMax = (isBelt || isRoll) ? 5000 : 2000;
 
         var html = '';
         /* Header with toggle */
