@@ -31,7 +31,6 @@
 
 <header class="header">
   <div class="header-brand">
-    <div class="header-kicker">Groundstation Operator Console</div>
     <h1>GEO-DUDe Control</h1>
   </div>
   <div class="header-status">
@@ -153,19 +152,21 @@
     <section class="page-section" aria-labelledby="gimbalTitle">
       <h2 class="section-title" id="gimbalTitle">Gimbal</h2>
       <div class="wide-two-col">
-        <article class="card compact-wide-card">
-          <h3>Gimbal Controls</h3>
-          <div class="gimbal-global-bar">
-            <button type="button" class="btn btn-sm" onclick="gimbalSetup()">SETUP DRIVERS</button>
-            <button type="button" class="btn btn-sm btn-dark" onclick="gimbalScan()">SCAN</button>
-            <button type="button" class="btn btn-sm btn-red" onclick="gimbalStopAll()">STOP ALL</button>
-            <button type="button" class="btn-estop" onclick="gimbalEstop()">EMERGENCY STOP</button>
-          </div>
-          <div class="gimbal-global-status" id="gimbalStatus">Not connected</div>
-        </article>
+        <div class="gimbal-stack">
+          <article class="card compact-wide-card">
+            <h3>Gimbal Controls</h3>
+            <div class="gimbal-global-bar">
+              <button type="button" class="btn btn-sm" onclick="gimbalSetup()">SETUP DRIVERS</button>
+              <button type="button" class="btn btn-sm btn-dark" onclick="gimbalScan()">SCAN</button>
+              <button type="button" class="btn btn-sm btn-red" onclick="gimbalStopAll()">STOP ALL</button>
+              <button type="button" class="btn-estop" onclick="gimbalEstop()">EMERGENCY STOP</button>
+            </div>
+            <div class="gimbal-global-status" id="gimbalStatus">Not connected</div>
+          </article>
+
+        </div>
 
         <div id="gimbalDrivers"></div>
-
       </div>
     </section>
 
