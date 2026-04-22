@@ -2821,3 +2821,146 @@ input[type="range"]::-moz-range-thumb {
 .ch-item.servo-row-calibrating {
   border-color: #576573;
 }
+
+/* Semantic status colors and layout stability */
+.controller-arm-row .btn,
+.controller-toggle-row .btn {
+  flex: 1 1 0;
+}
+
+#cameraToggleBtn {
+  min-width: 8.5rem;
+}
+
+#controllerToggleBtn {
+  min-width: 14rem;
+}
+
+#armVizOrbitBtn {
+  min-width: 9rem;
+}
+
+.status-indicator {
+  min-width: 170px;
+  display: grid;
+  grid-template-columns: 11px minmax(104px, 1fr);
+  align-items: center;
+}
+
+.status-copy-value,
+.camera-toggle-label,
+.slider-label .value,
+.controller-stat .value,
+.sys-item .value,
+.mace-stat .value,
+.armviz-stat .value,
+.servo-chip-value,
+.ch-val,
+.servo-angle-readout,
+.motor-position,
+.gimbal-global-status,
+.seq-status,
+.servo-calib-capture-readout {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.status-copy-value {
+  display: block;
+  min-width: 8ch;
+}
+
+.slider-label {
+  grid-template-columns: minmax(0, 1fr) 20ch;
+}
+
+.controller-stat,
+.sys-item,
+.mace-stat,
+.armviz-stat {
+  grid-template-columns: minmax(0, 1fr) 12ch;
+}
+
+.armviz-stat {
+  display: grid;
+  align-items: start;
+}
+
+.controller-stat .value,
+.sys-item .value,
+.mace-stat .value,
+.armviz-stat .value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.servo-chip {
+  display: grid;
+  grid-template-columns: auto minmax(8ch, auto);
+  align-items: center;
+}
+
+.servo-chip-value {
+  min-width: 8ch;
+  text-align: right;
+}
+
+.ch-val {
+  display: inline-block;
+  min-width: 8ch;
+}
+
+.servo-angle-readout {
+  display: inline-block;
+  min-width: 10ch;
+}
+
+.gimbal-global-status,
+.mace-note,
+.seq-status,
+.servo-calib-capture-readout {
+  min-height: 1.4em;
+}
+
+.status-dot.ok {
+  background: #22c55e;
+}
+
+.status-dot.warn {
+  background: #f59e0b;
+}
+
+.camera-toggle-label {
+  color: #22c55e;
+}
+
+.btn-green {
+  background: #2f6a47;
+  border-color: #3c8558;
+  color: #f4fbf6;
+}
+
+.btn-green:hover {
+  background: #387d54;
+  border-color: #469866;
+}
+
+.btn-amber {
+  background: #7d6328;
+  border-color: #957735;
+  color: #fff8e5;
+}
+
+.btn-amber:hover {
+  background: #8f7230;
+  border-color: #a6843a;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background: #315741;
+}
+
+.toggle-switch input:checked + .toggle-slider:before {
+  background: #eef4f0;
+}
