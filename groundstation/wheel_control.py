@@ -449,6 +449,10 @@ _servo_speed_per_tick = SERVO_MAX_STEP_US_PER_TICK
 _servo_last_heartbeat = 0.0
 _servo_ramp_last_tick_mono = 0.0
 _servo_disarmed = False  # H2: reject /api/pwm after emergency stop
+# True once _servo_bootstrap_loop has confirmed every channel is either
+# live on GEO-DUDe or freshly seeded. Until then, in-memory targets may
+# have come from fallback paths and should not be captured as setpoints.
+_servo_bootstrap_complete = False
 _servo_state_lock = threading.Lock()
 _servo_seq_locks = {name: threading.Lock() for name in CHANNELS}  # C1/N1: per-channel seq locks, built at import
 
@@ -823,11 +827,36 @@ def setpoints_create():
         return jsonify({"ok": False, "error": "name required"}), 400
     if len(name) > 64:
         return jsonify({"ok": False, "error": "name too long (max 64)"}), 400
+    # Safety: refuse capture until bootstrap restore has completed. Before
+    # that, _servo_target_pw may hold values from the 1500us fallback path
+    # (if both servo_positions.json and servo_neutral.json were missing) or
+    # seeded-but-unconfirmed values. Snapshotting those and replaying them
+    # later would command hardware to unverified PW.
+    if not _servo_bootstrap_complete:
+        return jsonify({
+            "ok": False,
+            "error": "bootstrap not complete; wait a moment and try again",
+        }), 409
     with _servo_state_lock:
         targets = dict(_servo_target_pw)
     missing = [ch for ch in CHANNELS if ch not in targets or targets[ch] is None]
     if missing:
         return jsonify({"ok": False, "error": f"no target for: {','.join(missing)}"}), 409
+    # CRITICAL safety check: pw < 500 means PCA is emitting no PWM on that
+    # channel (pw=0 is how all_off kills output). A servo with power but no
+    # PWM has zero holding torque -- capturing that and replaying it later
+    # would relax the servo and drop the arm. Require every channel to have
+    # a valid pulse target before we allow the snapshot.
+    unpowered = [ch for ch in CHANNELS if int(targets[ch]) < 500]
+    if unpowered:
+        return jsonify({
+            "ok": False,
+            "error": (
+                "refusing to capture unpowered channels: "
+                + ",".join(unpowered)
+                + ". Drive every slider to a live position first."
+            ),
+        }), 409
     positions = {ch: int(targets[ch]) for ch in CHANNELS}
     entry = {
         "id": _new_setpoint_id(),
@@ -903,6 +932,20 @@ def setpoints_go(sid):
         return jsonify({
             "ok": False,
             "error": f"setpoint missing channels: {','.join(missing)}",
+        }), 409
+    # CRITICAL safety check: never drive any channel below the valid pulse
+    # window. pw<500 = PCA stops emitting PWM = servo relaxes under power =
+    # arm drops. Block here defensively even if the file was hand-edited
+    # or came from an older capture path.
+    unpowered = [ch for ch in CHANNELS if int(positions[ch]) < 500]
+    if unpowered:
+        return jsonify({
+            "ok": False,
+            "error": (
+                "setpoint contains unpowered channels ("
+                + ",".join(unpowered)
+                + "); refusing to drop the arm. Delete and re-capture."
+            ),
         }), 409
     with _servo_state_lock:
         if _servo_disarmed:
@@ -1629,10 +1672,12 @@ def _servo_bootstrap_loop():
     """Retry seed until GEO-DUDe answers and every channel is seeded.
     Handles the case where groundstation boots before GEO-DUDe (or
     vice versa). Sleeps 2s between attempts; exits on success."""
+    global _servo_bootstrap_complete
     attempt = 0
     while True:
         attempt += 1
         if _servo_bootstrap_seed_once():
+            _servo_bootstrap_complete = True
             print(f"[servo bootstrap] complete after {attempt} attempt(s)", flush=True)
             return
         time.sleep(2.0)
