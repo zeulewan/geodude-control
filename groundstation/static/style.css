@@ -2377,3 +2377,285 @@ select {
     flex: 1 1 0;
   }
 }
+
+/* Utility-focused flattening pass */
+:root {
+  --ui-bg: #10161b;
+  --ui-bg-alt: #10161b;
+  --ui-panel: #182028;
+  --ui-panel-strong: #182028;
+  --ui-panel-soft: #131a21;
+  --ui-border: #2a3642;
+  --ui-border-strong: #41505f;
+  --ui-text: #e7edf2;
+  --ui-text-soft: #b1bcc7;
+  --ui-text-muted: #8d9aa7;
+  --ui-accent: #78b7a0;
+  --ui-accent-cool: #8cb7da;
+  --ui-success: #82c690;
+  --ui-warn: #d1aa64;
+  --ui-danger: #c96f61;
+  --ui-danger-strong: #d97f71;
+  --ui-shadow: none;
+}
+
+body {
+  background: var(--ui-bg);
+}
+
+.header {
+  background: #141b21;
+  border-bottom-color: #26313b;
+  backdrop-filter: none;
+}
+
+.header-kicker {
+  color: #7f8b97;
+}
+
+.header h1 {
+  font-size: 24px;
+  letter-spacing: 0.01em;
+}
+
+.section-title {
+  margin: 16px 0 10px;
+  color: #778490;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+}
+
+.status-indicator,
+.servo-chip,
+.servo-calib-summary span,
+.driver-badge,
+.btn,
+button.btn,
+.btn-estop {
+  border-radius: 7px;
+}
+
+.status-indicator {
+  background: #1a232b;
+  border-color: #2a3642;
+}
+
+.status-dot {
+  box-shadow: none;
+}
+
+.card,
+.inner,
+.mace-stat,
+.armviz-stat,
+.driver-card,
+.driver-stats,
+.driver-debug,
+.ch-item,
+.servo-inline-guide,
+.servo-calib-panel,
+.servo-calib-capture-card,
+.armviz-geometry-block,
+.seq-table td {
+  background: #182028;
+  box-shadow: none;
+}
+
+.card,
+.inner,
+.mace-stat,
+.armviz-stat,
+.driver-card,
+.driver-stats,
+.driver-debug,
+.ch-item,
+.servo-inline-guide,
+.servo-calib-panel,
+.servo-calib-capture-card,
+.armviz-geometry-block,
+.seq-table td,
+.cam-wrapper {
+  border-color: #2a3642;
+  border-radius: 10px;
+}
+
+.card h3 {
+  margin-bottom: 10px;
+  color: #8a97a3;
+  letter-spacing: 0.12em;
+}
+
+.btn,
+button.btn {
+  min-height: 38px;
+  background: #31404d;
+  border-color: #31404d;
+  color: #edf2f6;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+  box-shadow: none;
+}
+
+.btn:hover,
+button.btn:hover {
+  transform: none;
+  filter: none;
+  background: #3a4b59;
+  border-color: #3a4b59;
+}
+
+.btn:active,
+button.btn:active {
+  transform: none;
+  opacity: 1;
+}
+
+.btn-dark {
+  background: #25313c;
+  border-color: #2e3a46;
+  color: #c2ccd5;
+}
+
+.btn-dark:hover {
+  background: #2d3944;
+  border-color: #374451;
+}
+
+.btn-green {
+  background: #4e7758;
+  border-color: #4e7758;
+  color: #f3f8f4;
+}
+
+.btn-green:hover {
+  background: #5a8864;
+  border-color: #5a8864;
+}
+
+.btn-red {
+  background: #8d4a43;
+  border-color: #8d4a43;
+  color: #fff5f3;
+}
+
+.btn-red:hover {
+  background: #9a534c;
+  border-color: #9a534c;
+}
+
+.btn-amber {
+  background: #8c7240;
+  border-color: #8c7240;
+  color: #fff9eb;
+}
+
+.btn-amber:hover {
+  background: #9b7f49;
+  border-color: #9b7f49;
+}
+
+.btn-estop {
+  min-height: 38px;
+  padding: 8px 18px;
+  background: #a24f45;
+  border: 1px solid #a24f45;
+  color: #fff4f1;
+  letter-spacing: 0.08em;
+  animation: none;
+  box-shadow: none;
+}
+
+.btn-estop:hover {
+  background: #af584d;
+  border-color: #af584d;
+}
+
+input[type="range"] {
+  height: 6px;
+  background: #293540;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  width: 18px;
+  height: 18px;
+  border: 1px solid #10161b;
+  background: #8fbca9;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border: 1px solid #10161b;
+  background: #8fbca9;
+}
+
+input[type="number"],
+select {
+  border-radius: 8px;
+  background: #141b21;
+  border-color: #2e3a46;
+}
+
+.driver-stats,
+.driver-debug,
+.servo-inline-guide,
+.servo-calib-panel,
+.servo-calib-capture-card,
+.armviz-note {
+  background: #141b21;
+}
+
+.driver-name,
+.ch-name,
+.ch-val,
+.motor-position,
+.status-copy-value {
+  color: #edf2f6;
+}
+
+.mace-note,
+.controller-help,
+.servo-panel-note,
+.armviz-note,
+.armviz-geometry-subtitle,
+.motor-position-note,
+.gear-info,
+.seq-status,
+.gimbal-global-status,
+.servo-inline-guide-copy,
+.servo-calib-subtitle,
+.servo-calib-capture-readout {
+  color: #adb8c3;
+}
+
+.driver-debug,
+.servo-angle-readout {
+  color: #8cb7da;
+}
+
+.ch-item:hover {
+  transform: none;
+  border-color: #394755;
+}
+
+.ch-item.servo-row-calibrating {
+  border-color: #6b7d8f;
+  box-shadow: none;
+}
+
+.servo-calib-panel {
+  border-color: #34414d;
+}
+
+.armviz-canvas {
+  background: #121921;
+  border-radius: 10px;
+}
+
+.armviz-note {
+  border-color: #2f3b46;
+  color: #adb8c3;
+}
+
+.cam-wrapper {
+  background: #0b1014;
+}
