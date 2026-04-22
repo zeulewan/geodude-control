@@ -114,8 +114,16 @@ def load_neutral():
         return {}
 
 def save_neutral(data):
-    with open(NEUTRAL_FILE, "w") as f:
+    # Atomic write: power loss during a direct `open("w")` could truncate
+    # servo_neutral.json, and the boot guard then refuses to start the
+    # service. Write to a temp file and os.replace(). Matches the pattern
+    # save_positions() already uses.
+    tmp = f"{NEUTRAL_FILE}.{os.getpid()}.tmp"
+    with open(tmp, "w") as f:
         json.dump(data, f)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, NEUTRAL_FILE)
 
 servo_neutral = load_neutral()
 if os.path.exists(NEUTRAL_FILE) and not servo_neutral:
