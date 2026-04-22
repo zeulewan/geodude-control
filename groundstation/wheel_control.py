@@ -3,6 +3,7 @@ import threading
 import time
 import json
 import os
+import urllib.error
 import urllib.request
 
 app = Flask(__name__)
@@ -1141,6 +1142,21 @@ def gimbal_get(path):
     try:
         resp = urllib.request.urlopen(f"{GIMBAL_URL}/{path}", timeout=3)
         return json.loads(resp.read().decode()), resp.status
+    except urllib.error.HTTPError as e:
+        try:
+            body = e.read().decode().strip()
+        except Exception:
+            body = ""
+        if body:
+            try:
+                data = json.loads(body)
+            except Exception:
+                data = {"error": body}
+        else:
+            data = {"error": str(e)}
+        if "error" not in data:
+            data["error"] = str(e)
+        return data, e.code
     except Exception as e:
         return {"error": str(e)}, 502
 
