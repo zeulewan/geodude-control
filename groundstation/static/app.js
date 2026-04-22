@@ -79,6 +79,26 @@ var chActual = {};  // actual PWM value sent to hardware per channel
 var chNeutral = {};
 var chNeutralLoaded = false;
 
+/* Per-channel joint calibration hydrated from /api/joint_calibration.
+   Shape per channel:
+     { us_per_rad, sign, neutral_angle_rad, min_angle_rad, max_angle_rad }
+   pwToAngleRad() returns null until this loads -- callers treat null
+   as "don't render an angle yet" (display '-'), not as 0. */
+var jointCal = {};
+var jointCalLoaded = false;
+
+function pwToAngleRad(name, pw) {
+  if (!jointCalLoaded) return null;
+  var cal = jointCal[name];
+  var neutral = chNeutral[name];
+  if (!cal || neutral == null || !cal.us_per_rad) return null;
+  var base = cal.neutral_angle_rad != null ? cal.neutral_angle_rad : 0;
+  return base + (pw - neutral) / cal.us_per_rad * (cal.sign || 1);
+}
+
+function radToDeg(r) { return r * 180 / Math.PI; }
+function degToRad(d) { return d * Math.PI / 180; }
+
 var controllerStatus = {enabled: false};
 
 /* Minimal IK stubs - the IK UI was removed but the arm workspace viz still reads ikStatus for arm geometry. */
@@ -340,7 +360,10 @@ function armVizSliderAngles(side) {
       angles[jointName] = 0;
       return;
     }
-    var angle = ((pwm - neutral) / joint.us_per_rad) * joint.sign;
+    // angle = neutral_angle_rad + (pw - neutral_pw)/us_per_rad * sign
+    // neutral_angle_rad defaults to 0 for old configs that don't carry it.
+    var base = joint.neutral_angle_rad != null ? joint.neutral_angle_rad : 0;
+    var angle = base + ((pwm - neutral) / joint.us_per_rad) * joint.sign;
     if (joint.min_angle != null) angle = Math.max(joint.min_angle, angle);
     if (joint.max_angle != null) angle = Math.min(joint.max_angle, angle);
     angles[jointName] = angle;
@@ -887,6 +910,11 @@ function usToDuty(us) {
 function chUpdateLabel(name, val) {
   var el = document.getElementById('chv_' + name);
   if (el) el.textContent = val + ' us (' + usToDuty(val) + '%)';
+  var angleEl = document.getElementById('changle_' + name);
+  if (angleEl) {
+    var rad = pwToAngleRad(name, parseInt(val));
+    angleEl.textContent = rad == null ? '-' : radToDeg(rad).toFixed(1) + '°';
+  }
 }
 
 function chSendPwm(name, val) {
@@ -1116,6 +1144,7 @@ function preventSliderJump(slider) {
       '<button class="btn btn-sm btn-red" onclick="chSetNeutral(&quot;' + name + '&quot;)" title="Save current position as neutral">Set Neutral</button>' +
       '<span style="font-size:11px;color:#6b7280;margin-left:4px;">N: <span id="chn_' + name + '">' + neutralVal + ' us</span></span>' +
       '<span id="chhw_' + name + '" style="font-size:11px;color:#6b7280;margin-left:8px;">HW: -</span>' +
+      '<span id="changle_' + name + '" style="font-size:11px;color:#2563eb;margin-left:8px;font-family:\'SF Mono\',monospace;">-</span>' +
       '</div>';
     grid.appendChild(item);
 
@@ -1125,6 +1154,155 @@ function preventSliderJump(slider) {
     }, 0);
   });
 })();
+
+/* ========== Joint Calibration UI ========== */
+var calibCaptures = {};  // { name: {pw_A, angle_A_deg, pw_B, angle_B_deg} }
+
+function calibEnsureCh(name) {
+  if (!calibCaptures[name]) calibCaptures[name] = {};
+  return calibCaptures[name];
+}
+
+function calibCaptureA(name) {
+  var slider = document.getElementById('ch_' + name);
+  var angInp = document.getElementById('calibAngA_' + name);
+  if (!slider || !angInp) return;
+  var deg = parseFloat(angInp.value);
+  if (isNaN(deg)) { alert('Enter angle A (degrees) first'); return; }
+  var c = calibEnsureCh(name);
+  c.pw_A = parseInt(slider.value);
+  c.angle_A_deg = deg;
+  renderCalibrationPanel();
+}
+
+function calibCaptureB(name) {
+  var slider = document.getElementById('ch_' + name);
+  var angInp = document.getElementById('calibAngB_' + name);
+  if (!slider || !angInp) return;
+  var deg = parseFloat(angInp.value);
+  if (isNaN(deg)) { alert('Enter angle B (degrees) first'); return; }
+  var c = calibEnsureCh(name);
+  c.pw_B = parseInt(slider.value);
+  c.angle_B_deg = deg;
+  renderCalibrationPanel();
+}
+
+function calibSolve(name) {
+  var c = calibCaptures[name];
+  if (!c || c.pw_A == null || c.pw_B == null) {
+    alert('Capture both A and B first');
+    return;
+  }
+  fetch('/api/joint_calibration/solve', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      channel: name,
+      pw_A: c.pw_A, angle_A_rad: degToRad(c.angle_A_deg),
+      pw_B: c.pw_B, angle_B_rad: degToRad(c.angle_B_deg),
+    })
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (!d.ok) { alert('Solve failed: ' + (d.error || 'unknown')); return; }
+    jointCal[name] = d.calibration;
+    delete calibCaptures[name];
+    renderCalibrationPanel();
+    // Update live angle labels with the new calibration.
+    chOrder.forEach(function(n) {
+      if (n === 'MACE') return;
+      var slider = document.getElementById('ch_' + n);
+      if (slider) chUpdateLabel(n, slider.value);
+    });
+  }).catch(function(e) { alert('Solve request failed: ' + e); });
+}
+
+function calibReset(name) {
+  delete calibCaptures[name];
+  renderCalibrationPanel();
+}
+
+function calibPatch(name, field, value) {
+  var body = {channel: name};
+  body[field] = value;
+  fetch('/api/joint_calibration', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (!d.ok) { alert('Update failed: ' + (d.error || 'unknown')); return; }
+    jointCal[name] = d.calibration;
+    renderCalibrationPanel();
+  });
+}
+
+function renderCalibrationPanel() {
+  var grid = document.getElementById('calibGrid');
+  if (!grid) return;
+  var rows = ['<table style="width:100%;border-collapse:collapse;font-size:12px;">',
+    '<thead><tr style="text-align:left;color:#6b7280;border-bottom:1px solid #e5e7eb;">',
+    '<th style="padding:4px 6px;">Ch</th>',
+    '<th style="padding:4px 6px;">Current</th>',
+    '<th style="padding:4px 6px;">Angle A°</th>',
+    '<th style="padding:4px 6px;">Capture A</th>',
+    '<th style="padding:4px 6px;">Angle B°</th>',
+    '<th style="padding:4px 6px;">Capture B</th>',
+    '<th style="padding:4px 6px;">Solve</th>',
+    '<th style="padding:4px 6px;">us/rad</th>',
+    '<th style="padding:4px 6px;">sign</th>',
+    '<th style="padding:4px 6px;">neutral°</th>',
+    '<th style="padding:4px 6px;">min°</th>',
+    '<th style="padding:4px 6px;">max°</th>',
+    '</tr></thead><tbody>'];
+  chOrder.forEach(function(name) {
+    if (name === 'MACE') return;
+    var c = calibCaptures[name] || {};
+    var cal = jointCal[name] || {};
+    var neutralDeg = cal.neutral_angle_rad != null ? radToDeg(cal.neutral_angle_rad).toFixed(1) : '-';
+    var minDeg = cal.min_angle_rad != null ? radToDeg(cal.min_angle_rad).toFixed(1) : '';
+    var maxDeg = cal.max_angle_rad != null ? radToDeg(cal.max_angle_rad).toFixed(1) : '';
+    var capAstr = c.pw_A != null ? (c.pw_A + 'us @ ' + c.angle_A_deg + '°') : '-';
+    var capBstr = c.pw_B != null ? (c.pw_B + 'us @ ' + c.angle_B_deg + '°') : '-';
+    rows.push(
+      '<tr style="border-bottom:1px solid #f3f4f6;">' +
+      '<td style="padding:4px 6px;font-weight:600;">' + name + '</td>' +
+      '<td style="padding:4px 6px;"><span id="calibCur_' + name + '">-</span></td>' +
+      '<td style="padding:4px 6px;"><input type="number" step="1" id="calibAngA_' + name + '" style="width:60px;"></td>' +
+      '<td style="padding:4px 6px;"><button class="btn btn-sm" onclick="calibCaptureA(\'' + name + '\')">A</button> <span style="color:#6b7280;">' + capAstr + '</span></td>' +
+      '<td style="padding:4px 6px;"><input type="number" step="1" id="calibAngB_' + name + '" style="width:60px;"></td>' +
+      '<td style="padding:4px 6px;"><button class="btn btn-sm" onclick="calibCaptureB(\'' + name + '\')">B</button> <span style="color:#6b7280;">' + capBstr + '</span></td>' +
+      '<td style="padding:4px 6px;"><button class="btn btn-sm btn-green" onclick="calibSolve(\'' + name + '\')">Solve</button> <button class="btn btn-sm" onclick="calibReset(\'' + name + '\')" title="Clear captures">×</button></td>' +
+      '<td style="padding:4px 6px;">' + (cal.us_per_rad != null ? cal.us_per_rad.toFixed(1) : '-') + '</td>' +
+      '<td style="padding:4px 6px;">' + (cal.sign != null ? (cal.sign > 0 ? '+' : '−') : '-') + '</td>' +
+      '<td style="padding:4px 6px;">' + neutralDeg + '</td>' +
+      '<td style="padding:4px 6px;"><input type="number" step="1" value="' + minDeg + '" style="width:55px;" onchange="calibPatch(\'' + name + '\', \'min_angle_rad\', this.value === \'\' ? null : degToRad(parseFloat(this.value)))"></td>' +
+      '<td style="padding:4px 6px;"><input type="number" step="1" value="' + maxDeg + '" style="width:55px;" onchange="calibPatch(\'' + name + '\', \'max_angle_rad\', this.value === \'\' ? null : degToRad(parseFloat(this.value)))"></td>' +
+      '</tr>'
+    );
+  });
+  rows.push('</tbody></table>');
+  grid.innerHTML = rows.join('');
+  // Update the "Current" cells with live angle from slider position.
+  chOrder.forEach(function(name) {
+    if (name === 'MACE') return;
+    var slider = document.getElementById('ch_' + name);
+    var curEl = document.getElementById('calibCur_' + name);
+    if (!slider || !curEl) return;
+    var rad = pwToAngleRad(name, parseInt(slider.value));
+    curEl.textContent = slider.value + 'us (' + (rad == null ? '-' : radToDeg(rad).toFixed(1) + '°') + ')';
+  });
+}
+
+// Refresh the "current angle" column in the calib panel every 500ms.
+setInterval(function() {
+  if (!document.getElementById('calibGrid')) return;
+  chOrder.forEach(function(name) {
+    if (name === 'MACE') return;
+    var slider = document.getElementById('ch_' + name);
+    var curEl = document.getElementById('calibCur_' + name);
+    if (!slider || !curEl) return;
+    var rad = pwToAngleRad(name, parseInt(slider.value));
+    curEl.textContent = slider.value + 'us (' + (rad == null ? '-' : radToDeg(rad).toFixed(1) + '°') + ')';
+  });
+}, 500);
 
 /* ========== Polling ========== */
 function updateControllerUI(status) {
@@ -2058,6 +2236,17 @@ function seqRun() {
     /* Server unreachable. Leave chNeutralLoaded=false so getNeutral() returns
        null and Go to Neutral / STARTUP refuse to move anything. */
     console.error('[servo] failed to fetch /api/servo_neutral -- Go to Neutral/STARTUP disabled until next refresh');
+  });
+
+  /* Joint calibration (PW <-> angle). Failure is non-fatal: live angle
+     display just reads '-' and the arm viz falls back to pre-calibration
+     scaling. */
+  fetch('/api/joint_calibration').then(function(r) { return r.json(); }).then(function(cal) {
+    if (cal && typeof cal === 'object') jointCal = cal;
+    jointCalLoaded = true;
+    if (typeof renderCalibrationPanel === 'function') renderCalibrationPanel();
+  }).catch(function() {
+    console.error('[cal] failed to fetch /api/joint_calibration');
   });
 
   /* Fetch last-known servo positions from server. Safe even before neutrals
