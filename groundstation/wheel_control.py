@@ -181,6 +181,130 @@ def _load_servo_limits():
 servo_limits = _load_servo_limits()
 
 
+# --- Joint calibration (PW <-> angle mapping) ---
+#
+# Per-channel linear calibration:
+#   angle_rad = neutral_angle_rad + (pw - neutral_pw) / us_per_rad * sign
+#
+# neutral_pw lives in servo_neutral.json (rest pose). This file is the
+# separate concern of "what does PW mean physically":
+#   - us_per_rad: slope. 270deg servos over 500..2500us default to ~424.
+#   - sign: +1 or -1. Decided during 2-point calibration.
+#   - neutral_angle_rad: angle of the joint when PW = neutral_pw.
+#       Base / wrists: 0 (neutral is angle zero).
+#       Shoulder / Elbow: pi/2 (neutral is folded 90deg off the
+#         "fully extended" zero reference).
+#   - min_angle_rad / max_angle_rad: null = no clamp; set after measuring
+#     mechanical stops.
+#
+# Stored in groundstation/joint_calibration.json. Missing file = defaults.
+# Atomic writes. Bad file = log + fall back to defaults, never crash.
+import math
+JOINT_CAL_FILE = os.path.join(GROUNDSTATION_DIR, "joint_calibration.json")
+JOINT_CAL_FIELDS = ("us_per_rad", "sign", "neutral_angle_rad", "min_angle_rad", "max_angle_rad")
+
+
+def _default_joint_calibration():
+    """270deg servo over 500..2500us => 2000us / (3*pi/2) = ~424 us/rad.
+    Conventions per user:
+      - Base (B*) / Wrists (W*): neutral_angle_rad = 0
+      - Shoulder (S*) / Elbow (E*): neutral_angle_rad = pi/2
+    Signs default to +1; will flip during calibration if needed.
+    """
+    cal = {}
+    for name in CHANNELS:
+        if name.startswith("S") or name.startswith("E"):
+            nrad = math.pi / 2
+        else:
+            nrad = 0.0
+        cal[name] = {
+            "us_per_rad": 424.0,
+            "sign": 1,
+            "neutral_angle_rad": nrad,
+            "min_angle_rad": None,
+            "max_angle_rad": None,
+        }
+    return cal
+
+
+def _sanitize_joint_cal_entry(raw, fallback):
+    """Merge a user-supplied entry onto a default, with type/range guards.
+    Invalid fields fall back silently to the default rather than crashing."""
+    out = dict(fallback)
+    if not isinstance(raw, dict):
+        return out
+    try:
+        if "us_per_rad" in raw:
+            v = float(raw["us_per_rad"])
+            if 1.0 <= v <= 100000.0:
+                out["us_per_rad"] = v
+        if "sign" in raw:
+            s = int(raw["sign"])
+            if s in (-1, 1):
+                out["sign"] = s
+        if "neutral_angle_rad" in raw:
+            v = float(raw["neutral_angle_rad"])
+            if -10.0 <= v <= 10.0:
+                out["neutral_angle_rad"] = v
+        for k in ("min_angle_rad", "max_angle_rad"):
+            if k in raw:
+                v = raw[k]
+                if v is None:
+                    out[k] = None
+                else:
+                    v = float(v)
+                    if -10.0 <= v <= 10.0:
+                        out[k] = v
+    except (TypeError, ValueError):
+        pass
+    return out
+
+
+def load_joint_calibration():
+    defaults = _default_joint_calibration()
+    try:
+        with open(JOINT_CAL_FILE) as f:
+            user = json.load(f)
+    except FileNotFoundError:
+        return defaults
+    except Exception as e:
+        print(f"[cal] joint_calibration.json parse failed, using defaults: {e}", flush=True)
+        return defaults
+    out = {}
+    for name in CHANNELS:
+        out[name] = _sanitize_joint_cal_entry(
+            (user or {}).get(name), defaults[name]
+        )
+    return out
+
+
+def save_joint_calibration(data):
+    # Atomic: temp + fsync + os.replace. Matches save_neutral/save_positions.
+    tmp = f"{JOINT_CAL_FILE}.{os.getpid()}.tmp"
+    with open(tmp, "w") as f:
+        json.dump(data, f, indent=2, sort_keys=True)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, JOINT_CAL_FILE)
+
+
+joint_calibration = load_joint_calibration()
+_joint_cal_lock = threading.Lock()
+
+
+def _pw_to_angle_rad(name, pw):
+    """Convert PW to joint angle. Returns None if the channel is unknown
+    or calibration is degenerate."""
+    cal = joint_calibration.get(name)
+    neutral_pw = servo_neutral.get(name)
+    if not cal or neutral_pw is None:
+        return None
+    us_per_rad = cal.get("us_per_rad")
+    if not us_per_rad or us_per_rad <= 0:
+        return None
+    return cal["neutral_angle_rad"] + (pw - neutral_pw) / us_per_rad * cal["sign"]
+
+
 def _clamp_to_envelope(name, pw):
     """Clamp a requested pw to the channel's envelope. pw=0 (off) passes through."""
     if pw == 0:
@@ -638,6 +762,146 @@ def servo_limits_route():
     """Per-channel {min, max} PW envelope. The UI uses this to set slider
     bounds so a user can never drag outside a mechanically-safe range."""
     return jsonify(servo_limits)
+
+
+@app.route('/api/joint_calibration')
+def joint_calibration_route():
+    """Per-channel linear calibration: us_per_rad, sign, neutral_angle_rad,
+    min/max_angle_rad. UI and arm viz use this to convert PW <-> angle."""
+    with _joint_cal_lock:
+        return jsonify(dict(joint_calibration))
+
+
+@app.route('/api/joint_calibration', methods=['POST'])
+def joint_calibration_update():
+    """Update one channel's calibration fields. Body:
+    {"channel": "B1", "us_per_rad": 420, "sign": 1,
+     "neutral_angle_rad": 0, "min_angle_rad": -1.5, "max_angle_rad": 1.5}
+    Any subset is accepted; missing fields keep their current values.
+    Invalid values are silently ignored (logged server-side)."""
+    data = request.json or {}
+    name = str(data.get("channel", "")).upper()
+    if name not in CHANNELS:
+        return jsonify({"ok": False, "error": f"unknown channel: {name}"}), 400
+    with _joint_cal_lock:
+        current = joint_calibration.get(name) or _default_joint_calibration()[name]
+        merged = _sanitize_joint_cal_entry(data, current)
+        joint_calibration[name] = merged
+        snapshot = dict(joint_calibration)
+    try:
+        save_joint_calibration(snapshot)
+    except Exception as e:
+        print(f"[cal] save failed: {e}", flush=True)
+        return jsonify({"ok": False, "error": "save failed"}), 500
+    return jsonify({"ok": True, "channel": name, "calibration": merged})
+
+
+@app.route('/api/joint_calibration/solve', methods=['POST'])
+def joint_calibration_solve():
+    """Two-point calibration solver. Body:
+    {"channel": "B1", "pw_A": 1000, "angle_A_rad": 0,
+                      "pw_B": 2000, "angle_B_rad": 1.5708}
+    Computes us_per_rad, sign, neutral_angle_rad from the two points and
+    this channel's current servo_neutral[name]. Saves via the same atomic
+    write. Does NOT touch min/max_angle_rad -- user sets those separately."""
+    data = request.json or {}
+    name = str(data.get("channel", "")).upper()
+    if name not in CHANNELS:
+        return jsonify({"ok": False, "error": f"unknown channel: {name}"}), 400
+    try:
+        pw_a = float(data["pw_A"])
+        pw_b = float(data["pw_B"])
+        ang_a = float(data["angle_A_rad"])
+        ang_b = float(data["angle_B_rad"])
+    except (KeyError, TypeError, ValueError):
+        return jsonify({"ok": False, "error": "need pw_A, pw_B, angle_A_rad, angle_B_rad"}), 400
+    dpw = pw_b - pw_a
+    dang = ang_b - ang_a
+    if abs(dang) < 1e-4:
+        return jsonify({"ok": False, "error": "angle_A and angle_B must differ"}), 400
+    if abs(dpw) < 1.0:
+        return jsonify({"ok": False, "error": "pw_A and pw_B must differ"}), 400
+    # Solve: angle = neutral_angle + (pw - neutral_pw)/us_per_rad * sign
+    # Pick us_per_rad > 0 and fold direction into sign.
+    us_per_rad = abs(dpw / dang)
+    sign = 1 if (dpw * dang) > 0 else -1
+    neutral_pw = servo_neutral.get(name)
+    if neutral_pw is None:
+        return jsonify({"ok": False, "error": f"no neutral for {name}; set one first"}), 400
+    neutral_angle = ang_a + (neutral_pw - pw_a) / us_per_rad * sign
+    with _joint_cal_lock:
+        current = joint_calibration.get(name) or _default_joint_calibration()[name]
+        merged = dict(current)
+        merged["us_per_rad"] = us_per_rad
+        merged["sign"] = sign
+        merged["neutral_angle_rad"] = neutral_angle
+        joint_calibration[name] = merged
+        snapshot = dict(joint_calibration)
+    try:
+        save_joint_calibration(snapshot)
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"save failed: {e}"}), 500
+    return jsonify({
+        "ok": True, "channel": name,
+        "us_per_rad": us_per_rad, "sign": sign,
+        "neutral_angle_rad": neutral_angle,
+        "calibration": merged,
+    })
+
+
+def _joint_config_for_armviz():
+    """Shape the calibration the way the viz expects:
+    config.arms[side].joints[joint_name] = {us_per_rad, sign,
+                                            neutral_angle_rad,
+                                            min_angle, max_angle}.
+    Side 'left' = *1 channels; 'right' = *2 channels."""
+    mapping = {
+        "base":        "B",
+        "shoulder":    "S",
+        "elbow":       "E",
+        "wrist_roll":  "WA",  # W1A, W2A
+        "wrist_pitch": "WB",  # W1B, W2B
+    }
+    def joints_for(suffix):
+        out = {}
+        with _joint_cal_lock:
+            cal_snap = dict(joint_calibration)
+        for jname, prefix in mapping.items():
+            if prefix == "WA":
+                ch = f"W{suffix}A"
+            elif prefix == "WB":
+                ch = f"W{suffix}B"
+            else:
+                ch = f"{prefix}{suffix}"
+            c = cal_snap.get(ch)
+            if not c:
+                continue
+            out[jname] = {
+                "channel": ch,
+                "us_per_rad": c["us_per_rad"],
+                "sign": c["sign"],
+                "neutral_angle_rad": c["neutral_angle_rad"],
+                "min_angle": c["min_angle_rad"],
+                "max_angle": c["max_angle_rad"],
+            }
+        return out
+    return {
+        "config": {
+            "arms": {
+                "left":  {"joints": joints_for("1")},
+                "right": {"joints": joints_for("2")},
+            }
+        }
+    }
+
+
+@app.route('/api/ik/status')
+def ik_status_route():
+    """Arm geometry + joint calibration, shaped for the arm viz. Replaces
+    the earlier stub that 404'd and left the viz falling back to a
+    hardcoded (wrong) scaling."""
+    return jsonify(_joint_config_for_armviz())
+
 
 @app.route('/api/arm', methods=['POST'])
 def servo_arm():
