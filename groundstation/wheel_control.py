@@ -1116,18 +1116,28 @@ def _action_state_snapshot():
 
 
 def _action_apply_setpoint(positions):
-    """Write a setpoint's positions into _servo_target_pw. Returns True on
-    success, False if disarmed."""
+    """Write a setpoint's positions into _servo_target_pw. Returns
+    (True, None) on success, (False, reason) on refusal. Callers
+    should freeze-to-actual on refusal so a partial apply can't
+    strand the arm.
+
+    Belt-and-suspenders: re-checks pw >= 500 per channel even though
+    _validate_setpoint_for_playback catches it upstream. Any path that
+    calls this directly still gets the no-arm-drop guarantee."""
     global _servo_last_heartbeat
+    for ch in CHANNELS:
+        pw = int(positions[ch])
+        if pw < 500 or pw > 2500:
+            return False, f"channel {ch} pw={pw} outside 500..2500 (would drop arm)"
     with _servo_state_lock:
         if _servo_disarmed:
-            return False
+            return False, "disarmed"
         for ch in CHANNELS:
-            pw = max(0, min(2500, int(positions[ch])))
+            pw = max(500, min(2500, int(positions[ch])))
             pw = _clamp_to_envelope(ch, pw)
             _servo_target_pw[ch] = pw
         _servo_last_heartbeat = time.monotonic()
-    return True
+    return True, None
 
 
 def _action_wait_arrival(deadline):
@@ -1212,9 +1222,10 @@ def _action_playback_worker(action):
                 return
 
             set_state(step_index=idx, phase="running")
-            if not _action_apply_setpoint(sp["positions"]):
+            applied, apply_err = _action_apply_setpoint(sp["positions"])
+            if not applied:
                 _action_freeze_to_actual()
-                set_state(phase="error", error="disarmed mid-action")
+                set_state(phase="error", error=apply_err or "apply failed")
                 return
 
             result = _action_wait_arrival(time.monotonic() + ACTION_ARRIVAL_TIMEOUT_S)
@@ -1228,8 +1239,16 @@ def _action_playback_worker(action):
                 return
 
             if step["breakpoint"]:
-                set_state(phase="waiting-breakpoint")
                 _action_continue_flag.clear()
+                # Re-check stop AFTER clearing continue. Otherwise a /stop
+                # that had set both flags in the narrow window between
+                # arrival and this clear would look ignored for up to one
+                # poll interval.
+                if _action_stop_flag.is_set():
+                    _action_freeze_to_actual()
+                    set_state(phase="stopped")
+                    return
+                set_state(phase="waiting-breakpoint")
                 # Keep heartbeat fresh so the ramp (at rest) doesn't
                 # hit the watchdog while we sit at the breakpoint.
                 while not _action_continue_flag.is_set():
@@ -1353,8 +1372,12 @@ def actions_update(aid):
 
 @app.route('/api/actions/<aid>', methods=['DELETE'])
 def actions_delete(aid):
-    if _action_state.get("running") and _action_state.get("action_id") == aid:
-        return jsonify({"ok": False, "error": "this action is playing; stop it first"}), 409
+    # Block delete while ANY action is playing, not just this one. Rationale:
+    # deleting action B removes its setpoint references, which might then
+    # unblock deletion of setpoints that action A (the one playing) depends
+    # on. Forcing a stop first sidesteps the cascade.
+    if _action_state.get("running"):
+        return jsonify({"ok": False, "error": "an action is playing; stop it first"}), 409
     with _actions_lock:
         before = len(servo_actions)
         servo_actions[:] = [a for a in servo_actions if a["id"] != aid]
@@ -1388,7 +1411,11 @@ def actions_play(aid):
             action = next((a for a in servo_actions if a["id"] == aid), None)
             if action is None:
                 return jsonify({"ok": False, "error": "not found"}), 404
-            action_copy = dict(action)
+            # Deep copy so later in-place mutations to servo_actions (via
+            # PATCH) can't be observed mid-playback. dict() alone would
+            # share the nested steps list.
+            import copy as _copy
+            action_copy = _copy.deepcopy(action)
         _action_stop_flag.clear()
         _action_continue_flag.clear()
 
