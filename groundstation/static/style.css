@@ -2659,3 +2659,165 @@ select {
 .cam-wrapper {
   background: #0b1014;
 }
+
+/* Professional neutral pass */
+:root {
+  --ui-accent: #7f93a6;
+  --ui-accent-cool: #97aabd;
+  --ui-success: #8fa2b5;
+  --ui-warn: #b99a63;
+}
+
+.status-indicator,
+.servo-chip,
+.servo-calib-summary span,
+.driver-badge,
+.btn,
+button.btn,
+.btn-estop,
+.card,
+.inner,
+.mace-stat,
+.armviz-stat,
+.driver-card,
+.driver-stats,
+.driver-debug,
+.ch-item,
+.servo-inline-guide,
+.servo-calib-panel,
+.servo-calib-capture-card,
+.armviz-geometry-block,
+.seq-table td,
+.cam-wrapper,
+.armviz-canvas,
+input[type="number"],
+select,
+.angle-btns .btn,
+.step-btns .btn {
+  border-radius: 0;
+}
+
+.status-dot {
+  border-radius: 1px;
+}
+
+.status-dot.ok {
+  background: #8fa2b5;
+}
+
+.camera-toggle-label {
+  color: #b7c4cf;
+}
+
+.btn,
+button.btn {
+  background: #35414d;
+  border-color: #3a4652;
+  color: #edf2f6;
+}
+
+.btn:hover,
+button.btn:hover {
+  background: #404d59;
+  border-color: #465461;
+}
+
+.btn-dark {
+  background: #232d36;
+  border-color: #313d48;
+  color: #c4ced7;
+}
+
+.btn-dark:hover {
+  background: #2a3540;
+  border-color: #394652;
+}
+
+.btn-green {
+  background: #4a5866;
+  border-color: #556473;
+  color: #edf2f6;
+}
+
+.btn-green:hover {
+  background: #556473;
+  border-color: #607080;
+}
+
+.btn-amber {
+  background: #4a5866;
+  border-color: #556473;
+  color: #edf2f6;
+}
+
+.btn-amber:hover {
+  background: #556473;
+  border-color: #607080;
+}
+
+.btn-red {
+  background: #7e4741;
+  border-color: #8b5049;
+}
+
+.btn-red:hover {
+  background: #8a514a;
+  border-color: #975b53;
+}
+
+.btn-estop {
+  background: #964b42;
+  border-color: #a5574d;
+  letter-spacing: 0.05em;
+}
+
+.btn-estop:hover {
+  background: #a5574d;
+  border-color: #b26156;
+}
+
+input[type="range"] {
+  background: #2c3742;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  border-radius: 0;
+  background: #96a7b8;
+}
+
+input[type="range"]::-moz-range-thumb {
+  border-radius: 0;
+  background: #96a7b8;
+}
+
+.toggle-slider {
+  border-radius: 0;
+  background: #303b46;
+}
+
+.toggle-slider:before {
+  border-radius: 0;
+  background: #778592;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background: #5d7082;
+}
+
+.toggle-switch input:checked + .toggle-slider:before {
+  background: #e8eef3;
+}
+
+.mace-btn-row .btn.active {
+  box-shadow: none;
+  border-color: #7d90a3;
+}
+
+.driver-debug,
+.servo-angle-readout {
+  color: #9aacbe;
+}
+
+.ch-item.servo-row-calibrating {
+  border-color: #576573;
+}
