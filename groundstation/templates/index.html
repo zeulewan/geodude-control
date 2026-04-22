@@ -9,8 +9,8 @@
 </head>
 <body>
 {% set header_statuses = [
-  ('statusDot', 'Primary Link', 'statusText', 'GEO-DUDe'),
-  ('gimbalDot', 'Motion Bus', 'gimbalDotText', 'Gimbal')
+  ('statusDot', 'statusText', 'GEO-DUDe'),
+  ('gimbalDot', 'gimbalDotText', 'Gimbal')
 ] %}
 {% set gyro_axes = [
   ('X', 'red', 'gx'),
@@ -68,11 +68,10 @@
     <h1>GEO-DUDe Control</h1>
   </div>
   <div class="header-status">
-    {% for dot_id, label, value_id, default_value in header_statuses %}
+    {% for dot_id, value_id, default_value in header_statuses %}
     <div class="status-indicator">
       <div class="status-dot" id="{{ dot_id }}"></div>
       <div class="status-copy">
-        <span class="status-copy-label">{{ label }}</span>
         <span class="status-copy-value" id="{{ value_id }}">{{ default_value }}</span>
       </div>
     </div>
