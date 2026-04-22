@@ -2013,6 +2013,35 @@ function gimbalLimitInputStep(drv, driver) {
   return gimbalUsesStepLimits(drv, driver) ? '1' : '0.1';
 }
 
+var gimbalLimitDrafts = {};
+
+function gimbalEnsureLimitDraft(driver) {
+  if (!gimbalLimitDrafts[driver]) {
+    gimbalLimitDrafts[driver] = {
+      minDirty: false,
+      maxDirty: false,
+      minValue: '',
+      maxValue: ''
+    };
+  }
+  return gimbalLimitDrafts[driver];
+}
+
+function gimbalLimitDraft(driver, field, value) {
+  var draft = gimbalEnsureLimitDraft(driver);
+  if (field === 'min') {
+    draft.minDirty = true;
+    draft.minValue = value;
+  } else if (field === 'max') {
+    draft.maxDirty = true;
+    draft.maxValue = value;
+  }
+}
+
+function gimbalClearLimitDraft(driver) {
+  delete gimbalLimitDrafts[driver];
+}
+
 function gimbalSetMotorLimits(driver) {
   var minEl = document.getElementById('motorLimitMin_' + driver);
   var maxEl = document.getElementById('motorLimitMax_' + driver);
@@ -2035,6 +2064,7 @@ function gimbalSetMotorLimits(driver) {
       gimbalPoll();
       return;
     }
+    gimbalClearLimitDraft(driver);
     gimbalPoll();
   }).catch(function(e) {
     document.getElementById('gimbalStatus').textContent = 'Limit error: ' + e;
@@ -2147,8 +2177,8 @@ function gimbalPoll() {
           html += '<div class="motor-limit-group">';
           html += '<div class="motor-position-label">Soft Limits</div>';
           html += '<div class="motor-limit-row">';
-          html += '<label class="motor-limit-field"><span>Min</span><input type="number" id="motorLimitMin_' + i + '" step="' + limitStep + '" value="' + limitMin + '"></label>';
-          html += '<label class="motor-limit-field"><span>Max</span><input type="number" id="motorLimitMax_' + i + '" step="' + limitStep + '" value="' + limitMax + '"></label>';
+          html += '<label class="motor-limit-field"><span>Min</span><input type="number" id="motorLimitMin_' + i + '" step="' + limitStep + '" value="' + limitMin + '" oninput="gimbalLimitDraft(' + i + ', &quot;min&quot;, this.value)"></label>';
+          html += '<label class="motor-limit-field"><span>Max</span><input type="number" id="motorLimitMax_' + i + '" step="' + limitStep + '" value="' + limitMax + '" oninput="gimbalLimitDraft(' + i + ', &quot;max&quot;, this.value)"></label>';
           html += '<button class="btn btn-sm btn-dark" id="motorLimitSaveBtn_' + i + '" onclick="gimbalSetMotorLimits(' + i + ')">APPLY</button>';
           html += '</div>';
           html += '<div class="motor-limit-note" id="motorLimitNote_' + i + '">Hard ' + hardMin + ' to ' + hardMax + ' ' + limitUnits + ' from zero</div>';
@@ -2179,8 +2209,8 @@ function gimbalPoll() {
           html += '<div class="motor-limit-group">';
           html += '<div class="motor-position-label">Soft Limits</div>';
           html += '<div class="motor-limit-row">';
-          html += '<label class="motor-limit-field"><span>Min</span><input type="number" id="motorLimitMin_' + i + '" step="' + limitStep + '" value="' + limitMin + '"></label>';
-          html += '<label class="motor-limit-field"><span>Max</span><input type="number" id="motorLimitMax_' + i + '" step="' + limitStep + '" value="' + limitMax + '"></label>';
+          html += '<label class="motor-limit-field"><span>Min</span><input type="number" id="motorLimitMin_' + i + '" step="' + limitStep + '" value="' + limitMin + '" oninput="gimbalLimitDraft(' + i + ', &quot;min&quot;, this.value)"></label>';
+          html += '<label class="motor-limit-field"><span>Max</span><input type="number" id="motorLimitMax_' + i + '" step="' + limitStep + '" value="' + limitMax + '" oninput="gimbalLimitDraft(' + i + ', &quot;max&quot;, this.value)"></label>';
           html += '<button class="btn btn-sm btn-dark" id="motorLimitSaveBtn_' + i + '" onclick="gimbalSetMotorLimits(' + i + ')">APPLY</button>';
           html += '</div>';
           html += '<div class="motor-limit-note" id="motorLimitNote_' + i + '">Hard ' + hardMin + ' to ' + hardMax + ' ' + limitUnits + ' from zero</div>';
@@ -2292,21 +2322,27 @@ function gimbalPoll() {
       }
       var limitMinInput = document.getElementById('motorLimitMin_' + i);
       if (limitMinInput) {
+        var limitDraft = gimbalEnsureLimitDraft(i);
         limitMinInput.step = gimbalLimitInputStep(drv, i);
         if (drv.hard_limit_min != null) limitMinInput.min = gimbalFormatLimitValue(drv, i, drv.hard_limit_min);
         if (drv.hard_limit_max != null) limitMinInput.max = gimbalFormatLimitValue(drv, i, drv.hard_limit_max);
         limitMinInput.disabled = !!drv.running;
-        if (!limitMinInput.matches(':focus') && drv.soft_limit_min != null) {
+        if (limitDraft.minDirty) {
+          limitMinInput.value = limitDraft.minValue;
+        } else if (!limitMinInput.matches(':focus') && drv.soft_limit_min != null) {
           limitMinInput.value = gimbalFormatLimitValue(drv, i, drv.soft_limit_min);
         }
       }
       var limitMaxInput = document.getElementById('motorLimitMax_' + i);
       if (limitMaxInput) {
+        var limitDraftMax = gimbalEnsureLimitDraft(i);
         limitMaxInput.step = gimbalLimitInputStep(drv, i);
         if (drv.hard_limit_min != null) limitMaxInput.min = gimbalFormatLimitValue(drv, i, drv.hard_limit_min);
         if (drv.hard_limit_max != null) limitMaxInput.max = gimbalFormatLimitValue(drv, i, drv.hard_limit_max);
         limitMaxInput.disabled = !!drv.running;
-        if (!limitMaxInput.matches(':focus') && drv.soft_limit_max != null) {
+        if (limitDraftMax.maxDirty) {
+          limitMaxInput.value = limitDraftMax.maxValue;
+        } else if (!limitMaxInput.matches(':focus') && drv.soft_limit_max != null) {
           limitMaxInput.value = gimbalFormatLimitValue(drv, i, drv.soft_limit_max);
         }
       }
