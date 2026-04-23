@@ -2147,12 +2147,16 @@ def _procedure_playback_worker(procedure):
             current_step += 1
             set_state(step_index=current_step, total_steps=total_steps, step_name="capture-gimbal-zero", phase="running", operator_prompt=None, cycle_index=0, total_cycles=total_cycles, error=None)
             for driver in procedure["gimbal_zero_drivers"]:
+                # Match the operator expectation of a "zero all" action:
+                # start all selected zero captures first, then wait on all of them.
+                # This keeps the axes zeroing together instead of serializing them.
                 _data, err = _procedure_gimbal_call(f"set_zero?d={driver}")
                 if err:
                     _action_freeze_to_actual()
                     _procedure_soft_abort_gimbal()
                     set_state(phase="error", error=f"set_zero driver {driver}: {err}")
                     return
+            for driver in procedure["gimbal_zero_drivers"]:
                 state_name = _procedure_driver_name(driver)
                 status, _drv, err = _procedure_wait_zero_arrival(driver, time.monotonic() + 5.0)
                 if status == "stopped":
@@ -2244,6 +2248,7 @@ def _procedure_playback_worker(procedure):
                 _procedure_soft_abort_gimbal()
                 set_state(phase="error", error=f"go_zero driver {driver}: {err}")
                 return
+        for driver in procedure["gimbal_zero_drivers"]:
             name = _procedure_driver_name(driver)
             status, _drv, err = _procedure_wait_zero_arrival(driver, time.monotonic() + PROCEDURE_GIMBAL_TIMEOUT_S)
             if status == "stopped":
