@@ -1833,27 +1833,39 @@ def _procedure_preflight(procedure):
     if err:
         return err
 
-    for driver in procedure["gimbal_zero_drivers"]:
+    needs_zero_capture, err = _procedure_resolve_zero_capture_needed(procedure, status)
+    if err:
+        return err
+    procedure["_needs_zero_capture"] = needs_zero_capture
+    return None
+
+
+def _procedure_resolve_zero_capture_needed(procedure, status):
+    zero_drivers = set(procedure.get("gimbal_zero_drivers") or [])
+    relevant_drivers = sorted(zero_drivers | set(_procedure_tumble_driver_indices()))
+    needs_zero_capture = False
+    missing_zero_drivers = []
+    for driver in relevant_drivers:
         drv, err = _procedure_gimbal_driver(status, driver)
         if err:
-            return err
-        allow_untrusted = True
-        err = _procedure_validate_gimbal_driver_ready(driver, drv, allow_untrusted=allow_untrusted)
-        if err:
-            return err
-
-    for spin_driver in _procedure_tumble_driver_indices():
-        drv, err = _procedure_gimbal_driver(status, spin_driver)
-        if err:
-            return err
+            return None, err
+        require_tumble = driver in _procedure_tumble_driver_indices()
         err = _procedure_validate_gimbal_driver_ready(
-            spin_driver, drv,
-            allow_untrusted=False,
-            require_tumble=True,
+            driver,
+            drv,
+            allow_untrusted=True,
+            require_tumble=require_tumble,
         )
         if err:
-            return err
-    return None
+            return None, err
+        if not drv.get("position_trusted"):
+            needs_zero_capture = True
+            if driver not in zero_drivers:
+                missing_zero_drivers.append(_procedure_driver_name(driver, drv))
+    if missing_zero_drivers:
+        names = ", ".join(missing_zero_drivers)
+        return None, f"{names} untrusted; add them to zero drivers or re-zero them first"
+    return needs_zero_capture, None
 
 
 def _procedure_validate_cycle_motion_ready(procedure):
@@ -2080,7 +2092,9 @@ def _procedure_wait_dwell(deadline):
 
 
 def _procedure_total_steps(procedure):
-    prelude = 5  # set-zero checkpoint, capture zero, spin checkpoint, tumble stop, gimbal go zero
+    prelude = 3  # spin checkpoint, tumble stop, gimbal go zero
+    if procedure.get("_needs_zero_capture"):
+        prelude += 2  # set-zero checkpoint, capture zero
     per_cycle = 6   # pose A, gantry approach, pose B, dwell, gantry home, neutral
     return prelude + procedure["repeat_count"] * per_cycle
 
@@ -2096,6 +2110,7 @@ def _procedure_playback_worker(procedure):
     total_steps = _procedure_total_steps(procedure)
     current_step = 0
     total_cycles = procedure["repeat_count"]
+    needs_zero_capture = bool(procedure.get("_needs_zero_capture"))
 
     set_state(
         running=True,
@@ -2112,48 +2127,49 @@ def _procedure_playback_worker(procedure):
     )
 
     try:
-        current_step += 1
-        result = _procedure_wait_checkpoint(
-            set_state,
-            current_step,
-            total_steps,
-            "set-gimbal-zero-pose",
-            "Physically set the gimbal zero pose, then Continue to capture it.",
-            cycle_index=0,
-            total_cycles=total_cycles,
-        )
-        if result == "stopped":
-            _action_freeze_to_actual()
-            _procedure_soft_abort_gimbal()
-            set_state(phase="stopped")
-            return
-
-        current_step += 1
-        set_state(step_index=current_step, total_steps=total_steps, step_name="capture-gimbal-zero", phase="running", operator_prompt=None, cycle_index=0, total_cycles=total_cycles, error=None)
-        for driver in procedure["gimbal_zero_drivers"]:
-            _data, err = _procedure_gimbal_call(f"set_zero?d={driver}")
-            if err:
-                _action_freeze_to_actual()
-                _procedure_soft_abort_gimbal()
-                set_state(phase="error", error=f"set_zero driver {driver}: {err}")
-                return
-            state_name = _procedure_driver_name(driver)
-            status, _drv, err = _procedure_wait_zero_arrival(driver, time.monotonic() + 5.0)
-            if status == "stopped":
+        if needs_zero_capture:
+            current_step += 1
+            result = _procedure_wait_checkpoint(
+                set_state,
+                current_step,
+                total_steps,
+                "set-gimbal-zero-pose",
+                "Physically set the gimbal zero pose, then Continue to capture it.",
+                cycle_index=0,
+                total_cycles=total_cycles,
+            )
+            if result == "stopped":
                 _action_freeze_to_actual()
                 _procedure_soft_abort_gimbal()
                 set_state(phase="stopped")
                 return
-            if status == "timeout":
-                _action_freeze_to_actual()
-                _procedure_soft_abort_gimbal()
-                set_state(phase="error", error=f"{state_name} zero capture timed out")
-                return
-            if status == "error":
-                _action_freeze_to_actual()
-                _procedure_soft_abort_gimbal()
-                set_state(phase="error", error=err or f"{state_name} zero capture failed")
-                return
+
+            current_step += 1
+            set_state(step_index=current_step, total_steps=total_steps, step_name="capture-gimbal-zero", phase="running", operator_prompt=None, cycle_index=0, total_cycles=total_cycles, error=None)
+            for driver in procedure["gimbal_zero_drivers"]:
+                _data, err = _procedure_gimbal_call(f"set_zero?d={driver}")
+                if err:
+                    _action_freeze_to_actual()
+                    _procedure_soft_abort_gimbal()
+                    set_state(phase="error", error=f"set_zero driver {driver}: {err}")
+                    return
+                state_name = _procedure_driver_name(driver)
+                status, _drv, err = _procedure_wait_zero_arrival(driver, time.monotonic() + 5.0)
+                if status == "stopped":
+                    _action_freeze_to_actual()
+                    _procedure_soft_abort_gimbal()
+                    set_state(phase="stopped")
+                    return
+                if status == "timeout":
+                    _action_freeze_to_actual()
+                    _procedure_soft_abort_gimbal()
+                    set_state(phase="error", error=f"{state_name} zero capture timed out")
+                    return
+                if status == "error":
+                    _action_freeze_to_actual()
+                    _procedure_soft_abort_gimbal()
+                    set_state(phase="error", error=err or f"{state_name} zero capture failed")
+                    return
 
         _status, _belt_drv, err = _procedure_validate_cycle_motion_ready(procedure)
         if err:
