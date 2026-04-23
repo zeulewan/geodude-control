@@ -164,9 +164,9 @@ simplefoc_jog_state = {
     "status": "idle",
     "error": None,
     "simplefoc_target": 0.0,
-    "max_voltage": 12.0,
-    "accel_ramp": 5.0,
-    "brake_ramp": 12.0,
+    "max_voltage": 24.0,
+    "accel_ramp": 2000.0,
+    "brake_ramp": 2000.0,
     "last_heartbeat": 0.0,
     "last_command_at": 0.0,
     "hold_token": None,
@@ -843,9 +843,9 @@ def simplefoc_jog_start_route():
     hold_token = _simplefoc_hold_token(data.get("hold_token"))
     if direction not in ("forward", "backward", "brake"):
         return jsonify({"ok": False, "error": "direction must be forward/backward/brake"}), 400
-    max_voltage = _simplefoc_jog_clamp_voltage(data.get("max_voltage", 12.0))
-    accel_ramp = _simplefoc_jog_clamp_ramp(data.get("accel_ramp", 5.0))
-    brake_ramp = _simplefoc_jog_clamp_ramp(data.get("brake_ramp", 12.0))
+    max_voltage = _simplefoc_jog_clamp_voltage(data.get("max_voltage", 24.0))
+    accel_ramp = _simplefoc_jog_clamp_ramp(data.get("accel_ramp", 2000.0))
+    brake_ramp = _simplefoc_jog_clamp_ramp(data.get("brake_ramp", 2000.0))
     try:
         _simplefoc_jog_start(direction, max_voltage, accel_ramp, brake_ramp, hold_token=hold_token)
     except Exception as exc:
