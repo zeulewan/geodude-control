@@ -3109,10 +3109,10 @@ function procedureSummary(proc) {
     return procedureDriverName(driver);
   });
   var zeroText = zeroDrivers.length ? zeroDrivers.join(', ') : 'none';
-  var spinText = proc.spin_tumble_driver == null ? 'manual only' : (procedureDriverName(proc.spin_tumble_driver) + ' (live gimbal settings)');
+  var spinText = proc.spin_tumble_driver == null ? '' : (' | auto tumble ' + procedureDriverName(proc.spin_tumble_driver) + ' (live gimbal settings)');
   return 'Zero ' + zeroText +
-    ' | spin ' + spinText +
     ' | Belt 0→' + String(proc.gantry_approach_steps) +
+    spinText +
     ' | dwell ' + String(proc.dwell_ms) + ' ms' +
     ' | x' + String(proc.repeat_count);
 }
@@ -3310,7 +3310,7 @@ function procedureEditorToggleZeroDriver(driver, checked) {
 }
 
 function procedureBuildSpinOptions(selected) {
-  var html = '<option value=""' + (selected == null ? ' selected' : '') + '>(manual only)</option>';
+  var html = '<option value=""' + (selected == null ? ' selected' : '') + '>(none)</option>';
   for (var i = 0; i < PROCEDURE_TUMBLE_DRIVERS.length; i++) {
     var driver = PROCEDURE_TUMBLE_DRIVERS[i];
     var sel = selected === driver ? ' selected' : '';
@@ -3353,11 +3353,11 @@ function procedureRenderEditor() {
       '<div class="procedure-driver-checks">' + procedureBuildZeroDriverChecks(st.gimbal_zero_drivers) + '</div>' +
     '</div>' +
     '<div class="action-editor-row">' +
-      '<label>Spin axis</label>' +
+      '<label>Auto tumble axis</label>' +
       '<select onchange="procedureEditorSetSpinDriver(this.value)">' + procedureBuildSpinOptions(st.spin_tumble_driver) + '</select>' +
     '</div>' +
     '<div class="action-editor-empty">' +
-      'Spin axis uses the current tumble settings from Gimbal Controls. Change Yaw/Pitch A/B/dwell or Roll direction there, not here. Belt home is always zero.' +
+      'Selected tumble axis uses the current settings from Gimbal Controls. Belt home is always zero.' +
     '</div>' +
     '<div class="procedure-editor-grid">' +
       '<label class="procedure-field"><span>Arm pose A</span><select onchange="procedureEditorSetField(\'arm_pose_a_setpoint_id\', this.value)">' + poseAOptions + '</select></label>' +
