@@ -733,7 +733,6 @@ void handleClearZero() {
 void handleGoZero() {
   int d = server.arg("d").toInt();
   String limitError;
-  if (sendBusyIfStepping(d)) return;
   if (d < 0 || d >= 4) {
     server.sendHeader("Access-Control-Allow-Origin", "*");
     server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid driver\"}");
@@ -750,6 +749,7 @@ void handleGoZero() {
     return;
   }
   stopTumble(d, false);
+  // GO ZERO is allowed to retarget an axis mid-motion to the current zero.
   int32_t steps = driverGoZeroUsesShortestPath(d) ? shortestWrappedDeltaToZero(d, motorPositionSteps[d]) : -motorPositionSteps[d];
   if (!driverMoveRespectsSoftLimits(d, steps, limitError)) {
     server.sendHeader("Access-Control-Allow-Origin", "*");

@@ -1784,6 +1784,247 @@ var GIMBAL_DRIVER_NAMES = ['Yaw', 'Pitch', 'Roll', 'Belt'];
 var GIMBAL_POLL_MS = 250;
 var gimbalSetupDone = false;
 var gimbalDriverCache = [];
+var GIMBAL_ANGULAR_DRIVER_INDICES = [0, 1, 2];
+var gimbalGlobalActionBusy = false;
+
+function gimbalSetStatusText(message) {
+  var statusEl = document.getElementById('gimbalStatus');
+  if (statusEl) statusEl.textContent = message;
+}
+
+function gimbalDriverUsesDegreeUnits(drv, driver) {
+  if (drv && typeof drv.limit_units === 'string') return drv.limit_units === 'deg';
+  return driver < 3;
+}
+
+function gimbalAngularDriverIndices() {
+  if (!Array.isArray(gimbalDriverCache) || !gimbalDriverCache.length) return GIMBAL_ANGULAR_DRIVER_INDICES.slice();
+  var drivers = [];
+  gimbalDriverCache.forEach(function(drv, index) {
+    if (gimbalDriverUsesDegreeUnits(drv, index)) drivers.push(index);
+  });
+  return drivers.length ? drivers : GIMBAL_ANGULAR_DRIVER_INDICES.slice();
+}
+
+function gimbalDriverLabel(driver) {
+  var drv = (gimbalDriverCache && gimbalDriverCache[driver]) || null;
+  return (drv && drv.name) || GIMBAL_DRIVER_NAMES[driver] || ('Driver ' + driver);
+}
+
+function gimbalFetchJson(path, payload) {
+  return fetch(path, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload || {})
+  }).then(function(r) {
+    return r.json().catch(function() { return null; }).then(function(data) {
+      if (!r.ok || !data || data.ok === false) {
+        throw new Error((data && data.error) || ('HTTP ' + r.status));
+      }
+      return data;
+    });
+  });
+}
+
+function gimbalReadTumbleConfig(driver) {
+  var aEl = document.getElementById('motorTumbleA_' + driver);
+  var bEl = document.getElementById('motorTumbleB_' + driver);
+  var dwellEl = document.getElementById('motorTumbleDwell_' + driver);
+  if (!aEl || !bEl || !dwellEl) {
+    throw new Error(gimbalDriverLabel(driver) + ': missing tumble controls');
+  }
+  var aValue = parseFloat(aEl.value);
+  var bValue = parseFloat(bEl.value);
+  var dwellMS = Math.round(parseFloat(dwellEl.value));
+  if (!isFinite(aValue) || !isFinite(bValue) || !isFinite(dwellMS)) {
+    throw new Error(gimbalDriverLabel(driver) + ': enter A, B, and dwell');
+  }
+  return {driver: driver, a: aValue, b: bValue, dwell_ms: dwellMS};
+}
+
+function gimbalRunBulkAction(entries, runEntry) {
+  var results = [];
+  return entries.reduce(function(chain, entry) {
+    return chain.then(function() {
+      return runEntry(entry).then(function(value) {
+        results.push({entry: entry, ok: true, value: value});
+      }).catch(function(error) {
+        results.push({entry: entry, ok: false, error: error});
+      });
+    });
+  }, Promise.resolve()).then(function() {
+    return results;
+  });
+}
+
+function gimbalBulkFailureText(results, labelForEntry) {
+  return results.filter(function(result) {
+    return !result.ok;
+  }).map(function(result) {
+    return labelForEntry(result.entry) + ': ' + result.error.message;
+  }).join(' | ');
+}
+
+function gimbalEnsureGlobalActionButtons() {
+  var bar = document.querySelector('.gimbal-global-bar');
+  if (!bar || document.getElementById('gimbalCalibrateAllBtn')) return;
+  var stopAllBtn = bar.querySelector('button[onclick="gimbalStopAll()"]');
+  var insertBeforeEl = stopAllBtn || bar.querySelector('.btn-estop') || null;
+  [
+    {id: 'gimbalCalibrateAllBtn', className: 'btn btn-sm', label: 'CALIBRATE ALL', handler: gimbalSetZeroAll},
+    {id: 'gimbalTumbleAllBtn', className: 'btn btn-sm btn-dark', label: 'TUMBLE ALL', handler: gimbalTumbleStartAll},
+    {id: 'gimbalDetumbleAllBtn', className: 'btn btn-sm btn-red', label: 'DETUMBLE ALL', handler: gimbalTumbleStopAll},
+    {id: 'gimbalGoZeroAllBtn', className: 'btn btn-sm btn-dark', label: 'ZERO ALL', handler: gimbalGoZeroAll}
+  ].forEach(function(config) {
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.id = config.id;
+    button.className = config.className;
+    button.textContent = config.label;
+    button.addEventListener('click', config.handler);
+    bar.insertBefore(button, insertBeforeEl);
+  });
+  gimbalSyncGlobalActionButtons();
+}
+
+function gimbalSyncGlobalActionButtons() {
+  var calibrateBtn = document.getElementById('gimbalCalibrateAllBtn');
+  var tumbleBtn = document.getElementById('gimbalTumbleAllBtn');
+  var detumbleBtn = document.getElementById('gimbalDetumbleAllBtn');
+  var goZeroBtn = document.getElementById('gimbalGoZeroAllBtn');
+  if (!calibrateBtn && !tumbleBtn && !detumbleBtn && !goZeroBtn) return;
+
+  var hasState = Array.isArray(gimbalDriverCache) && gimbalDriverCache.length > 0;
+  var angularDrivers = gimbalAngularDriverIndices();
+  var tumbleDrivers = angularDrivers.filter(function(driver) {
+    var drv = (gimbalDriverCache && gimbalDriverCache[driver]) || null;
+    return gimbalDriverSupportsTumble(drv, driver);
+  });
+
+  var canCalibrateAll = hasState && angularDrivers.length > 0 && angularDrivers.every(function(driver) {
+    var drv = gimbalDriverCache[driver];
+    return drv && !drv.running;
+  });
+  var canGoZeroAll = hasState && angularDrivers.length > 0 && angularDrivers.every(function(driver) {
+    var drv = gimbalDriverCache[driver];
+    return drv && drv.enabled && drv.position_trusted;
+  });
+  var canTumbleAll = hasState && tumbleDrivers.length > 0 && tumbleDrivers.every(function(driver) {
+    var drv = gimbalDriverCache[driver];
+    return drv && drv.enabled && drv.position_trusted && !drv.running && !drv.tumble_active;
+  });
+  var canDetumbleAll = hasState && tumbleDrivers.some(function(driver) {
+    var drv = gimbalDriverCache[driver];
+    return drv && drv.tumble_active;
+  });
+
+  if (calibrateBtn) calibrateBtn.disabled = gimbalGlobalActionBusy || !canCalibrateAll;
+  if (tumbleBtn) tumbleBtn.disabled = gimbalGlobalActionBusy || !canTumbleAll;
+  if (detumbleBtn) detumbleBtn.disabled = gimbalGlobalActionBusy || !canDetumbleAll;
+  if (goZeroBtn) goZeroBtn.disabled = gimbalGlobalActionBusy || !canGoZeroAll;
+}
+
+function gimbalFinishGlobalAction(statusText) {
+  gimbalGlobalActionBusy = false;
+  if (statusText) gimbalSetStatusText(statusText);
+  gimbalPoll();
+  gimbalSyncGlobalActionButtons();
+}
+
+function gimbalSetZeroAll() {
+  var drivers = gimbalAngularDriverIndices();
+  if (!drivers.length) return;
+  gimbalGlobalActionBusy = true;
+  gimbalSyncGlobalActionButtons();
+  gimbalSetStatusText('Calibrating ' + drivers.map(gimbalDriverLabel).join(', '));
+  gimbalRunBulkAction(drivers, function(driver) {
+    return gimbalFetchJson('/api/gimbal/set_zero', {driver: driver});
+  }).then(function(results) {
+    var failures = gimbalBulkFailureText(results, gimbalDriverLabel);
+    gimbalFinishGlobalAction(failures ? 'Calibrate all error: ' + failures : 'Calibrated ' + drivers.map(gimbalDriverLabel).join(', '));
+  });
+}
+
+function gimbalGoZeroAll() {
+  var drivers = gimbalAngularDriverIndices();
+  if (!drivers.length) return;
+  gimbalGlobalActionBusy = true;
+  gimbalSyncGlobalActionButtons();
+  gimbalSetStatusText('Returning ' + drivers.map(gimbalDriverLabel).join(', ') + ' to zero');
+  gimbalRunBulkAction(drivers, function(driver) {
+    return gimbalFetchJson('/api/gimbal/go_zero', {driver: driver});
+  }).then(function(results) {
+    var failures = gimbalBulkFailureText(results, gimbalDriverLabel);
+    gimbalFinishGlobalAction(failures ? 'Zero all error: ' + failures : 'Returning ' + drivers.map(gimbalDriverLabel).join(', ') + ' to zero');
+  });
+}
+
+function gimbalTumbleStartAll() {
+  var drivers = gimbalAngularDriverIndices().filter(function(driver) {
+    var drv = (gimbalDriverCache && gimbalDriverCache[driver]) || null;
+    return gimbalDriverSupportsTumble(drv, driver);
+  });
+  if (!drivers.length) return;
+  var configs;
+  try {
+    configs = drivers.map(function(driver) {
+      return gimbalReadTumbleConfig(driver);
+    });
+  } catch (error) {
+    gimbalSetStatusText('Tumble all error: ' + error.message);
+    return;
+  }
+  gimbalGlobalActionBusy = true;
+  gimbalSyncGlobalActionButtons();
+  gimbalSetStatusText('Starting tumble on ' + drivers.map(gimbalDriverLabel).join(', '));
+  gimbalRunBulkAction(configs, function(config) {
+    return gimbalFetchJson('/api/gimbal/tumble_start', config);
+  }).then(function(results) {
+    var failures = results.filter(function(result) { return !result.ok; });
+    if (!failures.length) {
+      configs.forEach(function(config) {
+        gimbalClearTumbleDraft(config.driver);
+      });
+      gimbalFinishGlobalAction('Tumbling ' + drivers.map(gimbalDriverLabel).join(', '));
+      return;
+    }
+    var startedDrivers = results.filter(function(result) {
+      return result.ok;
+    }).map(function(result) {
+      return result.entry.driver;
+    });
+    gimbalRunBulkAction(startedDrivers, function(driver) {
+      return gimbalFetchJson('/api/gimbal/tumble_stop', {driver: driver});
+    }).then(function() {
+      var failureText = gimbalBulkFailureText(results, function(entry) {
+        return gimbalDriverLabel(entry.driver);
+      });
+      var rollbackText = startedDrivers.length ? ' (rolled back started axes)' : '';
+      gimbalFinishGlobalAction('Tumble all error: ' + failureText + rollbackText);
+    });
+  });
+}
+
+function gimbalTumbleStopAll() {
+  var drivers = gimbalAngularDriverIndices().filter(function(driver) {
+    var drv = (gimbalDriverCache && gimbalDriverCache[driver]) || null;
+    return !!(drv && drv.tumble_active);
+  });
+  if (!drivers.length) {
+    gimbalSetStatusText('No tumble is active');
+    gimbalSyncGlobalActionButtons();
+    return;
+  }
+  gimbalGlobalActionBusy = true;
+  gimbalSyncGlobalActionButtons();
+  gimbalSetStatusText('Detumbling ' + drivers.map(gimbalDriverLabel).join(', '));
+  gimbalRunBulkAction(drivers, function(driver) {
+    return gimbalFetchJson('/api/gimbal/tumble_stop', {driver: driver});
+  }).then(function(results) {
+    var failures = gimbalBulkFailureText(results, gimbalDriverLabel);
+    gimbalFinishGlobalAction(failures ? 'Detumble all error: ' + failures : 'Detumbled ' + drivers.map(gimbalDriverLabel).join(', '));
+  });
+}
 
 function wrapDegrees360(deg) {
   var wrapped = deg % 360;
@@ -1880,33 +2121,29 @@ function gimbalGoZero(driver) {
 }
 
 function gimbalTumbleStart(driver) {
-  var aEl = document.getElementById('motorTumbleA_' + driver);
-  var bEl = document.getElementById('motorTumbleB_' + driver);
-  var dwellEl = document.getElementById('motorTumbleDwell_' + driver);
-  if (!aEl || !bEl || !dwellEl) return;
-  var aValue = parseFloat(aEl.value);
-  var bValue = parseFloat(bEl.value);
-  var dwellMS = Math.round(parseFloat(dwellEl.value));
-  if (!isFinite(aValue) || !isFinite(bValue) || !isFinite(dwellMS)) {
-    document.getElementById('gimbalStatus').textContent = 'Tumble error: enter A, B, and dwell';
+  var payload;
+  try {
+    payload = gimbalReadTumbleConfig(driver);
+  } catch (error) {
+    gimbalSetStatusText('Tumble error: ' + error.message);
     return;
   }
   fetch('/api/gimbal/tumble_start', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({driver: driver, a: aValue, b: bValue, dwell_ms: dwellMS})
+    body: JSON.stringify(payload)
   }).then(function(r) {
     return r.json().then(function(d) { return {ok: r.ok, data: d}; });
   }).then(function(res) {
     if (!res.ok || !res.data || res.data.ok === false) {
-      document.getElementById('gimbalStatus').textContent = 'Tumble error: ' + ((res.data && res.data.error) || 'unknown');
+      gimbalSetStatusText('Tumble error: ' + ((res.data && res.data.error) || 'unknown'));
       gimbalPoll();
       return;
     }
     gimbalClearTumbleDraft(driver);
     gimbalPoll();
   }).catch(function(e) {
-    document.getElementById('gimbalStatus').textContent = 'Tumble error: ' + e;
+    gimbalSetStatusText('Tumble error: ' + e);
   });
 }
 
@@ -2175,10 +2412,14 @@ function gimbalPositionReasonText(reason, trusted) {
 }
 
 function gimbalPoll() {
+  gimbalEnsureGlobalActionButtons();
   fetch('/api/gimbal/status').then(function(r) { return r.json(); }).then(function(d) {
     if (d.error) {
+      gimbalDriverCache = [];
+      gimbalSetupDone = false;
       document.getElementById('gimbalStatus').textContent = 'Error: ' + d.error;
       document.getElementById('gimbalDot').className = 'status-dot';
+      gimbalSyncGlobalActionButtons();
       return;
     }
     document.getElementById('gimbalDot').className = 'status-dot ok';
@@ -2387,7 +2628,7 @@ function gimbalPoll() {
       var setZeroBtn = document.getElementById('motorSetZeroBtn_' + i);
       if (setZeroBtn) setZeroBtn.disabled = !!drv.running;
       var goZeroBtn = document.getElementById('motorGoZeroBtn_' + i);
-      if (goZeroBtn) goZeroBtn.disabled = !drv.position_trusted || !drv.enabled || !!drv.running;
+      if (goZeroBtn) goZeroBtn.disabled = !drv.position_trusted || !drv.enabled;
       var clearZeroBtn = document.getElementById('motorClearZeroBtn_' + i);
       if (clearZeroBtn) clearZeroBtn.disabled = !!drv.running;
       var limitSaveBtn = document.getElementById('motorLimitSaveBtn_' + i);
@@ -2560,9 +2801,13 @@ function gimbalPoll() {
         }
       }
     });
+    gimbalSyncGlobalActionButtons();
   }).catch(function() {
+    gimbalDriverCache = [];
+    gimbalSetupDone = false;
     document.getElementById('gimbalDot').className = 'status-dot';
     document.getElementById('gimbalStatus').textContent = 'Not connected';
+    gimbalSyncGlobalActionButtons();
   });
 }
 
