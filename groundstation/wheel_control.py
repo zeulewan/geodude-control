@@ -10,6 +10,19 @@ app = Flask(__name__)
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 GROUNDSTATION_DIR = APP_DIR
 
+
+def _procedure_state_dir():
+    override = str(os.environ.get("GROUNDSTATION_STATE_DIR") or "").strip()
+    if override:
+        return override
+    # Keep procedure runtime state outside the git checkout so deploy-time
+    # `git stash -u` on /opt/geodude-control does not silently eat it.
+    app_parent = os.path.dirname(os.path.dirname(APP_DIR))
+    return os.path.join(app_parent, "geodude-state", "groundstation")
+
+
+PROCEDURE_STATE_DIR = _procedure_state_dir()
+
 GEODUDE_URL = "http://192.168.4.166:5000"
 GIMBAL_URL = "http://192.168.4.222"
 
@@ -1509,7 +1522,8 @@ def actions_stop():
 #   - `continue` advances the next checkpointed phase.
 #   - Motion ownership stays server-side. The browser just configures and
 #     observes state.
-PROCEDURES_FILE = os.path.join(GROUNDSTATION_DIR, "sequence_procedures.json")
+LEGACY_PROCEDURES_FILE = os.path.join(GROUNDSTATION_DIR, "sequence_procedures.json")
+PROCEDURES_FILE = os.path.join(PROCEDURE_STATE_DIR, "sequence_procedures.json")
 PROCEDURE_BELT_DRIVER = 3
 PROCEDURE_POLL_S = 0.2
 PROCEDURE_GIMBAL_TIMEOUT_S = 45.0
@@ -1536,15 +1550,23 @@ _procedure_continue_flag = threading.Event()
 
 
 def load_procedures():
-    try:
-        with open(PROCEDURES_FILE) as f:
-            data = json.load(f)
-    except FileNotFoundError:
-        return []
-    except Exception as e:
-        print(f"[procedures] parse failed, using empty list: {e}", flush=True)
+    data = None
+    loaded_from = None
+    for path in (PROCEDURES_FILE, LEGACY_PROCEDURES_FILE):
+        try:
+            with open(path) as f:
+                data = json.load(f)
+            loaded_from = path
+            break
+        except FileNotFoundError:
+            continue
+        except Exception as e:
+            print(f"[procedures] parse failed for {path}: {e}", flush=True)
+            return []
+    if data is None:
         return []
     if not isinstance(data, list):
+        print(f"[procedures] invalid payload in {loaded_from}", flush=True)
         return []
     out = []
     for raw in data:
@@ -1559,6 +1581,7 @@ def load_procedures():
 
 
 def save_procedures(data):
+    os.makedirs(os.path.dirname(PROCEDURES_FILE), exist_ok=True)
     tmp = f"{PROCEDURES_FILE}.{os.getpid()}.tmp"
     with open(tmp, "w") as f:
         json.dump(data, f, indent=2)
