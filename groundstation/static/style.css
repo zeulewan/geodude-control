@@ -3372,3 +3372,39 @@ input[type="range"]::-moz-range-thumb {
   font-size: 11px;
   color: #6b7280;
 }
+.procedure-driver-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.procedure-driver-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #6b7280;
+}
+.procedure-driver-check input {
+  margin: 0;
+}
+.procedure-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px 10px;
+  margin: 8px 0;
+}
+.procedure-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+.procedure-field span {
+  color: #6b7280;
+  font-weight: 600;
+}
+.procedure-status-prompt {
+  width: 100%;
+  color: #2563eb;
+  font-size: 11px;
+}

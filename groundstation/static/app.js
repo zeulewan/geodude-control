@@ -2639,6 +2639,10 @@ function setpointRefresh() {
   return fetch('/api/setpoints').then(function(r) { return r.json(); }).then(function(list) {
     setpoints = Array.isArray(list) ? list : [];
     setpointRender();
+    if (Array.isArray(actions)) actionRender();
+    if (typeof actionEditorState !== 'undefined' && actionEditorState) actionRenderEditor();
+    if (Array.isArray(procedures)) procedureRender();
+    if (typeof procedureEditorState !== 'undefined' && procedureEditorState) procedureRenderEditor();
   }).catch(function() {
     var el = document.getElementById('setpointList');
     if (el) el.textContent = 'Failed to load setpoints.';
@@ -3036,7 +3040,434 @@ function actionEditorSave() {
     });
 }
 
+/* ========== Procedures ==========
+   Checkpointed multi-system sequences. The server owns execution;
+   this UI only edits config and advances operator prompts. */
+var procedures = [];
+var procedureState = {running: false, phase: 'idle'};
+var procedureEditorState = null;
+var PROCEDURE_DRIVER_LABELS = {0: 'Yaw', 1: 'Pitch', 2: 'Roll', 3: 'Belt'};
+var PROCEDURE_ZERO_DRIVERS = [0, 1, 2, 3];
+var PROCEDURE_TUMBLE_DRIVERS = [0, 1, 2];
+
+function procedureRefresh() {
+  return fetch('/api/procedures').then(function(r) { return r.json(); }).then(function(list) {
+    procedures = Array.isArray(list) ? list : [];
+    procedureRender();
+  }).catch(function() {
+    var el = document.getElementById('procedureList');
+    if (el) el.textContent = 'Failed to load procedures.';
+  });
+}
+
+function procedureStatePoll() {
+  fetch('/api/procedures/state').then(function(r) { return r.json(); }).then(function(st) {
+    procedureState = st || {running: false, phase: 'idle'};
+    procedureRenderStatus();
+  }).catch(function() {});
+}
+
+function procedureDriverName(driver) {
+  var idx = parseInt(driver, 10);
+  if (!isNaN(idx) && gimbalDriverCache && gimbalDriverCache[idx] && gimbalDriverCache[idx].name) {
+    return String(gimbalDriverCache[idx].name);
+  }
+  if (PROCEDURE_DRIVER_LABELS.hasOwnProperty(idx)) return PROCEDURE_DRIVER_LABELS[idx];
+  return 'Driver ' + String(driver);
+}
+
+function procedureStepLabel(stepName) {
+  return {
+    'set-gimbal-zero-pose': 'Set zero pose',
+    'capture-gimbal-zero': 'Capture zero',
+    'manual-spin-window': 'Spin window',
+    'start-spin-window': 'Start tumble',
+    'stop-tumble': 'Stop tumble',
+    'go-gimbal-zero': 'Go zero',
+    'arm-pose-a': 'Arm pose A',
+    'gantry-approach': 'Gantry approach',
+    'arm-pose-b': 'Arm pose B',
+    'dwell': 'Dwell',
+    'gantry-home': 'Gantry home',
+    'arm-neutral': 'Arm neutral'
+  }[stepName] || stepName || '';
+}
+
+function procedurePhaseLabel(phase) {
+  return {
+    'idle': 'Idle',
+    'waiting-operator': 'Waiting',
+    'running': 'Running',
+    'stopped': 'Stopped',
+    'done': 'Done',
+    'error': 'Error'
+  }[phase] || String(phase || 'idle');
+}
+
+function procedureSummary(proc) {
+  var zeroDrivers = (proc.gimbal_zero_drivers || []).map(function(driver) {
+    return procedureDriverName(driver);
+  });
+  var zeroText = zeroDrivers.length ? zeroDrivers.join(', ') : 'none';
+  var spinText = proc.spin_tumble_driver == null ? 'manual only' : procedureDriverName(proc.spin_tumble_driver);
+  return 'Zero ' + zeroText +
+    ' | spin ' + spinText +
+    ' | Belt ' + String(proc.gantry_home_steps) + '→' + String(proc.gantry_approach_steps) +
+    ' | dwell ' + String(proc.dwell_ms) + ' ms' +
+    ' | x' + String(proc.repeat_count);
+}
+
+function procedureRender() {
+  var el = document.getElementById('procedureList');
+  if (!el) return;
+  if (!procedures.length) {
+    el.innerHTML = '<div class="setpoint-empty">No procedures yet. Click New Procedure.</div>';
+    return;
+  }
+  var html = '';
+  for (var i = 0; i < procedures.length; i++) {
+    var proc = procedures[i];
+    var pid = String(proc.id || '').replace(/[^a-f0-9]/gi, '');
+    var rawName = String(proc.name || '');
+    var safeName = htmlEscape(rawName);
+    var jsName = rawName.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    html += '<div class="action-item">' +
+      '<div class="action-head">' +
+        '<span class="action-name">' + safeName + '</span>' +
+        '<span class="action-summary">' + htmlEscape(procedureSummary(proc)) + '</span>' +
+      '</div>' +
+      '<div class="action-buttons">' +
+        '<button class="btn btn-sm btn-green" onclick="procedureReady(\'' + pid + '\')">Ready</button>' +
+        '<button class="btn btn-sm" onclick="procedureOpenEditor(\'' + pid + '\')">Edit</button>' +
+        '<button class="btn btn-sm btn-red" onclick="procedureDelete(\'' + pid + '\', \'' + jsName + '\')">X</button>' +
+      '</div>' +
+      '</div>';
+  }
+  el.innerHTML = html;
+}
+
+function procedureRenderStatus() {
+  var el = document.getElementById('procedureStatus');
+  if (!el) return;
+  if (!procedureState.running && (!procedureState.phase || procedureState.phase === 'idle')) {
+    el.innerHTML = '';
+    el.className = 'action-status';
+    return;
+  }
+  var phase = procedurePhaseLabel(procedureState.phase);
+  var stepLabel = procedureStepLabel(procedureState.step_name);
+  var progress = '';
+  if (procedureState.total_steps) {
+    progress = 'step ' + String(procedureState.step_index || 0) + ' / ' + String(procedureState.total_steps || 0);
+  }
+  var cycleText = '';
+  if (procedureState.total_cycles) {
+    cycleText = 'cycle ' + String(procedureState.cycle_index || 0) + ' / ' + String(procedureState.total_cycles || 0);
+  }
+  var parts = [phase];
+  if (stepLabel) parts.push(stepLabel);
+  if (progress) parts.push(progress);
+  if (cycleText) parts.push(cycleText);
+  var html = '<div class="action-status-body">' +
+    '<span class="action-status-name">' + htmlEscape(procedureState.procedure_name || '') + '</span>' +
+    '<span class="action-status-phase">' + htmlEscape(parts.join(' · ')) + '</span>';
+  if (procedureState.phase === 'waiting-operator' && procedureState.procedure_id) {
+    html += '<button class="btn btn-sm btn-green" onclick="procedureContinue(\'' + htmlEscape(procedureState.procedure_id) + '\')">Continue</button>';
+  }
+  if (procedureState.running) {
+    html += '<button class="btn btn-sm btn-red" onclick="procedureStop()">Stop</button>';
+  }
+  if (procedureState.error) {
+    html += '<span class="action-status-error">' + htmlEscape(procedureState.error) + '</span>';
+  }
+  if (procedureState.operator_prompt) {
+    html += '<span class="procedure-status-prompt">' + htmlEscape(procedureState.operator_prompt) + '</span>';
+  }
+  html += '</div>';
+  el.innerHTML = html;
+  el.className = 'action-status action-status-active';
+}
+
+function procedureReady(pid) {
+  fetch('/api/procedures/' + encodeURIComponent(pid) + '/ready', {method: 'POST'})
+    .then(function(r) { return r.json().then(function(d) { return {ok: r.ok, body: d}; }); })
+    .then(function(res) {
+      if (!res.ok || !res.body.ok) {
+        alert('Ready failed: ' + ((res.body && res.body.error) || 'unknown'));
+      }
+      procedureStatePoll();
+    })
+    .catch(function(e) { alert('Ready request failed: ' + e); });
+}
+
+function procedureContinue(pid) {
+  fetch('/api/procedures/' + encodeURIComponent(pid) + '/continue', {method: 'POST'})
+    .then(function(r) { return r.json().then(function(d) { return {ok: r.ok, body: d}; }); })
+    .then(function(res) {
+      if (!res.ok || !res.body.ok) {
+        alert('Continue failed: ' + ((res.body && res.body.error) || 'unknown'));
+      }
+      procedureStatePoll();
+    })
+    .catch(function(e) { alert('Continue request failed: ' + e); });
+}
+
+function procedureStop() {
+  fetch('/api/procedures/stop', {method: 'POST'})
+    .then(function() { procedureStatePoll(); })
+    .catch(function() {});
+}
+
+function procedureDelete(pid, name) {
+  if (!confirm('Delete procedure "' + name + '"?')) return;
+  fetch('/api/procedures/' + encodeURIComponent(pid), {method: 'DELETE'})
+    .then(function(r) { return r.json().then(function(d) { return {ok: r.ok, body: d}; }); })
+    .then(function(res) {
+      if (!res.ok || !res.body.ok) {
+        alert('Delete failed: ' + ((res.body && res.body.error) || 'unknown'));
+        return;
+      }
+      procedureRefresh();
+    })
+    .catch(function(e) { alert('Delete request failed: ' + e); });
+}
+
+function procedureDefaultSetpointId() {
+  return setpoints.length ? setpoints[0].id : ACTION_NEUTRAL_ID;
+}
+
+function procedureDefaultEditorState() {
+  return {
+    id: null,
+    name: '',
+    gimbal_zero_drivers: [0, 1, 2],
+    spin_tumble_driver: null,
+    spin_tumble_a: '-45',
+    spin_tumble_b: '45',
+    spin_tumble_dwell_ms: '1500',
+    arm_pose_a_setpoint_id: procedureDefaultSetpointId(),
+    arm_pose_b_setpoint_id: ACTION_NEUTRAL_ID,
+    gantry_home_steps: '0',
+    gantry_approach_steps: '0',
+    dwell_ms: '1000',
+    repeat_count: '1'
+  };
+}
+
+function procedureOpenEditor(pid) {
+  var editor = document.getElementById('procedureEditor');
+  if (!editor) return;
+  if (pid) {
+    var existing = procedures.find(function(proc) { return proc.id === pid; });
+    if (!existing) { alert('Procedure not found.'); return; }
+    procedureEditorState = {
+      id: existing.id,
+      name: existing.name,
+      gimbal_zero_drivers: (existing.gimbal_zero_drivers || []).map(function(driver) { return parseInt(driver, 10); }),
+      spin_tumble_driver: existing.spin_tumble_driver == null ? null : parseInt(existing.spin_tumble_driver, 10),
+      spin_tumble_a: existing.spin_tumble_a == null ? '' : String(existing.spin_tumble_a),
+      spin_tumble_b: existing.spin_tumble_b == null ? '' : String(existing.spin_tumble_b),
+      spin_tumble_dwell_ms: existing.spin_tumble_dwell_ms == null ? '' : String(existing.spin_tumble_dwell_ms),
+      arm_pose_a_setpoint_id: existing.arm_pose_a_setpoint_id,
+      arm_pose_b_setpoint_id: existing.arm_pose_b_setpoint_id,
+      gantry_home_steps: String(existing.gantry_home_steps),
+      gantry_approach_steps: String(existing.gantry_approach_steps),
+      dwell_ms: String(existing.dwell_ms),
+      repeat_count: String(existing.repeat_count)
+    };
+  } else {
+    procedureEditorState = procedureDefaultEditorState();
+  }
+  procedureRenderEditor();
+  editor.style.display = 'block';
+}
+
+function procedureCloseEditor() {
+  procedureEditorState = null;
+  var editor = document.getElementById('procedureEditor');
+  if (editor) { editor.style.display = 'none'; editor.innerHTML = ''; }
+}
+
+function procedureEditorSetName(name) {
+  if (!procedureEditorState) return;
+  procedureEditorState.name = name;
+}
+
+function procedureEditorSetField(field, value) {
+  if (!procedureEditorState) return;
+  procedureEditorState[field] = value;
+}
+
+function procedureEditorSetSpinDriver(value) {
+  if (!procedureEditorState) return;
+  if (value === '') {
+    procedureEditorState.spin_tumble_driver = null;
+    procedureEditorState.spin_tumble_a = '';
+    procedureEditorState.spin_tumble_b = '';
+    procedureEditorState.spin_tumble_dwell_ms = '';
+  } else {
+    procedureEditorState.spin_tumble_driver = parseInt(value, 10);
+    if (!procedureEditorState.spin_tumble_a) procedureEditorState.spin_tumble_a = '-45';
+    if (!procedureEditorState.spin_tumble_b) procedureEditorState.spin_tumble_b = '45';
+    if (!procedureEditorState.spin_tumble_dwell_ms) procedureEditorState.spin_tumble_dwell_ms = '1500';
+  }
+  procedureRenderEditor();
+}
+
+function procedureEditorToggleZeroDriver(driver, checked) {
+  if (!procedureEditorState) return;
+  var next = (procedureEditorState.gimbal_zero_drivers || []).slice();
+  var idx = next.indexOf(driver);
+  if (checked && idx === -1) next.push(driver);
+  if (!checked && idx !== -1) next.splice(idx, 1);
+  next.sort(function(a, b) { return a - b; });
+  procedureEditorState.gimbal_zero_drivers = next;
+}
+
+function procedureBuildSpinOptions(selected) {
+  var html = '<option value=""' + (selected == null ? ' selected' : '') + '>(manual only)</option>';
+  for (var i = 0; i < PROCEDURE_TUMBLE_DRIVERS.length; i++) {
+    var driver = PROCEDURE_TUMBLE_DRIVERS[i];
+    var sel = selected === driver ? ' selected' : '';
+    html += '<option value="' + driver + '"' + sel + '>' + htmlEscape(procedureDriverName(driver)) + '</option>';
+  }
+  return html;
+}
+
+function procedureBuildZeroDriverChecks(selectedDrivers) {
+  var selected = selectedDrivers || [];
+  var html = '';
+  for (var i = 0; i < PROCEDURE_ZERO_DRIVERS.length; i++) {
+    var driver = PROCEDURE_ZERO_DRIVERS[i];
+    var checked = selected.indexOf(driver) !== -1 ? ' checked' : '';
+    html += '<label class="procedure-driver-check">' +
+      '<input type="checkbox"' + checked + ' onchange="procedureEditorToggleZeroDriver(' + driver + ', this.checked)">' +
+      '<span>' + htmlEscape(procedureDriverName(driver)) + '</span>' +
+      '</label>';
+  }
+  return html;
+}
+
+function procedureRenderEditor() {
+  var editor = document.getElementById('procedureEditor');
+  if (!editor || !procedureEditorState) return;
+  var st = procedureEditorState;
+  var spinDisabled = st.spin_tumble_driver == null;
+  var poseAOptions = actionBuildOptions(st.arm_pose_a_setpoint_id, false);
+  var poseBOptions = actionBuildOptions(st.arm_pose_b_setpoint_id, false);
+  editor.innerHTML =
+    '<div class="action-editor-head">' +
+      '<strong>' + (st.id ? 'Edit Procedure' : 'New Procedure') + '</strong>' +
+      '<button class="btn btn-sm" onclick="procedureCloseEditor()">Close</button>' +
+    '</div>' +
+    '<div class="action-editor-row">' +
+      '<label>Name</label>' +
+      '<input type="text" value="' + htmlEscape(st.name) + '" maxlength="64" oninput="procedureEditorSetName(this.value)" style="flex:1;">' +
+    '</div>' +
+    '<div class="action-editor-row">' +
+      '<label>Zero drivers</label>' +
+      '<div class="procedure-driver-checks">' + procedureBuildZeroDriverChecks(st.gimbal_zero_drivers) + '</div>' +
+    '</div>' +
+    '<div class="action-editor-row">' +
+      '<label>Spin axis</label>' +
+      '<select onchange="procedureEditorSetSpinDriver(this.value)">' + procedureBuildSpinOptions(st.spin_tumble_driver) + '</select>' +
+    '</div>' +
+    '<div class="procedure-editor-grid">' +
+      '<label class="procedure-field"><span>Spin A deg</span><input type="number" step="0.1" value="' + htmlEscape(st.spin_tumble_a) + '"' + (spinDisabled ? ' disabled' : '') + ' oninput="procedureEditorSetField(\'spin_tumble_a\', this.value)"></label>' +
+      '<label class="procedure-field"><span>Spin B deg</span><input type="number" step="0.1" value="' + htmlEscape(st.spin_tumble_b) + '"' + (spinDisabled ? ' disabled' : '') + ' oninput="procedureEditorSetField(\'spin_tumble_b\', this.value)"></label>' +
+      '<label class="procedure-field"><span>Spin dwell ms</span><input type="number" min="0" max="600000" step="50" value="' + htmlEscape(st.spin_tumble_dwell_ms) + '"' + (spinDisabled ? ' disabled' : '') + ' oninput="procedureEditorSetField(\'spin_tumble_dwell_ms\', this.value)"></label>' +
+    '</div>' +
+    '<div class="procedure-editor-grid">' +
+      '<label class="procedure-field"><span>Arm pose A</span><select onchange="procedureEditorSetField(\'arm_pose_a_setpoint_id\', this.value)">' + poseAOptions + '</select></label>' +
+      '<label class="procedure-field"><span>Arm pose B</span><select onchange="procedureEditorSetField(\'arm_pose_b_setpoint_id\', this.value)">' + poseBOptions + '</select></label>' +
+      '<label class="procedure-field"><span>Gantry home steps</span><input type="number" step="1" value="' + htmlEscape(st.gantry_home_steps) + '" oninput="procedureEditorSetField(\'gantry_home_steps\', this.value)"></label>' +
+      '<label class="procedure-field"><span>Gantry approach steps</span><input type="number" step="1" value="' + htmlEscape(st.gantry_approach_steps) + '" oninput="procedureEditorSetField(\'gantry_approach_steps\', this.value)"></label>' +
+      '<label class="procedure-field"><span>Dwell ms</span><input type="number" min="0" max="600000" step="50" value="' + htmlEscape(st.dwell_ms) + '" oninput="procedureEditorSetField(\'dwell_ms\', this.value)"></label>' +
+      '<label class="procedure-field"><span>Repeat count</span><input type="number" min="1" max="1000" step="1" value="' + htmlEscape(st.repeat_count) + '" oninput="procedureEditorSetField(\'repeat_count\', this.value)"></label>' +
+    '</div>' +
+    '<div class="action-editor-row">' +
+      '<button class="btn btn-sm btn-green" onclick="procedureEditorSave()">Save</button>' +
+    '</div>';
+}
+
+function procedureEditorSave() {
+  if (!procedureEditorState) return;
+  var st = procedureEditorState;
+  var name = (st.name || '').trim();
+  if (!name) { alert('Name required.'); return; }
+  if (!st.gimbal_zero_drivers || !st.gimbal_zero_drivers.length) {
+    alert('Select at least one zero driver.');
+    return;
+  }
+  if (!st.arm_pose_a_setpoint_id || !st.arm_pose_b_setpoint_id) {
+    alert('Select both arm poses.');
+    return;
+  }
+
+  var spinDriver = st.spin_tumble_driver == null ? null : parseInt(st.spin_tumble_driver, 10);
+  var spinA = null;
+  var spinB = null;
+  var spinDwell = null;
+  if (spinDriver != null) {
+    spinA = parseFloat(st.spin_tumble_a);
+    spinB = parseFloat(st.spin_tumble_b);
+    spinDwell = parseInt(st.spin_tumble_dwell_ms, 10);
+    if (isNaN(spinA) || isNaN(spinB) || isNaN(spinDwell)) {
+      alert('Spin A, B, and dwell are required when a spin axis is selected.');
+      return;
+    }
+  }
+
+  var gantryHome = parseInt(st.gantry_home_steps, 10);
+  var gantryApproach = parseInt(st.gantry_approach_steps, 10);
+  var dwellMs = parseInt(st.dwell_ms, 10);
+  var repeatCount = parseInt(st.repeat_count, 10);
+  if (isNaN(gantryHome) || isNaN(gantryApproach) || isNaN(dwellMs) || isNaN(repeatCount)) {
+    alert('Gantry, dwell, and repeat fields must be integers.');
+    return;
+  }
+
+  var body = {
+    name: name,
+    gimbal_zero_drivers: st.gimbal_zero_drivers.slice(),
+    spin_tumble_driver: spinDriver,
+    spin_tumble_a: spinA,
+    spin_tumble_b: spinB,
+    spin_tumble_dwell_ms: spinDwell,
+    arm_pose_a_setpoint_id: st.arm_pose_a_setpoint_id,
+    arm_pose_b_setpoint_id: st.arm_pose_b_setpoint_id,
+    gantry_home_steps: gantryHome,
+    gantry_approach_steps: gantryApproach,
+    dwell_ms: dwellMs,
+    repeat_count: repeatCount
+  };
+
+  var method, url;
+  if (st.id) {
+    method = 'PATCH';
+    url = '/api/procedures/' + encodeURIComponent(st.id);
+  } else {
+    method = 'POST';
+    url = '/api/procedures';
+  }
+  fetch(url, {
+    method: method,
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  }).then(function(r) { return r.json().then(function(d) { return {ok: r.ok, body: d}; }); })
+    .then(function(res) {
+      if (!res.ok || !res.body.ok) {
+        alert('Save failed: ' + ((res.body && res.body.error) || 'unknown'));
+        return;
+      }
+      procedureCloseEditor();
+      procedureRefresh();
+    })
+    .catch(function(e) { alert('Save request failed: ' + e); });
+}
+
 setInterval(actionStatePoll, 500);
+setInterval(procedureStatePoll, 500);
 
 /* ========== Init ========== */
 (function() {
@@ -3070,8 +3501,12 @@ setInterval(actionStatePoll, 500);
     console.error('[cal] failed to fetch /api/joint_calibration');
   });
 
-  setpointRefresh().then(function() { actionRefresh(); });
+  setpointRefresh().then(function() {
+    actionRefresh();
+    procedureRefresh();
+  });
   actionStatePoll();
+  procedureStatePoll();
 
   /* Fetch last-known servo positions from server. Safe even before neutrals
      load: positions come fully specified from the server, no neutral fallback. */

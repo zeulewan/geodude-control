@@ -731,6 +731,11 @@ def pwm():
     pw = int(data.get("pw", 0))
     if name not in CHANNELS:
         return jsonify({"ok": False, "error": "unknown channel"}), 400
+    if _procedure_running():
+        return jsonify({
+            "ok": False,
+            "error": "procedure running; stop it first",
+        }), 409
     # M1: set target and heartbeat in a single critical section so the
     # ramp thread cannot tick between them and freeze the just-posted
     # target based on a stale heartbeat.
@@ -912,10 +917,11 @@ def setpoints_delete(sid):
     # Block if any action references this setpoint. The action's playback
     # would otherwise error mid-sequence with a dangling reference.
     used_by = _setpoints_used_by_actions(sid)
+    used_by += _setpoints_used_by_procedures(sid)
     if used_by:
         return jsonify({
             "ok": False,
-            "error": "in use by action(s): " + ", ".join(used_by),
+            "error": "in use by action/procedure(s): " + ", ".join(used_by),
         }), 409
     with _setpoints_lock:
         before = len(servo_setpoints)
@@ -965,6 +971,11 @@ def setpoints_go(sid):
         return jsonify({
             "ok": False,
             "error": "action running; stop it first",
+        }), 409
+    if _procedure_running():
+        return jsonify({
+            "ok": False,
+            "error": "procedure running; stop it first",
         }), 409
     with _servo_state_lock:
         if _servo_disarmed:
@@ -1426,6 +1437,8 @@ def actions_state():
 def actions_play(aid):
     if not _servo_bootstrap_complete:
         return jsonify({"ok": False, "error": "bootstrap not complete"}), 409
+    if _procedure_running():
+        return jsonify({"ok": False, "error": "procedure running; stop it first"}), 409
     with _servo_state_lock:
         if _servo_disarmed:
             return jsonify({"ok": False, "error": "disarmed; POST /api/arm first"}), 409
@@ -1473,6 +1486,1012 @@ def actions_continue(aid):
 def actions_stop():
     _action_stop_flag.set()
     _action_continue_flag.set()  # unblock breakpoint wait
+    return jsonify({"ok": True})
+
+
+# --- Procedures: checkpointed multi-system sequence runner ---
+#
+# Schema (sequence_procedures.json):
+#   [{"id": "<12hex>",
+#     "name": "<label>",
+#     "gimbal_zero_drivers": [0,1,2,3],
+#     "spin_tumble_driver": <int|null>,
+#     "spin_tumble_a": <float|null>,
+#     "spin_tumble_b": <float|null>,
+#     "spin_tumble_dwell_ms": <int|null>,
+#     "arm_pose_a_setpoint_id": "<sp or __neutral__>",
+#     "arm_pose_b_setpoint_id": "<sp or __neutral__>",
+#     "gantry_home_steps": <int>,
+#     "gantry_approach_steps": <int>,
+#     "dwell_ms": <int>,
+#     "repeat_count": <int>,
+#     "created_at": <epoch>}, ...]
+#
+# Runtime model:
+#   - One procedure at a time.
+#   - `ready` starts the runner and parks immediately at the first manual
+#     checkpoint ("set gimbal zero pose").
+#   - `continue` advances the next checkpointed phase.
+#   - Motion ownership stays server-side. The browser just configures and
+#     observes state.
+PROCEDURES_FILE = os.path.join(GROUNDSTATION_DIR, "sequence_procedures.json")
+PROCEDURE_BELT_DRIVER = 3
+PROCEDURE_POLL_S = 0.2
+PROCEDURE_GIMBAL_TIMEOUT_S = 45.0
+PROCEDURE_DWELL_MAX_MS = 10 * 60 * 1000
+PROCEDURE_REPEAT_MAX = 1000
+
+_procedures_lock = threading.Lock()
+_procedure_play_lock = threading.Lock()
+_procedure_state = {
+    "running": False,
+    "procedure_id": None,
+    "procedure_name": None,
+    "step_index": 0,
+    "total_steps": 0,
+    "step_name": None,
+    "phase": "idle",          # idle | waiting-operator | running | stopped | done | error
+    "operator_prompt": None,
+    "cycle_index": 0,
+    "total_cycles": 0,
+    "error": None,
+}
+_procedure_stop_flag = threading.Event()
+_procedure_continue_flag = threading.Event()
+
+
+def load_procedures():
+    try:
+        with open(PROCEDURES_FILE) as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        return []
+    except Exception as e:
+        print(f"[procedures] parse failed, using empty list: {e}", flush=True)
+        return []
+    if not isinstance(data, list):
+        return []
+    out = []
+    for raw in data:
+        if not isinstance(raw, dict):
+            continue
+        entry, err = _normalize_procedure_payload(raw)
+        if err:
+            print(f"[procedures] skipping invalid entry: {err}", flush=True)
+            continue
+        out.append(entry)
+    return out
+
+
+def save_procedures(data):
+    tmp = f"{PROCEDURES_FILE}.{os.getpid()}.tmp"
+    with open(tmp, "w") as f:
+        json.dump(data, f, indent=2)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, PROCEDURES_FILE)
+
+
+def _new_procedure_id():
+    import secrets
+    return secrets.token_hex(6)
+
+
+def _procedure_running():
+    return bool(_procedure_state.get("running"))
+
+
+def _procedure_state_snapshot():
+    with _procedures_lock:
+        return dict(_procedure_state)
+
+
+def _procedure_touch_servo_heartbeat():
+    global _servo_last_heartbeat
+    with _servo_state_lock:
+        _servo_last_heartbeat = time.monotonic()
+
+
+def _setpoints_used_by_procedures(sp_id):
+    with _procedures_lock:
+        snapshot = list(sequence_procedures)
+    used = []
+    for proc in snapshot:
+        if proc.get("arm_pose_a_setpoint_id") == sp_id or proc.get("arm_pose_b_setpoint_id") == sp_id:
+            used.append(proc["name"])
+    return used
+
+
+def _procedure_known_setpoint_ids():
+    with _setpoints_lock:
+        ids = {s["id"] for s in servo_setpoints}
+    ids.add(ACTION_NEUTRAL_ID)
+    return ids
+
+
+def _procedure_driver_count():
+    return 4
+
+
+def _procedure_clean_driver_list(value):
+    if not isinstance(value, list) or not value:
+        return None, "gimbal_zero_drivers must be a non-empty list"
+    out = []
+    seen = set()
+    for raw in value:
+        try:
+            driver = int(raw)
+        except (TypeError, ValueError):
+            return None, "gimbal_zero_drivers must contain integers"
+        if driver < 0 or driver >= _procedure_driver_count():
+            return None, f"driver index {driver} outside 0..{_procedure_driver_count()-1}"
+        if driver in seen:
+            continue
+        seen.add(driver)
+        out.append(driver)
+    return out, None
+
+
+def _procedure_clean_setpoint_id(value, label):
+    sid = str(value or "").strip()
+    if not sid:
+        return None, f"{label} required"
+    if sid not in _procedure_known_setpoint_ids():
+        return None, f"unknown setpoint: {sid}"
+    return sid, None
+
+
+def _normalize_procedure_payload(data, existing=None):
+    src = dict(existing or {})
+    src.update(data or {})
+    entry = {}
+
+    pid = str(src.get("id", "")).strip()
+    if pid:
+        entry["id"] = pid
+
+    name = str(src.get("name", "")).strip()
+    if not name:
+        return None, "name required"
+    if len(name) > 64:
+        return None, "name too long (max 64)"
+    entry["name"] = name
+
+    zero_drivers, err = _procedure_clean_driver_list(src.get("gimbal_zero_drivers"))
+    if err:
+        return None, err
+    entry["gimbal_zero_drivers"] = zero_drivers
+
+    spin_driver_raw = src.get("spin_tumble_driver")
+    if spin_driver_raw in (None, ""):
+        spin_driver = None
+    else:
+        try:
+            spin_driver = int(spin_driver_raw)
+        except (TypeError, ValueError):
+            return None, "spin_tumble_driver must be an integer or null"
+        if spin_driver < 0 or spin_driver >= _procedure_driver_count():
+            return None, f"spin_tumble_driver {spin_driver} outside 0..{_procedure_driver_count()-1}"
+    entry["spin_tumble_driver"] = spin_driver
+
+    def parse_optional_float(key):
+        raw = src.get(key)
+        if raw in (None, ""):
+            return None, None
+        try:
+            return float(raw), None
+        except (TypeError, ValueError):
+            return None, f"{key} must be numeric or null"
+
+    spin_a, err = parse_optional_float("spin_tumble_a")
+    if err:
+        return None, err
+    spin_b, err = parse_optional_float("spin_tumble_b")
+    if err:
+        return None, err
+    raw_dwell = src.get("spin_tumble_dwell_ms")
+    if raw_dwell in (None, ""):
+        spin_dwell = None
+    else:
+        try:
+            spin_dwell = int(raw_dwell)
+        except (TypeError, ValueError):
+            return None, "spin_tumble_dwell_ms must be an integer or null"
+        spin_dwell = max(0, min(spin_dwell, PROCEDURE_DWELL_MAX_MS))
+    if spin_driver is None:
+        spin_a = None
+        spin_b = None
+        spin_dwell = None
+    else:
+        if spin_a is None or spin_b is None or spin_dwell is None:
+            return None, "spin_tumble_a, spin_tumble_b, and spin_tumble_dwell_ms are required when spin_tumble_driver is set"
+    entry["spin_tumble_a"] = spin_a
+    entry["spin_tumble_b"] = spin_b
+    entry["spin_tumble_dwell_ms"] = spin_dwell
+
+    arm_a, err = _procedure_clean_setpoint_id(src.get("arm_pose_a_setpoint_id"), "arm_pose_a_setpoint_id")
+    if err:
+        return None, err
+    arm_b, err = _procedure_clean_setpoint_id(src.get("arm_pose_b_setpoint_id"), "arm_pose_b_setpoint_id")
+    if err:
+        return None, err
+    entry["arm_pose_a_setpoint_id"] = arm_a
+    entry["arm_pose_b_setpoint_id"] = arm_b
+
+    try:
+        entry["gantry_home_steps"] = int(src.get("gantry_home_steps", 0))
+        entry["gantry_approach_steps"] = int(src.get("gantry_approach_steps", 0))
+    except (TypeError, ValueError):
+        return None, "gantry_home_steps and gantry_approach_steps must be integers"
+
+    try:
+        dwell_ms = int(src.get("dwell_ms", 0))
+    except (TypeError, ValueError):
+        return None, "dwell_ms must be an integer"
+    entry["dwell_ms"] = max(0, min(dwell_ms, PROCEDURE_DWELL_MAX_MS))
+
+    try:
+        repeat_count = int(src.get("repeat_count", 1))
+    except (TypeError, ValueError):
+        return None, "repeat_count must be an integer"
+    entry["repeat_count"] = max(1, min(repeat_count, PROCEDURE_REPEAT_MAX))
+
+    created_at = src.get("created_at", time.time())
+    try:
+        entry["created_at"] = float(created_at)
+    except (TypeError, ValueError):
+        entry["created_at"] = time.time()
+    return entry, None
+
+
+def _procedure_driver_name(driver, drv=None):
+    if drv and drv.get("name"):
+        return str(drv["name"])
+    if driver == PROCEDURE_BELT_DRIVER:
+        return "Belt"
+    return f"Driver {driver}"
+
+
+def _procedure_gimbal_status():
+    data, code = gimbal_get("status")
+    if code != 200:
+        msg = None
+        if isinstance(data, dict):
+            msg = data.get("error")
+        return None, msg or f"gimbal status HTTP {code}"
+    if not isinstance(data, dict):
+        return None, "gimbal status malformed"
+    drivers = data.get("drivers")
+    if not isinstance(drivers, list):
+        return None, "gimbal status missing drivers"
+    return data, None
+
+
+def _procedure_gimbal_driver(status, driver):
+    drivers = status.get("drivers") or []
+    if driver < 0 or driver >= len(drivers):
+        return None, f"gimbal status missing driver {driver}"
+    drv = drivers[driver]
+    if not isinstance(drv, dict):
+        return None, f"driver {driver} status malformed"
+    return drv, None
+
+
+def _procedure_gimbal_call(path):
+    data, code = gimbal_get(path)
+    if code != 200:
+        msg = None
+        if isinstance(data, dict):
+            msg = data.get("error")
+        return None, msg or f"gimbal call failed ({code})"
+    if isinstance(data, dict) and data.get("ok") is False:
+        return None, data.get("error") or "gimbal call failed"
+    return data, None
+
+
+def _procedure_validate_belt_target_steps(belt_drv, target_steps, label):
+    try:
+        target_steps = int(target_steps)
+    except (TypeError, ValueError):
+        return f"{label} must be an integer"
+    lo = belt_drv.get("soft_limit_min")
+    hi = belt_drv.get("soft_limit_max")
+    if lo is None:
+        lo = belt_drv.get("hard_limit_min")
+    if hi is None:
+        hi = belt_drv.get("hard_limit_max")
+    if lo is not None and target_steps < int(lo):
+        return f"{label} {target_steps} below belt min {int(lo)}"
+    if hi is not None and target_steps > int(hi):
+        return f"{label} {target_steps} above belt max {int(hi)}"
+    return None
+
+
+def _procedure_validate_gimbal_driver_ready(driver, drv, allow_untrusted=False, require_tumble=False):
+    name = _procedure_driver_name(driver, drv)
+    if not drv.get("found"):
+        return f"{name} not found"
+    if drv.get("running"):
+        return f"{name} already moving"
+    if not drv.get("enabled"):
+        return f"{name} disabled"
+    if require_tumble and not drv.get("tumble_supported"):
+        return f"{name} does not support tumble"
+    if not allow_untrusted and not drv.get("position_trusted"):
+        reason = drv.get("position_reason") or "unknown"
+        return f"{name} untrusted ({reason})"
+    return None
+
+
+def _procedure_preflight(procedure):
+    if not _servo_bootstrap_complete:
+        return "bootstrap not complete"
+    with _servo_state_lock:
+        if _servo_disarmed:
+            return "servos disarmed; POST /api/arm first"
+    if _action_state.get("running"):
+        return "action running; stop it first"
+    if procedure["repeat_count"] < 1:
+        return "repeat_count must be >= 1"
+
+    _sp_a, err = _validate_setpoint_for_playback(procedure["arm_pose_a_setpoint_id"])
+    if err:
+        return f"pose A invalid: {err}"
+    _sp_b, err = _validate_setpoint_for_playback(procedure["arm_pose_b_setpoint_id"])
+    if err:
+        return f"pose B invalid: {err}"
+
+    status, err = _procedure_gimbal_status()
+    if err:
+        return err
+
+    belt_drv, err = _procedure_gimbal_driver(status, PROCEDURE_BELT_DRIVER)
+    if err:
+        return err
+    allow_belt_untrusted = PROCEDURE_BELT_DRIVER in procedure["gimbal_zero_drivers"]
+    err = _procedure_validate_gimbal_driver_ready(PROCEDURE_BELT_DRIVER, belt_drv, allow_untrusted=allow_belt_untrusted)
+    if err:
+        return err
+    for label, target in (
+        ("gantry_home_steps", procedure["gantry_home_steps"]),
+        ("gantry_approach_steps", procedure["gantry_approach_steps"]),
+    ):
+        err = _procedure_validate_belt_target_steps(belt_drv, target, label)
+        if err:
+            return err
+
+    for driver in procedure["gimbal_zero_drivers"]:
+        drv, err = _procedure_gimbal_driver(status, driver)
+        if err:
+            return err
+        allow_untrusted = True
+        err = _procedure_validate_gimbal_driver_ready(driver, drv, allow_untrusted=allow_untrusted)
+        if err:
+            return err
+
+    spin_driver = procedure.get("spin_tumble_driver")
+    if spin_driver is not None:
+        drv, err = _procedure_gimbal_driver(status, spin_driver)
+        if err:
+            return err
+        allow_untrusted = spin_driver in procedure["gimbal_zero_drivers"]
+        err = _procedure_validate_gimbal_driver_ready(
+            spin_driver, drv,
+            allow_untrusted=allow_untrusted,
+            require_tumble=True,
+        )
+        if err:
+            return err
+    return None
+
+
+def _procedure_validate_cycle_motion_ready(procedure):
+    status, err = _procedure_gimbal_status()
+    if err:
+        return None, None, err
+    belt_drv, err = _procedure_gimbal_driver(status, PROCEDURE_BELT_DRIVER)
+    if err:
+        return None, None, err
+    err = _procedure_validate_gimbal_driver_ready(PROCEDURE_BELT_DRIVER, belt_drv, allow_untrusted=False)
+    if err:
+        return None, None, err
+    if not belt_drv.get("limits_enforced"):
+        return None, None, "Belt limits not enforced; set trusted zero first"
+    for driver in procedure["gimbal_zero_drivers"]:
+        drv, err = _procedure_gimbal_driver(status, driver)
+        if err:
+            return None, None, err
+        err = _procedure_validate_gimbal_driver_ready(driver, drv, allow_untrusted=False)
+        if err:
+            return None, None, err
+    spin_driver = procedure.get("spin_tumble_driver")
+    if spin_driver is not None:
+        drv, err = _procedure_gimbal_driver(status, spin_driver)
+        if err:
+            return None, None, err
+        err = _procedure_validate_gimbal_driver_ready(spin_driver, drv, allow_untrusted=False, require_tumble=True)
+        if err:
+            return None, None, err
+    for label, target in (
+        ("gantry_home_steps", procedure["gantry_home_steps"]),
+        ("gantry_approach_steps", procedure["gantry_approach_steps"]),
+    ):
+        err = _procedure_validate_belt_target_steps(belt_drv, target, label)
+        if err:
+            return None, None, err
+    return status, belt_drv, None
+
+
+def _procedure_soft_abort_gimbal():
+    data, err = _procedure_gimbal_call("stop_all")
+    if err:
+        return err
+    return None
+
+
+def _procedure_wait_checkpoint(set_state, step_index, total_steps, name, prompt, cycle_index=0, total_cycles=0):
+    _procedure_continue_flag.clear()
+    set_state(
+        step_index=step_index,
+        total_steps=total_steps,
+        step_name=name,
+        phase="waiting-operator",
+        operator_prompt=prompt,
+        cycle_index=cycle_index,
+        total_cycles=total_cycles,
+        error=None,
+    )
+    while True:
+        if _procedure_stop_flag.is_set():
+            return "stopped"
+        if _procedure_continue_flag.is_set():
+            _procedure_continue_flag.clear()
+            set_state(
+                phase="running",
+                operator_prompt=None,
+                step_name=name,
+                step_index=step_index,
+                total_steps=total_steps,
+                cycle_index=cycle_index,
+                total_cycles=total_cycles,
+                error=None,
+            )
+            return "continued"
+        _procedure_touch_servo_heartbeat()
+        time.sleep(PROCEDURE_POLL_S)
+
+
+def _procedure_wait_driver_predicate(driver, predicate, deadline, require_trusted=False, require_enabled=True):
+    while time.monotonic() < deadline:
+        if _procedure_stop_flag.is_set():
+            return "stopped", None, None
+        status, err = _procedure_gimbal_status()
+        if err:
+            return "error", None, err
+        drv, err = _procedure_gimbal_driver(status, driver)
+        if err:
+            return "error", None, err
+        name = _procedure_driver_name(driver, drv)
+        if not drv.get("found"):
+            return "error", drv, f"{name} not found"
+        if require_enabled and not drv.get("enabled"):
+            return "error", drv, f"{name} disabled"
+        if require_trusted and not drv.get("position_trusted"):
+            return "error", drv, f"{name} lost trusted position ({drv.get('position_reason') or 'unknown'})"
+        if predicate(drv):
+            return "arrived", drv, None
+        _procedure_touch_servo_heartbeat()
+        time.sleep(PROCEDURE_POLL_S)
+    return "timeout", None, None
+
+
+def _procedure_wait_belt_arrival(deadline):
+    return _procedure_wait_driver_predicate(
+        PROCEDURE_BELT_DRIVER,
+        lambda drv: (not drv.get("running")) and int(drv.get("steps_remaining") or 0) == 0,
+        deadline,
+        require_trusted=True,
+        require_enabled=True,
+    )
+
+
+def _procedure_wait_zero_arrival(driver, deadline):
+    return _procedure_wait_driver_predicate(
+        driver,
+        lambda drv: bool(drv.get("position_trusted")) and int(drv.get("position_steps") or 0) == 0 and (not drv.get("running")),
+        deadline,
+        require_trusted=False,
+        require_enabled=True,
+    )
+
+
+def _procedure_wait_tumble_stopped(driver, deadline):
+    return _procedure_wait_driver_predicate(
+        driver,
+        lambda drv: (not drv.get("tumble_active")) and (not drv.get("running")),
+        deadline,
+        require_trusted=False,
+        require_enabled=True,
+    )
+
+
+def _procedure_gantry_move_abs(target_steps):
+    status, belt_drv, err = _procedure_validate_cycle_motion_ready({
+        "gimbal_zero_drivers": [],
+        "spin_tumble_driver": None,
+        "gantry_home_steps": target_steps,
+        "gantry_approach_steps": target_steps,
+    })
+    if err:
+        return err
+    current_steps = int(belt_drv.get("position_steps") or 0)
+    delta = int(target_steps) - current_steps
+    if delta == 0:
+        return None
+    _data, err = _procedure_gimbal_call(f"move?d={PROCEDURE_BELT_DRIVER}&steps={delta}")
+    return err
+
+
+def _procedure_apply_named_pose(setpoint_id):
+    sp, err = _validate_setpoint_for_playback(setpoint_id)
+    if err:
+        return err
+    ok, apply_err = _action_apply_setpoint(sp["positions"])
+    if not ok:
+        return apply_err or "failed to apply setpoint"
+    return None
+
+
+def _procedure_wait_servo_arrival(deadline):
+    result = _action_wait_arrival(deadline)
+    if result == "arrived":
+        return None
+    if result == "stopped":
+        return "stopped"
+    return f"servos did not arrive within {ACTION_ARRIVAL_TIMEOUT_S:.0f}s"
+
+
+def _procedure_wait_dwell(deadline):
+    while time.monotonic() < deadline:
+        if _procedure_stop_flag.is_set():
+            return "stopped"
+        _procedure_touch_servo_heartbeat()
+        time.sleep(PROCEDURE_POLL_S)
+    return None
+
+
+def _procedure_total_steps(procedure):
+    prelude = 4  # set-zero checkpoint, capture zero, spin checkpoint, gimbal go zero
+    if procedure.get("spin_tumble_driver") is not None:
+        prelude += 1  # explicit tumble-stop step
+    per_cycle = 6   # pose A, gantry approach, pose B, dwell, gantry home, neutral
+    return prelude + procedure["repeat_count"] * per_cycle
+
+
+sequence_procedures = load_procedures()
+
+
+def _procedure_playback_worker(procedure):
+    def set_state(**kwargs):
+        with _procedures_lock:
+            _procedure_state.update(kwargs)
+
+    total_steps = _procedure_total_steps(procedure)
+    spin_driver = procedure.get("spin_tumble_driver")
+    current_step = 0
+    total_cycles = procedure["repeat_count"]
+
+    set_state(
+        running=True,
+        procedure_id=procedure["id"],
+        procedure_name=procedure["name"],
+        step_index=0,
+        total_steps=total_steps,
+        step_name=None,
+        phase="running",
+        operator_prompt=None,
+        cycle_index=0,
+        total_cycles=total_cycles,
+        error=None,
+    )
+
+    try:
+        current_step += 1
+        result = _procedure_wait_checkpoint(
+            set_state,
+            current_step,
+            total_steps,
+            "set-gimbal-zero-pose",
+            "Physically set the gimbal zero pose, then Continue to capture it.",
+            cycle_index=0,
+            total_cycles=total_cycles,
+        )
+        if result == "stopped":
+            _action_freeze_to_actual()
+            _procedure_soft_abort_gimbal()
+            set_state(phase="stopped")
+            return
+
+        current_step += 1
+        set_state(step_index=current_step, total_steps=total_steps, step_name="capture-gimbal-zero", phase="running", operator_prompt=None, cycle_index=0, total_cycles=total_cycles, error=None)
+        for driver in procedure["gimbal_zero_drivers"]:
+            _data, err = _procedure_gimbal_call(f"set_zero?d={driver}")
+            if err:
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="error", error=f"set_zero driver {driver}: {err}")
+                return
+        for driver in procedure["gimbal_zero_drivers"]:
+            state_name = _procedure_driver_name(driver)
+            status, _drv, err = _procedure_wait_zero_arrival(driver, time.monotonic() + 5.0)
+            if status == "stopped":
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="stopped")
+                return
+            if status == "timeout":
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="error", error=f"{state_name} zero capture timed out")
+                return
+            if status == "error":
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="error", error=err or f"{state_name} zero capture failed")
+                return
+
+        _status, _belt_drv, err = _procedure_validate_cycle_motion_ready(procedure)
+        if err:
+            _action_freeze_to_actual()
+            _procedure_soft_abort_gimbal()
+            set_state(phase="error", error=err)
+            return
+
+        current_step += 1
+        spin_prompt = "Free-spin the satellite, then Continue when done."
+        if spin_driver is not None:
+            set_state(step_index=current_step, total_steps=total_steps, step_name="start-spin-window", phase="running", operator_prompt=None, cycle_index=0, total_cycles=total_cycles, error=None)
+            _data, err = _procedure_gimbal_call(
+                f"tumble_start?d={spin_driver}&a={procedure['spin_tumble_a']}&b={procedure['spin_tumble_b']}&dwell_ms={procedure['spin_tumble_dwell_ms']}"
+            )
+            if err:
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="error", error=f"tumble start failed: {err}")
+                return
+            result = _procedure_wait_checkpoint(
+                set_state,
+                current_step,
+                total_steps,
+                "manual-spin-window",
+                spin_prompt,
+                cycle_index=0,
+                total_cycles=total_cycles,
+            )
+        else:
+            result = _procedure_wait_checkpoint(
+                set_state,
+                current_step,
+                total_steps,
+                "manual-spin-window",
+                spin_prompt,
+                cycle_index=0,
+                total_cycles=total_cycles,
+            )
+        if result == "stopped":
+            _action_freeze_to_actual()
+            _procedure_soft_abort_gimbal()
+            set_state(phase="stopped")
+            return
+
+        if spin_driver is not None:
+            current_step += 1
+            set_state(step_index=current_step, total_steps=total_steps, step_name="stop-tumble", phase="running", operator_prompt=None, cycle_index=0, total_cycles=total_cycles, error=None)
+            _data, err = _procedure_gimbal_call(f"tumble_stop?d={spin_driver}")
+            if err:
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="error", error=f"tumble stop failed: {err}")
+                return
+            status, _drv, err = _procedure_wait_tumble_stopped(spin_driver, time.monotonic() + PROCEDURE_GIMBAL_TIMEOUT_S)
+            if status == "stopped":
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="stopped")
+                return
+            if status == "timeout":
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="error", error="tumble stop timed out")
+                return
+            if status == "error":
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="error", error=err or "tumble stop failed")
+                return
+
+        current_step += 1
+        set_state(step_index=current_step, total_steps=total_steps, step_name="go-gimbal-zero", phase="running", operator_prompt=None, cycle_index=0, total_cycles=total_cycles, error=None)
+        for driver in procedure["gimbal_zero_drivers"]:
+            _data, err = _procedure_gimbal_call(f"go_zero?d={driver}")
+            if err:
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="error", error=f"go_zero driver {driver}: {err}")
+                return
+        for driver in procedure["gimbal_zero_drivers"]:
+            name = _procedure_driver_name(driver)
+            status, _drv, err = _procedure_wait_zero_arrival(driver, time.monotonic() + PROCEDURE_GIMBAL_TIMEOUT_S)
+            if status == "stopped":
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="stopped")
+                return
+            if status == "timeout":
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="error", error=f"{name} zero return timed out")
+                return
+            if status == "error":
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="error", error=err or f"{name} zero return failed")
+                return
+
+        for cycle_index in range(1, total_cycles + 1):
+            current_step += 1
+            set_state(step_index=current_step, total_steps=total_steps, step_name="arm-pose-a", phase="running", operator_prompt=None, cycle_index=cycle_index, total_cycles=total_cycles, error=None)
+            err = _procedure_apply_named_pose(procedure["arm_pose_a_setpoint_id"])
+            if err:
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="error", error=f"pose A failed: {err}")
+                return
+            err = _procedure_wait_servo_arrival(time.monotonic() + ACTION_ARRIVAL_TIMEOUT_S)
+            if err == "stopped":
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="stopped")
+                return
+            if err:
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="error", error=err)
+                return
+
+            current_step += 1
+            set_state(step_index=current_step, total_steps=total_steps, step_name="gantry-approach", phase="running", operator_prompt=None, cycle_index=cycle_index, total_cycles=total_cycles, error=None)
+            err = _procedure_gantry_move_abs(procedure["gantry_approach_steps"])
+            if err:
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="error", error=f"gantry approach failed: {err}")
+                return
+            status, _drv, err = _procedure_wait_belt_arrival(time.monotonic() + PROCEDURE_GIMBAL_TIMEOUT_S)
+            if status == "stopped":
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="stopped")
+                return
+            if status == "timeout":
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="error", error="gantry approach timed out")
+                return
+            if status == "error":
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="error", error=err or "gantry approach failed")
+                return
+
+            current_step += 1
+            set_state(step_index=current_step, total_steps=total_steps, step_name="arm-pose-b", phase="running", operator_prompt=None, cycle_index=cycle_index, total_cycles=total_cycles, error=None)
+            err = _procedure_apply_named_pose(procedure["arm_pose_b_setpoint_id"])
+            if err:
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="error", error=f"pose B failed: {err}")
+                return
+            err = _procedure_wait_servo_arrival(time.monotonic() + ACTION_ARRIVAL_TIMEOUT_S)
+            if err == "stopped":
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="stopped")
+                return
+            if err:
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="error", error=err)
+                return
+
+            current_step += 1
+            set_state(step_index=current_step, total_steps=total_steps, step_name="dwell", phase="running", operator_prompt=None, cycle_index=cycle_index, total_cycles=total_cycles, error=None)
+            err = _procedure_wait_dwell(time.monotonic() + (procedure["dwell_ms"] / 1000.0))
+            if err == "stopped":
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="stopped")
+                return
+
+            current_step += 1
+            set_state(step_index=current_step, total_steps=total_steps, step_name="gantry-home", phase="running", operator_prompt=None, cycle_index=cycle_index, total_cycles=total_cycles, error=None)
+            if int(procedure["gantry_home_steps"]) == 0:
+                _data, err = _procedure_gimbal_call(f"go_zero?d={PROCEDURE_BELT_DRIVER}")
+            else:
+                err = _procedure_gantry_move_abs(procedure["gantry_home_steps"])
+            if err:
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="error", error=f"gantry home failed: {err}")
+                return
+            if int(procedure["gantry_home_steps"]) == 0:
+                status, _drv, err = _procedure_wait_zero_arrival(PROCEDURE_BELT_DRIVER, time.monotonic() + PROCEDURE_GIMBAL_TIMEOUT_S)
+            else:
+                status, _drv, err = _procedure_wait_belt_arrival(time.monotonic() + PROCEDURE_GIMBAL_TIMEOUT_S)
+            if status == "stopped":
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="stopped")
+                return
+            if status == "timeout":
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="error", error="gantry home timed out")
+                return
+            if status == "error":
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="error", error=err or "gantry home failed")
+                return
+
+            current_step += 1
+            set_state(step_index=current_step, total_steps=total_steps, step_name="arm-neutral", phase="running", operator_prompt=None, cycle_index=cycle_index, total_cycles=total_cycles, error=None)
+            err = _procedure_apply_named_pose(ACTION_NEUTRAL_ID)
+            if err:
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="error", error=f"neutral failed: {err}")
+                return
+            err = _procedure_wait_servo_arrival(time.monotonic() + ACTION_ARRIVAL_TIMEOUT_S)
+            if err == "stopped":
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="stopped")
+                return
+            if err:
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="error", error=err)
+                return
+
+        set_state(phase="done", operator_prompt=None, error=None)
+    finally:
+        with _procedures_lock:
+            _procedure_state["running"] = False
+
+
+@app.route('/api/procedures')
+def procedures_list():
+    with _procedures_lock:
+        return jsonify(list(sequence_procedures))
+
+
+@app.route('/api/procedures', methods=['POST'])
+def procedures_create():
+    entry, err = _normalize_procedure_payload(request.json or {})
+    if err:
+        return jsonify({"ok": False, "error": err}), 400
+    entry["id"] = _new_procedure_id()
+    entry["created_at"] = time.time()
+    with _procedures_lock:
+        sequence_procedures.append(entry)
+        snapshot = list(sequence_procedures)
+    try:
+        save_procedures(snapshot)
+    except Exception as e:
+        with _procedures_lock:
+            try:
+                sequence_procedures.remove(entry)
+            except ValueError:
+                pass
+        return jsonify({"ok": False, "error": f"save failed: {e}"}), 500
+    return jsonify({"ok": True, "procedure": entry})
+
+
+@app.route('/api/procedures/<pid>', methods=['PATCH'])
+def procedures_update(pid):
+    if _procedure_running():
+        return jsonify({"ok": False, "error": "procedure running; stop it first"}), 409
+    with _procedures_lock:
+        current = next((p for p in sequence_procedures if p["id"] == pid), None)
+        if current is None:
+            return jsonify({"ok": False, "error": "not found"}), 404
+        updated, err = _normalize_procedure_payload(request.json or {}, existing=current)
+        if err:
+            return jsonify({"ok": False, "error": err}), 400
+        updated["id"] = current["id"]
+        updated["created_at"] = current["created_at"]
+        idx = sequence_procedures.index(current)
+        sequence_procedures[idx] = updated
+        snapshot = list(sequence_procedures)
+    try:
+        save_procedures(snapshot)
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"save failed: {e}"}), 500
+    return jsonify({"ok": True, "procedure": updated})
+
+
+@app.route('/api/procedures/<pid>', methods=['DELETE'])
+def procedures_delete(pid):
+    if _procedure_running():
+        return jsonify({"ok": False, "error": "procedure running; stop it first"}), 409
+    with _procedures_lock:
+        before = len(sequence_procedures)
+        sequence_procedures[:] = [p for p in sequence_procedures if p["id"] != pid]
+        if len(sequence_procedures) == before:
+            return jsonify({"ok": False, "error": "not found"}), 404
+        snapshot = list(sequence_procedures)
+    try:
+        save_procedures(snapshot)
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"save failed: {e}"}), 500
+    return jsonify({"ok": True})
+
+
+@app.route('/api/procedures/state')
+def procedures_state():
+    return jsonify(_procedure_state_snapshot())
+
+
+@app.route('/api/procedures/<pid>/ready', methods=['POST'])
+def procedures_ready(pid):
+    if not _procedure_play_lock.acquire(blocking=False):
+        return jsonify({"ok": False, "error": "a procedure is already running"}), 409
+    try:
+        with _procedures_lock:
+            procedure = next((p for p in sequence_procedures if p["id"] == pid), None)
+            if procedure is None:
+                _procedure_play_lock.release()
+                return jsonify({"ok": False, "error": "not found"}), 404
+            import copy as _copy
+            procedure_copy = _copy.deepcopy(procedure)
+        err = _procedure_preflight(procedure_copy)
+        if err:
+            _procedure_play_lock.release()
+            return jsonify({"ok": False, "error": err}), 409
+        _procedure_stop_flag.clear()
+        _procedure_continue_flag.clear()
+
+        def runner():
+            try:
+                _procedure_playback_worker(procedure_copy)
+            finally:
+                _procedure_play_lock.release()
+
+        threading.Thread(target=runner, daemon=True).start()
+    except Exception:
+        _procedure_play_lock.release()
+        raise
+    return jsonify({"ok": True, "id": procedure_copy["id"], "name": procedure_copy["name"]})
+
+
+@app.route('/api/procedures/<pid>/continue', methods=['POST'])
+def procedures_continue(pid):
+    snap = _procedure_state_snapshot()
+    if not snap.get("running") or snap.get("procedure_id") != pid:
+        return jsonify({"ok": False, "error": "no running procedure with that id"}), 409
+    if snap.get("phase") != "waiting-operator":
+        return jsonify({"ok": False, "error": "procedure is not waiting for operator input"}), 409
+    _procedure_continue_flag.set()
+    return jsonify({"ok": True})
+
+
+@app.route('/api/procedures/stop', methods=['POST'])
+def procedures_stop():
+    _procedure_stop_flag.set()
+    _procedure_continue_flag.set()
+    _procedure_soft_abort_gimbal()
+    _action_freeze_to_actual()
     return jsonify({"ok": True})
 
 

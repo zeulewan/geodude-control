@@ -229,6 +229,18 @@
           <div id="actionList" class="action-list"></div>
           <div id="actionEditor" class="action-editor" style="display:none;"></div>
         </section>
+        <section class="setpoints-section" aria-labelledby="proceduresTitle">
+          <div class="setpoints-head">
+            <h4 id="proceduresTitle">Procedures</h4>
+            <span>Checkpointed arm, gimbal, and Belt sequences. Ready starts preflight and parks at the next operator prompt.</span>
+          </div>
+          <div id="procedureStatus" class="action-status"></div>
+          <div class="setpoints-add-row">
+            <button type="button" class="btn btn-sm" onclick="procedureOpenEditor(null)">New Procedure</button>
+          </div>
+          <div id="procedureList" class="action-list"></div>
+          <div id="procedureEditor" class="action-editor" style="display:none;"></div>
+        </section>
       </article>
     </section>
   </section>
