@@ -2112,7 +2112,7 @@ def _procedure_total_steps(procedure):
     prelude = 2  # spin checkpoint, gimbal go zero
     if procedure.get("_needs_zero_capture"):
         prelude += 2  # set-zero checkpoint, capture zero
-    per_cycle = 6   # pose A, gantry approach, pose B, dwell, gantry home, neutral
+    per_cycle = 7   # pose A, gantry approach, pose B, dwell, pose A, gantry home, neutral
     return prelude + procedure["repeat_count"] * per_cycle
 
 
@@ -2330,6 +2330,26 @@ def _procedure_playback_worker(procedure):
                 _action_freeze_to_actual()
                 _procedure_soft_abort_gimbal()
                 set_state(phase="stopped")
+                return
+
+            current_step += 1
+            set_state(step_index=current_step, total_steps=total_steps, step_name="arm-pose-a", phase="running", operator_prompt=None, cycle_index=cycle_index, total_cycles=total_cycles, error=None)
+            err = _procedure_apply_named_pose(procedure["arm_pose_a_setpoint_id"])
+            if err:
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="error", error=f"pose A return failed: {err}")
+                return
+            err = _procedure_wait_servo_arrival(time.monotonic() + ACTION_ARRIVAL_TIMEOUT_S)
+            if err == "stopped":
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="stopped")
+                return
+            if err:
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="error", error=err)
                 return
 
             current_step += 1
