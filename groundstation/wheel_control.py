@@ -1498,7 +1498,6 @@ def actions_stop():
 #     "spin_tumble_driver": <int|null>,
 #     "arm_pose_a_setpoint_id": "<sp or __neutral__>",
 #     "arm_pose_b_setpoint_id": "<sp or __neutral__>",
-#     "gantry_home_steps": <int>,
 #     "gantry_approach_steps": <int>,
 #     "dwell_ms": <int>,
 #     "repeat_count": <int>,
@@ -1690,11 +1689,11 @@ def _normalize_procedure_payload(data, existing=None):
     entry["arm_pose_a_setpoint_id"] = arm_a
     entry["arm_pose_b_setpoint_id"] = arm_b
 
+    entry["gantry_home_steps"] = 0
     try:
-        entry["gantry_home_steps"] = int(src.get("gantry_home_steps", 0))
         entry["gantry_approach_steps"] = int(src.get("gantry_approach_steps", 0))
     except (TypeError, ValueError):
-        return None, "gantry_home_steps and gantry_approach_steps must be integers"
+        return None, "gantry_approach_steps must be an integer"
 
     try:
         dwell_ms = int(src.get("dwell_ms", 0))
@@ -1824,13 +1823,9 @@ def _procedure_preflight(procedure):
     err = _procedure_validate_gimbal_driver_ready(PROCEDURE_BELT_DRIVER, belt_drv, allow_untrusted=allow_belt_untrusted)
     if err:
         return err
-    for label, target in (
-        ("gantry_home_steps", procedure["gantry_home_steps"]),
-        ("gantry_approach_steps", procedure["gantry_approach_steps"]),
-    ):
-        err = _procedure_validate_belt_target_steps(belt_drv, target, label)
-        if err:
-            return err
+    err = _procedure_validate_belt_target_steps(belt_drv, procedure["gantry_approach_steps"], "gantry_approach_steps")
+    if err:
+        return err
 
     for driver in procedure["gimbal_zero_drivers"]:
         drv, err = _procedure_gimbal_driver(status, driver)
@@ -1884,13 +1879,9 @@ def _procedure_validate_cycle_motion_ready(procedure):
         err = _procedure_validate_gimbal_driver_ready(spin_driver, drv, allow_untrusted=False, require_tumble=True)
         if err:
             return None, None, err
-    for label, target in (
-        ("gantry_home_steps", procedure["gantry_home_steps"]),
-        ("gantry_approach_steps", procedure["gantry_approach_steps"]),
-    ):
-        err = _procedure_validate_belt_target_steps(belt_drv, target, label)
-        if err:
-            return None, None, err
+    err = _procedure_validate_belt_target_steps(belt_drv, procedure["gantry_approach_steps"], "gantry_approach_steps")
+    if err:
+        return None, None, err
     return status, belt_drv, None
 
 
@@ -2019,7 +2010,6 @@ def _procedure_gantry_move_abs(target_steps):
     status, belt_drv, err = _procedure_validate_cycle_motion_ready({
         "gimbal_zero_drivers": [],
         "spin_tumble_driver": None,
-        "gantry_home_steps": target_steps,
         "gantry_approach_steps": target_steps,
     })
     if err:
@@ -2317,25 +2307,19 @@ def _procedure_playback_worker(procedure):
                 set_state(phase="stopped")
                 return
 
-            current_step += 1
-            set_state(step_index=current_step, total_steps=total_steps, step_name="gantry-home", phase="running", operator_prompt=None, cycle_index=cycle_index, total_cycles=total_cycles, error=None)
-            if int(procedure["gantry_home_steps"]) == 0:
-                _data, err = _procedure_gimbal_call(f"go_zero?d={PROCEDURE_BELT_DRIVER}")
-            else:
-                err = _procedure_gantry_move_abs(procedure["gantry_home_steps"])
-            if err:
-                _action_freeze_to_actual()
-                _procedure_soft_abort_gimbal()
-                set_state(phase="error", error=f"gantry home failed: {err}")
-                return
-            if int(procedure["gantry_home_steps"]) == 0:
-                status, _drv, err = _procedure_wait_zero_arrival(PROCEDURE_BELT_DRIVER, time.monotonic() + PROCEDURE_GIMBAL_TIMEOUT_S)
-            else:
-                status, _drv, err = _procedure_wait_belt_arrival(time.monotonic() + PROCEDURE_GIMBAL_TIMEOUT_S)
-            if status == "stopped":
-                _action_freeze_to_actual()
-                _procedure_soft_abort_gimbal()
-                set_state(phase="stopped")
+        current_step += 1
+        set_state(step_index=current_step, total_steps=total_steps, step_name="gantry-home", phase="running", operator_prompt=None, cycle_index=cycle_index, total_cycles=total_cycles, error=None)
+        _data, err = _procedure_gimbal_call(f"go_zero?d={PROCEDURE_BELT_DRIVER}")
+        if err:
+            _action_freeze_to_actual()
+            _procedure_soft_abort_gimbal()
+            set_state(phase="error", error=f"gantry home failed: {err}")
+            return
+        status, _drv, err = _procedure_wait_zero_arrival(PROCEDURE_BELT_DRIVER, time.monotonic() + PROCEDURE_GIMBAL_TIMEOUT_S)
+        if status == "stopped":
+            _action_freeze_to_actual()
+            _procedure_soft_abort_gimbal()
+            set_state(phase="stopped")
                 return
             if status == "timeout":
                 _action_freeze_to_actual()

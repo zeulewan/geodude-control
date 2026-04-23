@@ -3112,7 +3112,7 @@ function procedureSummary(proc) {
   var spinText = proc.spin_tumble_driver == null ? 'manual only' : (procedureDriverName(proc.spin_tumble_driver) + ' (live gimbal settings)');
   return 'Zero ' + zeroText +
     ' | spin ' + spinText +
-    ' | Belt ' + String(proc.gantry_home_steps) + '→' + String(proc.gantry_approach_steps) +
+    ' | Belt 0→' + String(proc.gantry_approach_steps) +
     ' | dwell ' + String(proc.dwell_ms) + ' ms' +
     ' | x' + String(proc.repeat_count);
 }
@@ -3244,7 +3244,6 @@ function procedureDefaultEditorState() {
     spin_tumble_driver: null,
     arm_pose_a_setpoint_id: procedureDefaultSetpointId(),
     arm_pose_b_setpoint_id: ACTION_NEUTRAL_ID,
-    gantry_home_steps: '0',
     gantry_approach_steps: '0',
     dwell_ms: '1000',
     repeat_count: '1'
@@ -3264,7 +3263,6 @@ function procedureOpenEditor(pid) {
       spin_tumble_driver: existing.spin_tumble_driver == null ? null : parseInt(existing.spin_tumble_driver, 10),
       arm_pose_a_setpoint_id: existing.arm_pose_a_setpoint_id,
       arm_pose_b_setpoint_id: existing.arm_pose_b_setpoint_id,
-      gantry_home_steps: String(existing.gantry_home_steps),
       gantry_approach_steps: String(existing.gantry_approach_steps),
       dwell_ms: String(existing.dwell_ms),
       repeat_count: String(existing.repeat_count)
@@ -3359,12 +3357,11 @@ function procedureRenderEditor() {
       '<select onchange="procedureEditorSetSpinDriver(this.value)">' + procedureBuildSpinOptions(st.spin_tumble_driver) + '</select>' +
     '</div>' +
     '<div class="action-editor-empty">' +
-      'Spin axis uses the current tumble settings from Gimbal Controls. Change Yaw/Pitch A/B/dwell or Roll direction there, not here.' +
+      'Spin axis uses the current tumble settings from Gimbal Controls. Change Yaw/Pitch A/B/dwell or Roll direction there, not here. Belt home is always zero.' +
     '</div>' +
     '<div class="procedure-editor-grid">' +
       '<label class="procedure-field"><span>Arm pose A</span><select onchange="procedureEditorSetField(\'arm_pose_a_setpoint_id\', this.value)">' + poseAOptions + '</select></label>' +
       '<label class="procedure-field"><span>Arm pose B</span><select onchange="procedureEditorSetField(\'arm_pose_b_setpoint_id\', this.value)">' + poseBOptions + '</select></label>' +
-      '<label class="procedure-field"><span>Gantry home steps</span><input type="number" step="1" value="' + htmlEscape(st.gantry_home_steps) + '" oninput="procedureEditorSetField(\'gantry_home_steps\', this.value)"></label>' +
       '<label class="procedure-field"><span>Gantry approach steps</span><input type="number" step="1" value="' + htmlEscape(st.gantry_approach_steps) + '" oninput="procedureEditorSetField(\'gantry_approach_steps\', this.value)"></label>' +
       '<label class="procedure-field"><span>Dwell ms</span><input type="number" min="0" max="600000" step="50" value="' + htmlEscape(st.dwell_ms) + '" oninput="procedureEditorSetField(\'dwell_ms\', this.value)"></label>' +
       '<label class="procedure-field"><span>Repeat count</span><input type="number" min="1" max="1000" step="1" value="' + htmlEscape(st.repeat_count) + '" oninput="procedureEditorSetField(\'repeat_count\', this.value)"></label>' +
@@ -3390,12 +3387,11 @@ function procedureEditorSave() {
 
   var spinDriver = st.spin_tumble_driver == null ? null : parseInt(st.spin_tumble_driver, 10);
 
-  var gantryHome = parseInt(st.gantry_home_steps, 10);
   var gantryApproach = parseInt(st.gantry_approach_steps, 10);
   var dwellMs = parseInt(st.dwell_ms, 10);
   var repeatCount = parseInt(st.repeat_count, 10);
-  if (isNaN(gantryHome) || isNaN(gantryApproach) || isNaN(dwellMs) || isNaN(repeatCount)) {
-    alert('Gantry, dwell, and repeat fields must be integers.');
+  if (isNaN(gantryApproach) || isNaN(dwellMs) || isNaN(repeatCount)) {
+    alert('Approach, dwell, and repeat fields must be integers.');
     return;
   }
 
@@ -3405,7 +3401,6 @@ function procedureEditorSave() {
     spin_tumble_driver: spinDriver,
     arm_pose_a_setpoint_id: st.arm_pose_a_setpoint_id,
     arm_pose_b_setpoint_id: st.arm_pose_b_setpoint_id,
-    gantry_home_steps: gantryHome,
     gantry_approach_steps: gantryApproach,
     dwell_ms: dwellMs,
     repeat_count: repeatCount
