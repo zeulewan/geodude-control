@@ -18,9 +18,9 @@ InlineCurrentSense current_sense = InlineCurrentSense(0.01f, 50.0f, A0, A2);
 void doA() { encoder.handleA(); }
 void doB() { encoder.handleB(); }
 
-float run_voltage = 3.0f;
+float run_voltage = 24.0f;
 float run_target = 3.14f;  // ~30 rpm mechanical target in rad/s
-float run_ramp = 0.5f;     // rad/s^2
+float run_ramp = 2000.0f;  // rad/s^2
 float run_torque = 1.0f;   // direct Uq volts for torque-voltage test
 float current_target = 0.0f;
 bool armed = false;

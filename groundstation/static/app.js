@@ -1475,12 +1475,25 @@ var maceJogPendingDirection = null;
 var maceJogPendingToken = null;
 var maceJogRequestSeq = 0;
 var maceJogTokenSeq = 0;
+var maceHoldPointerId = null;
+var MACE_DEFAULT_ACCEL_RAMP = 2000.0;
+var MACE_DEFAULT_BRAKE_RAMP = 2000.0;
+var MACE_DEFAULT_MAX_VOLTAGE = 24.0;
+
+function maceApplyDefaultSettings() {
+  var accel = document.getElementById('maceAccelRamp');
+  var brake = document.getElementById('maceBrakeRamp');
+  var volt = document.getElementById('maceVoltage');
+  if (accel) accel.value = String(MACE_DEFAULT_ACCEL_RAMP);
+  if (brake) brake.value = String(MACE_DEFAULT_BRAKE_RAMP);
+  if (volt) volt.value = String(MACE_DEFAULT_MAX_VOLTAGE);
+}
 
 function maceCfg() {
   return {
-    accel_ramp: parseFloat(document.getElementById('maceAccelRamp').value || '5') || 5,
-    brake_ramp: parseFloat(document.getElementById('maceBrakeRamp').value || '12') || 12,
-    max_voltage: parseFloat(document.getElementById('maceVoltage').value || '12') || 12
+    accel_ramp: parseFloat(document.getElementById('maceAccelRamp').value || String(MACE_DEFAULT_ACCEL_RAMP)) || MACE_DEFAULT_ACCEL_RAMP,
+    brake_ramp: parseFloat(document.getElementById('maceBrakeRamp').value || String(MACE_DEFAULT_BRAKE_RAMP)) || MACE_DEFAULT_BRAKE_RAMP,
+    max_voltage: parseFloat(document.getElementById('maceVoltage').value || String(MACE_DEFAULT_MAX_VOLTAGE)) || MACE_DEFAULT_MAX_VOLTAGE
   };
 }
 
@@ -1656,6 +1669,13 @@ function maceReleaseAll() {
   maceJogStop(maceJogPendingToken || maceJogActiveToken);
 }
 
+function maceReleasePointer(ev) {
+  if (maceHoldPointerId === null) return;
+  if (ev && ev.pointerId != null && ev.pointerId !== maceHoldPointerId) return;
+  maceHoldPointerId = null;
+  maceReleaseAll();
+}
+
 function maceRenderStatus(d) {
   d = d || {};
   var status = document.getElementById('maceJogStatus');
@@ -1718,6 +1738,7 @@ function maceBindMomentaryButton(id, direction) {
     if (btn.disabled) return;
     if (activePointerId !== null) return;
     activePointerId = ev && ev.pointerId != null ? ev.pointerId : 'mouse';
+    maceHoldPointerId = activePointerId;
     if (ev && ev.pointerId != null && btn.setPointerCapture) btn.setPointerCapture(ev.pointerId);
     if (maceJogActive && maceJogActive !== direction) maceJogStop();
     if (maceJogActive === direction || maceJogPendingDirection === direction) return;
@@ -1730,6 +1751,7 @@ function maceBindMomentaryButton(id, direction) {
     if (ev && ev.pointerId != null && btn.releasePointerCapture) {
       try { btn.releasePointerCapture(ev.pointerId); } catch (e) {}
     }
+    if (maceHoldPointerId === activePointerId) maceHoldPointerId = null;
     activePointerId = null;
     if (maceJogActive === direction || maceJogPendingDirection === direction) maceJogStop();
   }
@@ -3095,6 +3117,7 @@ setInterval(actionStatePoll, 500);
   sysPoll();
   gimbalPoll();
   if (hasControllerUi) controllerPoll();
+  maceApplyDefaultSettings();
   maceUpdateLabels();
   maceBindMomentaryButton('maceBackwardBtn', 'backward');
   maceBindMomentaryButton('maceBrakeBtn', 'brake');
