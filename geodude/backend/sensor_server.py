@@ -25,13 +25,45 @@ simplefoc_status_cache = {
     "error": None,
     "updated_at": 0.0,
 }
+SIMPLEFOC_STATUS_RPM_SANITY_LIMIT = 1200.0
+
+
+def _simplefoc_sanitize_status(status, prev_status=None):
+    if status is None:
+        return None
+    clean = dict(status)
+    try:
+        rpm = float(clean.get("enc_rpm"))
+    except (TypeError, ValueError):
+        return clean
+    if not math.isfinite(rpm):
+        clean["enc_rpm"] = 0.0
+        clean["enc_rpm_glitch"] = True
+        clean["enc_rpm_raw"] = rpm
+        return clean
+    if abs(rpm) <= SIMPLEFOC_STATUS_RPM_SANITY_LIMIT:
+        clean["enc_rpm"] = rpm
+        return clean
+    fallback = 0.0
+    if prev_status is not None:
+        try:
+            prev_rpm = float(prev_status.get("enc_rpm"))
+        except (AttributeError, TypeError, ValueError):
+            prev_rpm = None
+        if prev_rpm is not None and math.isfinite(prev_rpm) and abs(prev_rpm) <= SIMPLEFOC_STATUS_RPM_SANITY_LIMIT:
+            fallback = prev_rpm
+    clean["enc_rpm_raw"] = rpm
+    clean["enc_rpm"] = fallback
+    clean["enc_rpm_glitch"] = True
+    return clean
 
 
 def _simplefoc_cache_status(status=None, error=None):
     with simplefoc_status_lock:
         simplefoc_status_cache["connected"] = bool(pico_serial is not None and pico_serial.is_open)
         if status is not None:
-            simplefoc_status_cache["status"] = dict(status)
+            prev_status = simplefoc_status_cache.get("status")
+            simplefoc_status_cache["status"] = _simplefoc_sanitize_status(status, prev_status=prev_status)
         if error is not None:
             simplefoc_status_cache["error"] = str(error)
         elif status is not None:
@@ -113,7 +145,7 @@ def _simplefoc_exchange_locked(ser, cmd, read_for=0.2):
             break
         if line.startswith("{") and line.endswith("}"):
             try:
-                last_status = json.loads(line)
+                last_status = _simplefoc_sanitize_status(json.loads(line), prev_status=last_status)
                 _simplefoc_cache_status(status=last_status, error=None)
             except Exception as exc:
                 err = "status parse error: %s" % exc
@@ -1497,7 +1529,7 @@ def _read_stm_status_locked(ser, read_for=0.25):
             continue
         if line.startswith("{") and line.endswith("}"):
             try:
-                last = json.loads(line)
+                last = _simplefoc_sanitize_status(json.loads(line), prev_status=last)
             except Exception:
                 pass
     return last or {}
