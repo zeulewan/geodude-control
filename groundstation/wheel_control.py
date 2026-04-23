@@ -2109,7 +2109,7 @@ def _procedure_wait_dwell(deadline):
 
 
 def _procedure_total_steps(procedure):
-    prelude = 3  # spin checkpoint, tumble stop, gimbal go zero
+    prelude = 2  # spin checkpoint, gimbal go zero
     if procedure.get("_needs_zero_capture"):
         prelude += 2  # set-zero checkpoint, capture zero
     per_cycle = 6   # pose A, gantry approach, pose B, dwell, gantry home, neutral
@@ -2229,33 +2229,6 @@ def _procedure_playback_worker(procedure):
             _procedure_soft_abort_gimbal()
             set_state(phase="stopped")
             return
-
-        current_step += 1
-        set_state(step_index=current_step, total_steps=total_steps, step_name="stop-tumble", phase="running", operator_prompt=None, cycle_index=0, total_cycles=total_cycles, error=None)
-        for spin_driver in _procedure_tumble_driver_indices():
-            _data, err = _procedure_gimbal_call(f"tumble_stop?d={spin_driver}")
-            if err:
-                _action_freeze_to_actual()
-                _procedure_soft_abort_gimbal()
-                set_state(phase="error", error=f"tumble stop failed: {err}")
-                return
-        for spin_driver in _procedure_tumble_driver_indices():
-            status, _drv, err = _procedure_wait_tumble_stopped(spin_driver, time.monotonic() + PROCEDURE_GIMBAL_TIMEOUT_S)
-            if status == "stopped":
-                _action_freeze_to_actual()
-                _procedure_soft_abort_gimbal()
-                set_state(phase="stopped")
-                return
-            if status == "timeout":
-                _action_freeze_to_actual()
-                _procedure_soft_abort_gimbal()
-                set_state(phase="error", error="tumble stop timed out")
-                return
-            if status == "error":
-                _action_freeze_to_actual()
-                _procedure_soft_abort_gimbal()
-                set_state(phase="error", error=err or "tumble stop failed")
-                return
 
         current_step += 1
         set_state(step_index=current_step, total_steps=total_steps, step_name="go-gimbal-zero", phase="running", operator_prompt=None, cycle_index=0, total_cycles=total_cycles, error=None)
