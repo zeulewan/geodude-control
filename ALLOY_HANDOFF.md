@@ -13,7 +13,7 @@ Scope: gimbal controls only
 - Do not manually copy files into `/opt`.
 - Roll has no software limits.
 - Tumble exists for Yaw / Pitch / Roll only, not Belt.
-- All axes are currently untrusted after the latest ESP32 flash, so nothing tumble-related should start until the user re-zeroes the axis.
+- After the latest ESP32 reboot, all axes are currently untrusted and the driver stack is not set up yet (`found:false`, `setup_done:false`), so nothing tumble-related should start until the user runs `SETUP DRIVERS`, enables the axis, and re-zeroes it.
 
 ## User Intent / Product Rules
 
@@ -132,6 +132,7 @@ Groundstation Pi:
 ESP32 live status:
 
 - Yaw:
+  - `found=false`
   - `tumble_supported=true`
   - `tumble_active=false`
   - `tumble_state="off"`
@@ -139,9 +140,10 @@ ESP32 live status:
   - `tumble_b=45`
   - `tumble_dwell_ms=500`
   - `position_trusted=false`
-  - `position_reason="boot"`
+  - `position_reason="power_loss"`
   - `enabled=false`
 - Pitch:
+  - `found=false`
   - `tumble_supported=true`
   - `tumble_active=false`
   - `tumble_state="off"`
@@ -149,9 +151,10 @@ ESP32 live status:
   - `tumble_b=45`
   - `tumble_dwell_ms=500`
   - `position_trusted=false`
-  - `position_reason="boot"`
+  - `position_reason="power_loss"`
   - `enabled=false`
 - Roll:
+  - `found=false`
   - `tumble_supported=true`
   - `tumble_active=false`
   - `tumble_state="off"`
@@ -159,9 +162,10 @@ ESP32 live status:
   - `tumble_b=45`
   - `tumble_dwell_ms=500`
   - `position_trusted=false`
-  - `position_reason="boot"`
+  - `position_reason="power_loss"`
   - `enabled=false`
 - Belt:
+  - `found=false`
   - `tumble_supported=false`
   - `tumble_active=false`
   - `tumble_state="off"`
@@ -169,14 +173,22 @@ ESP32 live status:
   - `tumble_b=null`
   - `tumble_dwell_ms=null`
   - `position_trusted=false`
-  - `position_reason="boot"`
+  - `position_reason="power_loss"`
   - `enabled=false`
 
 Important live side effect:
 
-- ESP32 rebooted during OTA.
-- All axes currently have untrusted position state.
-- User must re-zero any axis before `GO ZERO` or tumble.
+- ESP32 rebooted during OTA / later power cycling.
+- Current direct ESP32 status shows:
+  - top-level `drivers_found=0`
+  - top-level `setup_done=false`
+  - per-axis `found=false`
+  - per-axis `position_reason="power_loss"`
+- Practical meaning:
+  - user must run `SETUP DRIVERS`
+  - then enable the axis
+  - then manually align and `SET ZERO`
+  - only after that should `GO ZERO` or tumble be used
 
 ## Gimbal Behavior That Exists Now
 
