@@ -3109,7 +3109,7 @@ function procedureSummary(proc) {
     return procedureDriverName(driver);
   });
   var zeroText = zeroDrivers.length ? zeroDrivers.join(', ') : 'none';
-  var spinText = proc.spin_tumble_driver == null ? 'manual only' : procedureDriverName(proc.spin_tumble_driver);
+  var spinText = proc.spin_tumble_driver == null ? 'manual only' : (procedureDriverName(proc.spin_tumble_driver) + ' (live gimbal settings)');
   return 'Zero ' + zeroText +
     ' | spin ' + spinText +
     ' | Belt ' + String(proc.gantry_home_steps) + '→' + String(proc.gantry_approach_steps) +
@@ -3242,9 +3242,6 @@ function procedureDefaultEditorState() {
     name: '',
     gimbal_zero_drivers: [0, 1, 2],
     spin_tumble_driver: null,
-    spin_tumble_a: '-45',
-    spin_tumble_b: '45',
-    spin_tumble_dwell_ms: '1500',
     arm_pose_a_setpoint_id: procedureDefaultSetpointId(),
     arm_pose_b_setpoint_id: ACTION_NEUTRAL_ID,
     gantry_home_steps: '0',
@@ -3265,9 +3262,6 @@ function procedureOpenEditor(pid) {
       name: existing.name,
       gimbal_zero_drivers: (existing.gimbal_zero_drivers || []).map(function(driver) { return parseInt(driver, 10); }),
       spin_tumble_driver: existing.spin_tumble_driver == null ? null : parseInt(existing.spin_tumble_driver, 10),
-      spin_tumble_a: existing.spin_tumble_a == null ? '' : String(existing.spin_tumble_a),
-      spin_tumble_b: existing.spin_tumble_b == null ? '' : String(existing.spin_tumble_b),
-      spin_tumble_dwell_ms: existing.spin_tumble_dwell_ms == null ? '' : String(existing.spin_tumble_dwell_ms),
       arm_pose_a_setpoint_id: existing.arm_pose_a_setpoint_id,
       arm_pose_b_setpoint_id: existing.arm_pose_b_setpoint_id,
       gantry_home_steps: String(existing.gantry_home_steps),
@@ -3302,16 +3296,9 @@ function procedureEditorSetSpinDriver(value) {
   if (!procedureEditorState) return;
   if (value === '') {
     procedureEditorState.spin_tumble_driver = null;
-    procedureEditorState.spin_tumble_a = '';
-    procedureEditorState.spin_tumble_b = '';
-    procedureEditorState.spin_tumble_dwell_ms = '';
   } else {
     procedureEditorState.spin_tumble_driver = parseInt(value, 10);
-    if (!procedureEditorState.spin_tumble_a) procedureEditorState.spin_tumble_a = '-45';
-    if (!procedureEditorState.spin_tumble_b) procedureEditorState.spin_tumble_b = '45';
-    if (!procedureEditorState.spin_tumble_dwell_ms) procedureEditorState.spin_tumble_dwell_ms = '1500';
   }
-  procedureRenderEditor();
 }
 
 function procedureEditorToggleZeroDriver(driver, checked) {
@@ -3352,7 +3339,6 @@ function procedureRenderEditor() {
   var editor = document.getElementById('procedureEditor');
   if (!editor || !procedureEditorState) return;
   var st = procedureEditorState;
-  var spinDisabled = st.spin_tumble_driver == null;
   var poseAOptions = actionBuildOptions(st.arm_pose_a_setpoint_id, false);
   var poseBOptions = actionBuildOptions(st.arm_pose_b_setpoint_id, false);
   editor.innerHTML =
@@ -3372,10 +3358,8 @@ function procedureRenderEditor() {
       '<label>Spin axis</label>' +
       '<select onchange="procedureEditorSetSpinDriver(this.value)">' + procedureBuildSpinOptions(st.spin_tumble_driver) + '</select>' +
     '</div>' +
-    '<div class="procedure-editor-grid">' +
-      '<label class="procedure-field"><span>Spin A deg</span><input type="number" step="0.1" value="' + htmlEscape(st.spin_tumble_a) + '"' + (spinDisabled ? ' disabled' : '') + ' oninput="procedureEditorSetField(\'spin_tumble_a\', this.value)"></label>' +
-      '<label class="procedure-field"><span>Spin B deg</span><input type="number" step="0.1" value="' + htmlEscape(st.spin_tumble_b) + '"' + (spinDisabled ? ' disabled' : '') + ' oninput="procedureEditorSetField(\'spin_tumble_b\', this.value)"></label>' +
-      '<label class="procedure-field"><span>Spin dwell ms</span><input type="number" min="0" max="600000" step="50" value="' + htmlEscape(st.spin_tumble_dwell_ms) + '"' + (spinDisabled ? ' disabled' : '') + ' oninput="procedureEditorSetField(\'spin_tumble_dwell_ms\', this.value)"></label>' +
+    '<div class="action-editor-empty">' +
+      'Spin axis uses the current tumble settings from Gimbal Controls. Change Yaw/Pitch A/B/dwell or Roll direction there, not here.' +
     '</div>' +
     '<div class="procedure-editor-grid">' +
       '<label class="procedure-field"><span>Arm pose A</span><select onchange="procedureEditorSetField(\'arm_pose_a_setpoint_id\', this.value)">' + poseAOptions + '</select></label>' +
@@ -3405,18 +3389,6 @@ function procedureEditorSave() {
   }
 
   var spinDriver = st.spin_tumble_driver == null ? null : parseInt(st.spin_tumble_driver, 10);
-  var spinA = null;
-  var spinB = null;
-  var spinDwell = null;
-  if (spinDriver != null) {
-    spinA = parseFloat(st.spin_tumble_a);
-    spinB = parseFloat(st.spin_tumble_b);
-    spinDwell = parseInt(st.spin_tumble_dwell_ms, 10);
-    if (isNaN(spinA) || isNaN(spinB) || isNaN(spinDwell)) {
-      alert('Spin A, B, and dwell are required when a spin axis is selected.');
-      return;
-    }
-  }
 
   var gantryHome = parseInt(st.gantry_home_steps, 10);
   var gantryApproach = parseInt(st.gantry_approach_steps, 10);
@@ -3431,9 +3403,6 @@ function procedureEditorSave() {
     name: name,
     gimbal_zero_drivers: st.gimbal_zero_drivers.slice(),
     spin_tumble_driver: spinDriver,
-    spin_tumble_a: spinA,
-    spin_tumble_b: spinB,
-    spin_tumble_dwell_ms: spinDwell,
     arm_pose_a_setpoint_id: st.arm_pose_a_setpoint_id,
     arm_pose_b_setpoint_id: st.arm_pose_b_setpoint_id,
     gantry_home_steps: gantryHome,

@@ -1496,9 +1496,6 @@ def actions_stop():
 #     "name": "<label>",
 #     "gimbal_zero_drivers": [0,1,2,3],
 #     "spin_tumble_driver": <int|null>,
-#     "spin_tumble_a": <float|null>,
-#     "spin_tumble_b": <float|null>,
-#     "spin_tumble_dwell_ms": <int|null>,
 #     "arm_pose_a_setpoint_id": "<sp or __neutral__>",
 #     "arm_pose_b_setpoint_id": "<sp or __neutral__>",
 #     "gantry_home_steps": <int>,
@@ -1613,6 +1610,10 @@ def _procedure_driver_count():
     return 4
 
 
+def _procedure_tumble_driver_indices():
+    return (0, 1, 2)
+
+
 def _procedure_clean_driver_list(value):
     if not isinstance(value, list) or not value:
         return None, "gimbal_zero_drivers must be a non-empty list"
@@ -1641,6 +1642,19 @@ def _procedure_clean_setpoint_id(value, label):
     return sid, None
 
 
+def _procedure_clean_spin_driver(value):
+    if value in (None, ""):
+        return None, None
+    try:
+        driver = int(value)
+    except (TypeError, ValueError):
+        return None, "spin_tumble_driver must be an integer or null"
+    if driver not in _procedure_tumble_driver_indices():
+        allowed = ",".join(str(d) for d in _procedure_tumble_driver_indices())
+        return None, f"spin_tumble_driver must be one of {allowed}"
+    return driver, None
+
+
 def _normalize_procedure_payload(data, existing=None):
     src = dict(existing or {})
     src.update(data or {})
@@ -1662,52 +1676,10 @@ def _normalize_procedure_payload(data, existing=None):
         return None, err
     entry["gimbal_zero_drivers"] = zero_drivers
 
-    spin_driver_raw = src.get("spin_tumble_driver")
-    if spin_driver_raw in (None, ""):
-        spin_driver = None
-    else:
-        try:
-            spin_driver = int(spin_driver_raw)
-        except (TypeError, ValueError):
-            return None, "spin_tumble_driver must be an integer or null"
-        if spin_driver < 0 or spin_driver >= _procedure_driver_count():
-            return None, f"spin_tumble_driver {spin_driver} outside 0..{_procedure_driver_count()-1}"
+    spin_driver, err = _procedure_clean_spin_driver(src.get("spin_tumble_driver"))
+    if err:
+        return None, err
     entry["spin_tumble_driver"] = spin_driver
-
-    def parse_optional_float(key):
-        raw = src.get(key)
-        if raw in (None, ""):
-            return None, None
-        try:
-            return float(raw), None
-        except (TypeError, ValueError):
-            return None, f"{key} must be numeric or null"
-
-    spin_a, err = parse_optional_float("spin_tumble_a")
-    if err:
-        return None, err
-    spin_b, err = parse_optional_float("spin_tumble_b")
-    if err:
-        return None, err
-    raw_dwell = src.get("spin_tumble_dwell_ms")
-    if raw_dwell in (None, ""):
-        spin_dwell = None
-    else:
-        try:
-            spin_dwell = int(raw_dwell)
-        except (TypeError, ValueError):
-            return None, "spin_tumble_dwell_ms must be an integer or null"
-        spin_dwell = max(0, min(spin_dwell, PROCEDURE_DWELL_MAX_MS))
-    if spin_driver is None:
-        spin_a = None
-        spin_b = None
-        spin_dwell = None
-    else:
-        if spin_a is None or spin_b is None or spin_dwell is None:
-            return None, "spin_tumble_a, spin_tumble_b, and spin_tumble_dwell_ms are required when spin_tumble_driver is set"
-    entry["spin_tumble_a"] = spin_a
-    entry["spin_tumble_b"] = spin_b
-    entry["spin_tumble_dwell_ms"] = spin_dwell
 
     arm_a, err = _procedure_clean_setpoint_id(src.get("arm_pose_a_setpoint_id"), "arm_pose_a_setpoint_id")
     if err:
@@ -2015,6 +1987,34 @@ def _procedure_wait_tumble_stopped(driver, deadline):
     )
 
 
+def _procedure_tumble_start_path(driver):
+    status, err = _procedure_gimbal_status()
+    if err:
+        return None, err
+    drv, err = _procedure_gimbal_driver(status, driver)
+    if err:
+        return None, err
+    err = _procedure_validate_gimbal_driver_ready(driver, drv, allow_untrusted=False, require_tumble=True)
+    if err:
+        return None, err
+
+    pattern = str(drv.get("tumble_pattern") or "range").strip().lower()
+    if pattern == "continuous":
+        direction = str(drv.get("tumble_direction") or "").strip().upper()
+        if direction == "CW":
+            return f"tumble_start?d={driver}&mode=continuous&dir=1", None
+        if direction == "CCW":
+            return f"tumble_start?d={driver}&mode=continuous&dir=-1", None
+        return None, f"{_procedure_driver_name(driver, drv)} continuous tumble direction is unset"
+
+    a_value = drv.get("tumble_a")
+    b_value = drv.get("tumble_b")
+    dwell_ms = drv.get("tumble_dwell_ms")
+    if a_value is None or b_value is None or dwell_ms is None:
+        return None, f"{_procedure_driver_name(driver, drv)} tumble config is incomplete; set it in Gimbal Controls first"
+    return f"tumble_start?d={driver}&a={a_value}&b={b_value}&dwell_ms={int(dwell_ms)}", None
+
+
 def _procedure_gantry_move_abs(target_steps):
     status, belt_drv, err = _procedure_validate_cycle_motion_ready({
         "gimbal_zero_drivers": [],
@@ -2151,9 +2151,13 @@ def _procedure_playback_worker(procedure):
         spin_prompt = "Free-spin the satellite, then Continue when done."
         if spin_driver is not None:
             set_state(step_index=current_step, total_steps=total_steps, step_name="start-spin-window", phase="running", operator_prompt=None, cycle_index=0, total_cycles=total_cycles, error=None)
-            _data, err = _procedure_gimbal_call(
-                f"tumble_start?d={spin_driver}&a={procedure['spin_tumble_a']}&b={procedure['spin_tumble_b']}&dwell_ms={procedure['spin_tumble_dwell_ms']}"
-            )
+            tumble_start_path, err = _procedure_tumble_start_path(spin_driver)
+            if err:
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="error", error=f"tumble start failed: {err}")
+                return
+            _data, err = _procedure_gimbal_call(tumble_start_path)
             if err:
                 _action_freeze_to_actual()
                 _procedure_soft_abort_gimbal()
