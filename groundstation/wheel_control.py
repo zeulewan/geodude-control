@@ -15,10 +15,12 @@ def _procedure_state_dir():
     override = str(os.environ.get("GROUNDSTATION_STATE_DIR") or "").strip()
     if override:
         return override
+    xdg_state_home = str(os.environ.get("XDG_STATE_HOME") or "").strip()
+    if xdg_state_home:
+        return os.path.join(xdg_state_home, "geodude-control", "groundstation")
     # Keep procedure runtime state outside the git checkout so deploy-time
     # `git stash -u` on /opt/geodude-control does not silently eat it.
-    app_parent = os.path.dirname(os.path.dirname(APP_DIR))
-    return os.path.join(app_parent, "geodude-state", "groundstation")
+    return os.path.join(os.path.expanduser("~"), ".local", "state", "geodude-control", "groundstation")
 
 
 PROCEDURE_STATE_DIR = _procedure_state_dir()
