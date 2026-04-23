@@ -1756,6 +1756,10 @@ select {
   align-items: center;
 }
 
+.encoder-readout {
+  min-width: 11ch;
+}
+
 .dial-wrapper-sm,
 .dial-ring-sm {
   width: 48px;
@@ -1768,6 +1772,13 @@ select {
 
 .encoder-angle-readout {
   font-size: 18px;
+}
+
+.encoder-angle-readout,
+.encoder-readout .sub {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  white-space: nowrap;
 }
 
 .sensor-panel-title {
