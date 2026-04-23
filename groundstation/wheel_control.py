@@ -1907,6 +1907,13 @@ def _procedure_soft_abort_gimbal():
     return None
 
 
+def _procedure_hard_abort_gimbal():
+    data, err = _procedure_gimbal_call("estop")
+    if err:
+        return err
+    return None
+
+
 def _procedure_wait_checkpoint(set_state, step_index, total_steps, name, prompt, cycle_index=0, total_cycles=0):
     _procedure_continue_flag.clear()
     set_state(
@@ -2513,7 +2520,7 @@ def procedures_continue(pid):
 def procedures_stop():
     _procedure_stop_flag.set()
     _procedure_continue_flag.set()
-    _procedure_soft_abort_gimbal()
+    _procedure_hard_abort_gimbal()
     _action_freeze_to_actual()
     return jsonify({"ok": True})
 
