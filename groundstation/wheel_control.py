@@ -1936,10 +1936,37 @@ def _procedure_wait_belt_arrival(deadline):
     )
 
 
+def _procedure_zero_steps_equivalent(drv):
+    if drv.get("running") or not drv.get("position_trusted"):
+        return False
+    try:
+        position_steps = int(round(float(drv.get("position_steps") or 0)))
+    except (TypeError, ValueError):
+        return False
+    if position_steps == 0:
+        return True
+    if not drv.get("display_wrap"):
+        return False
+    try:
+        steps_per_deg = abs(float(drv.get("steps_per_deg") or 0.0))
+    except (TypeError, ValueError):
+        return False
+    if steps_per_deg <= 0.0:
+        return False
+    steps_per_rev = int(round(steps_per_deg * 360.0))
+    if steps_per_rev <= 0:
+        return False
+    mod = abs(position_steps) % steps_per_rev
+    # Wrapped axes can report an equivalent zero after whole turns
+    # (for example Roll at -720 deg after continuous tumble).
+    zero_tol_steps = 2
+    return mod <= zero_tol_steps or abs(steps_per_rev - mod) <= zero_tol_steps
+
+
 def _procedure_wait_zero_arrival(driver, deadline):
     return _procedure_wait_driver_predicate(
         driver,
-        lambda drv: bool(drv.get("position_trusted")) and int(drv.get("position_steps") or 0) == 0 and (not drv.get("running")),
+        _procedure_zero_steps_equivalent,
         deadline,
         require_trusted=False,
         require_enabled=True,
