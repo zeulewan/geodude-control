@@ -185,6 +185,8 @@ simplefoc_last_stop_seq = 0
 # 6-command burst into 1-2 commands on repeat presses.
 # Cleared on disconnect / boot so first press after reboot still pushes.
 simplefoc_pushed = {"mode": None, "voltage": None, "ramp": None}
+SIMPLEFOC_RELEASED_TOKEN_TTL_S = 2.0
+simplefoc_released_tokens = {}
 
 
 def _simplefoc_jog_clamp_voltage(value):
@@ -208,6 +210,18 @@ def _simplefoc_hold_token(value):
         return None
     value = str(value).strip()
     return value or None
+
+
+def _simplefoc_prune_released_tokens(now=None):
+    if now is None:
+        now = time.monotonic()
+    stale = [
+        token for token, released_at in simplefoc_released_tokens.items()
+        if now - released_at > SIMPLEFOC_RELEASED_TOKEN_TTL_S
+    ]
+    for token in stale:
+        simplefoc_released_tokens.pop(token, None)
+    return now
 
 
 def _rw_log(event, **fields):
@@ -274,6 +288,9 @@ def _simplefoc_jog_start(direction, max_voltage, accel_ramp, brake_ramp, hold_to
         raise RuntimeError("wheel not calibrated; run calibration first")
 
     with simplefoc_jog_lock:
+        now = _simplefoc_prune_released_tokens()
+        if hold_token is not None and hold_token in simplefoc_released_tokens:
+            raise RuntimeError("preempted by release")
         simplefoc_cmd_counter += 1
         my_seq = simplefoc_cmd_counter
         if hold_token is not None:
@@ -832,20 +849,18 @@ def simplefoc_jog_start_route():
     try:
         _simplefoc_jog_start(direction, max_voltage, accel_ramp, brake_ramp, hold_token=hold_token)
     except Exception as exc:
-        if hold_token is not None:
-            try:
-                _simplefoc_jog_disable(status="error", error=str(exc))
-            except Exception:
-                pass
+        released = (str(exc) == "preempted by release")
         with simplefoc_jog_lock:
-            simplefoc_jog_state["status"] = "error"
-            simplefoc_jog_state["error"] = str(exc)
+            simplefoc_jog_state["status"] = "idle" if released else "error"
+            simplefoc_jog_state["error"] = None if released else str(exc)
             simplefoc_jog_state["last_command_at"] = time.monotonic()
             if hold_token is not None:
                 if simplefoc_jog_state.get("hold_token") == hold_token:
                     simplefoc_jog_state["hold_token"] = None
                 if simplefoc_jog_state.get("pending_token") == hold_token:
                     simplefoc_jog_state["pending_token"] = None
+        if released:
+            return jsonify({"ok": True, "ignored": True, **_simplefoc_jog_snapshot()})
         return jsonify({"ok": False, "error": str(exc)}), 502
     return jsonify({"ok": True, **_simplefoc_jog_snapshot()})
 
@@ -970,6 +985,9 @@ def simplefoc_jog_stop_route():
     data = request.json or {}
     hold_token = _simplefoc_hold_token(data.get("hold_token"))
     with simplefoc_jog_lock:
+        now = _simplefoc_prune_released_tokens()
+        if hold_token is not None:
+            simplefoc_released_tokens[hold_token] = now
         active_token = simplefoc_jog_state.get("hold_token")
         pending_token = simplefoc_jog_state.get("pending_token")
         stale_token = (

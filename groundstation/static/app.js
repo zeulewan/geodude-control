@@ -1726,6 +1726,7 @@ function maceBindMomentaryButton(id, direction) {
   function release(ev) {
     if (ev) ev.preventDefault();
     if (activePointerId === null) return;
+    if (ev && ev.pointerId != null && ev.pointerId !== activePointerId) return;
     if (ev && ev.pointerId != null && btn.releasePointerCapture) {
       try { btn.releasePointerCapture(ev.pointerId); } catch (e) {}
     }
@@ -1735,7 +1736,6 @@ function maceBindMomentaryButton(id, direction) {
   btn.addEventListener('pointerdown', press);
   btn.addEventListener('pointerup', release);
   btn.addEventListener('pointercancel', release);
-  btn.addEventListener('lostpointercapture', release);
 }
 
 function poll() {
@@ -3103,10 +3103,9 @@ setInterval(actionStatePoll, 500);
   if (maceCalBtn) maceCalBtn.addEventListener('click', maceCalibrate);
   maceStatusPoll();
   window.addEventListener('blur', maceReleaseAll);
-  window.addEventListener('mouseup', maceReleaseAll);
-  window.addEventListener('touchend', maceReleaseAll, {passive: false});
-  window.addEventListener('pointerup', maceReleaseAll);
-  window.addEventListener('pointercancel', maceReleaseAll);
+  document.addEventListener('visibilitychange', function() {
+    if (document.hidden) maceReleaseAll();
+  });
   if (hasArmVizUi) ikRefreshStatus();
   updateVisionUI();
   loadCameraStreamState();
