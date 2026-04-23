@@ -1495,7 +1495,6 @@ def actions_stop():
 #   [{"id": "<12hex>",
 #     "name": "<label>",
 #     "gimbal_zero_drivers": [0,1,2,3],
-#     "spin_tumble_driver": <int|null>,
 #     "arm_pose_a_setpoint_id": "<sp or __neutral__>",
 #     "arm_pose_b_setpoint_id": "<sp or __neutral__>",
 #     "gantry_approach_steps": <int>,
@@ -1641,19 +1640,6 @@ def _procedure_clean_setpoint_id(value, label):
     return sid, None
 
 
-def _procedure_clean_spin_driver(value):
-    if value in (None, ""):
-        return None, None
-    try:
-        driver = int(value)
-    except (TypeError, ValueError):
-        return None, "spin_tumble_driver must be an integer or null"
-    if driver not in _procedure_tumble_driver_indices():
-        allowed = ",".join(str(d) for d in _procedure_tumble_driver_indices())
-        return None, f"spin_tumble_driver must be one of {allowed}"
-    return driver, None
-
-
 def _normalize_procedure_payload(data, existing=None):
     src = dict(existing or {})
     src.update(data or {})
@@ -1674,11 +1660,6 @@ def _normalize_procedure_payload(data, existing=None):
     if err:
         return None, err
     entry["gimbal_zero_drivers"] = zero_drivers
-
-    spin_driver, err = _procedure_clean_spin_driver(src.get("spin_tumble_driver"))
-    if err:
-        return None, err
-    entry["spin_tumble_driver"] = spin_driver
 
     arm_a, err = _procedure_clean_setpoint_id(src.get("arm_pose_a_setpoint_id"), "arm_pose_a_setpoint_id")
     if err:
@@ -1836,15 +1817,13 @@ def _procedure_preflight(procedure):
         if err:
             return err
 
-    spin_driver = procedure.get("spin_tumble_driver")
-    if spin_driver is not None:
+    for spin_driver in _procedure_tumble_driver_indices():
         drv, err = _procedure_gimbal_driver(status, spin_driver)
         if err:
             return err
-        allow_untrusted = spin_driver in procedure["gimbal_zero_drivers"]
         err = _procedure_validate_gimbal_driver_ready(
             spin_driver, drv,
-            allow_untrusted=allow_untrusted,
+            allow_untrusted=False,
             require_tumble=True,
         )
         if err:
@@ -1871,8 +1850,7 @@ def _procedure_validate_cycle_motion_ready(procedure):
         err = _procedure_validate_gimbal_driver_ready(driver, drv, allow_untrusted=False)
         if err:
             return None, None, err
-    spin_driver = procedure.get("spin_tumble_driver")
-    if spin_driver is not None:
+    for spin_driver in _procedure_tumble_driver_indices():
         drv, err = _procedure_gimbal_driver(status, spin_driver)
         if err:
             return None, None, err
@@ -2009,7 +1987,6 @@ def _procedure_tumble_start_path(driver):
 def _procedure_gantry_move_abs(target_steps):
     status, belt_drv, err = _procedure_validate_cycle_motion_ready({
         "gimbal_zero_drivers": [],
-        "spin_tumble_driver": None,
         "gantry_approach_steps": target_steps,
     })
     if err:
@@ -2051,9 +2028,7 @@ def _procedure_wait_dwell(deadline):
 
 
 def _procedure_total_steps(procedure):
-    prelude = 4  # set-zero checkpoint, capture zero, spin checkpoint, gimbal go zero
-    if procedure.get("spin_tumble_driver") is not None:
-        prelude += 1  # explicit tumble-stop step
+    prelude = 5  # set-zero checkpoint, capture zero, spin checkpoint, tumble stop, gimbal go zero
     per_cycle = 6   # pose A, gantry approach, pose B, dwell, gantry home, neutral
     return prelude + procedure["repeat_count"] * per_cycle
 
@@ -2067,7 +2042,6 @@ def _procedure_playback_worker(procedure):
             _procedure_state.update(kwargs)
 
     total_steps = _procedure_total_steps(procedure)
-    spin_driver = procedure.get("spin_tumble_driver")
     current_step = 0
     total_cycles = procedure["repeat_count"]
 
@@ -2139,8 +2113,8 @@ def _procedure_playback_worker(procedure):
 
         current_step += 1
         spin_prompt = "Free-spin the satellite, then Continue when done."
-        if spin_driver is not None:
-            set_state(step_index=current_step, total_steps=total_steps, step_name="start-spin-window", phase="running", operator_prompt=None, cycle_index=0, total_cycles=total_cycles, error=None)
+        set_state(step_index=current_step, total_steps=total_steps, step_name="start-spin-window", phase="running", operator_prompt=None, cycle_index=0, total_cycles=total_cycles, error=None)
+        for spin_driver in _procedure_tumble_driver_indices():
             tumble_start_path, err = _procedure_tumble_start_path(spin_driver)
             if err:
                 _action_freeze_to_actual()
@@ -2153,34 +2127,24 @@ def _procedure_playback_worker(procedure):
                 _procedure_soft_abort_gimbal()
                 set_state(phase="error", error=f"tumble start failed: {err}")
                 return
-            result = _procedure_wait_checkpoint(
-                set_state,
-                current_step,
-                total_steps,
-                "manual-spin-window",
-                spin_prompt,
-                cycle_index=0,
-                total_cycles=total_cycles,
-            )
-        else:
-            result = _procedure_wait_checkpoint(
-                set_state,
-                current_step,
-                total_steps,
-                "manual-spin-window",
-                spin_prompt,
-                cycle_index=0,
-                total_cycles=total_cycles,
-            )
+        result = _procedure_wait_checkpoint(
+            set_state,
+            current_step,
+            total_steps,
+            "manual-spin-window",
+            spin_prompt,
+            cycle_index=0,
+            total_cycles=total_cycles,
+        )
         if result == "stopped":
             _action_freeze_to_actual()
             _procedure_soft_abort_gimbal()
             set_state(phase="stopped")
             return
 
-        if spin_driver is not None:
-            current_step += 1
-            set_state(step_index=current_step, total_steps=total_steps, step_name="stop-tumble", phase="running", operator_prompt=None, cycle_index=0, total_cycles=total_cycles, error=None)
+        current_step += 1
+        set_state(step_index=current_step, total_steps=total_steps, step_name="stop-tumble", phase="running", operator_prompt=None, cycle_index=0, total_cycles=total_cycles, error=None)
+        for spin_driver in _procedure_tumble_driver_indices():
             _data, err = _procedure_gimbal_call(f"tumble_stop?d={spin_driver}")
             if err:
                 _action_freeze_to_actual()

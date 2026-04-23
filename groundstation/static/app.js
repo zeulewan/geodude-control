@@ -3048,7 +3048,6 @@ var procedureState = {running: false, phase: 'idle'};
 var procedureEditorState = null;
 var PROCEDURE_DRIVER_LABELS = {0: 'Yaw', 1: 'Pitch', 2: 'Roll', 3: 'Belt'};
 var PROCEDURE_ZERO_DRIVERS = [0, 1, 2, 3];
-var PROCEDURE_TUMBLE_DRIVERS = [0, 1, 2];
 
 function procedureRefresh() {
   return fetch('/api/procedures').then(function(r) { return r.json(); }).then(function(list) {
@@ -3109,10 +3108,9 @@ function procedureSummary(proc) {
     return procedureDriverName(driver);
   });
   var zeroText = zeroDrivers.length ? zeroDrivers.join(', ') : 'none';
-  var spinText = proc.spin_tumble_driver == null ? '' : (' | auto tumble ' + procedureDriverName(proc.spin_tumble_driver) + ' (live gimbal settings)');
   return 'Zero ' + zeroText +
     ' | Belt 0→' + String(proc.gantry_approach_steps) +
-    spinText +
+    ' | tumble Yaw/Pitch/Roll (live gimbal settings)' +
     ' | dwell ' + String(proc.dwell_ms) + ' ms' +
     ' | x' + String(proc.repeat_count);
 }
@@ -3241,7 +3239,6 @@ function procedureDefaultEditorState() {
     id: null,
     name: '',
     gimbal_zero_drivers: [0, 1, 2],
-    spin_tumble_driver: null,
     arm_pose_a_setpoint_id: procedureDefaultSetpointId(),
     arm_pose_b_setpoint_id: ACTION_NEUTRAL_ID,
     gantry_approach_steps: '0',
@@ -3260,7 +3257,6 @@ function procedureOpenEditor(pid) {
       id: existing.id,
       name: existing.name,
       gimbal_zero_drivers: (existing.gimbal_zero_drivers || []).map(function(driver) { return parseInt(driver, 10); }),
-      spin_tumble_driver: existing.spin_tumble_driver == null ? null : parseInt(existing.spin_tumble_driver, 10),
       arm_pose_a_setpoint_id: existing.arm_pose_a_setpoint_id,
       arm_pose_b_setpoint_id: existing.arm_pose_b_setpoint_id,
       gantry_approach_steps: String(existing.gantry_approach_steps),
@@ -3290,15 +3286,6 @@ function procedureEditorSetField(field, value) {
   procedureEditorState[field] = value;
 }
 
-function procedureEditorSetSpinDriver(value) {
-  if (!procedureEditorState) return;
-  if (value === '') {
-    procedureEditorState.spin_tumble_driver = null;
-  } else {
-    procedureEditorState.spin_tumble_driver = parseInt(value, 10);
-  }
-}
-
 function procedureEditorToggleZeroDriver(driver, checked) {
   if (!procedureEditorState) return;
   var next = (procedureEditorState.gimbal_zero_drivers || []).slice();
@@ -3307,16 +3294,6 @@ function procedureEditorToggleZeroDriver(driver, checked) {
   if (!checked && idx !== -1) next.splice(idx, 1);
   next.sort(function(a, b) { return a - b; });
   procedureEditorState.gimbal_zero_drivers = next;
-}
-
-function procedureBuildSpinOptions(selected) {
-  var html = '<option value=""' + (selected == null ? ' selected' : '') + '>(none)</option>';
-  for (var i = 0; i < PROCEDURE_TUMBLE_DRIVERS.length; i++) {
-    var driver = PROCEDURE_TUMBLE_DRIVERS[i];
-    var sel = selected === driver ? ' selected' : '';
-    html += '<option value="' + driver + '"' + sel + '>' + htmlEscape(procedureDriverName(driver)) + '</option>';
-  }
-  return html;
 }
 
 function procedureBuildZeroDriverChecks(selectedDrivers) {
@@ -3352,12 +3329,8 @@ function procedureRenderEditor() {
       '<label>Zero drivers</label>' +
       '<div class="procedure-driver-checks">' + procedureBuildZeroDriverChecks(st.gimbal_zero_drivers) + '</div>' +
     '</div>' +
-    '<div class="action-editor-row">' +
-      '<label>Auto tumble axis</label>' +
-      '<select onchange="procedureEditorSetSpinDriver(this.value)">' + procedureBuildSpinOptions(st.spin_tumble_driver) + '</select>' +
-    '</div>' +
     '<div class="action-editor-empty">' +
-      'Selected tumble axis uses the current settings from Gimbal Controls. Belt home is always zero.' +
+      'Procedure tumble always uses the current Yaw, Pitch, and Roll settings from Gimbal Controls. Belt home is always zero.' +
     '</div>' +
     '<div class="procedure-editor-grid">' +
       '<label class="procedure-field"><span>Arm pose A</span><select onchange="procedureEditorSetField(\'arm_pose_a_setpoint_id\', this.value)">' + poseAOptions + '</select></label>' +
@@ -3385,8 +3358,6 @@ function procedureEditorSave() {
     return;
   }
 
-  var spinDriver = st.spin_tumble_driver == null ? null : parseInt(st.spin_tumble_driver, 10);
-
   var gantryApproach = parseInt(st.gantry_approach_steps, 10);
   var dwellMs = parseInt(st.dwell_ms, 10);
   var repeatCount = parseInt(st.repeat_count, 10);
@@ -3398,7 +3369,6 @@ function procedureEditorSave() {
   var body = {
     name: name,
     gimbal_zero_drivers: st.gimbal_zero_drivers.slice(),
-    spin_tumble_driver: spinDriver,
     arm_pose_a_setpoint_id: st.arm_pose_a_setpoint_id,
     arm_pose_b_setpoint_id: st.arm_pose_b_setpoint_id,
     gantry_approach_steps: gantryApproach,
