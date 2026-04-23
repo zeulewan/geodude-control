@@ -2266,7 +2266,6 @@ def _procedure_playback_worker(procedure):
                 _procedure_soft_abort_gimbal()
                 set_state(phase="error", error=f"go_zero driver {driver}: {err}")
                 return
-        for driver in procedure["gimbal_zero_drivers"]:
             name = _procedure_driver_name(driver)
             status, _drv, err = _procedure_wait_zero_arrival(driver, time.monotonic() + PROCEDURE_GIMBAL_TIMEOUT_S)
             if status == "stopped":
