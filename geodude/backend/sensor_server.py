@@ -169,6 +169,8 @@ simplefoc_jog_state = {
     "brake_ramp": 12.0,
     "last_heartbeat": 0.0,
     "last_command_at": 0.0,
+    "hold_token": None,
+    "pending_token": None,
 }
 
 # Pre-empt counter: any /jog/stop bumps cmd_counter and stamps last_stop_seq.
@@ -199,6 +201,13 @@ def _simplefoc_jog_snapshot():
     snap.update(_simplefoc_status_snapshot())
     snap["target"] = snap.get("simplefoc_target")
     return snap
+
+
+def _simplefoc_hold_token(value):
+    if value is None:
+        return None
+    value = str(value).strip()
+    return value or None
 
 
 def _rw_log(event, **fields):
@@ -234,11 +243,13 @@ def _simplefoc_jog_disable(status="idle", error=None):
         simplefoc_jog_state["error"] = error
         simplefoc_jog_state["simplefoc_target"] = 0.0
         simplefoc_jog_state["last_command_at"] = time.monotonic()
+        simplefoc_jog_state["hold_token"] = None
+        simplefoc_jog_state["pending_token"] = None
     _rw_log("coast", reason=status, prev=prev_active, err=error,
             stop_seq=simplefoc_last_stop_seq, elapsed_ms=round((time.monotonic()-t0)*1000, 1))
 
 
-def _simplefoc_jog_start(direction, max_voltage, accel_ramp, brake_ramp):
+def _simplefoc_jog_start(direction, max_voltage, accel_ramp, brake_ramp, hold_token=None):
     global simplefoc_cmd_counter
     t0 = time.monotonic()
     target = 0.0
@@ -254,6 +265,7 @@ def _simplefoc_jog_start(direction, max_voltage, accel_ramp, brake_ramp):
     max_voltage = _simplefoc_jog_clamp_voltage(max_voltage)
     accel_ramp = _simplefoc_jog_clamp_ramp(accel_ramp)
     brake_ramp = _simplefoc_jog_clamp_ramp(brake_ramp)
+    hold_token = _simplefoc_hold_token(hold_token)
 
     # Use cached foc_ready instead of a pre-flight serial round-trip. If the
     # cache is stale the firmware will reject `E` with ERR anyway.
@@ -264,6 +276,12 @@ def _simplefoc_jog_start(direction, max_voltage, accel_ramp, brake_ramp):
     with simplefoc_jog_lock:
         simplefoc_cmd_counter += 1
         my_seq = simplefoc_cmd_counter
+        if hold_token is not None:
+            simplefoc_jog_state["hold_token"] = hold_token
+            simplefoc_jog_state["pending_token"] = hold_token
+        simplefoc_jog_state["status"] = "starting"
+        simplefoc_jog_state["error"] = None
+        simplefoc_jog_state["last_command_at"] = time.monotonic()
 
     ser = get_pico()
     if ser is None:
@@ -315,6 +333,8 @@ def _simplefoc_jog_start(direction, max_voltage, accel_ramp, brake_ramp):
         if simplefoc_last_stop_seq > my_seq:
             # A release snuck in; disable after unlocking.
             needs_coast = True
+        elif hold_token is not None and simplefoc_jog_state.get("pending_token") != hold_token:
+            needs_coast = True
         else:
             needs_coast = False
             simplefoc_jog_state["active"] = direction
@@ -326,6 +346,8 @@ def _simplefoc_jog_start(direction, max_voltage, accel_ramp, brake_ramp):
             simplefoc_jog_state["brake_ramp"] = brake_ramp
             simplefoc_jog_state["last_heartbeat"] = time.monotonic()
             simplefoc_jog_state["last_command_at"] = time.monotonic()
+            simplefoc_jog_state["hold_token"] = hold_token
+            simplefoc_jog_state["pending_token"] = None
     if needs_coast:
         simplefoc_send("D")
         _rw_log("preempt", phase="post_TE", direction=direction, my_seq=my_seq,
@@ -801,18 +823,29 @@ def simplefoc_jog_start_route():
             return jsonify({"ok": False, "error": "live control busy"}), 409
     data = request.json or {}
     direction = str(data.get("direction", "")).lower()
+    hold_token = _simplefoc_hold_token(data.get("hold_token"))
     if direction not in ("forward", "backward", "brake"):
         return jsonify({"ok": False, "error": "direction must be forward/backward/brake"}), 400
     max_voltage = _simplefoc_jog_clamp_voltage(data.get("max_voltage", 12.0))
     accel_ramp = _simplefoc_jog_clamp_ramp(data.get("accel_ramp", 5.0))
     brake_ramp = _simplefoc_jog_clamp_ramp(data.get("brake_ramp", 12.0))
     try:
-        _simplefoc_jog_start(direction, max_voltage, accel_ramp, brake_ramp)
+        _simplefoc_jog_start(direction, max_voltage, accel_ramp, brake_ramp, hold_token=hold_token)
     except Exception as exc:
+        if hold_token is not None:
+            try:
+                _simplefoc_jog_disable(status="error", error=str(exc))
+            except Exception:
+                pass
         with simplefoc_jog_lock:
             simplefoc_jog_state["status"] = "error"
             simplefoc_jog_state["error"] = str(exc)
             simplefoc_jog_state["last_command_at"] = time.monotonic()
+            if hold_token is not None:
+                if simplefoc_jog_state.get("hold_token") == hold_token:
+                    simplefoc_jog_state["hold_token"] = None
+                if simplefoc_jog_state.get("pending_token") == hold_token:
+                    simplefoc_jog_state["pending_token"] = None
         return jsonify({"ok": False, "error": str(exc)}), 502
     return jsonify({"ok": True, **_simplefoc_jog_snapshot()})
 
@@ -918,18 +951,36 @@ def simplefoc_jog_heartbeat_route():
     the status poll's job."""
     data = request.json or {}
     direction = str(data.get("direction", "")).lower()
+    hold_token = _simplefoc_hold_token(data.get("hold_token"))
     with simplefoc_jog_lock:
         active = simplefoc_jog_state["active"]
+        active_token = simplefoc_jog_state.get("hold_token")
         if direction and active and direction != active:
             return jsonify({"ok": False, "error": "active direction mismatch"}), 409
         if not active:
             return jsonify({"ok": False, "error": "no active hold"}), 409
+        if hold_token is not None and active_token is not None and hold_token != active_token:
+            return jsonify({"ok": False, "error": "active hold token mismatch"}), 409
         simplefoc_jog_state["last_heartbeat"] = time.monotonic()
     return jsonify({"ok": True, **_simplefoc_jog_snapshot()})
 
 
 @app.route("/simplefoc/jog/stop", methods=["POST"])
 def simplefoc_jog_stop_route():
+    data = request.json or {}
+    hold_token = _simplefoc_hold_token(data.get("hold_token"))
+    with simplefoc_jog_lock:
+        active_token = simplefoc_jog_state.get("hold_token")
+        pending_token = simplefoc_jog_state.get("pending_token")
+        stale_token = (
+            hold_token is not None
+            and hold_token != active_token
+            and hold_token != pending_token
+        )
+        if hold_token is not None and hold_token == pending_token:
+            simplefoc_jog_state["pending_token"] = None
+    if stale_token:
+        return jsonify({"ok": True, "ignored": True, **_simplefoc_jog_snapshot()})
     try:
         _simplefoc_jog_disable()
         error = None

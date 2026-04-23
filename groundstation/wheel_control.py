@@ -1759,12 +1759,14 @@ def mace_jog_start():
     direction = str(data.get("direction", "")).lower()
     if direction not in ("forward", "backward", "brake"):
         return jsonify({"ok": False, "error": "direction must be forward/backward/brake"}), 400
+    hold_token = data.get("hold_token")
     max_voltage = _mace_clamp_voltage(data.get("max_voltage", 12.0))
     accel_ramp = _mace_clamp_ramp(data.get("accel_ramp", 5.0))
     brake_ramp = _mace_clamp_ramp(data.get("brake_ramp", 12.0))
     try:
         remote = _mace_post_jog("/simplefoc/jog/start", {
             "direction": direction,
+            "hold_token": hold_token,
             "max_voltage": max_voltage,
             "accel_ramp": accel_ramp,
             "brake_ramp": brake_ramp,
@@ -1779,10 +1781,7 @@ def mace_jog_start():
         mace_jog_state["status"] = "running"
         mace_jog_state["error"] = None
         mace_jog_state["last_command_at"] = time.monotonic()
-    snap = _mace_snapshot()
-    if isinstance(remote, dict):
-        snap["geodude"] = remote
-    return jsonify({"ok": True, **snap})
+    return jsonify({"ok": True, **remote})
 
 
 @app.route('/api/mace/calibrate', methods=['POST'])
@@ -1807,8 +1806,12 @@ def mace_jog_heartbeat():
     # watchdog are authoritative.
     data = request.json or {}
     direction = str(data.get("direction", "")).lower()
+    hold_token = data.get("hold_token")
     try:
-        remote = _mace_post_jog("/simplefoc/jog/heartbeat", {"direction": direction})
+        remote = _mace_post_jog("/simplefoc/jog/heartbeat", {
+            "direction": direction,
+            "hold_token": hold_token,
+        })
     except Exception as exc:
         with mace_jog_lock:
             mace_jog_state["status"] = "error"
@@ -1820,10 +1823,13 @@ def mace_jog_heartbeat():
 
 @app.route('/api/mace/jog/stop', methods=['POST'])
 def mace_jog_stop():
+    data = request.json or {}
+    hold_token = data.get("hold_token")
     try:
-        _mace_disable()
+        remote = _mace_post_jog("/simplefoc/jog/stop", {"hold_token": hold_token})
         error = None
     except Exception as exc:
+        remote = None
         error = str(exc)
     with mace_jog_lock:
         mace_jog_state["status"] = "idle" if error is None else "error"
@@ -1831,7 +1837,7 @@ def mace_jog_stop():
         mace_jog_state["last_command_at"] = time.monotonic()
     if error is not None:
         return jsonify({"ok": False, "error": error}), 502
-    return jsonify({"ok": True, **_mace_snapshot()})
+    return jsonify({"ok": True, **(remote or {})})
 
 
 @app.route('/api/camera')

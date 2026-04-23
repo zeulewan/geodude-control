@@ -1467,11 +1467,14 @@ function toggleControllerMode() {
 }
 
 var maceJogActive = null;
+var maceJogActiveToken = null;
 var maceJogHeartbeatTimer = null;
 var maceJogReady = false;
 var maceJogCalibrating = false;
 var maceJogPendingDirection = null;
+var maceJogPendingToken = null;
 var maceJogRequestSeq = 0;
+var maceJogTokenSeq = 0;
 
 function maceCfg() {
   return {
@@ -1513,14 +1516,21 @@ function maceSetHoldEnabled(enabled) {
   });
 }
 
-function maceStartHeartbeat(direction) {
+function maceSendHeartbeat(direction, holdToken) {
+  var body = {direction: direction};
+  if (holdToken != null) body.hold_token = holdToken;
+  return fetch('/api/mace/jog/heartbeat', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  });
+}
+
+function maceStartHeartbeat(direction, holdToken) {
   if (maceJogHeartbeatTimer) clearInterval(maceJogHeartbeatTimer);
+  maceSendHeartbeat(direction, holdToken).catch(function() {});
   maceJogHeartbeatTimer = setInterval(function() {
-    fetch('/api/mace/jog/heartbeat', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({direction: direction})
-    }).catch(function() {});
+    maceSendHeartbeat(direction, holdToken).catch(function() {});
   }, 100);
 }
 
@@ -1531,7 +1541,11 @@ function maceStopHeartbeat() {
 
 function maceJogStart(direction) {
   if (!maceJogReady || maceJogCalibrating) return;
+  var holdToken = String(++maceJogTokenSeq);
   maceJogPendingDirection = direction;
+  maceJogPendingToken = holdToken;
+  maceSetButtons(direction);
+  maceStartHeartbeat(direction, holdToken);
   var reqSeq = ++maceJogRequestSeq;
   var cfg = maceCfg();
   fetch('/api/mace/jog/start', {
@@ -1539,38 +1553,54 @@ function maceJogStart(direction) {
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({
       direction: direction,
+      hold_token: holdToken,
       accel_ramp: cfg.accel_ramp,
       brake_ramp: cfg.brake_ramp,
       max_voltage: cfg.max_voltage
     })
   }).then(function(r) { return r.json(); }).then(function(d) {
     var note = document.getElementById('maceJogNote');
-    if (reqSeq !== maceJogRequestSeq || maceJogPendingDirection !== direction) {
+    if (reqSeq !== maceJogRequestSeq || maceJogPendingDirection !== direction || maceJogPendingToken !== holdToken) {
       fetch('/api/mace/jog/stop', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({})
+        body: JSON.stringify({hold_token: holdToken})
       }).catch(function() {});
       return;
     }
     if (d.ok === false) {
+      if (maceJogPendingToken !== holdToken && maceJogActiveToken !== holdToken) return;
       if (note) note.textContent = d.error || 'MACE jog start failed';
-      maceJogActive = null;
-      maceJogPendingDirection = null;
+      if (maceJogPendingToken === holdToken) {
+        maceJogPendingToken = null;
+        maceJogPendingDirection = null;
+      }
+      if (maceJogActiveToken === holdToken) {
+        maceJogActiveToken = null;
+        maceJogActive = null;
+      }
       maceSetButtons(null);
       maceStopHeartbeat();
       return;
     }
     maceJogActive = direction;
+    maceJogActiveToken = holdToken;
     maceJogPendingDirection = null;
+    maceJogPendingToken = null;
     maceSetButtons(direction);
-    maceStartHeartbeat(direction);
     maceRenderStatus(d);
   }).catch(function(err) {
+    if (maceJogPendingToken !== holdToken && maceJogActiveToken !== holdToken) return;
     var note = document.getElementById('maceJogNote');
     if (note) note.textContent = 'MACE jog start failed: ' + err;
-    maceJogActive = null;
-    maceJogPendingDirection = null;
+    if (maceJogPendingToken === holdToken) {
+      maceJogPendingToken = null;
+      maceJogPendingDirection = null;
+    }
+    if (maceJogActiveToken === holdToken) {
+      maceJogActiveToken = null;
+      maceJogActive = null;
+    }
     maceSetButtons(null);
     maceStopHeartbeat();
   });
@@ -1591,29 +1621,39 @@ function maceCalibrate() {
   });
 }
 
-function maceJogStop() {
+function maceJogStop(holdToken) {
+  var stopToken = holdToken || maceJogPendingToken || maceJogActiveToken;
+  if (!stopToken && !maceJogActive && !maceJogPendingDirection) return;
   maceJogRequestSeq += 1;
-  maceJogPendingDirection = null;
+  if (stopToken && maceJogPendingToken === stopToken) {
+    maceJogPendingToken = null;
+    maceJogPendingDirection = null;
+  } else if (!holdToken) {
+    maceJogPendingDirection = null;
+  }
+  if (stopToken && maceJogActiveToken === stopToken) {
+    maceJogActiveToken = null;
+    maceJogActive = null;
+  } else if (!stopToken) {
+    maceJogActive = null;
+  }
   maceStopHeartbeat();
+  maceSetButtons(null);
   fetch('/api/mace/jog/stop', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({})
+    body: JSON.stringify(stopToken ? {hold_token: stopToken} : {})
   }).then(function(r) { return r.json(); }).then(function(d) {
-    maceJogActive = null;
-    maceSetButtons(null);
     maceRenderStatus(d);
   }).catch(function(err) {
     var note = document.getElementById('maceJogNote');
-    maceJogActive = null;
-    maceSetButtons(null);
     if (note) note.textContent = 'MACE jog stop failed: ' + err;
   });
 }
 
 function maceReleaseAll() {
-  if (!maceJogActive && !maceJogPendingDirection) return;
-  maceJogStop();
+  if (!maceJogActive && !maceJogPendingDirection && !maceJogActiveToken && !maceJogPendingToken) return;
+  maceJogStop(maceJogPendingToken || maceJogActiveToken);
 }
 
 function maceRenderStatus(d) {
