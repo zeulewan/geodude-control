@@ -2307,19 +2307,19 @@ def _procedure_playback_worker(procedure):
                 set_state(phase="stopped")
                 return
 
-        current_step += 1
-        set_state(step_index=current_step, total_steps=total_steps, step_name="gantry-home", phase="running", operator_prompt=None, cycle_index=cycle_index, total_cycles=total_cycles, error=None)
-        _data, err = _procedure_gimbal_call(f"go_zero?d={PROCEDURE_BELT_DRIVER}")
-        if err:
-            _action_freeze_to_actual()
-            _procedure_soft_abort_gimbal()
-            set_state(phase="error", error=f"gantry home failed: {err}")
-            return
-        status, _drv, err = _procedure_wait_zero_arrival(PROCEDURE_BELT_DRIVER, time.monotonic() + PROCEDURE_GIMBAL_TIMEOUT_S)
-        if status == "stopped":
-            _action_freeze_to_actual()
-            _procedure_soft_abort_gimbal()
-            set_state(phase="stopped")
+            current_step += 1
+            set_state(step_index=current_step, total_steps=total_steps, step_name="gantry-home", phase="running", operator_prompt=None, cycle_index=cycle_index, total_cycles=total_cycles, error=None)
+            _data, err = _procedure_gimbal_call(f"go_zero?d={PROCEDURE_BELT_DRIVER}")
+            if err:
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="error", error=f"gantry home failed: {err}")
+                return
+            status, _drv, err = _procedure_wait_zero_arrival(PROCEDURE_BELT_DRIVER, time.monotonic() + PROCEDURE_GIMBAL_TIMEOUT_S)
+            if status == "stopped":
+                _action_freeze_to_actual()
+                _procedure_soft_abort_gimbal()
+                set_state(phase="stopped")
                 return
             if status == "timeout":
                 _action_freeze_to_actual()
