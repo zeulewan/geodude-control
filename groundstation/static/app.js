@@ -966,24 +966,6 @@ function allChannelsNeutral() {
   });
 }
 
-function startupNeutral() {
-  if (!chNeutralLoaded) {
-    alert('Neutral positions not loaded from server yet. Refusing STARTUP.');
-    return;
-  }
-  chOrder.forEach(function(name) {
-    if (name === 'MACE') return;
-    var pw = getNeutral(name);
-    if (pw == null) return;
-    chActual[name] = pw;
-    chVelocity[name] = 0;
-    var slider = document.getElementById('ch_' + name);
-    if (slider) slider.value = pw;
-    chUpdateLabel(name, pw);
-    chSendPwm(name, pw);
-  });
-}
-
 function updateServoSpeedLabel(val) {
   val = parseInt(val);
   var speed = (val * CH_RAMP_HZ).toFixed(0);
@@ -3199,7 +3181,7 @@ setInterval(procedureStatePoll, 500);
 /* ========== Init ========== */
 (function() {
   /* SAFETY: neutrals MUST be fetched from the server before any code path
-     that can move a servo (Go to Neutral, STARTUP, slider init). Previously
+     that can move a servo (Go to Neutral, slider init). Previously
      chNeutral was hardcoded in JS and silently drifted out of sync with
      servo_neutral.json after the operator re-measured -- Go to Neutral
      would then drive to stale old positions. */
@@ -3213,8 +3195,8 @@ setInterval(procedureStatePoll, 500);
     chNeutralLoaded = true;
   }).catch(function() {
     /* Server unreachable. Leave chNeutralLoaded=false so getNeutral() returns
-       null and Go to Neutral / STARTUP refuse to move anything. */
-    console.error('[servo] failed to fetch /api/servo_neutral -- Go to Neutral/STARTUP disabled until next refresh');
+       null and Go to Neutral refuses to move anything. */
+    console.error('[servo] failed to fetch /api/servo_neutral -- Go to Neutral disabled until next refresh');
   });
 
   /* Joint calibration (PW <-> angle). Failure is non-fatal: live angle

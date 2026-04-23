@@ -192,10 +192,9 @@
         </div>
         <div class="servo-panel-actions">
           <div class="btn-row servo-emergency-row">
-            <button type="button" class="btn btn-green" onclick="startupNeutral()">STARTUP</button>
-            <button type="button" class="btn" onclick="allChannelsNeutral()">ALL NEUTRAL</button>
+            <button type="button" class="btn btn-sm btn-red servo-neutral-btn" onclick="allChannelsNeutral()">ALL NEUTRAL</button>
           </div>
-          <p class="servo-panel-note">Neutrals stay server-authoritative. Set Neutral, Go to Neutral, and STARTUP use the server-loaded neutral map only.</p>
+          <p class="servo-panel-note">Neutrals stay server-authoritative. Set Neutral and Go to Neutral use the server-loaded neutral map only.</p>
         </div>
         <div class="ch-grid ch-grid-compact" id="chGrid"></div>
         <section class="setpoints-section" aria-labelledby="setpointsTitle">

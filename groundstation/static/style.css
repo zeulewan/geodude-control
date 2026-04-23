@@ -2041,6 +2041,11 @@ select {
   flex: 1 1 140px;
 }
 
+.servo-neutral-btn {
+  flex: 0 0 auto !important;
+  align-self: flex-start;
+}
+
 #calibGrid {
   margin: 0;
 }
