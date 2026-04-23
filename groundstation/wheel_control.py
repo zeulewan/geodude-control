@@ -2027,10 +2027,7 @@ def _procedure_wait_tumble_stopped(driver, deadline):
     )
 
 
-def _procedure_tumble_start_path(driver):
-    status, err = _procedure_gimbal_status()
-    if err:
-        return None, err
+def _procedure_tumble_start_path_from_status(status, driver):
     drv, err = _procedure_gimbal_driver(status, driver)
     if err:
         return None, err
@@ -2053,6 +2050,19 @@ def _procedure_tumble_start_path(driver):
     if a_value is None or b_value is None or dwell_ms is None:
         return None, f"{_procedure_driver_name(driver, drv)} tumble config is incomplete; set it in Gimbal Controls first"
     return f"tumble_start?d={driver}&a={a_value}&b={b_value}&dwell_ms={int(dwell_ms)}", None
+
+
+def _procedure_tumble_start_paths():
+    status, err = _procedure_gimbal_status()
+    if err:
+        return None, err
+    paths = []
+    for driver in _procedure_tumble_driver_indices():
+        path, err = _procedure_tumble_start_path_from_status(status, driver)
+        if err:
+            return None, err
+        paths.append((driver, path))
+    return paths, None
 
 
 def _procedure_gantry_move_abs(target_steps):
@@ -2192,13 +2202,13 @@ def _procedure_playback_worker(procedure):
         current_step += 1
         spin_prompt = "Free-spin the satellite, then Continue when done."
         set_state(step_index=current_step, total_steps=total_steps, step_name="start-spin-window", phase="running", operator_prompt=None, cycle_index=0, total_cycles=total_cycles, error=None)
-        for spin_driver in _procedure_tumble_driver_indices():
-            tumble_start_path, err = _procedure_tumble_start_path(spin_driver)
-            if err:
-                _action_freeze_to_actual()
-                _procedure_soft_abort_gimbal()
-                set_state(phase="error", error=f"tumble start failed: {err}")
-                return
+        tumble_start_paths, err = _procedure_tumble_start_paths()
+        if err:
+            _action_freeze_to_actual()
+            _procedure_soft_abort_gimbal()
+            set_state(phase="error", error=f"tumble start failed: {err}")
+            return
+        for spin_driver, tumble_start_path in tumble_start_paths:
             _data, err = _procedure_gimbal_call(tumble_start_path)
             if err:
                 _action_freeze_to_actual()
@@ -2229,6 +2239,7 @@ def _procedure_playback_worker(procedure):
                 _procedure_soft_abort_gimbal()
                 set_state(phase="error", error=f"tumble stop failed: {err}")
                 return
+        for spin_driver in _procedure_tumble_driver_indices():
             status, _drv, err = _procedure_wait_tumble_stopped(spin_driver, time.monotonic() + PROCEDURE_GIMBAL_TIMEOUT_S)
             if status == "stopped":
                 _action_freeze_to_actual()
